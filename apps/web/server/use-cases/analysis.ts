@@ -41,40 +41,49 @@ export async function analyzeSession(sessionId: string) {
     });
   }
 
-  const turns = await ctx.repositories.sessions.listTurns(sessionId);
-  const scenario = await ctx.repositories.scenarios.get(session.scenarioId);
-  if (!scenario) {
-    throw new Error(`Scenario not found: ${session.scenarioId}`);
-  }
+  try {
+    const turns = await ctx.repositories.sessions.listTurns(sessionId);
+    const scenario = await ctx.repositories.scenarios.get(session.scenarioId);
+    if (!scenario) {
+      throw new Error(`Scenario not found: ${session.scenarioId}`);
+    }
 
-  const playbook = await ctx.repositories.playbooks.get(
-    scenario.generatedFromPlaybookVersion
-  );
-  if (!playbook) {
-    throw new Error(
-      `Playbook not found: ${scenario.generatedFromPlaybookVersion}`
+    const playbook = await ctx.repositories.playbooks.get(
+      scenario.generatedFromPlaybookVersion
     );
+    if (!playbook) {
+      throw new Error(
+        `Playbook not found: ${scenario.generatedFromPlaybookVersion}`
+      );
+    }
+
+    const scorecard = await gradeSession({
+      client: ctx.vendors.openAi,
+      model: ctx.env.OPENAI_ANALYSIS_MODEL,
+      sessionId,
+      scenario,
+      playbook,
+      turns,
+    });
+
+    await ctx.repositories.sessions.saveScorecard(scorecard);
+    await ctx.repositories.sessions.update(sessionId, {
+      status: "completed",
+      error: undefined,
+    });
+
+    return resultResponseSchema.parse({
+      sessionId,
+      status: "completed",
+      scorecard,
+    });
+  } catch (error) {
+    await ctx.repositories.sessions.update(sessionId, {
+      status: "failed",
+      error: error instanceof Error ? error.message : "Unknown analysis error",
+    });
+    throw error;
   }
-
-  const scorecard = await gradeSession({
-    client: ctx.vendors.openAi,
-    model: ctx.env.OPENAI_ANALYSIS_MODEL,
-    sessionId,
-    scenario,
-    playbook,
-    turns,
-  });
-
-  await ctx.repositories.sessions.saveScorecard(scorecard);
-  await ctx.repositories.sessions.update(sessionId, {
-    status: "completed",
-  });
-
-  return resultResponseSchema.parse({
-    sessionId,
-    status: "completed",
-    scorecard,
-  });
 }
 
 export async function getSessionResult(sessionId: string) {
