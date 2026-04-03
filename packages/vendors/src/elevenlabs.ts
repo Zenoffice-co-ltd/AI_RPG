@@ -66,6 +66,7 @@ const runTestsResponseSchema = z.object({
         .object({
           result: z.string().min(1),
         })
+        .nullable()
         .optional(),
     })
   ),
@@ -82,6 +83,23 @@ const knowledgeBaseListSchema = z.object({
   ),
   has_more: z.boolean(),
   next_cursor: z.string().nullable().optional(),
+});
+
+const voicesListSchema = z.object({
+  voices: z.array(
+    z.object({
+      voice_id: z.string().min(1),
+      name: z.string().min(1),
+      verified_languages: z
+        .array(
+          z.object({
+            language: z.string().optional(),
+            locale: z.string().nullable().optional(),
+          })
+        )
+        .optional(),
+    })
+  ),
 });
 
 type AgentConfigPayload = {
@@ -111,12 +129,13 @@ function buildConversationConfig(payload: AgentConfigPayload) {
     },
     llm: {
       model: payload.model,
-      temperature: 0.2,
+      temperature: 0,
       reasoning: {
         effort: "none",
       },
     },
     tts: {
+      model_id: "eleven_flash_v2_5",
       voice_id: payload.voiceId,
       agent_output_audio_format: "pcm_24000",
     },
@@ -192,6 +211,60 @@ export class ElevenLabsClient {
     return response;
   }
 
+  async listVoices() {
+    const apiKey = await this.resolveApiKey();
+    const response = await requestJson({
+      scope: "elevenlabs.listVoices",
+      url: `${this.baseUrl}/v1/voices`,
+      headers: {
+        "xi-api-key": apiKey,
+        accept: "application/json",
+      },
+      schema: voicesListSchema,
+      timeoutMs: 20_000,
+    });
+
+    return response.voices;
+  }
+
+  async resolveVoiceId(preferredVoiceId?: string, localePrefix = "ja") {
+    const voices = await this.listVoices();
+    const normalizedLocalePrefix = localePrefix.toLowerCase();
+    const preferred = preferredVoiceId
+      ? voices.find((voice) => voice.voice_id === preferredVoiceId)
+      : undefined;
+
+    if (preferred) {
+      return {
+        voiceId: preferred.voice_id,
+        voiceName: preferred.name,
+        resolution: "preferred",
+      } as const;
+    }
+
+    const localized =
+      voices.find((voice) =>
+        voice.verified_languages?.some((entry) => {
+          const locale = entry.locale?.toLowerCase();
+          const language = entry.language?.toLowerCase();
+          return (
+            locale?.startsWith(normalizedLocalePrefix) ||
+            language === normalizedLocalePrefix
+          );
+        })
+      ) ?? voices[0];
+
+    if (!localized) {
+      throw new Error("No ElevenLabs voices are available to this workspace.");
+    }
+
+    return {
+      voiceId: localized.voice_id,
+      voiceName: localized.name,
+      resolution: preferredVoiceId ? "fallback" : "auto",
+    } as const;
+  }
+
   async createAgent(input: AgentConfigPayload) {
     const apiKey = await this.resolveApiKey();
     const response = await requestJson({
@@ -206,12 +279,6 @@ export class ElevenLabsClient {
       body: JSON.stringify({
         name: input.name,
         conversation_config: buildConversationConfig(input),
-        platform_settings: {
-          widget: null,
-          testing: {
-            tests: [],
-          },
-        },
       }),
       schema: createAgentResponseSchema,
       timeoutMs: 30_000,
@@ -333,7 +400,7 @@ export class ElevenLabsClient {
       body: JSON.stringify({
         archive_source_branch: false,
       }),
-      schema: z.record(z.string(), z.unknown()),
+      schema: z.union([z.record(z.string(), z.unknown()), z.null()]),
       timeoutMs: 20_000,
     });
   }
@@ -407,6 +474,21 @@ export class ElevenLabsClient {
       }),
       schema: runTestsResponseSchema,
       timeoutMs: 30_000,
+      retries: 1,
+    });
+  }
+
+  async getTestInvocation(invocationId: string) {
+    const apiKey = await this.resolveApiKey();
+    return requestJson({
+      scope: "elevenlabs.getTestInvocation",
+      url: `${this.baseUrl}/v1/convai/test-invocations/${invocationId}`,
+      headers: {
+        "xi-api-key": apiKey,
+        accept: "application/json",
+      },
+      schema: runTestsResponseSchema,
+      timeoutMs: 10_000,
       retries: 1,
     });
   }

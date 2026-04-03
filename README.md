@@ -91,7 +91,7 @@ pnpm test:e2e
 - LiveAvatar key resolution is `LIVEAVATAR_API_KEY env -> Secret Manager(project: zapier-transfer, secret: LIVEAVATAR_API_KEY) -> fail-closed`.
 - `FIREBASE_PROJECT_ID` is always an explicit non-secret target project and is never inferred from Secret Manager or the active gcloud project.
 - `zapier-transfer` is secret-source only. It must not be used as `FIREBASE_PROJECT_ID` for runtime data, Firestore, App Hosting, or Cloud Tasks.
-- The first runtime project candidate is `adecco-ai-roleplay-dev`. If that id is unavailable, use a unique Adecco-owned variant such as `adecco-ai-roleplay-mvp`.
+- The current Adecco runtime project is `adecco-mendan`. If that id changes later, use another Adecco-owned dedicated runtime project, not `zapier-transfer`.
 - `pnpm bootstrap:vendors` is idempotent by default. If `/settings/runtime.liveAvatarElevenSecretId` already exists, it is reused unless `--refresh-secret` is passed.
 - `pnpm smoke:eleven -- --preflight`, `pnpm smoke:liveavatar -- --preflight`, and `pnpm verify:acceptance -- --preflight` print the exact required input block before touching vendor APIs.
 - `pnpm verify:acceptance` is the canonical acceptance entrypoint. When `APP_BASE_URL` is local, it can start the local web app and directly deliver `/api/internal/analyze-session` after queue enqueue so the scorecard path can still be verified.

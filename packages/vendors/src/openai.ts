@@ -7,12 +7,15 @@ const responseEnvelopeSchema = z.object({
   output: z
     .array(
       z.object({
-        content: z.array(
-          z.object({
-            type: z.string(),
-            text: z.string().optional(),
-          })
-        ),
+        type: z.string().optional(),
+        content: z
+          .array(
+            z.object({
+              type: z.string(),
+              text: z.string().optional(),
+            })
+          )
+          .optional(),
       })
     )
     .optional(),
@@ -79,14 +82,14 @@ export class OpenAiResponsesClient {
         },
       }),
       schema: responseEnvelopeSchema,
-      timeoutMs: 60_000,
-      retries: 1,
+      timeoutMs: 180_000,
+      retries: 2,
     });
 
     const text =
       response.output_text ??
       response.output
-        ?.flatMap((item) => item.content)
+        ?.flatMap((item) => item.content ?? [])
         .map((part) => part.text)
         .find((value): value is string => typeof value === "string");
 

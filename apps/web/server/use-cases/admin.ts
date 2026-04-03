@@ -174,9 +174,10 @@ export async function publishScenarioJob(input: unknown) {
     if (!scenario || !assets) {
       throw new Error(`Scenario or assets not found: ${parsed.scenarioId}`);
     }
-    if (!ctx.env.DEFAULT_ELEVEN_VOICE_ID) {
-      throw new Error("DEFAULT_ELEVEN_VOICE_ID is required for publish");
-    }
+    const resolvedVoice = await ctx.vendors.elevenLabs.resolveVoiceId(
+      ctx.env.DEFAULT_ELEVEN_VOICE_ID,
+      "ja"
+    );
 
     const existingBinding = await ctx.repositories.agentBindings.get(parsed.scenarioId);
     const result = await publishScenarioAgent({
@@ -185,7 +186,7 @@ export async function publishScenarioJob(input: unknown) {
       assets,
       existingBinding,
       defaultModel: ctx.env.DEFAULT_ELEVEN_MODEL,
-      defaultVoiceId: ctx.env.DEFAULT_ELEVEN_VOICE_ID,
+      defaultVoiceId: resolvedVoice.voiceId,
     });
 
     if (result.binding) {
@@ -203,7 +204,7 @@ export async function publishScenarioJob(input: unknown) {
       status: result.passed ? "completed" : "failed",
       updatedAt: new Date().toISOString(),
       scenarioId: parsed.scenarioId,
-      error: result.passed ? undefined : "Agent tests failed",
+      ...(result.passed ? {} : { error: "Agent tests failed" }),
     });
 
     return result;

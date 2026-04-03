@@ -1,0 +1,308 @@
+{
+  "version": "pb_2026_04_03_v1",
+  "family": "staffing_order_hearing",
+  "taxonomyVersion": "aggregate-playbook@2026-04-02.v1",
+  "requiredItems": [
+    {
+      "key": "opening",
+      "label": "導入",
+      "frequency": 1,
+      "medianFirstTurnIndex": 0,
+      "targetDepthMedian": 1,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "hiring_background",
+      "label": "採用背景",
+      "frequency": 1,
+      "medianFirstTurnIndex": 0,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "headcount",
+      "label": "採用人数",
+      "frequency": 1,
+      "medianFirstTurnIndex": 2,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "start_date",
+      "label": "開始時期",
+      "frequency": 1,
+      "medianFirstTurnIndex": 4,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "fill_deadline",
+      "label": "充足期限",
+      "frequency": 1,
+      "medianFirstTurnIndex": 4,
+      "targetDepthMedian": 3,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "urgency",
+      "label": "緊急度",
+      "frequency": 1,
+      "medianFirstTurnIndex": 6,
+      "targetDepthMedian": 3,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "required_skills",
+      "label": "必須スキル",
+      "frequency": 1,
+      "medianFirstTurnIndex": 8,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "preferred_skills",
+      "label": "歓迎スキル",
+      "frequency": 1,
+      "medianFirstTurnIndex": 8,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "unacceptable_conditions",
+      "label": "NG条件",
+      "frequency": 1,
+      "medianFirstTurnIndex": 10,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "work_conditions",
+      "label": "就業条件",
+      "frequency": 1,
+      "medianFirstTurnIndex": 12,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "shift_or_hours",
+      "label": "シフト・時間帯",
+      "frequency": 1,
+      "medianFirstTurnIndex": 14,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "onboarding",
+      "label": "立ち上がり支援",
+      "frequency": 1,
+      "medianFirstTurnIndex": 16,
+      "targetDepthMedian": 3,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "team_structure",
+      "label": "チーム構成",
+      "frequency": 1,
+      "medianFirstTurnIndex": 18,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "selection_flow",
+      "label": "選考フロー",
+      "frequency": 1,
+      "medianFirstTurnIndex": 20,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "decision_maker",
+      "label": "決裁者",
+      "frequency": 1,
+      "medianFirstTurnIndex": 22,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "competing_agencies",
+      "label": "競合状況",
+      "frequency": 1,
+      "medianFirstTurnIndex": 24,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "budget_flexibility",
+      "label": "予算柔軟性",
+      "frequency": 1,
+      "medianFirstTurnIndex": 26,
+      "targetDepthMedian": 2,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "recap_confirmation",
+      "label": "要約確認",
+      "frequency": 1,
+      "medianFirstTurnIndex": 28,
+      "targetDepthMedian": 3,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    },
+    {
+      "key": "next_step_commitment",
+      "label": "次アクション合意",
+      "frequency": 1,
+      "medianFirstTurnIndex": 30,
+      "targetDepthMedian": 3,
+      "evidenceTranscriptIds": [
+        "tr_270c090c33b1",
+        "tr_3c746a6726da",
+        "tr_49aeb44681a9"
+      ]
+    }
+  ],
+  "recommendedItems": [],
+  "winningMoves": [
+    {
+      "key": "quantify_headcount_and_staging",
+      "label": "quantify headcount and staging",
+      "description": "高頻度で再現された有効な進め方。",
+      "frequency": 0.3333
+    },
+    {
+      "key": "ask_exact_start_dates_and_staged_delivery",
+      "label": "ask exact start dates and staged delivery",
+      "description": "高頻度で再現された有効な進め方。",
+      "frequency": 0.3333
+    },
+    {
+      "key": "probe_consequences_of_delay_to_establish_urgency",
+      "label": "probe consequences of delay to establish urgency",
+      "description": "高頻度で再現された有効な進め方。",
+      "frequency": 0.3333
+    },
+    {
+      "key": "ask_for_must_have_vs_nice_to_have_skills",
+      "label": "ask for must have vs nice to have skills",
+      "description": "高頻度で再現された有効な進め方。",
+      "frequency": 0.3333
+    },
+    {
+      "key": "clarify_decision_authority_and_approval_levels",
+      "label": "clarify decision authority and approval levels",
+      "description": "高頻度で再現された有効な進め方。",
+      "frequency": 0.3333
+    },
+    {
+      "key": "test_budget_flexibility_by_offering_timing_tradeoff",
+      "label": "test budget flexibility by offering timing tradeoff",
+      "description": "高頻度で再現された有効な進め方。",
+      "frequency": 0.3333
+    }
+  ],
+  "antiPatterns": [
+    {
+      "key": "no_confirmation_of_interviewer_or_approver_availability_when_booking_slots",
+      "label": "no confirmation of interviewer or approver availability when booking slots",
+      "description": "会話品質を落とす再現的な失点パターン。"
+    },
+    {
+      "key": "limited_probe_on_competitor_timing_or_quality_to_prioritize_actions",
+      "label": "limited probe on competitor timing or quality to prioritize actions",
+      "description": "会話品質を落とす再現的な失点パターン。"
+    }
+  ],
+  "canonicalOrder": [
+    "opening",
+    "hiring_background",
+    "headcount",
+    "start_date",
+    "fill_deadline",
+    "urgency",
+    "required_skills",
+    "preferred_skills",
+    "unacceptable_conditions",
+    "work_conditions",
+    "shift_or_hours",
+    "onboarding",
+    "team_structure",
+    "selection_flow",
+    "decision_maker",
+    "competing_agencies",
+    "budget_flexibility",
+    "recap_confirmation",
+    "next_step_commitment"
+  ],
+  "generatedAt": "2026-04-03T02:41:36.840Z"
+}

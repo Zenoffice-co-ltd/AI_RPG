@@ -24,7 +24,7 @@ LiveAvatar は `LIVEAVATAR_API_KEY` を env で上書きできるが、未設定
 
 `FIREBASE_PROJECT_ID` は secret ではなく target project の明示値として扱う。active gcloud project や Secret Manager から推測しない。
 
-`zapier-transfer` は secret source 専用であり、runtime project として使わない。Firestore / App Hosting / Cloud Tasks は Adecco 専用 project に載せる。第一候補は `adecco-ai-roleplay-dev`。
+`zapier-transfer` は secret source 専用であり、runtime project として使わない。Firestore / App Hosting / Cloud Tasks は Adecco 専用 project に載せる。現在の runtime project は `adecco-mendan`。
 
 ## Vendor Bootstrap
 

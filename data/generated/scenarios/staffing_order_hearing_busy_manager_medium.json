@@ -1,0 +1,217 @@
+{
+  "id": "staffing_order_hearing_busy_manager_medium",
+  "family": "staffing_order_hearing",
+  "version": "pb_2026_04_03_v1_busy_manager_medium_v1",
+  "title": "忙しい現場責任者",
+  "language": "ja",
+  "difficulty": "medium",
+  "persona": {
+    "role": "物流センター責任者",
+    "companyAlias": "Company_B",
+    "demeanor": "busy",
+    "responseStyle": "要点だけを短く返す。聞かれない情報は広げない。"
+  },
+  "publicBrief": "繁忙期前に人員確保を進めたい。会話時間は限られているため、論点が整理されている相手にだけ追加情報を出す。",
+  "hiddenFacts": [
+    "表向きは来月開始だが、実際は今月末までに初回候補を固めたい。遅れると繁忙期の現場運営が崩れる。",
+    "他社エージェントにも並行で相談しているが、まだ決め切れていない。",
+    "時給上限は厳しめだが、開始を早められるなら少し相談余地がある。"
+  ],
+  "revealRules": [
+    {
+      "trigger": "decision_maker を自然に確認されたら、実際の決裁構造を明かす",
+      "reveals": [
+        "実際の決裁者",
+        "承認ステップ数"
+      ]
+    },
+    {
+      "trigger": "competing_agencies を確認されたら、競合提案の存在を明かす",
+      "reveals": [
+        "競合社数",
+        "比較軸"
+      ]
+    },
+    {
+      "trigger": "urgency と start_date を両方押さえたら、本当の緊急度を明かす",
+      "reveals": [
+        "本当の充足期限",
+        "現場への影響度"
+      ]
+    },
+    {
+      "trigger": "budget_flexibility まで踏み込んだら、条件調整余地を明かす",
+      "reveals": [
+        "時給の相談余地",
+        "譲れない条件"
+      ]
+    }
+  ],
+  "mustCaptureItems": [
+    {
+      "key": "opening",
+      "label": "導入",
+      "priority": "required",
+      "canonicalOrder": 0
+    },
+    {
+      "key": "hiring_background",
+      "label": "採用背景",
+      "priority": "required",
+      "canonicalOrder": 1
+    },
+    {
+      "key": "headcount",
+      "label": "採用人数",
+      "priority": "required",
+      "canonicalOrder": 2
+    },
+    {
+      "key": "start_date",
+      "label": "開始時期",
+      "priority": "required",
+      "canonicalOrder": 3
+    },
+    {
+      "key": "fill_deadline",
+      "label": "充足期限",
+      "priority": "required",
+      "canonicalOrder": 4
+    },
+    {
+      "key": "urgency",
+      "label": "緊急度",
+      "priority": "required",
+      "canonicalOrder": 5
+    },
+    {
+      "key": "required_skills",
+      "label": "必須スキル",
+      "priority": "required",
+      "canonicalOrder": 6
+    },
+    {
+      "key": "preferred_skills",
+      "label": "歓迎スキル",
+      "priority": "required",
+      "canonicalOrder": 7
+    },
+    {
+      "key": "unacceptable_conditions",
+      "label": "NG条件",
+      "priority": "required",
+      "canonicalOrder": 8
+    },
+    {
+      "key": "work_conditions",
+      "label": "就業条件",
+      "priority": "required",
+      "canonicalOrder": 9
+    },
+    {
+      "key": "shift_or_hours",
+      "label": "シフト・時間帯",
+      "priority": "required",
+      "canonicalOrder": 10
+    },
+    {
+      "key": "onboarding",
+      "label": "立ち上がり支援",
+      "priority": "required",
+      "canonicalOrder": 11
+    },
+    {
+      "key": "team_structure",
+      "label": "チーム構成",
+      "priority": "required",
+      "canonicalOrder": 12
+    },
+    {
+      "key": "selection_flow",
+      "label": "選考フロー",
+      "priority": "required",
+      "canonicalOrder": 13
+    },
+    {
+      "key": "decision_maker",
+      "label": "決裁者",
+      "priority": "required",
+      "canonicalOrder": 14
+    },
+    {
+      "key": "competing_agencies",
+      "label": "競合状況",
+      "priority": "required",
+      "canonicalOrder": 15
+    },
+    {
+      "key": "budget_flexibility",
+      "label": "予算柔軟性",
+      "priority": "required",
+      "canonicalOrder": 16
+    },
+    {
+      "key": "recap_confirmation",
+      "label": "要約確認",
+      "priority": "required",
+      "canonicalOrder": 17
+    },
+    {
+      "key": "next_step_commitment",
+      "label": "次アクション合意",
+      "priority": "required",
+      "canonicalOrder": 18
+    }
+  ],
+  "rubric": [
+    {
+      "key": "coverage",
+      "label": "Coverage",
+      "weight": 0.3,
+      "description": "必要確認事項を取りこぼさず押さえられているか"
+    },
+    {
+      "key": "depth",
+      "label": "Depth",
+      "weight": 0.2,
+      "description": "表面的な確認で終わらず制約や背景まで踏み込めているか"
+    },
+    {
+      "key": "ordering",
+      "label": "Ordering",
+      "weight": 0.15,
+      "description": "トップ基準に近い順番で論点を展開できているか"
+    },
+    {
+      "key": "decision_process_clarity",
+      "label": "Decision Process Clarity",
+      "weight": 0.1,
+      "description": "決裁者・選考フロー・意思決定条件が明確になっているか"
+    },
+    {
+      "key": "constraint_discovery",
+      "label": "Constraint Discovery",
+      "weight": 0.1,
+      "description": "採用難度・NG条件・競合・予算など制約を拾えているか"
+    },
+    {
+      "key": "recap_confirmation",
+      "label": "Recap Confirmation",
+      "weight": 0.05,
+      "description": "会話の途中または終盤で整理と確認ができているか"
+    },
+    {
+      "key": "next_step_commitment",
+      "label": "Next Step Commitment",
+      "weight": 0.1,
+      "description": "次アクションが曖昧にならず合意できているか"
+    }
+  ],
+  "closeCriteria": [
+    "必要確認事項を整理して要約している",
+    "次回提案または社内確認のアクションが合意されている"
+  ],
+  "openingLine": "時間があまり取れないので、要点だけ確認しながら進めてもらえると助かります。",
+  "generatedFromPlaybookVersion": "pb_2026_04_03_v1",
+  "status": "draft"
+}

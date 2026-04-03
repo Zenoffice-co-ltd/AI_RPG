@@ -1,12 +1,12 @@
 import { transcriptDeltaSchema } from "@top-performer/domain";
 import { z } from "zod";
-import { requestJson } from "./http";
+import { HttpError, requestJson } from "./http";
 
 const liveAvatarEnvelopeSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
   z.object({
     code: z.number(),
     data: dataSchema,
-    message: z.string(),
+    message: z.string().nullable().optional(),
   });
 
 const sessionTokenResponseSchema = liveAvatarEnvelopeSchema(
@@ -43,18 +43,24 @@ const transcriptResponseSchema = liveAvatarEnvelopeSchema(
 );
 
 const listPublicAvatarsResponseSchema = liveAvatarEnvelopeSchema(
-  z.array(
-    z.object({
-      avatar_id: z.string().min(1),
-      name: z.string().min(1).optional(),
-      preview_image_url: z.string().optional(),
-    })
-  )
+  z.object({
+    count: z.number().int().nonnegative(),
+    next: z.string().nullable().optional(),
+    previous: z.string().nullable().optional(),
+    results: z.array(
+      z.object({
+        id: z.string().min(1),
+        name: z.string().min(1).optional(),
+        preview_url: z.string().optional(),
+      })
+    ),
+  })
 );
 
 const createSecretResponseSchema = liveAvatarEnvelopeSchema(
   z.object({
-    id: z.string().min(1),
+    id: z.string().min(1).optional(),
+    secret_id: z.string().min(1).optional(),
     secret_name: z.string().min(1).optional(),
   })
 );
@@ -99,29 +105,61 @@ export class LiveAvatarClient {
       timeoutMs: 20_000,
     });
 
-    return response.data;
+    return response.data.results.map((avatar) => ({
+      avatar_id: avatar.id,
+      name: avatar.name,
+      preview_image_url: avatar.preview_url,
+    }));
   }
 
   async createSecret(secretName: string, secretValue: string) {
     const apiKey = await this.resolveApiKey();
-    const response = await requestJson({
-      scope: "liveavatar.createSecret",
-      url: `${this.baseUrl}/v1/secrets`,
-      method: "POST",
-      headers: {
-        "X-API-KEY": apiKey,
-        accept: "application/json",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        secret_name: secretName,
-        secret_value: secretValue,
-      }),
-      schema: createSecretResponseSchema,
-      timeoutMs: 20_000,
-    });
+    let response;
+    try {
+      response = await requestJson({
+        scope: "liveavatar.createSecret",
+        url: `${this.baseUrl}/v1/secrets`,
+        method: "POST",
+        headers: {
+          "X-API-KEY": apiKey,
+          accept: "application/json",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          secret_type: "ELEVENLABS_API_KEY",
+          secret_name: secretName,
+          secret_value: secretValue,
+        }),
+        schema: createSecretResponseSchema,
+        timeoutMs: 20_000,
+      });
+    } catch (error) {
+      const vendorMessage =
+        error instanceof HttpError &&
+        typeof error.body === "object" &&
+        error.body &&
+        "message" in error.body &&
+        typeof error.body.message === "string"
+          ? error.body.message
+          : "";
 
-    return response.data;
+      if (
+        error instanceof HttpError &&
+        error.status === 400 &&
+        vendorMessage.includes("third-party voice integration is only available to Elevenlabs' paid users")
+      ) {
+        throw new Error(
+          "LiveAvatar で ElevenLabs secret を作成できません。接続中の ElevenLabs workspace が free tier のため、third-party voice integration が拒否されています。paid plan の ElevenLabs API key に切り替えて再実行してください。"
+        );
+      }
+
+      throw error;
+    }
+
+    return {
+      ...response.data,
+      id: response.data.id ?? response.data.secret_id ?? "",
+    };
   }
 
   async createSessionToken(input: LiveAvatarSessionTokenRequest) {

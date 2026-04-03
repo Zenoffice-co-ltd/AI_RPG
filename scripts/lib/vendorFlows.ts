@@ -15,6 +15,53 @@ export type BootstrapOptions = {
   refreshSecret?: boolean;
 };
 
+function sleep(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function waitForElevenTestRun(
+  client: ReturnType<typeof getAppContext>["vendors"]["elevenLabs"],
+  invocationId: string,
+  timeoutMs = 120_000
+) {
+  const startedAt = Date.now();
+  let latest = await client.getTestInvocation(invocationId);
+  let lastError: unknown;
+
+  while (
+    latest.test_runs.some((run) =>
+      ["pending", "running", "queued", "processing"].includes(
+        run.status.toLowerCase()
+      )
+    ) &&
+    Date.now() - startedAt < timeoutMs
+  ) {
+    await sleep(2_000);
+    try {
+      latest = await client.getTestInvocation(invocationId);
+      lastError = undefined;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (
+    latest.test_runs.some((run) =>
+      ["pending", "running", "queued", "processing"].includes(
+        run.status.toLowerCase()
+      )
+    )
+  ) {
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(`Timed out waiting for ElevenLabs test invocation ${invocationId}.`);
+  }
+
+  return latest;
+}
+
 export function resolveSecretReuseAction(
   existingSecretId: string | undefined,
   refreshSecret = false
@@ -118,15 +165,16 @@ export async function runBootstrapVendors(options: BootstrapOptions = {}) {
     runtimeSettings?.defaultAvatarId ??
     shortlist[0]?.avatar_id ??
     "unset_avatar";
-  const defaultVoiceId =
+  const resolvedVoice = await ctx.vendors.elevenLabs.resolveVoiceId(
     getConfiguredValue(process.env, "DEFAULT_ELEVEN_VOICE_ID") ??
-    runtimeSettings?.defaultElevenVoiceId ??
-    "unset_voice";
+      runtimeSettings?.defaultElevenVoiceId,
+    "ja"
+  );
 
   await ctx.repositories.runtimeSettings.set({
     defaultAvatarId,
     defaultElevenModel: ctx.env.DEFAULT_ELEVEN_MODEL,
-    defaultElevenVoiceId: defaultVoiceId,
+    defaultElevenVoiceId: resolvedVoice.voiceId,
     liveavatarSandbox: ctx.env.LIVEAVATAR_SANDBOX,
     liveAvatarElevenSecretId: secretId,
   });
@@ -135,7 +183,9 @@ export async function runBootstrapVendors(options: BootstrapOptions = {}) {
     secretAction,
     secretId,
     defaultAvatarId,
-    defaultVoiceId,
+    defaultVoiceId: resolvedVoice.voiceId,
+    voiceResolution: resolvedVoice.resolution,
+    voiceName: resolvedVoice.voiceName,
     shortlist,
   };
   await writeGeneratedJson("vendors/bootstrap.json", payload);
@@ -144,12 +194,10 @@ export async function runBootstrapVendors(options: BootstrapOptions = {}) {
 
 export async function runElevenSmoke() {
   const ctx = getAppContext();
-  const voiceId = getConfiguredValue(process.env, "DEFAULT_ELEVEN_VOICE_ID");
-  if (!voiceId) {
-    throw new Error(
-      "DEFAULT_ELEVEN_VOICE_ID is required for smoke:eleven because agent create/update and test run are part of the acceptance path."
-    );
-  }
+  const resolvedVoice = await ctx.vendors.elevenLabs.resolveVoiceId(
+    getConfiguredValue(process.env, "DEFAULT_ELEVEN_VOICE_ID"),
+    "ja"
+  );
 
   const knowledgeBase =
     await ctx.vendors.elevenLabs.createKnowledgeBaseDocumentFromText(
@@ -159,8 +207,9 @@ export async function runElevenSmoke() {
 
   const created = await ctx.vendors.elevenLabs.createAgent({
     name: `Smoke Agent ${Date.now()}`,
-    prompt: "You are a polite Japanese customer persona for smoke testing.",
-    firstMessage: "本日はよろしくお願いします。",
+    prompt:
+      "You are a polite Japanese customer-side contact for a staffing order hearing. Stay in character as a natural business counterpart and do not mention testing.",
+    firstMessage: "本日はお時間ありがとうございます。よろしくお願いします。",
     knowledgeBase: [
       {
         id: knowledgeBase.id,
@@ -169,7 +218,7 @@ export async function runElevenSmoke() {
       },
     ],
     model: ctx.env.DEFAULT_ELEVEN_MODEL,
-    voiceId,
+    voiceId: resolvedVoice.voiceId,
     language: "ja",
   });
   const agentId = created.agent_id;
@@ -191,12 +240,30 @@ export async function runElevenSmoke() {
     failure_examples: [{ response: "I am a test harness.", type: "failure" }],
   });
   const testRun = await ctx.vendors.elevenLabs.runTests(agentId, [testId]);
+  const finalTestRun = await waitForElevenTestRun(
+    ctx.vendors.elevenLabs,
+    testRun.id
+  );
+  const passed = finalTestRun.test_runs.every(
+    (run) =>
+      run.status.toLowerCase() === "passed" ||
+      run.condition_result?.result.toLowerCase() === "success"
+  );
+
+  if (!passed) {
+    throw new Error(
+      `smoke:eleven test invocation ${finalTestRun.id} did not pass.`
+    );
+  }
 
   return {
     knowledgeBase,
     agentId,
     testId,
-    testRun,
+    testRun: finalTestRun,
+    voiceId: resolvedVoice.voiceId,
+    voiceResolution: resolvedVoice.resolution,
+    voiceName: resolvedVoice.voiceName,
   };
 }
 

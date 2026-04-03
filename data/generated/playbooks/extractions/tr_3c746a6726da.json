@@ -1,0 +1,341 @@
+{
+  "transcriptId": "tr_3c746a6726da",
+  "phaseSegments": [
+    {
+      "phase": "opening",
+      "startTurnId": "t_001",
+      "endTurnId": "t_001"
+    },
+    {
+      "phase": "hiring_background",
+      "startTurnId": "t_003",
+      "endTurnId": "t_004"
+    },
+    {
+      "phase": "headcount",
+      "startTurnId": "t_003",
+      "endTurnId": "t_004"
+    },
+    {
+      "phase": "start_date",
+      "startTurnId": "t_005",
+      "endTurnId": "t_006"
+    },
+    {
+      "phase": "urgency",
+      "startTurnId": "t_007",
+      "endTurnId": "t_008"
+    },
+    {
+      "phase": "fill_deadline",
+      "startTurnId": "t_007",
+      "endTurnId": "t_008"
+    },
+    {
+      "phase": "required_skills",
+      "startTurnId": "t_009",
+      "endTurnId": "t_010"
+    },
+    {
+      "phase": "preferred_skills",
+      "startTurnId": "t_009",
+      "endTurnId": "t_010"
+    },
+    {
+      "phase": "unacceptable_conditions",
+      "startTurnId": "t_011",
+      "endTurnId": "t_012"
+    },
+    {
+      "phase": "work_conditions",
+      "startTurnId": "t_013",
+      "endTurnId": "t_014"
+    },
+    {
+      "phase": "shift_or_hours",
+      "startTurnId": "t_015",
+      "endTurnId": "t_016"
+    },
+    {
+      "phase": "onboarding",
+      "startTurnId": "t_017",
+      "endTurnId": "t_018"
+    },
+    {
+      "phase": "team_structure",
+      "startTurnId": "t_019",
+      "endTurnId": "t_020"
+    },
+    {
+      "phase": "selection_flow",
+      "startTurnId": "t_021",
+      "endTurnId": "t_022"
+    },
+    {
+      "phase": "decision_maker",
+      "startTurnId": "t_023",
+      "endTurnId": "t_024"
+    },
+    {
+      "phase": "competing_agencies",
+      "startTurnId": "t_025",
+      "endTurnId": "t_026"
+    },
+    {
+      "phase": "budget_flexibility",
+      "startTurnId": "t_027",
+      "endTurnId": "t_028"
+    },
+    {
+      "phase": "recap_confirmation",
+      "startTurnId": "t_029",
+      "endTurnId": "t_030"
+    },
+    {
+      "phase": "next_step_commitment",
+      "startTurnId": "t_031",
+      "endTurnId": "t_032"
+    }
+  ],
+  "capturedItems": [
+    {
+      "key": "opening",
+      "firstTurnId": "t_001",
+      "depthScore": 1,
+      "evidenceTurnIds": [
+        "t_001"
+      ]
+    },
+    {
+      "key": "hiring_background",
+      "firstTurnId": "t_003",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_002",
+        "t_003"
+      ]
+    },
+    {
+      "key": "headcount",
+      "firstTurnId": "t_003",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_003",
+        "t_004"
+      ]
+    },
+    {
+      "key": "start_date",
+      "firstTurnId": "t_005",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_005",
+        "t_006"
+      ]
+    },
+    {
+      "key": "urgency",
+      "firstTurnId": "t_007",
+      "depthScore": 3,
+      "evidenceTurnIds": [
+        "t_007",
+        "t_008"
+      ]
+    },
+    {
+      "key": "fill_deadline",
+      "firstTurnId": "t_007",
+      "depthScore": 3,
+      "evidenceTurnIds": [
+        "t_007",
+        "t_008"
+      ]
+    },
+    {
+      "key": "required_skills",
+      "firstTurnId": "t_009",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_009",
+        "t_010"
+      ]
+    },
+    {
+      "key": "preferred_skills",
+      "firstTurnId": "t_009",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_009",
+        "t_010"
+      ]
+    },
+    {
+      "key": "unacceptable_conditions",
+      "firstTurnId": "t_011",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_011",
+        "t_012"
+      ]
+    },
+    {
+      "key": "work_conditions",
+      "firstTurnId": "t_013",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_013",
+        "t_014"
+      ]
+    },
+    {
+      "key": "shift_or_hours",
+      "firstTurnId": "t_015",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_015",
+        "t_016"
+      ]
+    },
+    {
+      "key": "onboarding",
+      "firstTurnId": "t_017",
+      "depthScore": 3,
+      "evidenceTurnIds": [
+        "t_017",
+        "t_018"
+      ]
+    },
+    {
+      "key": "team_structure",
+      "firstTurnId": "t_019",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_019",
+        "t_020"
+      ]
+    },
+    {
+      "key": "selection_flow",
+      "firstTurnId": "t_021",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_021",
+        "t_022"
+      ]
+    },
+    {
+      "key": "decision_maker",
+      "firstTurnId": "t_023",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_023",
+        "t_024"
+      ]
+    },
+    {
+      "key": "competing_agencies",
+      "firstTurnId": "t_025",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_025",
+        "t_026"
+      ]
+    },
+    {
+      "key": "budget_flexibility",
+      "firstTurnId": "t_027",
+      "depthScore": 2,
+      "evidenceTurnIds": [
+        "t_027",
+        "t_028"
+      ]
+    },
+    {
+      "key": "recap_confirmation",
+      "firstTurnId": "t_029",
+      "depthScore": 3,
+      "evidenceTurnIds": [
+        "t_029",
+        "t_030"
+      ]
+    },
+    {
+      "key": "next_step_commitment",
+      "firstTurnId": "t_031",
+      "depthScore": 3,
+      "evidenceTurnIds": [
+        "t_031",
+        "t_032"
+      ]
+    }
+  ],
+  "winningMoves": [
+    {
+      "key": "segregate_must_vs_want_skills",
+      "evidenceTurnIds": [
+        "t_009",
+        "t_010"
+      ]
+    },
+    {
+      "key": "probe_deadline_and_impact",
+      "evidenceTurnIds": [
+        "t_007",
+        "t_008"
+      ]
+    },
+    {
+      "key": "allow_partial_early_start_to_reduce_risk",
+      "evidenceTurnIds": [
+        "t_005",
+        "t_006"
+      ]
+    },
+    {
+      "key": "clarify_selection_flow_and_decision_authority",
+      "evidenceTurnIds": [
+        "t_021",
+        "t_022",
+        "t_023",
+        "t_024"
+      ]
+    },
+    {
+      "key": "probe_budget_flexibility_for_stronger_candidates",
+      "evidenceTurnIds": [
+        "t_027",
+        "t_028"
+      ]
+    },
+    {
+      "key": "recap_all_key_points_to_confirm_alignment",
+      "evidenceTurnIds": [
+        "t_029",
+        "t_030"
+      ]
+    },
+    {
+      "key": "commit_specific_timeline_and_next_steps",
+      "evidenceTurnIds": [
+        "t_031",
+        "t_032"
+      ]
+    },
+    {
+      "key": "verify_working_conditions_and_remote_policy",
+      "evidenceTurnIds": [
+        "t_013",
+        "t_014",
+        "t_030"
+      ]
+    },
+    {
+      "key": "ask_about_onboarding_and_time_to_independence",
+      "evidenceTurnIds": [
+        "t_017",
+        "t_018"
+      ]
+    }
+  ],
+  "antiPatterns": []
+}

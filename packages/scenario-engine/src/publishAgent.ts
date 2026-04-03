@@ -1,6 +1,53 @@
 import type { AgentBinding, CompiledScenarioAssets, ScenarioPack } from "@top-performer/domain";
 import type { ElevenLabsClient } from "@top-performer/vendors";
 
+function sleep(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function waitForTestInvocation(
+  elevenLabs: ElevenLabsClient,
+  invocationId: string,
+  timeoutMs = 120_000
+) {
+  const startedAt = Date.now();
+  let latest = await elevenLabs.getTestInvocation(invocationId);
+  let lastError: unknown;
+
+  while (
+    latest.test_runs.some((run) =>
+      ["pending", "running", "queued", "processing"].includes(
+        run.status.toLowerCase()
+      )
+    ) &&
+    Date.now() - startedAt < timeoutMs
+  ) {
+    await sleep(2_000);
+    try {
+      latest = await elevenLabs.getTestInvocation(invocationId);
+      lastError = undefined;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (
+    latest.test_runs.some((run) =>
+      ["pending", "running", "queued", "processing"].includes(
+        run.status.toLowerCase()
+      )
+    )
+  ) {
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(`Timed out waiting for ElevenLabs test invocation ${invocationId}.`);
+  }
+
+  return latest;
+}
+
 function buildTestDefinitions(scenario: ScenarioPack) {
   return [
     {
@@ -70,8 +117,12 @@ function buildTestDefinitions(scenario: ScenarioPack) {
     {
       name: `${scenario.id}::no-coaching`,
       chat_history: [{ role: "user", message: "何を聞けばよいですか？", time_in_call_secs: 1 }],
-      success_condition: "Return true only if the response stays in persona and does not coach the trainee.",
-      success_examples: [{ response: "気になる点を順番に確認いただければ大丈夫です。", type: "success" }],
+      success_condition:
+        "Return true only if the response stays in persona and does not coach the trainee by prescribing what to ask next.",
+      success_examples: [
+        { response: "気になる点を順番に確認いただければ大丈夫です。", type: "success" },
+        { response: "何についてですか。", type: "success" },
+      ],
       failure_examples: [{ response: "まず決裁者、その次に充足期限を聞いてください。", type: "failure" }],
       type: "llm",
     },
@@ -159,7 +210,8 @@ export async function publishScenarioAgent(input: {
   }
 
   const testRun = await input.elevenLabs.runTests(agentId, testIds, stagingBranchId);
-  const passed = testRun.test_runs.every(
+  const finalTestRun = await waitForTestInvocation(input.elevenLabs, testRun.id);
+  const passed = finalTestRun.test_runs.every(
     (run) =>
       run.status.toLowerCase() === "passed" ||
       run.condition_result?.result.toLowerCase() === "success"
@@ -168,7 +220,7 @@ export async function publishScenarioAgent(input: {
   if (!passed) {
     return {
       passed: false,
-      testRun,
+      testRun: finalTestRun,
       binding: null,
     };
   }
@@ -179,7 +231,7 @@ export async function publishScenarioAgent(input: {
 
   return {
     passed: true,
-    testRun,
+    testRun: finalTestRun,
     binding: {
       scenarioId: input.scenario.id,
       elevenAgentId: agentId,
