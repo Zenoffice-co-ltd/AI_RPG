@@ -67,7 +67,7 @@ export async function createSession(input: unknown) {
     liveavatarSessionId: started.liveavatarSessionId,
     livekitRoomUrl: started.roomUrl,
     livekitToken: started.roomToken,
-    avatarId,
+    avatarId: started.avatarId,
     elevenAgentId: binding.elevenAgentId,
     startedAt: new Date().toISOString(),
     transcriptCursor: 0,
@@ -75,13 +75,25 @@ export async function createSession(input: unknown) {
   };
 
   await ctx.repositories.sessions.create(sessionRecord);
+  if (
+    runtimeSettings &&
+    started.avatarId !== runtimeSettings.defaultAvatarId
+  ) {
+    await ctx.repositories.runtimeSettings.set({
+      defaultAvatarId: started.avatarId,
+      defaultElevenModel: runtimeSettings.defaultElevenModel,
+      defaultElevenVoiceId: runtimeSettings.defaultElevenVoiceId,
+      liveavatarSandbox: runtimeSettings.liveavatarSandbox,
+      liveAvatarElevenSecretId: runtimeSettings.liveAvatarElevenSecretId,
+    });
+  }
 
   return startSessionOutputSchema.parse({
     sessionId,
     liveavatarSessionId: started.liveavatarSessionId,
     roomUrl: started.roomUrl,
     roomToken: started.roomToken,
-    avatarId,
+    avatarId: started.avatarId,
   });
 }
 

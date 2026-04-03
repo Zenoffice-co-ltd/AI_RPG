@@ -38,7 +38,7 @@ const transcriptResponseSchema = liveAvatarEnvelopeSchema(
         relative_timestamp: z.number().int().nonnegative(),
       })
     ),
-    next_timestamp: z.number().int().nonnegative(),
+    next_timestamp: z.number().int().nonnegative().nullable().optional(),
   })
 );
 
@@ -65,7 +65,9 @@ const createSecretResponseSchema = liveAvatarEnvelopeSchema(
   })
 );
 
-const stopSessionResponseSchema = liveAvatarEnvelopeSchema(z.object({}).passthrough());
+const stopSessionResponseSchema = liveAvatarEnvelopeSchema(
+  z.object({}).passthrough().nullable()
+);
 
 export type LiveAvatarSessionTokenRequest = {
   avatarId: string;
@@ -77,6 +79,32 @@ export type LiveAvatarSessionTokenRequest = {
 };
 
 type ApiKeyProvider = string | (() => Promise<string>);
+
+function isSandboxUnsupportedAvatarError(error: unknown) {
+  if (!(error instanceof HttpError) || error.status !== 400) {
+    return false;
+  }
+
+  const data =
+    typeof error.body === "object" &&
+    error.body &&
+    "data" in error.body &&
+    Array.isArray(error.body.data)
+      ? error.body.data
+      : [];
+
+  return data.some((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return false;
+    }
+
+    return (
+      "message" in entry &&
+      typeof entry.message === "string" &&
+      entry.message.includes("This avatar is not supported in sandbox mode")
+    );
+  });
+}
 
 export class LiveAvatarClient {
   constructor(
@@ -194,6 +222,39 @@ export class LiveAvatarClient {
     return response.data;
   }
 
+  async createSessionTokenWithFallback(
+    input: LiveAvatarSessionTokenRequest,
+    fallbackAvatarIds: string[] = []
+  ) {
+    const candidates = [input.avatarId, ...fallbackAvatarIds].filter(
+      (value, index, array) => value && array.indexOf(value) === index
+    );
+
+    let lastError: unknown;
+    for (const avatarId of candidates) {
+      try {
+        const token = await this.createSessionToken({
+          ...input,
+          avatarId,
+        });
+        return {
+          ...token,
+          avatarId,
+        };
+      } catch (error) {
+        lastError = error;
+        if (input.sandbox && isSandboxUnsupportedAvatarError(error)) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error("No compatible LiveAvatar avatar could be resolved.");
+  }
+
   async startSession(sessionToken: string) {
     const response = await requestJson({
       scope: "liveavatar.startSession",
@@ -248,7 +309,7 @@ export class LiveAvatarClient {
 
     const delta = transcriptDeltaSchema.parse({
       sessionId,
-      cursor: response.data.next_timestamp,
+      cursor: response.data.next_timestamp ?? cursor,
       sessionActive: response.data.session_active,
       turns: response.data.transcript_data.map((turn, index) => ({
         turnId: `${sessionId}_${turn.role}_${turn.relative_timestamp}_${index}`,

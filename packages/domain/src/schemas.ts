@@ -296,6 +296,7 @@ export const avatarProviderStartOutputSchema = z.object({
   liveavatarSessionId: z.string().min(1),
   roomUrl: z.string().min(1),
   roomToken: z.string().min(1),
+  avatarId: z.string().min(1),
 });
 
 export const analyzeSessionRequestSchema = z.object({

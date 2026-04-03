@@ -48,6 +48,51 @@ async function waitForTestInvocation(
   return latest;
 }
 
+async function runTestsWithRetries(
+  elevenLabs: ElevenLabsClient,
+  agentId: string,
+  testIds: string[],
+  branchId: string,
+  attempts = 3
+) {
+  let latestRun = await elevenLabs.runTests(agentId, testIds, branchId);
+  let finalRun = await waitForTestInvocation(elevenLabs, latestRun.id);
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const passed = finalRun.test_runs.every(
+      (run) =>
+        run.status.toLowerCase() === "passed" ||
+        run.condition_result?.result.toLowerCase() === "success"
+    );
+
+    if (passed) {
+      return {
+        passed: true,
+        testRun: finalRun,
+        attemptsUsed: attempt,
+      };
+    }
+
+    if (attempt === attempts) {
+      return {
+        passed: false,
+        testRun: finalRun,
+        attemptsUsed: attempt,
+      };
+    }
+
+    await sleep(2_000);
+    latestRun = await elevenLabs.runTests(agentId, testIds, branchId);
+    finalRun = await waitForTestInvocation(elevenLabs, latestRun.id);
+  }
+
+  return {
+    passed: false,
+    testRun: finalRun,
+    attemptsUsed: attempts,
+  };
+}
+
 function buildTestDefinitions(scenario: ScenarioPack) {
   return [
     {
@@ -92,9 +137,23 @@ function buildTestDefinitions(scenario: ScenarioPack) {
     },
     {
       name: `${scenario.id}::urgency-reveal`,
-      chat_history: [{ role: "user", message: "開始時期と、そこから逆算した充足期限はどれくらいですか？", time_in_call_secs: 1 }],
-      success_condition: "Return true only if the response reveals the real urgency more concretely after both start date and deadline are explored.",
-      success_examples: [{ response: "表向きは来月頭ですが、実際は今月末までに目途を付けたいです。", type: "success" }],
+      chat_history: [
+        { role: "user", message: "開始時期はいつ想定ですか？", time_in_call_secs: 1 },
+        {
+          role: "user",
+          message: "その場合、実際の充足期限はいつまでに見ておくべきでしょうか？",
+          time_in_call_secs: 4,
+        },
+      ],
+      success_condition:
+        "Return true only if the response reveals the real urgency more concretely after both start date and deadline are explored across the conversation.",
+      success_examples: [
+        {
+          response:
+            "表向きは来月頭ですが、実際は今月末までに初回候補を固めたいです。遅れると現場運営に影響が出ます。",
+          type: "success",
+        },
+      ],
       failure_examples: [{ response: "開始時期は来月頭です。以上です。", type: "failure" }],
       type: "llm",
     },
@@ -209,13 +268,14 @@ export async function publishScenarioAgent(input: {
     }
   }
 
-  const testRun = await input.elevenLabs.runTests(agentId, testIds, stagingBranchId);
-  const finalTestRun = await waitForTestInvocation(input.elevenLabs, testRun.id);
-  const passed = finalTestRun.test_runs.every(
-    (run) =>
-      run.status.toLowerCase() === "passed" ||
-      run.condition_result?.result.toLowerCase() === "success"
+  const testResult = await runTestsWithRetries(
+    input.elevenLabs,
+    agentId,
+    testIds,
+    stagingBranchId
   );
+  const finalTestRun = testResult.testRun;
+  const passed = testResult.passed;
 
   if (!passed) {
     return {

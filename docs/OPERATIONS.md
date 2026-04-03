@@ -79,7 +79,7 @@ pnpm verify:acceptance
 7. `/api/sessions` -> transcript polling -> `/api/sessions/[id]/end`
 8. result polling and 60 second scorecard SLA check
 
-If `APP_BASE_URL` is local, the script can boot the local web app and deliver `/api/internal/analyze-session` directly after queue enqueue so the scorecard path remains verifiable.
+If `APP_BASE_URL` is local, the script boots a local production server and delivers `/api/internal/analyze-session` directly after queue enqueue so the scorecard path remains verifiable.
 
 ## Admin Auth
 

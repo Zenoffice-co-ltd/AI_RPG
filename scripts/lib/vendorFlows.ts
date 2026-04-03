@@ -284,22 +284,34 @@ export async function runLiveAvatarSmoke() {
 
   const avatarId =
     runtimeSettings.defaultAvatarId ?? avatars[0]?.avatar_id ?? "missing_avatar";
-  const sessionToken = await ctx.vendors.liveAvatar.createSessionToken({
-    avatarId,
-    sandbox: ctx.env.LIVEAVATAR_SANDBOX,
-    elevenlabsAgentConfig: {
-      secretId: runtimeSettings.liveAvatarElevenSecretId,
-      agentId: binding.elevenAgentId,
+  const sessionToken = await ctx.vendors.liveAvatar.createSessionTokenWithFallback(
+    {
+      avatarId,
+      sandbox: ctx.env.LIVEAVATAR_SANDBOX,
+      elevenlabsAgentConfig: {
+        secretId: runtimeSettings.liveAvatarElevenSecretId,
+        agentId: binding.elevenAgentId,
+      },
     },
-  });
+    avatars
+      .map((avatar) => avatar.avatar_id)
+      .filter((candidate) => candidate !== avatarId)
+  );
   const started = await ctx.vendors.liveAvatar.startSession(
     sessionToken.session_token
   );
+  await ctx.repositories.runtimeSettings.set({
+    defaultAvatarId: sessionToken.avatarId,
+    defaultElevenModel: runtimeSettings.defaultElevenModel,
+    defaultElevenVoiceId: runtimeSettings.defaultElevenVoiceId,
+    liveavatarSandbox: runtimeSettings.liveavatarSandbox,
+    liveAvatarElevenSecretId: runtimeSettings.liveAvatarElevenSecretId,
+  });
   const transcript = await ctx.vendors.liveAvatar.getTranscript(started.session_id, 0);
   await ctx.vendors.liveAvatar.stopSession(started.session_id);
 
   return {
-    avatarId,
+    avatarId: sessionToken.avatarId,
     started,
     transcript,
   };

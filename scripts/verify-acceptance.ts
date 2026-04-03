@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
 import { buildPlaybooksJob, compileScenariosJob, importTranscriptsJob, publishScenarioJob } from "../apps/web/server/use-cases/admin";
 import { getAppContext } from "../apps/web/server/appContext";
@@ -140,19 +141,56 @@ async function waitForApp(appBaseUrl: string, timeoutMs = 90_000) {
   throw new Error(`App did not become healthy at ${appBaseUrl} within ${timeoutMs}ms`);
 }
 
+async function isPortAvailable(port: number, host: string) {
+  return new Promise<boolean>((resolvePromise) => {
+    const server = createServer();
+    server.once("error", () => {
+      resolvePromise(false);
+    });
+    server.once("listening", () => {
+      server.close(() => resolvePromise(true));
+    });
+    server.listen(port, host);
+  });
+}
+
+async function resolveLocalAppBaseUrl(appBaseUrl: string) {
+  const parsed = new URL(appBaseUrl);
+  if (parsed.hostname === "localhost") {
+    parsed.hostname = "127.0.0.1";
+  }
+  const requestedPort = Number(parsed.port || "3000");
+  if (await isPortAvailable(requestedPort, parsed.hostname)) {
+    return parsed.toString().replace(/\/$/, "");
+  }
+
+  for (let offset = 1; offset <= 20; offset += 1) {
+    const candidatePort = requestedPort + offset;
+    if (await isPortAvailable(candidatePort, parsed.hostname)) {
+      parsed.port = String(candidatePort);
+      return parsed.toString().replace(/\/$/, "");
+    }
+  }
+
+  throw new Error(
+    `No available local port was found near ${requestedPort} for acceptance app startup.`
+  );
+}
+
 function startLocalServer(appBaseUrl: string) {
   const url = new URL(appBaseUrl);
   const host = url.hostname;
   const port = url.port || "3000";
-  const child = spawn(
-    process.platform === "win32" ? "pnpm.cmd" : "pnpm",
-    ["dev", "--", "--hostname", host, "--port", port],
-    {
-      cwd: resolve(workspaceRoot, "apps/web"),
-      stdio: "pipe",
-      env: process.env,
-    }
-  );
+  const command = `pnpm build && pnpm exec next start --hostname ${host} --port ${port}`;
+  const child = spawn(command, {
+    cwd: resolve(workspaceRoot, "apps/web"),
+    stdio: "pipe",
+    env: {
+      ...process.env,
+      APP_BASE_URL: appBaseUrl,
+    },
+    shell: true,
+  });
 
   child.stdout.on("data", (chunk) => {
     process.stdout.write(`[web] ${chunk.toString()}`);
@@ -181,10 +219,12 @@ async function ensureAppReady(appBaseUrl: string) {
     }
   }
 
-  child = startLocalServer(appBaseUrl);
-  await waitForApp(appBaseUrl);
+  const resolvedAppBaseUrl = await resolveLocalAppBaseUrl(appBaseUrl);
+  child = startLocalServer(resolvedAppBaseUrl);
+  await waitForApp(resolvedAppBaseUrl);
   return {
     child,
+    appBaseUrl: resolvedAppBaseUrl,
   };
 }
 
@@ -245,14 +285,18 @@ function getLocalAnalyzeDeliveryMode(appBaseUrl: string) {
 
 async function postAnalyzeSession(appBaseUrl: string, sessionId: string) {
   const ctx = getAppContext();
-  return fetchJson(`${appBaseUrl}/api/internal/analyze-session`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-queue-shared-secret": ctx.env.QUEUE_SHARED_SECRET,
+  return fetchJson(
+    `${appBaseUrl}/api/internal/analyze-session`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-queue-shared-secret": ctx.env.QUEUE_SHARED_SECRET,
+      },
+      body: JSON.stringify({ sessionId }),
     },
-    body: JSON.stringify({ sessionId }),
-  });
+    120_000
+  );
 }
 
 async function pollTranscript(appBaseUrl: string, sessionId: string) {
@@ -260,7 +304,9 @@ async function pollTranscript(appBaseUrl: string, sessionId: string) {
   let cursor = 0;
   while (Date.now() - startedAt < 20_000) {
     const transcript = await fetchJson<TranscriptResponse>(
-      `${appBaseUrl}/api/sessions/${sessionId}/transcript?cursor=${cursor}`
+      `${appBaseUrl}/api/sessions/${sessionId}/transcript?cursor=${cursor}`,
+      undefined,
+      60_000
     );
     cursor = transcript.cursor;
     if (transcript.turns.length > 0) {
@@ -270,7 +316,9 @@ async function pollTranscript(appBaseUrl: string, sessionId: string) {
   }
 
   return fetchJson<TranscriptResponse>(
-    `${appBaseUrl}/api/sessions/${sessionId}/transcript?cursor=${cursor}`
+    `${appBaseUrl}/api/sessions/${sessionId}/transcript?cursor=${cursor}`,
+    undefined,
+    60_000
   );
 }
 
@@ -408,37 +456,46 @@ async function main() {
 
   console.info("[6/10] app readiness");
   const appHandle = await ensureAppReady(appBaseUrl);
+  const activeAppBaseUrl = appHandle.appBaseUrl ?? appBaseUrl;
 
   try {
     console.info("[7/10] POST /api/sessions");
-    const started = await fetchJson<SessionStartResponse>(`${appBaseUrl}/api/sessions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const started = await fetchJson<SessionStartResponse>(
+      `${activeAppBaseUrl}/api/sessions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          scenarioId: ACCEPTANCE_SCENARIO_ID,
+        }),
       },
-      body: JSON.stringify({
-        scenarioId: ACCEPTANCE_SCENARIO_ID,
-      }),
-    });
+      120_000
+    );
 
     console.info("[8/10] transcript polling check");
-    const transcript = await pollTranscript(appBaseUrl, started.sessionId);
+    const transcript = await pollTranscript(activeAppBaseUrl, started.sessionId);
 
     console.info("[9/10] POST /api/sessions/[id]/end");
     await fetchJson<{ sessionId: string; status: string }>(
-      `${appBaseUrl}/api/sessions/${started.sessionId}/end`,
+      `${activeAppBaseUrl}/api/sessions/${started.sessionId}/end`,
       {
         method: "POST",
-      }
+      },
+      120_000
     );
 
-    if (getLocalAnalyzeDeliveryMode(appBaseUrl) === "direct-http") {
+    if (getLocalAnalyzeDeliveryMode(activeAppBaseUrl) === "direct-http") {
       console.info("[9.5/10] local analyze-session delivery");
-      await postAnalyzeSession(appBaseUrl, started.sessionId);
+      await postAnalyzeSession(activeAppBaseUrl, started.sessionId);
     }
 
     console.info("[10/10] result polling");
-    const { result, elapsedMs } = await pollResult(appBaseUrl, started.sessionId);
+    const { result, elapsedMs } = await pollResult(
+      activeAppBaseUrl,
+      started.sessionId
+    );
     const sla = evaluateScorecardSla(elapsedMs);
 
     if (result.status !== "completed" || !result.scorecard) {
@@ -459,7 +516,8 @@ async function main() {
           scorecardSlaSeconds: sla.elapsedSeconds,
           overallScore: result.scorecard.overallScore,
           topPerformerAlignmentScore: result.scorecard.topPerformerAlignmentScore,
-          analyzeDelivery: getLocalAnalyzeDeliveryMode(appBaseUrl),
+          analyzeDelivery: getLocalAnalyzeDeliveryMode(activeAppBaseUrl),
+          appBaseUrl: activeAppBaseUrl,
         },
         null,
         2

@@ -1,0 +1,35 @@
+{
+  "secretAction": "reuse",
+  "secretId": "ea482057-b180-4d5d-b96a-4567fc06bb12",
+  "defaultAvatarId": "65f9e3c9-d48b-4118-b73a-4ae2e3cbb8f0",
+  "defaultVoiceId": "JBFqnCBsd6RMkjVDRZzb",
+  "voiceResolution": "fallback",
+  "voiceName": "George - Warm, Captivating Storyteller",
+  "shortlist": [
+    {
+      "avatar_id": "1c690fe7-23e0-49f9-bfba-14344450285b",
+      "name": "Santa Fireplace Front",
+      "preview_image_url": "https://files2.heygen.ai/avatar/v3/3b4e464bf15f4194b082be0e631354c6_46860/preview_target.webp"
+    },
+    {
+      "avatar_id": "513fd1b7-7ef9-466d-9af2-344e51eeb833",
+      "name": "Ann Therapist",
+      "preview_image_url": "https://files2.heygen.ai/avatar/v3/75e0a87b7fd94f0981ff398b593dd47f_45570/preview_talk_4.webp"
+    },
+    {
+      "avatar_id": "567e8371-f69f-49ec-9f2d-054083431165",
+      "name": "Ann Doctor Standing",
+      "preview_image_url": "https://files2.heygen.ai/avatar/v3/699a4c2995914d39b2cb311a930d7720_45570/preview_talk_3.webp"
+    },
+    {
+      "avatar_id": "fc9c1f9f-bc99-4fd9-a6b2-8b4b5669a046",
+      "name": "Ann Doctor Sitting",
+      "preview_image_url": "https://files2.heygen.ai/avatar/v3/26de369b2d4443e586dedf27af1e0c1d_45570/preview_talk_1.webp"
+    },
+    {
+      "avatar_id": "7b888024-f8c9-4205-95e1-78ce01497bda",
+      "name": "Shawn Therapist",
+      "preview_image_url": "https://files2.heygen.ai/avatar/v3/db2fb7fd0d044b908395a011166ab22d_45680/preview_target.webp"
+    }
+  ]
+}
