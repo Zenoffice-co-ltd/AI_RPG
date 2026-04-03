@@ -1,0 +1,25 @@
+{
+  "name": "@top-performer/scenario-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint src --ext .ts --ignore-pattern \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ../../vitest.config.ts --passWithNoTests"
+  },
+  "dependencies": {
+    "@top-performer/domain": "workspace:*",
+    "@top-performer/scoring": "workspace:*",
+    "@top-performer/vendors": "workspace:*",
+    "papaparse": "^5.5.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/papaparse": "^5.3.16"
+  }
+}

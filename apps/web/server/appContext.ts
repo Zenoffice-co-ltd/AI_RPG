@@ -1,0 +1,74 @@
+import {
+  AgentBindingRepository,
+  getFirestoreAdmin,
+  JobRepository,
+  PlaybookRepository,
+  RuntimeSettingsRepository,
+  ScenarioRepository,
+  SessionRepository,
+  TranscriptRepository,
+} from "@top-performer/firestore";
+import {
+  ElevenLabsClient,
+  LiveAvatarClient,
+  loadServerEnv,
+  OpenAiResponsesClient,
+  type ServerEnv,
+} from "@top-performer/vendors";
+import { ensureEnvLoaded } from "./loadEnv";
+
+type AppContext = {
+  env: ServerEnv;
+  repositories: {
+    agentBindings: AgentBindingRepository;
+    jobs: JobRepository;
+    playbooks: PlaybookRepository;
+    runtimeSettings: RuntimeSettingsRepository;
+    scenarios: ScenarioRepository;
+    sessions: SessionRepository;
+    transcripts: TranscriptRepository;
+  };
+  vendors: {
+    elevenLabs: ElevenLabsClient;
+    liveAvatar: LiveAvatarClient;
+    openAi: OpenAiResponsesClient;
+  };
+};
+
+let appContextSingleton: AppContext | null = null;
+
+export function getAppContext(): AppContext {
+  if (appContextSingleton) {
+    return appContextSingleton;
+  }
+
+  ensureEnvLoaded();
+  const env = loadServerEnv();
+  const firestore = getFirestoreAdmin({
+    ...(env.FIREBASE_PROJECT_ID ? { projectId: env.FIREBASE_PROJECT_ID } : {}),
+    ...(env.FIREBASE_CLIENT_EMAIL
+      ? { clientEmail: env.FIREBASE_CLIENT_EMAIL }
+      : {}),
+    ...(env.FIREBASE_PRIVATE_KEY ? { privateKey: env.FIREBASE_PRIVATE_KEY } : {}),
+  });
+
+  appContextSingleton = {
+    env,
+    repositories: {
+      agentBindings: new AgentBindingRepository(firestore),
+      jobs: new JobRepository(firestore),
+      playbooks: new PlaybookRepository(firestore),
+      runtimeSettings: new RuntimeSettingsRepository(firestore),
+      scenarios: new ScenarioRepository(firestore),
+      sessions: new SessionRepository(firestore),
+      transcripts: new TranscriptRepository(firestore),
+    },
+    vendors: {
+      elevenLabs: new ElevenLabsClient(env.ELEVENLABS_API_KEY),
+      liveAvatar: new LiveAvatarClient(env.LIVEAVATAR_API_KEY),
+      openAi: new OpenAiResponsesClient(env.OPENAI_API_KEY),
+    },
+  };
+
+  return appContextSingleton;
+}

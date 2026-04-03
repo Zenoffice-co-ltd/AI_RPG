@@ -1,0 +1,15 @@
+node_modules
+.next
+.turbo
+coverage
+dist
+playwright-report
+test-results
+pnpm-lock.yaml
+.env
+.env.local
+.env.*.local
+!.env.local.example
+firebase-debug.log
+*.tsbuildinfo
+*.log
