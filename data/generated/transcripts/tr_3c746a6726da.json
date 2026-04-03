@@ -1,0 +1,204 @@
+{
+  "id": "tr_3c746a6726da",
+  "sourceFile": "C:\\AI_RPG\\data\\transcripts\\adecco-top-performer-seed.json#2",
+  "family": "staffing_order_hearing",
+  "performanceTier": "top",
+  "language": "ja",
+  "metadata": {},
+  "turns": [
+    {
+      "turnId": "t_001",
+      "speaker": "sales",
+      "text": "本日はありがとうございます。最初に今回の募集背景を伺い、優先順位を外さないようにしたいです。",
+      "timestampSec": 0
+    },
+    {
+      "turnId": "t_002",
+      "speaker": "client",
+      "text": "新サービスの立ち上げで、受発注と請求の両方を支える事務スタッフが必要になりました。",
+      "timestampSec": 7
+    },
+    {
+      "turnId": "t_003",
+      "speaker": "sales",
+      "text": "新サービス立ち上げに伴う増員ですね。必要人数は何名でしょうか。",
+      "timestampSec": 17
+    },
+    {
+      "turnId": "t_004",
+      "speaker": "client",
+      "text": "2名です。ただ、片方はリーダー候補として見ています。",
+      "timestampSec": 25
+    },
+    {
+      "turnId": "t_005",
+      "speaker": "sales",
+      "text": "開始時期はいつが理想でしょうか。もし片方だけでも先行で着任できるなら意味があるのかも知りたいです。",
+      "timestampSec": 35
+    },
+    {
+      "turnId": "t_006",
+      "speaker": "client",
+      "text": "理想は3週間後です。1名だけでも先に入れば、現場の設計はかなり進められます。",
+      "timestampSec": 45
+    },
+    {
+      "turnId": "t_007",
+      "speaker": "sales",
+      "text": "その場合、実質の充足期限はいつまでと見ればよいでしょうか。期限を超えると何がボトルネックになりますか。",
+      "timestampSec": 56
+    },
+    {
+      "turnId": "t_008",
+      "speaker": "client",
+      "text": "月末までです。超えると社員が請求処理まで兼務するので、営業活動が圧迫されます。",
+      "timestampSec": 66
+    },
+    {
+      "turnId": "t_009",
+      "speaker": "sales",
+      "text": "任せる業務に対して、必須スキルと歓迎スキルを分けて確認させてください。リーダー候補の期待値もあれば知りたいです。",
+      "timestampSec": 76
+    },
+    {
+      "turnId": "t_010",
+      "speaker": "client",
+      "text": "必須は受発注事務の経験とExcel関数です。歓迎は請求処理、業務改善、後輩指導の経験です。",
+      "timestampSec": 86
+    },
+    {
+      "turnId": "t_011",
+      "speaker": "sales",
+      "text": "逆に、ここが合わないと難しいというNG条件はありますか。",
+      "timestampSec": 98
+    },
+    {
+      "turnId": "t_012",
+      "speaker": "client",
+      "text": "変化が多い環境を嫌う方と、締め日に残業調整ができない方は難しいです。",
+      "timestampSec": 106
+    },
+    {
+      "turnId": "t_013",
+      "speaker": "sales",
+      "text": "就業条件として、勤務地、時給レンジ、在宅可否はどうでしょうか。",
+      "timestampSec": 116
+    },
+    {
+      "turnId": "t_014",
+      "speaker": "client",
+      "text": "勤務地は品川、時給は1750円前後、業務習熟後は週1日在宅可です。",
+      "timestampSec": 125
+    },
+    {
+      "turnId": "t_015",
+      "speaker": "sales",
+      "text": "勤務時間帯や締め日前後のシフト変動も確認したいです。",
+      "timestampSec": 136
+    },
+    {
+      "turnId": "t_016",
+      "speaker": "client",
+      "text": "基本は9時半から18時半です。月末月初だけ1時間ほど残業の可能性があります。",
+      "timestampSec": 145
+    },
+    {
+      "turnId": "t_017",
+      "speaker": "sales",
+      "text": "オンボーディングはどのように進めますか。業務マニュアルの有無や、独り立ちまでの目安を教えてください。",
+      "timestampSec": 156
+    },
+    {
+      "turnId": "t_018",
+      "speaker": "client",
+      "text": "マニュアルはあります。初週は社員同席、2週目から一部を任せ、1か月で独り立ちを想定しています。",
+      "timestampSec": 166
+    },
+    {
+      "turnId": "t_019",
+      "speaker": "sales",
+      "text": "配属チームの構成と、リーダー候補の方が連携する相手も把握したいです。",
+      "timestampSec": 177
+    },
+    {
+      "turnId": "t_020",
+      "speaker": "client",
+      "text": "営業3名、事務社員2名、派遣は今回が初めてです。リーダー候補は営業責任者と日次で連携します。",
+      "timestampSec": 186
+    },
+    {
+      "turnId": "t_021",
+      "speaker": "sales",
+      "text": "選考フローはどのようになりますか。書類後の面談回数と、合否連絡の速度感も教えてください。",
+      "timestampSec": 197
+    },
+    {
+      "turnId": "t_022",
+      "speaker": "client",
+      "text": "書類選考後に現場責任者と管理部の2名面談です。合否は原則翌日回答です。",
+      "timestampSec": 207
+    },
+    {
+      "turnId": "t_023",
+      "speaker": "sales",
+      "text": "最終決裁は現場責任者で完結しますか。それとも役員や管理部長の承認が必要でしょうか。",
+      "timestampSec": 217
+    },
+    {
+      "turnId": "t_024",
+      "speaker": "client",
+      "text": "通常枠は管理部長、リーダー候補は役員承認まで入ります。",
+      "timestampSec": 227
+    },
+    {
+      "turnId": "t_025",
+      "speaker": "sales",
+      "text": "競合の派遣会社さんは入っていますか。比較される軸が分かると提案の組み立てを合わせやすいです。",
+      "timestampSec": 237
+    },
+    {
+      "turnId": "t_026",
+      "speaker": "client",
+      "text": "2社に依頼しています。スピードと、業務改善まで見られる人材が比較軸です。",
+      "timestampSec": 246
+    },
+    {
+      "turnId": "t_027",
+      "speaker": "sales",
+      "text": "時給面は1750円前後とのことですが、リーダー候補や請求実務まで持てる方の場合の上振れ余地はありますか。",
+      "timestampSec": 257
+    },
+    {
+      "turnId": "t_028",
+      "speaker": "client",
+      "text": "通常枠は1750円が目安ですが、リーダー候補は1850円までなら検討できます。",
+      "timestampSec": 267
+    },
+    {
+      "turnId": "t_029",
+      "speaker": "sales",
+      "text": "ここまで整理すると、新サービス立ち上げで2名、うち1名はリーダー候補。3週間後開始が理想で、月末までが実質期限。必須は受発注事務とExcel関数、決裁は通常枠が管理部長、リーダー候補は役員承認、競合は2社という理解です。ほかに提案前に押さえるべき点はありますか。",
+      "timestampSec": 278
+    },
+    {
+      "turnId": "t_030",
+      "speaker": "client",
+      "text": "大丈夫です。在宅はすぐではなく習熟後という点だけ候補者に誤解なく伝えてください。",
+      "timestampSec": 297
+    },
+    {
+      "turnId": "t_031",
+      "speaker": "sales",
+      "text": "承知しました。本日中に要件票をまとめ、明日15時までに通常枠1名、明後日までにリーダー候補を含む候補案をご提案します。候補をご覧いただいた後、翌営業日に面談設定で進めます。",
+      "timestampSec": 307
+    },
+    {
+      "turnId": "t_032",
+      "speaker": "client",
+      "text": "お願いします。スピード感が合っていて助かります。",
+      "timestampSec": 319
+    }
+  ],
+  "importedAt": "2026-04-03T02:29:39.991Z",
+  "redactionStatus": "redacted"
+}

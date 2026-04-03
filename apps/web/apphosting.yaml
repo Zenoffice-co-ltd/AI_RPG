@@ -1,0 +1,70 @@
+runConfig:
+  cpu: 1
+  memoryMiB: 1024
+  minInstances: 0
+  maxInstances: 2
+env:
+  - variable: APP_BASE_URL
+    value: https://example.web.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: GCLOUD_LOCATION
+    value: asia-northeast1
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: SECRET_SOURCE_PROJECT_ID
+    value: zapier-transfer
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: CLOUD_TASKS_QUEUE_ANALYZE
+    value: session-analysis
+    availability:
+      - RUNTIME
+  - variable: CLOUD_TASKS_QUEUE_REGION
+    value: asia-northeast1
+    availability:
+      - RUNTIME
+  - variable: ENABLE_ELEVEN_WEBHOOKS
+    value: "false"
+    availability:
+      - RUNTIME
+  - variable: LIVEAVATAR_SANDBOX
+    value: "true"
+    availability:
+      - RUNTIME
+  - variable: DEFAULT_ELEVEN_MODEL
+    value: gpt-5-mini
+    availability:
+      - RUNTIME
+  - variable: OPENAI_ANALYSIS_MODEL
+    value: gpt-5.4
+    availability:
+      - RUNTIME
+  - variable: OPENAI_MINING_MODEL
+    value: gpt-5-mini
+    availability:
+      - RUNTIME
+  # Runtime project must be an Adecco-owned app/data project.
+  # Do not point this at the secret-source project zapier-transfer.
+  - variable: FIREBASE_PROJECT_ID
+    value: adecco-mendan
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: FIREBASE_CLIENT_EMAIL
+    secret: FIREBASE_CLIENT_EMAIL
+  - variable: FIREBASE_PRIVATE_KEY
+    secret: FIREBASE_PRIVATE_KEY
+  - variable: QUEUE_SHARED_SECRET
+    secret: QUEUE_SHARED_SECRET
+  - variable: ADMIN_BASIC_AUTH_USER
+    secret: ADMIN_BASIC_AUTH_USER
+  - variable: ADMIN_BASIC_AUTH_PASS
+    secret: ADMIN_BASIC_AUTH_PASS
+  - variable: DEFAULT_ELEVEN_VOICE_ID
+    secret: DEFAULT_ELEVEN_VOICE_ID
+  - variable: DEFAULT_AVATAR_ID
+    secret: DEFAULT_AVATAR_ID

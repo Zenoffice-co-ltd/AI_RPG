@@ -1,0 +1,108 @@
+{
+  "passed": true,
+  "testRun": {
+    "id": "suite_0701kn8t11mkfbk9mjxjq2q26wew",
+    "test_runs": [
+      {
+        "test_run_id": "trun_0301kn8t11n1fagtk1kw72w6y5za",
+        "test_id": "test_5101kn8phgv6fbs9h7a9m61mjxsh",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_busy_manager_medium::role-adherence",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_5201kn8t11n2eztvsr1s5n4cd14x",
+        "test_id": "test_0101kn8phhbseh1rb064tb861gcc",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_busy_manager_medium::no-hidden-fact-leak",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_6401kn8t11n4eaxrgfm1qa4q6dhn",
+        "test_id": "test_1901kn8phjmxe6w8gbwh8qmmepq9",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_busy_manager_medium::shallow-questions-stay-shallow",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_3601kn8t11n5e1f97wrnx1bvyccd",
+        "test_id": "test_4601kn8phk8cf5h8dmnqdbvvjtya",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_busy_manager_medium::next-step-close",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_9201kn8t11n3evvvx4m7n1ahtgs5",
+        "test_id": "test_9001kn8phhvmfx5v56tbr1msmvev",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_busy_manager_medium::reveal-decision-maker",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_7201kn8t11n6e9rv2nwb5p4w0h24",
+        "test_id": "test_3901kn8phkznea2tgr0mz132tqtn",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_busy_manager_medium::urgency-reveal",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_1701kn8t11n7epka97bk16fg3yaw",
+        "test_id": "test_1401kn8phmeseg08wtws9r73bkcm",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_busy_manager_medium::competing-agencies-reveal",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_5901kn8t11n8fze9e4pmcnqgekr5",
+        "test_id": "test_0101kn8phmxjeeyta3ahjdakgyz3",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_busy_manager_medium::budget-flexibility-reveal",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_1101kn8t11n9f9g888bd0r8raf1p",
+        "test_id": "test_3701kn8phne5epdb4se9kpmccx1m",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_busy_manager_medium::no-coaching",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_0801kn8t11nafhk9j0z0vqctwp86",
+        "test_id": "test_0101kn8phnx1e0ya0hxnb0c346py",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_busy_manager_medium::natural-japanese",
+        "condition_result": {
+          "result": "success"
+        }
+      }
+    ],
+    "agent_id": "agent_3001kn8q4162f9d830cympcmzpqh",
+    "branch_id": "agtbrch_0401kn8q46hzfkta1wh4sh42n983"
+  },
+  "binding": {
+    "scenarioId": "staffing_order_hearing_busy_manager_medium",
+    "elevenAgentId": "agent_3001kn8q4162f9d830cympcmzpqh",
+    "elevenBranchId": "agtbrch_0401kn8q46hzfkta1wh4sh42n983",
+    "elevenVersionId": "agtvrsn_8601kn8t0stbexra0bsmyjbwteyt",
+    "voiceId": "JBFqnCBsd6RMkjVDRZzb",
+    "publishedAt": "2026-04-03T04:36:49.319Z"
+  }
+}

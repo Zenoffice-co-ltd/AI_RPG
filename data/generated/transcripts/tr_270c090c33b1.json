@@ -1,0 +1,204 @@
+{
+  "id": "tr_270c090c33b1",
+  "sourceFile": "C:\\AI_RPG\\data\\transcripts\\adecco-top-performer-seed.json#0",
+  "family": "staffing_order_hearing",
+  "performanceTier": "top",
+  "language": "ja",
+  "metadata": {},
+  "turns": [
+    {
+      "turnId": "t_001",
+      "speaker": "sales",
+      "text": "本日はお時間ありがとうございます。まず現在の募集背景から伺ってもよろしいでしょうか。",
+      "timestampSec": 0
+    },
+    {
+      "turnId": "t_002",
+      "speaker": "client",
+      "text": "こちらこそお願いします。新しく立ち上げる受注センターで、既存メンバーだけでは追いつかなくなってきたのが背景です。",
+      "timestampSec": 7
+    },
+    {
+      "turnId": "t_003",
+      "speaker": "sales",
+      "text": "立ち上げに伴う増員なのですね。何名ほどを想定されていますか。",
+      "timestampSec": 16
+    },
+    {
+      "turnId": "t_004",
+      "speaker": "client",
+      "text": "まず3名、状況次第でさらに2名追加したいです。",
+      "timestampSec": 23
+    },
+    {
+      "turnId": "t_005",
+      "speaker": "sales",
+      "text": "開始時期はいつ頃を想定されていますか。できれば最初の1名と残りの充足タイミングも分けて伺いたいです。",
+      "timestampSec": 30
+    },
+    {
+      "turnId": "t_006",
+      "speaker": "client",
+      "text": "最初の1名は来月1日、残り2名はその2週間後までに入れたいです。",
+      "timestampSec": 39
+    },
+    {
+      "turnId": "t_007",
+      "speaker": "sales",
+      "text": "かなり早めですね。もしその期限を過ぎると現場運営にはどの程度影響しますか。",
+      "timestampSec": 49
+    },
+    {
+      "turnId": "t_008",
+      "speaker": "client",
+      "text": "既存社員の残業が増えて、受注処理の締め時間も遅れるので、できれば絶対に遅らせたくありません。",
+      "timestampSec": 58
+    },
+    {
+      "turnId": "t_009",
+      "speaker": "sales",
+      "text": "承知しました。業務を任せるうえで必須スキルと、あれば早期戦力化しやすい歓迎スキルの線引きを教えてください。",
+      "timestampSec": 70
+    },
+    {
+      "turnId": "t_010",
+      "speaker": "client",
+      "text": "必須は受注入力の実務経験とExcelの基本操作です。歓迎は物流業界の経験と、社内チャットの利用経験です。",
+      "timestampSec": 79
+    },
+    {
+      "turnId": "t_011",
+      "speaker": "sales",
+      "text": "逆に、この条件だと見送りたいというNG条件はありますか。",
+      "timestampSec": 92
+    },
+    {
+      "turnId": "t_012",
+      "speaker": "client",
+      "text": "電話対応に抵抗が強い方と、スピードより正確性を軽く見る方は難しいです。",
+      "timestampSec": 100
+    },
+    {
+      "turnId": "t_013",
+      "speaker": "sales",
+      "text": "就業条件も確認させてください。勤務地、時給の目安、交通費の扱いはいかがでしょうか。",
+      "timestampSec": 111
+    },
+    {
+      "turnId": "t_014",
+      "speaker": "client",
+      "text": "勤務地は横浜、時給は1600円前後、交通費は別途支給です。",
+      "timestampSec": 120
+    },
+    {
+      "turnId": "t_015",
+      "speaker": "sales",
+      "text": "シフトや時間帯は固定ですか。それとも多少の前後や土曜対応もありますか。",
+      "timestampSec": 129
+    },
+    {
+      "turnId": "t_016",
+      "speaker": "client",
+      "text": "平日9時から18時が基本ですが、月末だけ30分ほど残業をお願いする可能性があります。",
+      "timestampSec": 138
+    },
+    {
+      "turnId": "t_017",
+      "speaker": "sales",
+      "text": "入社後の立ち上がり支援についても伺いたいです。初日の導線や、何日くらいで独り立ちを期待されますか。",
+      "timestampSec": 149
+    },
+    {
+      "turnId": "t_018",
+      "speaker": "client",
+      "text": "初日は社員が隣につきます。1週間で基本操作、2週間で独り立ちを想定しています。",
+      "timestampSec": 159
+    },
+    {
+      "turnId": "t_019",
+      "speaker": "sales",
+      "text": "配属チームの人数構成と、日々誰がフォローに入るのかも確認させてください。",
+      "timestampSec": 170
+    },
+    {
+      "turnId": "t_020",
+      "speaker": "client",
+      "text": "社員2名と派遣4名のチームです。SVの佐藤が日常のフォローに入ります。",
+      "timestampSec": 179
+    },
+    {
+      "turnId": "t_021",
+      "speaker": "sales",
+      "text": "選考フローは書類確認のあと面談1回でしょうか。現場見学やテストがあるかも教えてください。",
+      "timestampSec": 189
+    },
+    {
+      "turnId": "t_022",
+      "speaker": "client",
+      "text": "書類選考のあと現場責任者との面談1回です。必要なら職場見学を入れます。",
+      "timestampSec": 199
+    },
+    {
+      "turnId": "t_023",
+      "speaker": "sales",
+      "text": "最終的な決裁は現場責任者の方で完結しますか。それとも部門長承認まで必要でしょうか。",
+      "timestampSec": 210
+    },
+    {
+      "turnId": "t_024",
+      "speaker": "client",
+      "text": "一次判断は現場責任者ですが、条件面は部門長承認が必要です。",
+      "timestampSec": 219
+    },
+    {
+      "turnId": "t_025",
+      "speaker": "sales",
+      "text": "他社エージェント様の進行状況も把握しておきたいのですが、すでに何社か提案が入っていますか。",
+      "timestampSec": 229
+    },
+    {
+      "turnId": "t_026",
+      "speaker": "client",
+      "text": "2社に声をかけていて、1社からは今週中に候補が来る予定です。",
+      "timestampSec": 238
+    },
+    {
+      "turnId": "t_027",
+      "speaker": "sales",
+      "text": "ありがとうございます。時給は1600円前後とのことでしたが、開始時期優先の場合に少し調整余地があるのかも確認したいです。",
+      "timestampSec": 248
+    },
+    {
+      "turnId": "t_028",
+      "speaker": "client",
+      "text": "上限は厳しめですが、初回1名を確実に早く入れられるなら相談余地はあります。",
+      "timestampSec": 258
+    },
+    {
+      "turnId": "t_029",
+      "speaker": "sales",
+      "text": "ここまでを整理すると、受注センター立ち上げでまず3名、来月1日に1名、残り2名はその2週間後まで。必須は受注入力経験とExcel、決裁は現場責任者判断の後に部門長承認、競合2社ありという理解です。ほかに見落としている制約はありますか。",
+      "timestampSec": 270
+    },
+    {
+      "turnId": "t_030",
+      "speaker": "client",
+      "text": "その整理で大丈夫です。加えるなら電話対応への抵抗がないことを強めに見たいです。",
+      "timestampSec": 287
+    },
+    {
+      "turnId": "t_031",
+      "speaker": "sales",
+      "text": "承知しました。本日中に要件を社内で共有して、明日の夕方までに初回候補を2名ご提案します。候補確認後、明後日に面談枠を仮押さえする進め方でよろしいでしょうか。",
+      "timestampSec": 296
+    },
+    {
+      "turnId": "t_032",
+      "speaker": "client",
+      "text": "お願いします。その進め方なら社内調整もしやすいです。",
+      "timestampSec": 307
+    }
+  ],
+  "importedAt": "2026-04-03T02:29:39.989Z",
+  "redactionStatus": "redacted"
+}

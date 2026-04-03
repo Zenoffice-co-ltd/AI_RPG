@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+:root {
+  --font-sans: var(--font-mplus), sans-serif;
+  --app-bg: #edf4fb;
+  --panel-bg: rgba(255, 255, 255, 0.72);
+  --panel-border: rgba(255, 255, 255, 0.72);
+  --ink: #0f172a;
+  --muted: #475569;
+  --accent: #0f7ac9;
+}
+
+@theme inline {
+  --font-sans: var(--font-sans);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.9), transparent 30%),
+    radial-gradient(circle at 86% 18%, rgba(96, 165, 250, 0.28), transparent 18%),
+    radial-gradient(circle at 78% 78%, rgba(15, 23, 42, 0.08), transparent 24%),
+    linear-gradient(180deg, #f6fbff 0%, #ebf3fa 46%, #e4edf7 100%);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.bg-app {
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.88), transparent 32%),
+    radial-gradient(circle at 86% 18%, rgba(96, 165, 250, 0.24), transparent 20%),
+    radial-gradient(circle at 78% 78%, rgba(15, 23, 42, 0.08), transparent 26%),
+    linear-gradient(180deg, #f6fbff 0%, #edf4fb 52%, #e6eef7 100%);
+}
+
+.glass-panel {
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  border-radius: 2rem;
+  box-shadow:
+    0 24px 70px rgba(15, 23, 42, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px);
+}
+
+.soft-card {
+  display: flex;
+  min-height: 6.25rem;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.78);
+  padding: 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.metric-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(71, 85, 105, 0.92);
+}
+
+.metric-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: rgba(15, 23, 42, 0.96);
+}
