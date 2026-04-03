@@ -23,6 +23,12 @@ async function main() {
     const includeFirebaseCredentialSecret = report.blockers.some(
       (blocker) => blocker.requiredInput === "FIREBASE_CREDENTIALS_SECRET_NAME"
     );
+    const includeElevenLabsCredential = blockers.some(
+      (blocker) => blocker.requiredInput === "ELEVENLABS_API_KEY"
+    );
+    const includeLiveAvatarCredential = blockers.some(
+      (blocker) => blocker.requiredInput === "LIVEAVATAR_API_KEY"
+    );
     console.info(
       formatPreflightReport({
         ready: blockers.length === 0,
@@ -38,7 +44,8 @@ async function main() {
       console.info(
         buildHumanInputRequest(process.env, {
           includeFirebaseCredentialSecret,
-          includeVendorSecrets: true,
+          includeElevenLabsCredential,
+          includeLiveAvatarCredential,
         })
       );
     }

@@ -16,7 +16,12 @@ import {
   type ServerEnv,
 } from "@top-performer/vendors";
 import { ensureEnvLoaded } from "./loadEnv";
-import { DEFAULT_OPENAI_SECRET_NAME, getEnvOrSecret } from "./secrets";
+import {
+  DEFAULT_ELEVENLABS_SECRET_NAME,
+  DEFAULT_LIVEAVATAR_SECRET_NAME,
+  DEFAULT_OPENAI_SECRET_NAME,
+  getEnvOrSecret,
+} from "./secrets";
 
 type AppContext = {
   env: ServerEnv;
@@ -65,8 +70,20 @@ export function getAppContext(): AppContext {
       transcripts: new TranscriptRepository(firestore),
     },
     vendors: {
-      elevenLabs: new ElevenLabsClient(env.ELEVENLABS_API_KEY),
-      liveAvatar: new LiveAvatarClient(env.LIVEAVATAR_API_KEY),
+      elevenLabs: new ElevenLabsClient(() =>
+        getEnvOrSecret(
+          "ELEVENLABS_API_KEY",
+          DEFAULT_ELEVENLABS_SECRET_NAME,
+          env.SECRET_SOURCE_PROJECT_ID
+        )
+      ),
+      liveAvatar: new LiveAvatarClient(() =>
+        getEnvOrSecret(
+          "LIVEAVATAR_API_KEY",
+          DEFAULT_LIVEAVATAR_SECRET_NAME,
+          env.SECRET_SOURCE_PROJECT_ID
+        )
+      ),
       openAi: new OpenAiResponsesClient(() =>
         getEnvOrSecret(
           "OPENAI_API_KEY",

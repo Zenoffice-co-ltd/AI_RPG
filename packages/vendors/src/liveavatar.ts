@@ -70,22 +70,29 @@ export type LiveAvatarSessionTokenRequest = {
   };
 };
 
+type ApiKeyProvider = string | (() => Promise<string>);
+
 export class LiveAvatarClient {
   constructor(
-    private readonly apiKey: string,
+    private readonly apiKey: ApiKeyProvider,
     private readonly baseUrl = "https://api.liveavatar.com"
   ) {}
+
+  private async resolveApiKey() {
+    return typeof this.apiKey === "function" ? this.apiKey() : this.apiKey;
+  }
 
   async assertConnectivity() {
     return this.listPublicAvatars();
   }
 
   async listPublicAvatars() {
+    const apiKey = await this.resolveApiKey();
     const response = await requestJson({
       scope: "liveavatar.listPublicAvatars",
       url: `${this.baseUrl}/v1/avatars/public`,
       headers: {
-        "X-API-KEY": this.apiKey,
+        "X-API-KEY": apiKey,
         accept: "application/json",
       },
       schema: listPublicAvatarsResponseSchema,
@@ -96,12 +103,13 @@ export class LiveAvatarClient {
   }
 
   async createSecret(secretName: string, secretValue: string) {
+    const apiKey = await this.resolveApiKey();
     const response = await requestJson({
       scope: "liveavatar.createSecret",
       url: `${this.baseUrl}/v1/secrets`,
       method: "POST",
       headers: {
-        "X-API-KEY": this.apiKey,
+        "X-API-KEY": apiKey,
         accept: "application/json",
         "content-type": "application/json",
       },
@@ -117,12 +125,13 @@ export class LiveAvatarClient {
   }
 
   async createSessionToken(input: LiveAvatarSessionTokenRequest) {
+    const apiKey = await this.resolveApiKey();
     const response = await requestJson({
       scope: "liveavatar.createSessionToken",
       url: `${this.baseUrl}/v1/sessions/token`,
       method: "POST",
       headers: {
-        "X-API-KEY": this.apiKey,
+        "X-API-KEY": apiKey,
         accept: "application/json",
         "content-type": "application/json",
       },
@@ -165,12 +174,13 @@ export class LiveAvatarClient {
   }
 
   async stopSession(sessionId: string) {
+    const apiKey = await this.resolveApiKey();
     await requestJson({
       scope: "liveavatar.stopSession",
       url: `${this.baseUrl}/v1/sessions/stop`,
       method: "POST",
       headers: {
-        "X-API-KEY": this.apiKey,
+        "X-API-KEY": apiKey,
         accept: "application/json",
         "content-type": "application/json",
       },
@@ -185,11 +195,12 @@ export class LiveAvatarClient {
   }
 
   async getTranscript(sessionId: string, cursor = 0) {
+    const apiKey = await this.resolveApiKey();
     const response = await requestJson({
       scope: "liveavatar.getTranscript",
       url: `${this.baseUrl}/v1/sessions/${sessionId}/transcript?start_timestamp=${cursor}`,
       headers: {
-        "X-API-KEY": this.apiKey,
+        "X-API-KEY": apiKey,
         accept: "application/json",
       },
       schema: transcriptResponseSchema,

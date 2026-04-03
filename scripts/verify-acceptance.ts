@@ -303,16 +303,25 @@ async function printFinalInputRequest() {
   const includeFirebaseCredentialSecret = report.blockers.some(
     (blocker) => blocker.requiredInput === "FIREBASE_CREDENTIALS_SECRET_NAME"
   );
+  const includeElevenLabsCredential = report.blockers.some(
+    (blocker) => blocker.requiredInput === "ELEVENLABS_API_KEY"
+  );
+  const includeLiveAvatarCredential = report.blockers.some(
+    (blocker) => blocker.requiredInput === "LIVEAVATAR_API_KEY"
+  );
   console.info(
     buildRequiredInputsBlock(process.env, {
       includeFirebaseCredentialSecret,
-      includeVendorSecrets: true,
+      includeElevenLabsCredential,
+      includeLiveAvatarCredential,
     })
   );
   console.info("");
   console.info(
     buildWhyNeededBlock({
       includeFirebaseCredentialSecret,
+      includeElevenLabsCredential,
+      includeLiveAvatarCredential,
     })
   );
   console.info("");

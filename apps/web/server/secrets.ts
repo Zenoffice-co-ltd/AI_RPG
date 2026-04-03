@@ -3,6 +3,8 @@ import { SecretManagerServiceClient } from "@google-cloud/secret-manager";
 
 export const DEFAULT_SECRET_SOURCE_PROJECT_ID = "zapier-transfer";
 export const DEFAULT_OPENAI_SECRET_NAME = "openai-api-key-default";
+export const DEFAULT_ELEVENLABS_SECRET_NAME = "ELEVENLABS_API_KEY";
+export const DEFAULT_LIVEAVATAR_SECRET_NAME = "LIVEAVATAR_API_KEY";
 export const FIXED_TENANT_NAME = "adecco";
 
 let secretManagerClientSingleton: SecretManagerServiceClient | null = null;

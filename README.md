@@ -87,6 +87,8 @@ pnpm test:e2e
 - Session transcripts are stored in `/sessions/{sessionId}/turns/*`, scorecards in `/sessions/{sessionId}/artifacts/scorecard`.
 - `ENABLE_ELEVEN_WEBHOOKS=false` keeps Eleven webhook endpoints optional and out of the critical path.
 - OpenAI key resolution is `OPENAI_API_KEY env -> Secret Manager(project: zapier-transfer, secret: openai-api-key-default) -> fail-closed`.
+- ElevenLabs key resolution is `ELEVENLABS_API_KEY env -> Secret Manager(project: zapier-transfer, secret: ELEVENLABS_API_KEY) -> fail-closed`.
+- LiveAvatar key resolution is `LIVEAVATAR_API_KEY env -> Secret Manager(project: zapier-transfer, secret: LIVEAVATAR_API_KEY) -> fail-closed`.
 - `FIREBASE_PROJECT_ID` is always an explicit non-secret target project and is never inferred from Secret Manager or the active gcloud project.
 - `pnpm bootstrap:vendors` is idempotent by default. If `/settings/runtime.liveAvatarElevenSecretId` already exists, it is reused unless `--refresh-secret` is passed.
 - `pnpm smoke:eleven -- --preflight`, `pnpm smoke:liveavatar -- --preflight`, and `pnpm verify:acceptance -- --preflight` print the exact required input block before touching vendor APIs.

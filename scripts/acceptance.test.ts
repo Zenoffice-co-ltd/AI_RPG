@@ -65,13 +65,15 @@ describe("acceptance helpers", () => {
         SECRET_SOURCE_PROJECT_ID: "zapier-transfer",
       },
       {
-        includeVendorSecrets: true,
+        includeLiveAvatarCredential: true,
       }
     );
 
     expect(block).toContain("tenant: adecco");
     expect(block).toContain("1. FIREBASE_PROJECT_ID");
     expect(block).toContain("4. Vendor credentials");
+    expect(block).toContain("LIVEAVATAR_API_KEY");
+    expect(block).not.toContain("ELEVENLABS_API_KEY");
     expect(block).not.toContain("FIREBASE_CREDENTIALS_SECRET_NAME");
     expect(block).not.toContain("OPENAI_API_KEY");
   });
@@ -85,7 +87,7 @@ describe("acceptance helpers", () => {
         SECRET_SOURCE_PROJECT_ID: "zapier-transfer",
       },
       {
-        includeVendorSecrets: true,
+        includeLiveAvatarCredential: true,
       }
     );
 
@@ -131,6 +133,47 @@ describe("acceptance helpers", () => {
       "OpenAI secret in zapier-transfer"
     );
     expect(report.warnings.join("\n")).toContain("openai-api-key-default");
+  });
+
+  it("uses the canonical ElevenLabs secret as a warning instead of a blocker", async () => {
+    const report = await buildBasePreflightReport(
+      {
+        SECRET_SOURCE_PROJECT_ID: "zapier-transfer",
+        FIREBASE_PROJECT_ID: "adecco-prod",
+        LIVEAVATAR_API_KEY: "liveavatar",
+        QUEUE_SHARED_SECRET: "queue",
+        DEFAULT_ELEVEN_VOICE_ID: "voice",
+      },
+      {
+        hasApplicationDefaultCredentials: async () => true,
+        secretExists: async () => true,
+      }
+    );
+
+    expect(report.blockers.map((blocker) => blocker.requiredInput)).not.toContain(
+      "ELEVENLABS_API_KEY"
+    );
+    expect(report.warnings.join("\n")).toContain("projects/zapier-transfer/secrets/ELEVENLABS_API_KEY");
+  });
+
+  it("uses the canonical LiveAvatar secret as a warning instead of a blocker", async () => {
+    const report = await buildBasePreflightReport(
+      {
+        SECRET_SOURCE_PROJECT_ID: "zapier-transfer",
+        FIREBASE_PROJECT_ID: "adecco-prod",
+        QUEUE_SHARED_SECRET: "queue",
+        DEFAULT_ELEVEN_VOICE_ID: "voice",
+      },
+      {
+        hasApplicationDefaultCredentials: async () => true,
+        secretExists: async () => true,
+      }
+    );
+
+    expect(report.blockers.map((blocker) => blocker.requiredInput)).not.toContain(
+      "LIVEAVATAR_API_KEY"
+    );
+    expect(report.warnings.join("\n")).toContain("projects/zapier-transfer/secrets/LIVEAVATAR_API_KEY");
   });
 
   it("omits firebase credential rationale when ADC fallback is not needed", () => {

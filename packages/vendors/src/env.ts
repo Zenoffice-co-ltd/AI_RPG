@@ -12,8 +12,8 @@ const booleanFromString = z
 
 export const serverEnvSchema = z.object({
   OPENAI_API_KEY: z.string().min(1).optional(),
-  ELEVENLABS_API_KEY: z.string().min(1),
-  LIVEAVATAR_API_KEY: z.string().min(1),
+  ELEVENLABS_API_KEY: z.string().min(1).optional(),
+  LIVEAVATAR_API_KEY: z.string().min(1).optional(),
   FIREBASE_PROJECT_ID: z.string().min(1),
   FIREBASE_CLIENT_EMAIL: z.string().min(1).optional(),
   FIREBASE_PRIVATE_KEY: z.string().min(1).optional(),

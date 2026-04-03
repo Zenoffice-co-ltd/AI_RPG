@@ -1,4 +1,8 @@
 import { getAppContext } from "../../apps/web/server/appContext";
+import {
+  DEFAULT_ELEVENLABS_SECRET_NAME,
+  getEnvOrSecret,
+} from "../../apps/web/server/secrets";
 import { writeGeneratedJson } from "../../apps/web/server/workspace";
 import {
   ACCEPTANCE_SCENARIO_ID,
@@ -93,13 +97,18 @@ export async function runBootstrapVendors(options: BootstrapOptions = {}) {
     runtimeSettings?.liveAvatarElevenSecretId,
     options.refreshSecret
   );
+  const elevenLabsApiKey = await getEnvOrSecret(
+    "ELEVENLABS_API_KEY",
+    DEFAULT_ELEVENLABS_SECRET_NAME,
+    ctx.env.SECRET_SOURCE_PROJECT_ID
+  );
   const secretId =
     secretAction === "reuse" && runtimeSettings?.liveAvatarElevenSecretId
       ? runtimeSettings.liveAvatarElevenSecretId
       : (
           await ctx.vendors.liveAvatar.createSecret(
             `elevenlabs_${new Date().toISOString().slice(0, 10)}`,
-            ctx.env.ELEVENLABS_API_KEY
+            elevenLabsApiKey
           )
         ).id;
 

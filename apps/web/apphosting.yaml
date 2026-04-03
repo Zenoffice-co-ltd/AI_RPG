@@ -14,6 +14,11 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  - variable: SECRET_SOURCE_PROJECT_ID
+    value: zapier-transfer
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: CLOUD_TASKS_QUEUE_ANALYZE
     value: session-analysis
     availability:
@@ -42,14 +47,11 @@ env:
     value: gpt-5-mini
     availability:
       - RUNTIME
-  - variable: OPENAI_API_KEY
-    secret: OPENAI_API_KEY
-  - variable: ELEVENLABS_API_KEY
-    secret: ELEVENLABS_API_KEY
-  - variable: LIVEAVATAR_API_KEY
-    secret: LIVEAVATAR_API_KEY
   - variable: FIREBASE_PROJECT_ID
-    secret: FIREBASE_PROJECT_ID
+    value: your-firebase-project-id
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: FIREBASE_CLIENT_EMAIL
     secret: FIREBASE_CLIENT_EMAIL
   - variable: FIREBASE_PRIVATE_KEY

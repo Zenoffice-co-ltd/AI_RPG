@@ -43,6 +43,8 @@
   - shared secret helper
   - resolution order: `env -> Secret Manager(zapier-transfer) -> fail-closed`
   - OpenAI canonical secret: `openai-api-key-default`
+  - ElevenLabs canonical secret: `ELEVENLABS_API_KEY`
+  - LiveAvatar canonical secret: `LIVEAVATAR_API_KEY`
   - Firestore credentials are ADC-first; credential secret fallback is only needed when ADC is unavailable
 - `packages/scenario-engine`
   - transcript normalization

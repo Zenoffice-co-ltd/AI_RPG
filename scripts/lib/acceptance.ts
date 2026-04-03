@@ -1,6 +1,8 @@
 import { DEFAULT_SCENARIO_IDS } from "../../packages/domain/src/scenario";
 import { ensureEnvLoaded } from "../../apps/web/server/loadEnv";
 import {
+  DEFAULT_ELEVENLABS_SECRET_NAME,
+  DEFAULT_LIVEAVATAR_SECRET_NAME,
   DEFAULT_OPENAI_SECRET_NAME,
   DEFAULT_SECRET_SOURCE_PROJECT_ID,
   FIXED_TENANT_NAME,
@@ -37,11 +39,7 @@ type PreflightDependencies = {
   secretExists: (secretName: string, secretProjectId: string) => Promise<boolean>;
 };
 
-const REQUIRED_SECRETS = [
-  "ELEVENLABS_API_KEY",
-  "LIVEAVATAR_API_KEY",
-  "QUEUE_SHARED_SECRET",
-] as const;
+const REQUIRED_DIRECT_SECRETS = ["QUEUE_SHARED_SECRET"] as const;
 
 const OPTIONAL_DEFAULTS = [
   "DEFAULT_ELEVEN_MODEL",
@@ -120,9 +118,9 @@ export async function buildBasePreflightReport(
   if (!getConfiguredValue(env, "SECRET_SOURCE_PROJECT_ID")) {
     blockers.push({
       kind: "missing_project",
-      step: "OpenAI secret source",
+      step: "Vendor secret source",
       detail:
-        "SECRET_SOURCE_PROJECT_ID が未設定です。OpenAI key fallback の参照先 project を明示する必要があります。",
+        "SECRET_SOURCE_PROJECT_ID が未設定です。OpenAI / ElevenLabs / LiveAvatar key fallback の参照先 project を明示する必要があります。",
       requiredInput: "SECRET_SOURCE_PROJECT_ID",
     });
   }
@@ -163,16 +161,53 @@ export async function buildBasePreflightReport(
     );
   }
 
-  for (const key of REQUIRED_SECRETS) {
+  const elevenLabsSecretAvailable = await dependencies.secretExists(
+    DEFAULT_ELEVENLABS_SECRET_NAME,
+    secretSourceProjectId
+  );
+  if (!elevenLabsSecretAvailable && !getConfiguredValue(env, "ELEVENLABS_API_KEY")) {
+    blockers.push({
+      kind: "missing_secret",
+      step: "bootstrap:vendors / publish:scenario / smoke:eleven",
+      detail: `ELEVENLABS_API_KEY は env 未設定で、canonical secret projects/${secretSourceProjectId}/secrets/${DEFAULT_ELEVENLABS_SECRET_NAME} も見つかりません。`,
+      requiredInput: "ELEVENLABS_API_KEY",
+    });
+  } else if (elevenLabsSecretAvailable) {
+    warnings.push(
+      `ElevenLabs key は projects/${secretSourceProjectId}/secrets/${DEFAULT_ELEVENLABS_SECRET_NAME} から解決できます。`
+    );
+  } else {
+    warnings.push(
+      "ELEVENLABS_API_KEY env override が設定されているため実行は可能ですが、canonical Secret Manager secret は未確認です。"
+    );
+  }
+
+  const liveAvatarSecretAvailable = await dependencies.secretExists(
+    DEFAULT_LIVEAVATAR_SECRET_NAME,
+    secretSourceProjectId
+  );
+  if (!liveAvatarSecretAvailable && !getConfiguredValue(env, "LIVEAVATAR_API_KEY")) {
+    blockers.push({
+      kind: "missing_secret",
+      step: "bootstrap:vendors / smoke:liveavatar / sessions",
+      detail: `LIVEAVATAR_API_KEY は env 未設定で、canonical secret projects/${secretSourceProjectId}/secrets/${DEFAULT_LIVEAVATAR_SECRET_NAME} も見つかりません。`,
+      requiredInput: "LIVEAVATAR_API_KEY",
+    });
+  } else if (liveAvatarSecretAvailable) {
+    warnings.push(
+      `LiveAvatar key は projects/${secretSourceProjectId}/secrets/${DEFAULT_LIVEAVATAR_SECRET_NAME} から解決できます。`
+    );
+  } else {
+    warnings.push(
+      "LIVEAVATAR_API_KEY env override が設定されているため実行は可能ですが、canonical Secret Manager secret は未確認です。"
+    );
+  }
+
+  for (const key of REQUIRED_DIRECT_SECRETS) {
     if (!getConfiguredValue(env, key)) {
       blockers.push({
         kind: "missing_secret",
-        step:
-          key === "ELEVENLABS_API_KEY"
-            ? "bootstrap:vendors / publish:scenario / smoke:eleven"
-            : key === "LIVEAVATAR_API_KEY"
-              ? "bootstrap:vendors / smoke:liveavatar / sessions"
-              : "analyze-session auth / local queue simulation",
+        step: "analyze-session auth / local queue simulation",
         detail: `${key} が未設定のため、vendor acceptance を開始できません。`,
         requiredInput: key,
       });
@@ -207,7 +242,8 @@ export function buildRequiredInputsBlock(
   source: Record<string, string | undefined> = process.env,
   options?: {
     includeFirebaseCredentialSecret?: boolean;
-    includeVendorSecrets?: boolean;
+    includeElevenLabsCredential?: boolean;
+    includeLiveAvatarCredential?: boolean;
   }
 ) {
   const env = getRawEnv(source);
@@ -217,7 +253,8 @@ export function buildRequiredInputsBlock(
     queueRegion || queueName
       ? [queueRegion, queueName].filter(Boolean).join(" / ")
       : "";
-  const includeVendorSecrets = options?.includeVendorSecrets ?? true;
+  const includeElevenLabsCredential = options?.includeElevenLabsCredential ?? false;
+  const includeLiveAvatarCredential = options?.includeLiveAvatarCredential ?? false;
   let sectionIndex = 1;
   const lines = ["=== REQUIRED INPUTS ===", `tenant: ${FIXED_TENANT_NAME}`];
 
@@ -243,10 +280,14 @@ export function buildRequiredInputsBlock(
     sectionIndex += 1;
   }
 
-  if (includeVendorSecrets) {
+  if (includeElevenLabsCredential || includeLiveAvatarCredential) {
     lines.push(`${sectionIndex}. Vendor credentials`);
-    lines.push("   - ELEVENLABS_API_KEY:");
-    lines.push("   - LIVEAVATAR_API_KEY:");
+    if (includeElevenLabsCredential) {
+      lines.push("   - ELEVENLABS_API_KEY:");
+    }
+    if (includeLiveAvatarCredential) {
+      lines.push("   - LIVEAVATAR_API_KEY:");
+    }
     sectionIndex += 1;
   }
 
@@ -272,16 +313,18 @@ export function buildRequiredInputsBlock(
 
 export function buildWhyNeededBlock(options?: {
   includeFirebaseCredentialSecret?: boolean;
+  includeElevenLabsCredential?: boolean;
+  includeLiveAvatarCredential?: boolean;
 }) {
   const lines = [
     "=== WHY NEEDED ===",
     "- FIREBASE_PROJECT_ID: Firestore の runtime settings 書き込み、seed 判定、Cloud Tasks parent path を安全に確定するため。",
     "- DEFAULT_ELEVEN_VOICE_ID: scenario publish と smoke:eleven の音声設定を確定するため。",
     "- QUEUE_SHARED_SECRET: /api/internal/analyze-session の認証と、local queue simulation を実行するため。",
-    "- ELEVENLABS_API_KEY: vendor bootstrap、scenario publish、smoke:eleven を通すため。",
-    "- LIVEAVATAR_API_KEY: avatar session start、transcript polling、smoke:liveavatar を通すため。",
-    `- SECRET_SOURCE_PROJECT_ID: OpenAI key fallback の参照先を固定し、active gcloud project に依存しないため。既定値は ${DEFAULT_SECRET_SOURCE_PROJECT_ID} です。`,
+    `- SECRET_SOURCE_PROJECT_ID: OpenAI / ElevenLabs / LiveAvatar key fallback の参照先を固定し、active gcloud project に依存しないため。既定値は ${DEFAULT_SECRET_SOURCE_PROJECT_ID} です。`,
     `- OpenAI API Key: env 未設定時は projects/${DEFAULT_SECRET_SOURCE_PROJECT_ID}/secrets/${DEFAULT_OPENAI_SECRET_NAME} を使うため、通常は追加入力不要です。`,
+    `- ElevenLabs API Key: env 未設定時は projects/${DEFAULT_SECRET_SOURCE_PROJECT_ID}/secrets/${DEFAULT_ELEVENLABS_SECRET_NAME} を使うため、canonical secret があれば通常は追加入力不要です。`,
+    `- LiveAvatar API Key: env 未設定時は projects/${DEFAULT_SECRET_SOURCE_PROJECT_ID}/secrets/${DEFAULT_LIVEAVATAR_SECRET_NAME} を使うため、canonical secret があれば通常は追加入力不要です。`,
     "- GCLOUD_LOCATION: App Hosting と acceptance 実行先の地域設定を揃えるため。",
     "- Cloud Tasks queue region/name: /api/sessions/[id]/end から analyze-session を enqueue する先を確定するため。",
     "- DEFAULT_ELEVEN_MODEL: publish 時の agent model を確定するため。",
@@ -298,6 +341,28 @@ export function buildWhyNeededBlock(options?: {
       4,
       0,
       "- FIREBASE_CREDENTIALS_SECRET_NAME: ADC が使えない場合のみ、Firebase Admin credential fallback の secret 名を明示するため。"
+    );
+  }
+
+  if (options?.includeElevenLabsCredential) {
+    lines.splice(
+      options?.includeFirebaseCredentialSecret ? 5 : 4,
+      0,
+      "- ELEVENLABS_API_KEY: vendor bootstrap、scenario publish、smoke:eleven を通すため。"
+    );
+  }
+
+  if (options?.includeLiveAvatarCredential) {
+    lines.splice(
+      options?.includeFirebaseCredentialSecret
+        ? options?.includeElevenLabsCredential
+          ? 6
+          : 5
+        : options?.includeElevenLabsCredential
+          ? 5
+          : 4,
+      0,
+      "- LIVEAVATAR_API_KEY: avatar session start、transcript polling、smoke:liveavatar を通すため。"
     );
   }
 
@@ -323,7 +388,8 @@ export function buildHumanInputRequest(
   source: Record<string, string | undefined> = process.env,
   options?: {
     includeFirebaseCredentialSecret?: boolean;
-    includeVendorSecrets?: boolean;
+    includeElevenLabsCredential?: boolean;
+    includeLiveAvatarCredential?: boolean;
   }
 ) {
   return [

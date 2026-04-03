@@ -94,6 +94,8 @@ type AgentConfigPayload = {
   language: string;
 };
 
+type ApiKeyProvider = string | (() => Promise<string>);
+
 function buildConversationConfig(payload: AgentConfigPayload) {
   return {
     agent: {
@@ -123,16 +125,21 @@ function buildConversationConfig(payload: AgentConfigPayload) {
 
 export class ElevenLabsClient {
   constructor(
-    private readonly apiKey: string,
+    private readonly apiKey: ApiKeyProvider,
     private readonly baseUrl = "https://api.elevenlabs.io"
   ) {}
 
+  private async resolveApiKey() {
+    return typeof this.apiKey === "function" ? this.apiKey() : this.apiKey;
+  }
+
   async assertConnectivity() {
+    const apiKey = await this.resolveApiKey();
     const response = await requestJson({
       scope: "elevenlabs.listKnowledgeBase",
       url: `${this.baseUrl}/v1/convai/knowledge-base?page_size=1`,
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
       },
       schema: knowledgeBaseListSchema,
@@ -143,6 +150,7 @@ export class ElevenLabsClient {
   }
 
   async listKnowledgeBaseDocuments(search?: string) {
+    const apiKey = await this.resolveApiKey();
     const query = new URLSearchParams({ page_size: "100" });
     if (search) {
       query.set("search", search);
@@ -152,7 +160,7 @@ export class ElevenLabsClient {
       scope: "elevenlabs.listKnowledgeBaseDocuments",
       url: `${this.baseUrl}/v1/convai/knowledge-base?${query.toString()}`,
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
       },
       schema: knowledgeBaseListSchema,
@@ -163,12 +171,13 @@ export class ElevenLabsClient {
   }
 
   async createKnowledgeBaseDocumentFromText(name: string, text: string) {
+    const apiKey = await this.resolveApiKey();
     const response = await requestJson({
       scope: "elevenlabs.createKnowledgeBaseDocumentFromText",
       url: `${this.baseUrl}/v1/convai/knowledge-base/text`,
       method: "POST",
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
         "content-type": "application/json",
       },
@@ -184,12 +193,13 @@ export class ElevenLabsClient {
   }
 
   async createAgent(input: AgentConfigPayload) {
+    const apiKey = await this.resolveApiKey();
     const response = await requestJson({
       scope: "elevenlabs.createAgent",
       url: `${this.baseUrl}/v1/convai/agents/create?enable_versioning=true`,
       method: "POST",
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
         "content-type": "application/json",
       },
@@ -212,6 +222,7 @@ export class ElevenLabsClient {
   }
 
   async getAgent(agentId: string, branchId?: string) {
+    const apiKey = await this.resolveApiKey();
     const query = new URLSearchParams();
     if (branchId) {
       query.set("branch_id", branchId);
@@ -223,7 +234,7 @@ export class ElevenLabsClient {
         query.size > 0 ? `?${query.toString()}` : ""
       }`,
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
       },
       schema: agentResponseSchema,
@@ -238,6 +249,7 @@ export class ElevenLabsClient {
     input: AgentConfigPayload,
     options?: { branchId?: string }
   ) {
+    const apiKey = await this.resolveApiKey();
     const query = new URLSearchParams({
       enable_versioning_if_not_enabled: "true",
     });
@@ -250,7 +262,7 @@ export class ElevenLabsClient {
       url: `${this.baseUrl}/v1/convai/agents/${agentId}?${query.toString()}`,
       method: "PATCH",
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
         "content-type": "application/json",
       },
@@ -266,11 +278,12 @@ export class ElevenLabsClient {
   }
 
   async listBranches(agentId: string) {
+    const apiKey = await this.resolveApiKey();
     const response = await requestJson({
       scope: "elevenlabs.listBranches",
       url: `${this.baseUrl}/v1/convai/agents/${agentId}/branches?include_archived=false&limit=100`,
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
       },
       schema: branchesResponseSchema,
@@ -286,12 +299,13 @@ export class ElevenLabsClient {
     name: string,
     description: string
   ) {
+    const apiKey = await this.resolveApiKey();
     return requestJson({
       scope: "elevenlabs.createBranch",
       url: `${this.baseUrl}/v1/convai/agents/${agentId}/branches`,
       method: "POST",
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
         "content-type": "application/json",
       },
@@ -306,12 +320,13 @@ export class ElevenLabsClient {
   }
 
   async mergeBranch(agentId: string, sourceBranchId: string, targetBranchId: string) {
+    const apiKey = await this.resolveApiKey();
     await requestJson({
       scope: "elevenlabs.mergeBranch",
       url: `${this.baseUrl}/v1/convai/agents/${agentId}/branches/${sourceBranchId}/merge?target_branch_id=${targetBranchId}`,
       method: "POST",
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
         "content-type": "application/json",
       },
@@ -324,11 +339,12 @@ export class ElevenLabsClient {
   }
 
   async listTests() {
+    const apiKey = await this.resolveApiKey();
     const response = await requestJson({
       scope: "elevenlabs.listTests",
       url: `${this.baseUrl}/v1/convai/agent-testing?page_size=100`,
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
       },
       schema: testsListSchema,
@@ -339,12 +355,13 @@ export class ElevenLabsClient {
   }
 
   async createTest(body: Record<string, unknown>) {
+    const apiKey = await this.resolveApiKey();
     const response = await requestJson({
       scope: "elevenlabs.createTest",
       url: `${this.baseUrl}/v1/convai/agent-testing/create`,
       method: "POST",
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
         "content-type": "application/json",
       },
@@ -357,12 +374,13 @@ export class ElevenLabsClient {
   }
 
   async updateTest(testId: string, body: Record<string, unknown>) {
+    const apiKey = await this.resolveApiKey();
     await requestJson({
       scope: "elevenlabs.updateTest",
       url: `${this.baseUrl}/v1/convai/agent-testing/${testId}`,
       method: "PUT",
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
         "content-type": "application/json",
       },
@@ -373,12 +391,13 @@ export class ElevenLabsClient {
   }
 
   async runTests(agentId: string, testIds: string[], branchId?: string) {
+    const apiKey = await this.resolveApiKey();
     return requestJson({
       scope: "elevenlabs.runTests",
       url: `${this.baseUrl}/v1/convai/agents/${agentId}/run-tests`,
       method: "POST",
       headers: {
-        "xi-api-key": this.apiKey,
+        "xi-api-key": apiKey,
         accept: "application/json",
         "content-type": "application/json",
       },

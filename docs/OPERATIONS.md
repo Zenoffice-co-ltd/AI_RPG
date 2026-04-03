@@ -7,8 +7,6 @@ Use `.env.local.example` as the source of truth for required variables.
 Key values:
 
 - `SECRET_SOURCE_PROJECT_ID=zapier-transfer`
-- `ELEVENLABS_API_KEY`
-- `LIVEAVATAR_API_KEY`
 - `FIREBASE_PROJECT_ID`
 - `FIREBASE_CLIENT_EMAIL`
 - `FIREBASE_PRIVATE_KEY`
@@ -19,6 +17,10 @@ Key values:
 - `DEFAULT_AVATAR_ID`
 
 OpenAI は `OPENAI_API_KEY` を env で上書きできるが、未設定時は `projects/zapier-transfer/secrets/openai-api-key-default` を既定経路として参照する。
+
+ElevenLabs は `ELEVENLABS_API_KEY` を env で上書きできるが、未設定時は `projects/zapier-transfer/secrets/ELEVENLABS_API_KEY` を既定経路として参照する。
+
+LiveAvatar は `LIVEAVATAR_API_KEY` を env で上書きできるが、未設定時は `projects/zapier-transfer/secrets/LIVEAVATAR_API_KEY` を既定経路として参照する。
 
 `FIREBASE_PROJECT_ID` は secret ではなく target project の明示値として扱う。active gcloud project や Secret Manager から推測しない。
 
@@ -33,7 +35,7 @@ This script:
 
 - checks ElevenLabs connectivity
 - checks LiveAvatar connectivity
-- checks that `SECRET_SOURCE_PROJECT_ID` is set and that `openai-api-key-default` exists in that project
+- checks that `SECRET_SOURCE_PROJECT_ID` is set and that `openai-api-key-default`, `ELEVENLABS_API_KEY`, and `LIVEAVATAR_API_KEY` exist in that project when env override is absent
 - reuses `/settings/runtime.liveAvatarElevenSecretId` by default and creates a new LiveAvatar secret only when missing or `--refresh-secret` is passed
 - fetches public avatars
 - stores runtime settings in `/settings/runtime`
@@ -44,6 +46,7 @@ This script:
 - App Hosting sample config lives in [apps/web/apphosting.yaml](/C:/AI_RPG/apps/web/apphosting.yaml)
 - deploy target is `apps/web`
 - keep all vendor secrets server-only in Secret Manager
+- `FIREBASE_PROJECT_ID` is explicit config, not a Secret Manager-derived value
 
 ## Smoke Tests
 
