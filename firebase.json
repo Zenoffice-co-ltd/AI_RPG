@@ -1,0 +1,17 @@
+{
+  "apphosting": {
+    "backendId": "adecco-roleplay",
+    "rootDir": "apps/web",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "playwright-report",
+      "test-results",
+      "tmp-next-start.err.log",
+      "tmp-next-start.out.log"
+    ],
+    "alwaysDeployFromSource": true
+  }
+}

@@ -1,13 +1,6 @@
-import { CloudTasksClient } from "@google-cloud/tasks";
+import { applicationDefault } from "firebase-admin/app";
 import { analyzeSessionRequestSchema } from "@top-performer/domain";
 import { getAppContext } from "./appContext";
-
-let clientSingleton: CloudTasksClient | null = null;
-
-function getCloudTasksClient() {
-  clientSingleton ??= new CloudTasksClient();
-  return clientSingleton;
-}
 
 export async function enqueueSessionAnalysis(sessionId: string) {
   const {
@@ -24,26 +17,41 @@ export async function enqueueSessionAnalysis(sessionId: string) {
     throw new Error("FIREBASE_PROJECT_ID is required for Cloud Tasks");
   }
 
-  const client = getCloudTasksClient();
-  const parent = client.queuePath(
-    FIREBASE_PROJECT_ID,
-    CLOUD_TASKS_QUEUE_REGION,
-    CLOUD_TASKS_QUEUE_ANALYZE
+  const payload = analyzeSessionRequestSchema.parse({ sessionId });
+  const accessToken = await applicationDefault().getAccessToken();
+  const tokenValue = accessToken.access_token;
+
+  if (!tokenValue) {
+    throw new Error("Failed to acquire an access token for Cloud Tasks.");
+  }
+
+  const response = await fetch(
+    `https://cloudtasks.googleapis.com/v2/projects/${FIREBASE_PROJECT_ID}/locations/${CLOUD_TASKS_QUEUE_REGION}/queues/${CLOUD_TASKS_QUEUE_ANALYZE}/tasks`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${tokenValue}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        task: {
+          httpRequest: {
+            httpMethod: "POST",
+            url: `${APP_BASE_URL}/api/internal/analyze-session`,
+            headers: {
+              "Content-Type": "application/json",
+              "x-queue-shared-secret": QUEUE_SHARED_SECRET,
+            },
+            body: Buffer.from(JSON.stringify(payload)).toString("base64"),
+          },
+        },
+      }),
+    }
   );
 
-  const payload = analyzeSessionRequestSchema.parse({ sessionId });
-  await client.createTask({
-    parent,
-    task: {
-      httpRequest: {
-        httpMethod: "POST",
-        url: `${APP_BASE_URL}/api/internal/analyze-session`,
-        headers: {
-          "Content-Type": "application/json",
-          "x-queue-shared-secret": QUEUE_SHARED_SECRET,
-        },
-        body: Buffer.from(JSON.stringify(payload)).toString("base64"),
-      },
-    },
-  });
+  if (!response.ok) {
+    throw new Error(
+      `Cloud Tasks enqueue failed with status ${response.status}: ${await response.text()}`
+    );
+  }
 }

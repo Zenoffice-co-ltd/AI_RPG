@@ -10,12 +10,10 @@ const nextConfig: NextConfig = {
     "@top-performer/scenario-engine",
     "@top-performer/scoring"
   ],
-  serverExternalPackages: [
-    "@google-cloud/tasks",
-    "firebase-admin",
-    "google-gax",
-    "protobufjs"
-  ]
+  serverExternalPackages: ["firebase-admin"],
+  outputFileTracingIncludes: {
+    "/*": ["../../packages/scoring/src/prompts/**/*.md"]
+  }
 };
 
 export default nextConfig;

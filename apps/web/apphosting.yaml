@@ -5,7 +5,7 @@ runConfig:
   maxInstances: 2
 env:
   - variable: APP_BASE_URL
-    value: https://example.web.app
+    value: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app
     availability:
       - BUILD
       - RUNTIME
@@ -54,10 +54,6 @@ env:
     availability:
       - BUILD
       - RUNTIME
-  - variable: FIREBASE_CLIENT_EMAIL
-    secret: FIREBASE_CLIENT_EMAIL
-  - variable: FIREBASE_PRIVATE_KEY
-    secret: FIREBASE_PRIVATE_KEY
   - variable: QUEUE_SHARED_SECRET
     secret: QUEUE_SHARED_SECRET
   - variable: ADMIN_BASIC_AUTH_USER
@@ -66,5 +62,3 @@ env:
     secret: ADMIN_BASIC_AUTH_PASS
   - variable: DEFAULT_ELEVEN_VOICE_ID
     secret: DEFAULT_ELEVEN_VOICE_ID
-  - variable: DEFAULT_AVATAR_ID
-    secret: DEFAULT_AVATAR_ID
