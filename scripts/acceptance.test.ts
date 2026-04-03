@@ -97,6 +97,29 @@ describe("acceptance helpers", () => {
     );
   });
 
+  it("can narrow the required input block to the remaining blocker only", () => {
+    const block = buildRequiredInputsBlock(
+      {
+        FIREBASE_PROJECT_ID: "",
+        DEFAULT_ELEVEN_VOICE_ID: "voice_123",
+        QUEUE_SHARED_SECRET: "queue_123",
+        GCLOUD_LOCATION: "asia-northeast1",
+        CLOUD_TASKS_QUEUE_REGION: "asia-northeast1",
+        CLOUD_TASKS_QUEUE_ANALYZE: "session-analysis",
+        SECRET_SOURCE_PROJECT_ID: "zapier-transfer",
+      },
+      {
+        includeFirebaseProjectId: true,
+        includeDefaultElevenVoiceId: false,
+        includeQueueSharedSecret: false,
+      }
+    );
+
+    expect(block).toContain("1. FIREBASE_PROJECT_ID");
+    expect(block).not.toContain("DEFAULT_ELEVEN_VOICE_ID");
+    expect(block).not.toContain("QUEUE_SHARED_SECRET");
+  });
+
   it("evaluates the 60 second scorecard SLA", () => {
     expect(evaluateScorecardSla(59_500).passed).toBe(true);
     expect(evaluateScorecardSla(60_100).passed).toBe(false);
@@ -180,5 +203,17 @@ describe("acceptance helpers", () => {
     const why = buildWhyNeededBlock();
 
     expect(why).not.toContain("FIREBASE_CREDENTIALS_SECRET_NAME");
+  });
+
+  it("can narrow the why block to only the unresolved firebase project requirement", () => {
+    const why = buildWhyNeededBlock({
+      includeFirebaseProjectId: true,
+      includeDefaultElevenVoiceId: false,
+      includeQueueSharedSecret: false,
+    });
+
+    expect(why).toContain("FIREBASE_PROJECT_ID");
+    expect(why).not.toContain("DEFAULT_ELEVEN_VOICE_ID");
+    expect(why).not.toContain("QUEUE_SHARED_SECRET");
   });
 });

@@ -24,6 +24,8 @@ LiveAvatar は `LIVEAVATAR_API_KEY` を env で上書きできるが、未設定
 
 `FIREBASE_PROJECT_ID` は secret ではなく target project の明示値として扱う。active gcloud project や Secret Manager から推測しない。
 
+`zapier-transfer` は secret source 専用であり、runtime project として使わない。Firestore / App Hosting / Cloud Tasks は Adecco 専用 project に載せる。第一候補は `adecco-ai-roleplay-dev`。
+
 ## Vendor Bootstrap
 
 ```bash
@@ -47,6 +49,7 @@ This script:
 - deploy target is `apps/web`
 - keep all vendor secrets server-only in Secret Manager
 - `FIREBASE_PROJECT_ID` is explicit config, not a Secret Manager-derived value
+- `apphosting.yaml` の `FIREBASE_PROJECT_ID` sample は Adecco runtime project 候補を示すもので、`zapier-transfer` を入れてはいけない
 
 ## Smoke Tests
 

@@ -300,6 +300,15 @@ async function pollResult(appBaseUrl: string, sessionId: string) {
 
 async function printFinalInputRequest() {
   const report = await buildBasePreflightReport();
+  const includeFirebaseProjectId = report.blockers.some(
+    (blocker) => blocker.requiredInput === "FIREBASE_PROJECT_ID"
+  );
+  const includeDefaultElevenVoiceId = report.blockers.some(
+    (blocker) => blocker.requiredInput === "DEFAULT_ELEVEN_VOICE_ID"
+  );
+  const includeQueueSharedSecret = report.blockers.some(
+    (blocker) => blocker.requiredInput === "QUEUE_SHARED_SECRET"
+  );
   const includeFirebaseCredentialSecret = report.blockers.some(
     (blocker) => blocker.requiredInput === "FIREBASE_CREDENTIALS_SECRET_NAME"
   );
@@ -311,6 +320,9 @@ async function printFinalInputRequest() {
   );
   console.info(
     buildRequiredInputsBlock(process.env, {
+      includeFirebaseProjectId,
+      includeDefaultElevenVoiceId,
+      includeQueueSharedSecret,
       includeFirebaseCredentialSecret,
       includeElevenLabsCredential,
       includeLiveAvatarCredential,
@@ -319,6 +331,9 @@ async function printFinalInputRequest() {
   console.info("");
   console.info(
     buildWhyNeededBlock({
+      includeFirebaseProjectId,
+      includeDefaultElevenVoiceId,
+      includeQueueSharedSecret,
       includeFirebaseCredentialSecret,
       includeElevenLabsCredential,
       includeLiveAvatarCredential,

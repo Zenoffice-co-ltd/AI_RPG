@@ -9,10 +9,10 @@ tenant: adecco
 | DOD item | Status | Evidence / note | Unblocker |
 | --- | --- | --- | --- |
 | トップパフォーマー transcript を import できる | done | `packages/scenario-engine/src/normalize.test.ts` と `scripts/import-transcripts.ts` で normalization と import path を確認済み | なし |
-| playbook norms を build できる | blocked_by_project | OpenAI は `zapier-transfer` Secret Manager で解消可能。残りは Firestore target project の明示と受入実行 | `FIREBASE_PROJECT_ID` |
-| 3 variants の scenario pack を compile できる | blocked_by_project | compile code は実装済みだが、acceptance では playbook seed の再利用先と target Firestore project が未確定 | `FIREBASE_PROJECT_ID` と既存 Firestore seed もしくは local transcript corpus |
+| playbook norms を build できる | blocked_by_project | OpenAI は `zapier-transfer` Secret Manager で解消可能。残りは Adecco 専用 runtime project の明示と受入実行 | `FIREBASE_PROJECT_ID` |
+| 3 variants の scenario pack を compile できる | blocked_by_project | compile code は実装済みだが、acceptance では playbook seed の再利用先と Adecco runtime Firestore project が未確定 | `FIREBASE_PROJECT_ID` と既存 Firestore seed もしくは local transcript corpus |
 | scenario を ElevenLabs に publish できる | blocked_by_secret | publish pipeline と tests は実装済み。ElevenLabs key は `zapier-transfer` Secret Manager で解消可能。残りは voice id と target project | `DEFAULT_ELEVEN_VOICE_ID`, `FIREBASE_PROJECT_ID` |
-| LiveAvatar でアバター会話開始できる | blocked_by_project | session runtime と `/api/sessions` は実装済み。ElevenLabs / LiveAvatar key は `zapier-transfer` Secret Manager で解消可能。残りは target project と runtime secret 実行 | `FIREBASE_PROJECT_ID` |
+| LiveAvatar でアバター会話開始できる | blocked_by_project | session runtime と `/api/sessions` は実装済み。ElevenLabs / LiveAvatar key は `zapier-transfer` Secret Manager で解消可能。残りは Adecco runtime project と runtime secret 実行 | `FIREBASE_PROJECT_ID` |
 | transcript bubble が会話中に更新される | blocked_by_project | polling / dedupe path は実装済み。実 vendor 会話で未受入。vendor key は `zapier-transfer` Secret Manager で解消可能 | published binding, target project |
 | session end 後 60 秒以内に scorecard が出る | blocked_by_secret | SLA checker と idempotency no-op は追加済み。OpenAI は `zapier-transfer` Secret Manager で解消可能。残りは queue secret と target project の受入 | `QUEUE_SHARED_SECRET`, `FIREBASE_PROJECT_ID` |
 | result 画面でトップ基準との差分が見える | done | result UI に must-capture, rubric, evidence, misses, missed questions, next drills を表示 | なし |
@@ -32,15 +32,15 @@ tenant: adecco
 ## Current Blocking Inputs
 
 - `FIREBASE_PROJECT_ID`
-- `QUEUE_SHARED_SECRET`
-- `DEFAULT_ELEVEN_VOICE_ID`
+- `QUEUE_SHARED_SECRET` and `DEFAULT_ELEVEN_VOICE_ID` are already configured in the current local environment; they remain required deployment inputs outside this workstation
 - `FIREBASE_CREDENTIALS_SECRET_NAME` only if ADC is unavailable
 - account-side confirmations for target project / Firestore reuse / LiveAvatar secret creation
+- current gcloud visibility in this environment exposes `zenoffice.co.jp` only; no Adecco org or `adecco-*` runtime project is visible, so Adecco runtime project creation or grant is the remaining manual step
 
 ## Secret Source Policy
 
 - OpenAI: `OPENAI_API_KEY env -> projects/zapier-transfer/secrets/openai-api-key-default -> fail-closed`
 - ElevenLabs: `ELEVENLABS_API_KEY env -> projects/zapier-transfer/secrets/ELEVENLABS_API_KEY -> fail-closed`
 - LiveAvatar: `LIVEAVATAR_API_KEY env -> projects/zapier-transfer/secrets/LIVEAVATAR_API_KEY -> fail-closed`
-- Firebase target project: explicit `FIREBASE_PROJECT_ID`, never inferred from Secret Manager
+- Firebase target project: explicit `FIREBASE_PROJECT_ID`, never inferred from Secret Manager, and never equal to `zapier-transfer`
 - Firebase Admin credentials: ADC first, optional `FIREBASE_CREDENTIALS_SECRET_NAME` only when ADC is unavailable

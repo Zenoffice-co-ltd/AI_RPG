@@ -18,6 +18,15 @@ async function main() {
 
   if (preflight) {
     const report = await buildBasePreflightReport();
+    const includeFirebaseProjectId = blockers.some(
+      (blocker) => blocker.requiredInput === "FIREBASE_PROJECT_ID"
+    );
+    const includeDefaultElevenVoiceId = blockers.some(
+      (blocker) => blocker.requiredInput === "DEFAULT_ELEVEN_VOICE_ID"
+    );
+    const includeQueueSharedSecret = blockers.some(
+      (blocker) => blocker.requiredInput === "QUEUE_SHARED_SECRET"
+    );
     const includeFirebaseCredentialSecret = report.blockers.some(
       (blocker) => blocker.requiredInput === "FIREBASE_CREDENTIALS_SECRET_NAME"
     );
@@ -41,6 +50,9 @@ async function main() {
       console.info("");
       console.info(
         buildHumanInputRequest(process.env, {
+          includeFirebaseProjectId,
+          includeDefaultElevenVoiceId,
+          includeQueueSharedSecret,
           includeFirebaseCredentialSecret,
           includeElevenLabsCredential,
           includeLiveAvatarCredential,

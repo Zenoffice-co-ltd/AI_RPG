@@ -43,21 +43,26 @@ export function ensureEnvLoaded() {
     return;
   }
 
-  const candidatePaths = [
-    resolve(process.cwd(), ".env.local"),
-    resolve(process.cwd(), ".env"),
-    resolve(process.cwd(), ".env.local.example"),
-    resolve(process.cwd(), "apps/web/.env.local"),
-    resolve(process.cwd(), "apps/web/.env"),
-    resolve(process.cwd(), "apps/web/.env.local.example"),
-    resolve(process.cwd(), "../../.env.local"),
-    resolve(process.cwd(), "../../.env"),
-    resolve(process.cwd(), "../../.env.local.example"),
+  const candidateGroups = [
+    resolve(process.cwd()),
+    resolve(process.cwd(), "apps/web"),
+    resolve(process.cwd(), "../../"),
   ];
 
-  for (const filePath of candidatePaths) {
-    if (existsSync(filePath)) {
-      parseEnvFile(filePath);
+  for (const basePath of candidateGroups) {
+    const localPath = resolve(basePath, ".env.local");
+    const envPath = resolve(basePath, ".env");
+    const examplePath = resolve(basePath, ".env.local.example");
+    const hasConcreteEnv = existsSync(localPath) || existsSync(envPath);
+
+    if (existsSync(localPath)) {
+      parseEnvFile(localPath);
+    }
+    if (existsSync(envPath)) {
+      parseEnvFile(envPath);
+    }
+    if (!hasConcreteEnv && existsSync(examplePath)) {
+      parseEnvFile(examplePath);
     }
   }
 

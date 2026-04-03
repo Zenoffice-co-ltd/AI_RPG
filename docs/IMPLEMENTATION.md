@@ -45,6 +45,7 @@
   - OpenAI canonical secret: `openai-api-key-default`
   - ElevenLabs canonical secret: `ELEVENLABS_API_KEY`
   - LiveAvatar canonical secret: `LIVEAVATAR_API_KEY`
+  - `zapier-transfer` is secret-source only; runtime Firestore/App Hosting/Cloud Tasks must use an Adecco-owned `FIREBASE_PROJECT_ID`
   - Firestore credentials are ADC-first; credential secret fallback is only needed when ADC is unavailable
 - `packages/scenario-engine`
   - transcript normalization

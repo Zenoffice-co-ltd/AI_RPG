@@ -47,8 +47,10 @@ env:
     value: gpt-5-mini
     availability:
       - RUNTIME
+  # Runtime project must be an Adecco-owned app/data project.
+  # Do not point this at the secret-source project zapier-transfer.
   - variable: FIREBASE_PROJECT_ID
-    value: your-firebase-project-id
+    value: adecco-ai-roleplay-dev
     availability:
       - BUILD
       - RUNTIME
