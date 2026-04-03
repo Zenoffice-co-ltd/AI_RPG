@@ -11,12 +11,14 @@ const booleanFromString = z
   });
 
 export const serverEnvSchema = z.object({
-  OPENAI_API_KEY: z.string().min(1),
+  OPENAI_API_KEY: z.string().min(1).optional(),
   ELEVENLABS_API_KEY: z.string().min(1),
   LIVEAVATAR_API_KEY: z.string().min(1),
-  FIREBASE_PROJECT_ID: z.string().min(1).optional(),
+  FIREBASE_PROJECT_ID: z.string().min(1),
   FIREBASE_CLIENT_EMAIL: z.string().min(1).optional(),
   FIREBASE_PRIVATE_KEY: z.string().min(1).optional(),
+  FIREBASE_CREDENTIALS_SECRET_NAME: z.string().min(1).optional(),
+  SECRET_SOURCE_PROJECT_ID: z.string().min(1),
   GCLOUD_LOCATION: z.string().min(1),
   CLOUD_TASKS_QUEUE_ANALYZE: z.string().min(1),
   CLOUD_TASKS_QUEUE_REGION: z.string().min(1),

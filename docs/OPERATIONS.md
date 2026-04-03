@@ -6,16 +6,21 @@ Use `.env.local.example` as the source of truth for required variables.
 
 Key values:
 
-- `OPENAI_API_KEY`
+- `SECRET_SOURCE_PROJECT_ID=zapier-transfer`
 - `ELEVENLABS_API_KEY`
 - `LIVEAVATAR_API_KEY`
 - `FIREBASE_PROJECT_ID`
 - `FIREBASE_CLIENT_EMAIL`
 - `FIREBASE_PRIVATE_KEY`
+- `FIREBASE_CREDENTIALS_SECRET_NAME` (ADC が使えない場合のみ)
 - `CLOUD_TASKS_QUEUE_ANALYZE`
 - `QUEUE_SHARED_SECRET`
 - `DEFAULT_ELEVEN_VOICE_ID`
 - `DEFAULT_AVATAR_ID`
+
+OpenAI は `OPENAI_API_KEY` を env で上書きできるが、未設定時は `projects/zapier-transfer/secrets/openai-api-key-default` を既定経路として参照する。
+
+`FIREBASE_PROJECT_ID` は secret ではなく target project の明示値として扱う。active gcloud project や Secret Manager から推測しない。
 
 ## Vendor Bootstrap
 
@@ -28,6 +33,7 @@ This script:
 
 - checks ElevenLabs connectivity
 - checks LiveAvatar connectivity
+- checks that `SECRET_SOURCE_PROJECT_ID` is set and that `openai-api-key-default` exists in that project
 - reuses `/settings/runtime.liveAvatarElevenSecretId` by default and creates a new LiveAvatar secret only when missing or `--refresh-secret` is passed
 - fetches public avatars
 - stores runtime settings in `/settings/runtime`

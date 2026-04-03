@@ -2,21 +2,29 @@ import { describe, expect, it } from "vitest";
 import {
   buildBasePreflightReport,
   buildRequiredInputsBlock,
+  buildWhyNeededBlock,
   evaluateScorecardSla,
   isLocalAppBaseUrl,
 } from "./lib/acceptance";
 import { resolveSecretReuseAction } from "./lib/vendorFlows";
 
 describe("acceptance helpers", () => {
-  it("flags missing secrets and project in preflight", () => {
-    const report = buildBasePreflightReport({
-      OPENAI_API_KEY: "",
-      ELEVENLABS_API_KEY: "",
-      LIVEAVATAR_API_KEY: "",
-      QUEUE_SHARED_SECRET: "",
-      FIREBASE_PROJECT_ID: "",
-      DEFAULT_ELEVEN_VOICE_ID: "",
-    });
+  it("flags missing secrets and project in preflight", async () => {
+    const report = await buildBasePreflightReport(
+      {
+        OPENAI_API_KEY: "",
+        SECRET_SOURCE_PROJECT_ID: "zapier-transfer",
+        ELEVENLABS_API_KEY: "",
+        LIVEAVATAR_API_KEY: "",
+        QUEUE_SHARED_SECRET: "",
+        FIREBASE_PROJECT_ID: "",
+        DEFAULT_ELEVEN_VOICE_ID: "",
+      },
+      {
+        hasApplicationDefaultCredentials: async () => true,
+        secretExists: async () => true,
+      }
+    );
 
     expect(report.ready).toBe(false);
     expect(report.blockers.map((blocker) => blocker.requiredInput)).toContain(
@@ -27,12 +35,59 @@ describe("acceptance helpers", () => {
     );
   });
 
+  it("flags firebase credential secret only when ADC is unavailable", async () => {
+    const report = await buildBasePreflightReport(
+      {
+        SECRET_SOURCE_PROJECT_ID: "zapier-transfer",
+        FIREBASE_PROJECT_ID: "adecco-prod",
+        ELEVENLABS_API_KEY: "eleven",
+        LIVEAVATAR_API_KEY: "liveavatar",
+        QUEUE_SHARED_SECRET: "queue",
+        DEFAULT_ELEVEN_VOICE_ID: "voice",
+      },
+      {
+        hasApplicationDefaultCredentials: async () => false,
+        secretExists: async () => true,
+      }
+    );
+
+    expect(report.blockers.map((blocker) => blocker.requiredInput)).toContain(
+      "FIREBASE_CREDENTIALS_SECRET_NAME"
+    );
+  });
+
+  it("prints the minimal input block with adecco tenant and no direct OpenAI key", () => {
+    const block = buildRequiredInputsBlock(
+      {
+        GCLOUD_LOCATION: "asia-northeast1",
+        CLOUD_TASKS_QUEUE_REGION: "asia-northeast1",
+        CLOUD_TASKS_QUEUE_ANALYZE: "session-analysis",
+        SECRET_SOURCE_PROJECT_ID: "zapier-transfer",
+      },
+      {
+        includeVendorSecrets: true,
+      }
+    );
+
+    expect(block).toContain("tenant: adecco");
+    expect(block).toContain("1. FIREBASE_PROJECT_ID");
+    expect(block).toContain("4. Vendor credentials");
+    expect(block).not.toContain("FIREBASE_CREDENTIALS_SECRET_NAME");
+    expect(block).not.toContain("OPENAI_API_KEY");
+  });
+
   it("prints queue defaults into the required input block", () => {
-    const block = buildRequiredInputsBlock({
-      GCLOUD_LOCATION: "asia-northeast1",
-      CLOUD_TASKS_QUEUE_REGION: "asia-northeast1",
-      CLOUD_TASKS_QUEUE_ANALYZE: "session-analysis",
-    });
+    const block = buildRequiredInputsBlock(
+      {
+        GCLOUD_LOCATION: "asia-northeast1",
+        CLOUD_TASKS_QUEUE_REGION: "asia-northeast1",
+        CLOUD_TASKS_QUEUE_ANALYZE: "session-analysis",
+        SECRET_SOURCE_PROJECT_ID: "zapier-transfer",
+      },
+      {
+        includeVendorSecrets: true,
+      }
+    );
 
     expect(block).toContain("GCLOUD_LOCATION: asia-northeast1");
     expect(block).toContain(
@@ -54,5 +109,33 @@ describe("acceptance helpers", () => {
     expect(resolveSecretReuseAction("sec_123", false)).toBe("reuse");
     expect(resolveSecretReuseAction("sec_123", true)).toBe("create");
     expect(resolveSecretReuseAction(undefined, false)).toBe("create");
+  });
+
+  it("uses the canonical OpenAI secret as a warning instead of a blocker", async () => {
+    const report = await buildBasePreflightReport(
+      {
+        SECRET_SOURCE_PROJECT_ID: "zapier-transfer",
+        FIREBASE_PROJECT_ID: "adecco-prod",
+        ELEVENLABS_API_KEY: "eleven",
+        LIVEAVATAR_API_KEY: "liveavatar",
+        QUEUE_SHARED_SECRET: "queue",
+        DEFAULT_ELEVEN_VOICE_ID: "voice",
+      },
+      {
+        hasApplicationDefaultCredentials: async () => true,
+        secretExists: async () => true,
+      }
+    );
+
+    expect(report.blockers.map((blocker) => blocker.requiredInput)).not.toContain(
+      "OpenAI secret in zapier-transfer"
+    );
+    expect(report.warnings.join("\n")).toContain("openai-api-key-default");
+  });
+
+  it("omits firebase credential rationale when ADC fallback is not needed", () => {
+    const why = buildWhyNeededBlock();
+
+    expect(why).not.toContain("FIREBASE_CREDENTIALS_SECRET_NAME");
   });
 });

@@ -16,6 +16,7 @@ import {
   type ServerEnv,
 } from "@top-performer/vendors";
 import { ensureEnvLoaded } from "./loadEnv";
+import { DEFAULT_OPENAI_SECRET_NAME, getEnvOrSecret } from "./secrets";
 
 type AppContext = {
   env: ServerEnv;
@@ -66,7 +67,13 @@ export function getAppContext(): AppContext {
     vendors: {
       elevenLabs: new ElevenLabsClient(env.ELEVENLABS_API_KEY),
       liveAvatar: new LiveAvatarClient(env.LIVEAVATAR_API_KEY),
-      openAi: new OpenAiResponsesClient(env.OPENAI_API_KEY),
+      openAi: new OpenAiResponsesClient(() =>
+        getEnvOrSecret(
+          "OPENAI_API_KEY",
+          DEFAULT_OPENAI_SECRET_NAME,
+          env.SECRET_SOURCE_PROJECT_ID
+        )
+      ),
     },
   };
 

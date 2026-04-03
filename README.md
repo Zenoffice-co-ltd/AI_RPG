@@ -1,6 +1,6 @@
 # Top Performer Roleplay MVP
 
-派遣営業トップパフォーマーのオーダーヒアリングを、`transcript -> playbook -> scenario -> roleplay -> scorecard` の流れで再現する monorepo です。
+派遣営業トップパフォーマーのオーダーヒアリングを、`transcript -> playbook -> scenario -> roleplay -> scorecard` の流れで再現する monorepo です。tenant は `adecco` 固定です。
 
 ## Stack
 
@@ -86,6 +86,8 @@ pnpm test:e2e
 - Runtime settings are stored in Firestore at `/settings/runtime`.
 - Session transcripts are stored in `/sessions/{sessionId}/turns/*`, scorecards in `/sessions/{sessionId}/artifacts/scorecard`.
 - `ENABLE_ELEVEN_WEBHOOKS=false` keeps Eleven webhook endpoints optional and out of the critical path.
+- OpenAI key resolution is `OPENAI_API_KEY env -> Secret Manager(project: zapier-transfer, secret: openai-api-key-default) -> fail-closed`.
+- `FIREBASE_PROJECT_ID` is always an explicit non-secret target project and is never inferred from Secret Manager or the active gcloud project.
 - `pnpm bootstrap:vendors` is idempotent by default. If `/settings/runtime.liveAvatarElevenSecretId` already exists, it is reused unless `--refresh-secret` is passed.
 - `pnpm smoke:eleven -- --preflight`, `pnpm smoke:liveavatar -- --preflight`, and `pnpm verify:acceptance -- --preflight` print the exact required input block before touching vendor APIs.
 - `pnpm verify:acceptance` is the canonical acceptance entrypoint. When `APP_BASE_URL` is local, it can start the local web app and directly deliver `/api/internal/analyze-session` after queue enqueue so the scorecard path can still be verified.

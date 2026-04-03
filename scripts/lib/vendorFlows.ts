@@ -23,9 +23,11 @@ export function resolveSecretReuseAction(
 }
 
 export async function getBootstrapPreflightBlockers() {
-  const blockers = buildBasePreflightReport().blockers.filter(
+  const blockers = (await buildBasePreflightReport()).blockers.filter(
     (blocker) =>
       blocker.requiredInput === "FIREBASE_PROJECT_ID" ||
+      blocker.requiredInput === "SECRET_SOURCE_PROJECT_ID" ||
+      blocker.requiredInput?.startsWith("OpenAI secret in ") === true ||
       blocker.requiredInput === "ELEVENLABS_API_KEY" ||
       blocker.requiredInput === "LIVEAVATAR_API_KEY"
   );
@@ -34,7 +36,7 @@ export async function getBootstrapPreflightBlockers() {
 }
 
 export async function getSmokeElevenPreflightBlockers() {
-  const blockers = buildBasePreflightReport().blockers.filter(
+  const blockers = (await buildBasePreflightReport()).blockers.filter(
     (blocker) =>
       blocker.requiredInput === "ELEVENLABS_API_KEY" ||
       blocker.requiredInput === "DEFAULT_ELEVEN_VOICE_ID" ||
@@ -45,7 +47,7 @@ export async function getSmokeElevenPreflightBlockers() {
 }
 
 export async function getSmokeLiveAvatarPreflightBlockers() {
-  const baseBlockers = buildBasePreflightReport().blockers.filter(
+  const baseBlockers = (await buildBasePreflightReport()).blockers.filter(
     (blocker) =>
       blocker.requiredInput === "LIVEAVATAR_API_KEY" ||
       blocker.requiredInput === "FIREBASE_PROJECT_ID"

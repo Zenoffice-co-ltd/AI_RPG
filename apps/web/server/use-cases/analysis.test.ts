@@ -1,13 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Scorecard, SessionRecord } from "@top-performer/domain";
 
-const transitionToAnalysisRunning = vi.fn();
-const getScorecard = vi.fn();
-const update = vi.fn();
-const listTurns = vi.fn();
-const getScenario = vi.fn();
-const getPlaybook = vi.fn();
-const gradeSession = vi.fn();
+const {
+  transitionToAnalysisRunning,
+  getScorecard,
+  update,
+  listTurns,
+  saveScorecard,
+  getScenario,
+  getPlaybook,
+  gradeSession,
+} = vi.hoisted(() => ({
+  transitionToAnalysisRunning: vi.fn(),
+  getScorecard: vi.fn(),
+  update: vi.fn(),
+  listTurns: vi.fn(),
+  saveScorecard: vi.fn(),
+  getScenario: vi.fn(),
+  getPlaybook: vi.fn(),
+  gradeSession: vi.fn(),
+}));
 
 vi.mock("../appContext", () => ({
   getAppContext: () => ({
@@ -20,7 +32,7 @@ vi.mock("../appContext", () => ({
         getScorecard,
         update,
         listTurns,
-        saveScorecard: vi.fn(),
+        saveScorecard,
       },
       scenarios: {
         get: getScenario,
@@ -86,6 +98,7 @@ describe("analyzeSession", () => {
     getScorecard.mockReset();
     update.mockReset();
     listTurns.mockReset();
+    saveScorecard.mockReset();
     getScenario.mockReset();
     getPlaybook.mockReset();
     gradeSession.mockReset();

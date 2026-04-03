@@ -2,6 +2,8 @@
 
 ## Runtime Flow
 
+- tenant は `adecco` 固定
+
 1. `POST /api/admin/transcripts/import`
    - `packages/scenario-engine/normalize.ts` で JSON / JSONL / CSV を正規化
    - Firestore `/transcripts/*` と `data/generated/transcripts/*` に保存
@@ -37,6 +39,11 @@
 - `packages/vendors`
   - env loader
   - timeout / retry / structured logging 付き HTTP clients
+- `apps/web/server/secrets.ts`
+  - shared secret helper
+  - resolution order: `env -> Secret Manager(zapier-transfer) -> fail-closed`
+  - OpenAI canonical secret: `openai-api-key-default`
+  - Firestore credentials are ADC-first; credential secret fallback is only needed when ADC is unavailable
 - `packages/scenario-engine`
   - transcript normalization
   - behavior mining orchestration

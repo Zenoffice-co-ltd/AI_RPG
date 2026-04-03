@@ -298,10 +298,23 @@ async function pollResult(appBaseUrl: string, sessionId: string) {
   };
 }
 
-function printFinalInputRequest() {
-  console.info(buildRequiredInputsBlock());
+async function printFinalInputRequest() {
+  const report = await buildBasePreflightReport();
+  const includeFirebaseCredentialSecret = report.blockers.some(
+    (blocker) => blocker.requiredInput === "FIREBASE_CREDENTIALS_SECRET_NAME"
+  );
+  console.info(
+    buildRequiredInputsBlock(process.env, {
+      includeFirebaseCredentialSecret,
+      includeVendorSecrets: true,
+    })
+  );
   console.info("");
-  console.info(buildWhyNeededBlock());
+  console.info(
+    buildWhyNeededBlock({
+      includeFirebaseCredentialSecret,
+    })
+  );
   console.info("");
   console.info(buildNextCommandsBlock());
 }
@@ -309,7 +322,7 @@ function printFinalInputRequest() {
 async function main() {
   const preflightOnly = hasFlag("--preflight");
   const refreshSecret = hasFlag("--refresh-secret");
-  const report = buildBasePreflightReport();
+  const report = await buildBasePreflightReport();
 
   let seedState: Awaited<ReturnType<typeof checkSeedState>> | null = null;
   if (report.blockers.length === 0) {
@@ -329,14 +342,14 @@ async function main() {
       );
     }
     console.info("");
-    printFinalInputRequest();
+    await printFinalInputRequest();
     return;
   }
 
   if (report.blockers.length > 0) {
     console.info(formatPreflightReport(report));
     console.info("");
-    printFinalInputRequest();
+    await printFinalInputRequest();
     process.exitCode = 1;
     return;
   }

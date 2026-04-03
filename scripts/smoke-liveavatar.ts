@@ -1,4 +1,5 @@
 import {
+  buildBasePreflightReport,
   buildHumanInputRequest,
   formatPreflightReport,
 } from "./lib/acceptance";
@@ -16,18 +17,28 @@ async function main() {
   const blockers = await getSmokeLiveAvatarPreflightBlockers();
 
   if (preflight) {
+    const report = await buildBasePreflightReport();
+    const includeFirebaseCredentialSecret = report.blockers.some(
+      (blocker) => blocker.requiredInput === "FIREBASE_CREDENTIALS_SECRET_NAME"
+    );
     console.info(
       formatPreflightReport({
         ready: blockers.length === 0,
         blockers,
         warnings: [
+          ...report.warnings,
           "smoke:liveavatar は runtime settings の LiveAvatar secret id と published AgentBinding を前提にします。",
         ],
       })
     );
     if (blockers.length > 0) {
       console.info("");
-      console.info(buildHumanInputRequest());
+      console.info(
+        buildHumanInputRequest(process.env, {
+          includeFirebaseCredentialSecret,
+          includeVendorSecrets: true,
+        })
+      );
     }
     return;
   }

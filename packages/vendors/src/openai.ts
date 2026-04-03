@@ -20,9 +20,15 @@ const responseEnvelopeSchema = z.object({
 
 export class OpenAiResponsesClient {
   constructor(
-    private readonly apiKey: string,
+    private readonly apiKeyProvider: string | (() => Promise<string>),
     private readonly baseUrl = "https://api.openai.com/v1"
   ) {}
+
+  private async resolveApiKey() {
+    return typeof this.apiKeyProvider === "string"
+      ? this.apiKeyProvider
+      : this.apiKeyProvider();
+  }
 
   async createStructuredOutput<TSchema extends z.ZodTypeAny>(input: {
     model: string;
@@ -32,12 +38,13 @@ export class OpenAiResponsesClient {
     userPrompt: string;
     responseSchema: TSchema;
   }): Promise<z.infer<TSchema>> {
+    const apiKey = await this.resolveApiKey();
     const response = await requestJson({
       scope: "openai.responses.create",
       url: `${this.baseUrl}/responses`,
       method: "POST",
       headers: {
-        authorization: `Bearer ${this.apiKey}`,
+        authorization: `Bearer ${apiKey}`,
         "content-type": "application/json",
       },
       body: JSON.stringify({
