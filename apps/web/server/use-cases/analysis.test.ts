@@ -10,6 +10,7 @@ const {
   getScenario,
   getPlaybook,
   gradeSession,
+  gradeAccountingSession,
 } = vi.hoisted(() => ({
   transitionToAnalysisRunning: vi.fn(),
   getScorecard: vi.fn(),
@@ -19,6 +20,7 @@ const {
   getScenario: vi.fn(),
   getPlaybook: vi.fn(),
   gradeSession: vi.fn(),
+  gradeAccountingSession: vi.fn(),
 }));
 
 vi.mock("../appContext", () => ({
@@ -49,6 +51,7 @@ vi.mock("../appContext", () => ({
 
 vi.mock("@top-performer/scoring", () => ({
   gradeSession,
+  gradeAccountingSession,
 }));
 
 import { analyzeSession } from "./analysis";
@@ -102,6 +105,7 @@ describe("analyzeSession", () => {
     getScenario.mockReset();
     getPlaybook.mockReset();
     gradeSession.mockReset();
+    gradeAccountingSession.mockReset();
   });
 
   it("reuses an existing scorecard with the same analysis version", async () => {
@@ -119,6 +123,7 @@ describe("analyzeSession", () => {
       status: "completed",
     });
     expect(gradeSession).not.toHaveBeenCalled();
+    expect(gradeAccountingSession).not.toHaveBeenCalled();
   });
 
   it("returns a no-op response when another worker already holds the lock", async () => {
@@ -133,5 +138,46 @@ describe("analyzeSession", () => {
     expect(result.status).toBe("analysis_running");
     expect(result.scorecard).toBeUndefined();
     expect(gradeSession).not.toHaveBeenCalled();
+    expect(gradeAccountingSession).not.toHaveBeenCalled();
+  });
+
+  it("uses the accounting grading path for accounting scenarios", async () => {
+    transitionToAnalysisRunning.mockResolvedValue({
+      session: createSessionRecord({
+        scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+        analysisVersion: "grade-accounting-session@2026-04-08.v1",
+      }),
+      lockAcquired: true,
+    });
+    getScorecard.mockResolvedValue(null);
+    listTurns.mockResolvedValue([
+      {
+        turnId: "turn_1",
+        role: "user",
+        text: "背景を教えてください。",
+        relativeTimestamp: 1,
+        dedupeKey: "turn_1",
+      },
+    ]);
+    getScenario.mockResolvedValue({
+      id: "accounting_clerk_enterprise_ap_busy_manager_medium",
+      family: "accounting_clerk_enterprise_ap",
+      generatedFromPlaybookVersion: "pb_accounting_v2",
+    });
+    getPlaybook.mockResolvedValue({ version: "pb_accounting_v2" });
+    gradeAccountingSession.mockResolvedValue(
+      createScorecard({
+        scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+        promptVersion: "grade-accounting-session@2026-04-08.v1",
+        evaluationMode: "accounting_v2",
+      })
+    );
+
+    const result = await analyzeSession("sess_123");
+
+    expect(result.status).toBe("completed");
+    expect(gradeAccountingSession).toHaveBeenCalled();
+    expect(gradeSession).not.toHaveBeenCalled();
+    expect(saveScorecard).toHaveBeenCalled();
   });
 });

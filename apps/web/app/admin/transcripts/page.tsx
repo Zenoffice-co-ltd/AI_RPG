@@ -11,6 +11,19 @@ export default function AdminTranscriptsPage() {
           payload={{ path: "./data/transcripts" }}
           buttonLabel="Import Transcripts"
         />
+        <AdminActionCard
+          title="Accounting Corpus Import v2"
+          description="workbook から source registry / manifest / canonical transcript を生成します。"
+          endpoint="/api/admin/transcripts/import"
+          payload={{
+            path: "C:\\Users\\yukih\\Downloads\\【ビースタイルスマートキャリア】トランスクリプト格納.xlsx",
+            family: "accounting_clerk_enterprise_ap",
+            mode: "v2",
+            manifestPath:
+              "./data/transcripts/corpora/enterprise_accounting_ap_gold_v1.manifest.json",
+          }}
+          buttonLabel="Import Accounting Corpus"
+        />
       </div>
     </main>
   );

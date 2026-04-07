@@ -1,4 +1,5 @@
 export * from "./client";
+export * from "./repositories/corpus";
 export * from "./repositories/agentBindings";
 export * from "./repositories/jobs";
 export * from "./repositories/playbooks";

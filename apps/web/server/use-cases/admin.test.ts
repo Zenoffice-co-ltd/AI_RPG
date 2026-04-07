@@ -10,8 +10,11 @@ const {
   bindingUpsert,
   resolveVoiceId,
   writeGeneratedJson,
+  resolveWorkspacePath,
   resolveMappedVoiceProfile,
   publishScenarioAgent,
+  evaluateCompiledAccountingScenario,
+  runAccountingLocalEval,
 } = vi.hoisted(() => ({
   jobsUpsert: vi.fn(),
   scenariosGet: vi.fn(),
@@ -21,8 +24,11 @@ const {
   bindingUpsert: vi.fn(),
   resolveVoiceId: vi.fn(),
   writeGeneratedJson: vi.fn(),
+  resolveWorkspacePath: vi.fn((value: string) => value),
   resolveMappedVoiceProfile: vi.fn(),
   publishScenarioAgent: vi.fn(),
+  evaluateCompiledAccountingScenario: vi.fn(),
+  runAccountingLocalEval: vi.fn(),
 }));
 
 vi.mock("../appContext", () => ({
@@ -30,6 +36,7 @@ vi.mock("../appContext", () => ({
     env: {
       DEFAULT_ELEVEN_MODEL: "gpt-5-mini",
       DEFAULT_ELEVEN_VOICE_ID: "env_voice",
+      OPENAI_ANALYSIS_MODEL: "gpt-5.4",
     },
     repositories: {
       jobs: {
@@ -49,12 +56,14 @@ vi.mock("../appContext", () => ({
       elevenLabs: {
         resolveVoiceId,
       },
+      openAi: {},
     },
   }),
 }));
 
 vi.mock("../workspace", () => ({
   writeGeneratedJson,
+  resolveWorkspacePath,
 }));
 
 vi.mock("@top-performer/scenario-engine", () => ({
@@ -83,10 +92,12 @@ vi.mock("@top-performer/scenario-engine", () => ({
     voiceSettings: input.profile.voiceSettings,
   })),
   compileScenarios: vi.fn(),
+  evaluateCompiledAccountingScenario,
   importTranscriptsFromDirectory: vi.fn(),
   mineTranscriptBehaviors: vi.fn(),
   publishScenarioAgent,
   resolveMappedVoiceProfile,
+  runAccountingLocalEval,
 }));
 
 import { publishScenarioJob } from "./admin";
@@ -164,11 +175,20 @@ describe("publishScenarioJob", () => {
     writeGeneratedJson.mockReset();
     resolveMappedVoiceProfile.mockReset();
     publishScenarioAgent.mockReset();
+    evaluateCompiledAccountingScenario.mockReset();
+    runAccountingLocalEval.mockReset();
 
     scenariosGet.mockResolvedValue(createScenario());
     scenariosGetAssets.mockResolvedValue(createAssets());
     bindingGet.mockResolvedValue(null);
     writeGeneratedJson.mockResolvedValue(undefined);
+    evaluateCompiledAccountingScenario.mockResolvedValue({
+      semanticAcceptancePassed: true,
+    });
+    runAccountingLocalEval.mockResolvedValue({
+      passed: true,
+      checks: [],
+    });
     publishScenarioAgent.mockResolvedValue({
       passed: true,
       binding: {
@@ -240,5 +260,43 @@ describe("publishScenarioJob", () => {
       })
     );
     expect(result.voiceSelection.mode).toBe("legacy");
+  });
+
+  it("runs the accounting local eval gate before publish", async () => {
+    scenariosGet.mockResolvedValue(
+      createScenario({
+        id: "accounting_clerk_enterprise_ap_busy_manager_medium",
+        family: "accounting_clerk_enterprise_ap",
+      })
+    );
+    scenariosGetAssets.mockResolvedValue(
+      createAssets({
+        scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+      })
+    );
+    resolveMappedVoiceProfile.mockResolvedValue(null);
+    resolveVoiceId.mockResolvedValue({
+      voiceId: "voice_fallback",
+      voiceName: "Fallback Voice",
+      resolution: "auto",
+    });
+
+    await publishScenarioJob({
+      scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+    });
+
+    expect(evaluateCompiledAccountingScenario).toHaveBeenCalled();
+    expect(runAccountingLocalEval).toHaveBeenCalled();
+    expect(writeGeneratedJson).toHaveBeenCalledWith(
+      "publish/accounting_clerk_enterprise_ap_busy_manager_medium.local-eval.json",
+      expect.objectContaining({
+        acceptance: expect.objectContaining({
+          semanticAcceptancePassed: true,
+        }),
+        localEval: expect.objectContaining({
+          passed: true,
+        }),
+      })
+    );
   });
 });

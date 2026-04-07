@@ -11,6 +11,20 @@ export default function AdminScenariosPage() {
           payload={{ playbookVersion: "pb_2026_04_02_v1" }}
           buttonLabel="Compile Scenarios"
         />
+        <AdminActionCard
+          title="Compile Accounting Scenario v2"
+          description="acceptance reference artifact から accounting family の scenario pack v2 と publish assets を生成します。"
+          endpoint="/api/admin/scenarios/compile"
+          payload={{
+            family: "accounting_clerk_enterprise_ap",
+            mode: "v2",
+            referenceArtifactPath:
+              "./docs/references/accounting_clerk_enterprise_ap_100pt_output.json",
+            designMemoPath:
+              "./docs/references/accounting_clerk_enterprise_ap_100pt_analysis.md",
+          }}
+          buttonLabel="Compile Accounting Scenario"
+        />
       </div>
     </main>
   );

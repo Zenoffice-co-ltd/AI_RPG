@@ -1,5 +1,6 @@
 import {
   AgentBindingRepository,
+  CorpusRepository,
   getFirestoreAdmin,
   JobRepository,
   PlaybookRepository,
@@ -27,6 +28,7 @@ type AppContext = {
   env: ServerEnv;
   repositories: {
     agentBindings: AgentBindingRepository;
+    corpus: CorpusRepository;
     jobs: JobRepository;
     playbooks: PlaybookRepository;
     runtimeSettings: RuntimeSettingsRepository;
@@ -62,6 +64,7 @@ export function getAppContext(): AppContext {
     env,
     repositories: {
       agentBindings: new AgentBindingRepository(firestore),
+      corpus: new CorpusRepository(firestore),
       jobs: new JobRepository(firestore),
       playbooks: new PlaybookRepository(firestore),
       runtimeSettings: new RuntimeSettingsRepository(firestore),

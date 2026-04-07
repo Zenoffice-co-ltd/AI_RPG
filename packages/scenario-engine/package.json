@@ -17,6 +17,7 @@
     "@top-performer/scoring": "workspace:*",
     "@top-performer/vendors": "workspace:*",
     "papaparse": "^5.5.3",
+    "xlsx": "0.18.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {

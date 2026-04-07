@@ -1,5 +1,8 @@
-import { gradeSession } from "@top-performer/scoring";
-import { resultResponseSchema } from "@top-performer/domain";
+import { gradeAccountingSession, gradeSession } from "@top-performer/scoring";
+import {
+  ACCOUNTING_SCENARIO_FAMILY,
+  resultResponseSchema,
+} from "@top-performer/domain";
 import { getAppContext } from "../appContext";
 
 export async function analyzeSession(sessionId: string) {
@@ -57,14 +60,24 @@ export async function analyzeSession(sessionId: string) {
       );
     }
 
-    const scorecard = await gradeSession({
-      client: ctx.vendors.openAi,
-      model: ctx.env.OPENAI_ANALYSIS_MODEL,
-      sessionId,
-      scenario,
-      playbook,
-      turns,
-    });
+    const scorecard =
+      scenario.family === ACCOUNTING_SCENARIO_FAMILY
+        ? await gradeAccountingSession({
+            client: ctx.vendors.openAi,
+            model: ctx.env.OPENAI_ANALYSIS_MODEL,
+            sessionId,
+            scenario,
+            playbook,
+            turns,
+          })
+        : await gradeSession({
+            client: ctx.vendors.openAi,
+            model: ctx.env.OPENAI_ANALYSIS_MODEL,
+            sessionId,
+            scenario,
+            playbook,
+            turns,
+          });
 
     await ctx.repositories.sessions.saveScorecard(scorecard);
     await ctx.repositories.sessions.update(sessionId, {

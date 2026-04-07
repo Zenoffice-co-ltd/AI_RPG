@@ -54,11 +54,35 @@ This script:
 ## Smoke Tests
 
 ```bash
+pnpm eval:accounting -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium
 pnpm smoke:eleven
 pnpm smoke:liveavatar
 pnpm verify:acceptance -- --preflight
 pnpm verify:acceptance
 ```
+
+## Accounting Phase 3/4 Runbook
+
+Source of Truth は transcript corpus のみです。
+
+- Corpus SoT: `enterprise_accounting_ap_gold_v1`
+- Acceptance reference artifact: [docs/references/accounting_clerk_enterprise_ap_100pt_output.json](/C:/AI_RPG/docs/references/accounting_clerk_enterprise_ap_100pt_output.json)
+- Human-readable design reference: [docs/references/accounting_clerk_enterprise_ap_100pt_analysis.md](/C:/AI_RPG/docs/references/accounting_clerk_enterprise_ap_100pt_analysis.md)
+
+標準実行順:
+
+1. `pnpm import:transcripts -- --path "C:/Users/yukih/Downloads/【ビースタイルスマートキャリア】トランスクリプト格納.xlsx" --family accounting_clerk_enterprise_ap --mode v2`
+2. `pnpm build:playbooks -- --family accounting_clerk_enterprise_ap --mode v2`
+3. `pnpm compile:scenarios -- --family accounting_clerk_enterprise_ap --mode v2 --reference ./docs/references/accounting_clerk_enterprise_ap_100pt_output.json`
+4. `pnpm eval:accounting -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium`
+5. `pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium`
+
+運用ルール:
+
+- proper noun と direct identifier は canonical transcript で不可逆 redact する
+- `industry / companyScale / businessContext / systemContext / workflowCharacteristics` は抽象属性として保持する
+- local eval gate は semantic acceptance と `rule-based + llm-based` の両方が green でない限り publish しない
+- publish snapshot と generated artifacts を `data/generated/` に残し、rollback は prior snapshot を基準に行う
 
 ## Voice Benchmark
 
@@ -122,6 +146,15 @@ pnpm review:summarize:ja -- --csv data/generated/voice-benchmark/<runId>/review-
 8. result polling and 60 second scorecard SLA check
 
 If `APP_BASE_URL` is local, the script boots a local production server and delivers `/api/internal/analyze-session` directly after queue enqueue so the scorecard path remains verifiable.
+
+## Accounting Runtime Assertions
+
+accounting family の E2E では次を確認する。
+
+- hidden facts が早漏しない
+- shallow question では shallow response になる
+- must-capture を取りに行くと十分な情報が返る
+- close 時に自然な next action が返る
 
 ## Admin Auth
 

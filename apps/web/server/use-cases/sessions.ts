@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
+  ACCOUNTING_GRADE_SESSION_PROMPT_VERSION,
+  ACCOUNTING_SCENARIO_FAMILY,
   GRADE_SESSION_PROMPT_VERSION,
   getSessionResponseSchema,
   startSessionInputSchema,
@@ -71,7 +73,10 @@ export async function createSession(input: unknown) {
     elevenAgentId: binding.elevenAgentId,
     startedAt: new Date().toISOString(),
     transcriptCursor: 0,
-    analysisVersion: GRADE_SESSION_PROMPT_VERSION,
+    analysisVersion:
+      scenario.family === ACCOUNTING_SCENARIO_FAMILY
+        ? ACCOUNTING_GRADE_SESSION_PROMPT_VERSION
+        : GRADE_SESSION_PROMPT_VERSION,
   };
 
   await ctx.repositories.sessions.create(sessionRecord);

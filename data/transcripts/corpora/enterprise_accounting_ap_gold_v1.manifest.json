@@ -1,0 +1,82 @@
+{
+  "corpusId": "enterprise_accounting_ap_gold_v1",
+  "family": "accounting_clerk_enterprise_ap",
+  "sourcePath": "C:\\Users\\yukih\\Downloads\\【ビースタイルスマートキャリア】トランスクリプト格納.xlsx",
+  "sheetName": "シート1",
+  "version": "2026-04-08.v1",
+  "createdAt": "2026-04-08T00:00:00.000Z",
+  "entries": [
+    {
+      "sourceRecordId": "sheet1_row_66",
+      "transcriptId": "rx_japan_20260331",
+      "tier": "gold",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "sellerLabelHints": ["RA", "CA", "齊藤", "鶴田"],
+      "clientLabelHints": ["池田様", "池田"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_154",
+      "transcriptId": "ep_pharmaline_20260317",
+      "tier": "gold",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "sellerLabelHints": ["RA", "CA", "鈴木"],
+      "clientLabelHints": ["安川様", "安川"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_253",
+      "transcriptId": "tepco_realestate_20260304",
+      "tier": "gold",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "sellerLabelHints": ["RA", "CA", "佐藤"],
+      "clientLabelHints": ["東電不動産", "由野様", "由野"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_564",
+      "transcriptId": "mol_logistics_20260128",
+      "tier": "gold",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "sellerLabelHints": ["RA", "CA", "藤田"],
+      "clientLabelHints": ["上田様", "上田"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_609",
+      "transcriptId": "medirom_aoki",
+      "tier": "gold",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "sellerLabelHints": ["RA", "CA", "松岡"],
+      "clientLabelHints": ["青木様", "青木"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_1",
+      "transcriptId": "nihon_waso_20260407",
+      "tier": "gold",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "sellerLabelHints": ["RA", "CA", "近藤"],
+      "clientLabelHints": ["柴崎様", "柴崎"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_33",
+      "transcriptId": "tepco_realestate_20260403",
+      "tier": "silver",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "sellerLabelHints": ["RA", "CA", "佐藤"],
+      "clientLabelHints": ["由野様", "由野"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_474",
+      "transcriptId": "emplus_20260204",
+      "tier": "silver",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "sellerLabelHints": ["RA", "CA", "鈴木"],
+      "clientLabelHints": ["中田様", "中田"]
+    }
+  ]
+}

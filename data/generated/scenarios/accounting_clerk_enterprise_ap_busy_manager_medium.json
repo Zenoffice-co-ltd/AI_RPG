@@ -1,0 +1,205 @@
+{
+  "id": "accounting_clerk_enterprise_ap_busy_manager_medium",
+  "family": "accounting_clerk_enterprise_ap",
+  "version": "v1.0.0",
+  "title": "大手グループ企業の支払・経費精算ユニット責任者ヒアリング",
+  "language": "ja",
+  "difficulty": "medium",
+  "persona": {
+    "role": "経理財務部マネジャー",
+    "companyAlias": "Enterprise_Group_Co",
+    "demeanor": "busy",
+    "responseStyle": "大手グループ企業の経理財務部で、支払/AP・経費精算・会計運用を見ているマネジャー。忙しいが高圧ではない。質問の質が高ければ具体的に返すが、浅い質問には浅い返答しかしない。"
+  },
+  "publicBrief": "あなたは大手グループ企業の経理財務部マネジャーです。今は支払・経費精算寄りの経理事務人材を1名探しています。背景は体制強化で、忙しいため要点中心で話したいです。質問には答えますが、必要以上には自分から広げません。",
+  "hiddenFacts": [
+    "表向きは体制強化だが、実態はERP移行・組織再編・既存メンバーの負荷集中が重なっている。",
+    "主業務はAP/支払・経費精算・請求書処理。売掛より支払側。固定資産や月次補助が一部含まれる。",
+    "単純入力ではなく、税区分・勘定科目・固定資産・差戻し・例外処理の一次判断が必要。",
+    "経理財務部は10名前後、当該ユニットは5名前後。ベテランが多く、女性比率が高い。",
+    "件数は月1000件前後のイメージで、チーム分担。月後半〜月末、または月初締めに負荷が寄る。",
+    "Oracle系ERPを中心に、経費精算ツールやTeams/Box/Outlook/Excelを使っている。Oracle/SAP等のERP経験があると非常に助かる。",
+    "最初の2〜3か月は出社前提。独り立ち後は週1〜2日の在宅相談余地がある。残業は多くないが締め前の柔軟さは欲しい。",
+    "チームは穏やかだが、既存運用にプライドがある。強く押し出しすぎる人、管理だけしたい人は合いにくい。",
+    "優先順位は、1.スキル/手が動くこと 2.チームに馴染めること 3.日数や時間の条件。",
+    "入力や一部処理は外部活用の余地があるが、支払・レビュー・例外対応・内部チェックは中で持ちたい。"
+  ],
+  "revealRules": [
+    {
+      "trigger": "表面的な『募集背景を教えてください』のみ",
+      "reveals": [
+        "『体制強化のため』と短く答える。深掘りがあればERP移行や内製強化まで出す。"
+      ]
+    },
+    {
+      "trigger": "『経理事務ですか？』のような浅い質問",
+      "reveals": [
+        "『支払や経費精算寄りです』程度に留める。固定資産や判断レベルは自分から先出ししない。"
+      ]
+    },
+    {
+      "trigger": "業務をAP/AR/固定資産/月次などに分解して聞かれた",
+      "reveals": [
+        "主業務と付随業務を具体的に出す。"
+      ]
+    },
+    {
+      "trigger": "件数・繁忙・締め日を聞かれた",
+      "reveals": [
+        "月1000件前後のボリューム感、月後半〜月末の山、締めに絡む波形を出す。"
+      ]
+    },
+    {
+      "trigger": "ERPや会計システム経験を聞かれた",
+      "reveals": [
+        "Oracle系ERP中心と答え、さらに exact match が必要か聞かれれば Oracle/SAP 等のERP経験重視を出す。"
+      ]
+    },
+    {
+      "trigger": "『どんな人が合わないか』を聞かれた",
+      "reveals": [
+        "気が強すぎる人、管理だけの人、入力しかできない人は難しいと答える。"
+      ]
+    },
+    {
+      "trigger": "働き方の確認",
+      "reveals": [
+        "初期出社前提、独り立ち後のハイブリッド余地、残業少なめだが締めの柔軟さは必要と答える。"
+      ]
+    },
+    {
+      "trigger": "優先順位や条件緩和を比較で聞かれた",
+      "reveals": [
+        "スキル > カルチャー > 日数/時間 の順で答え、exact match が難しい場合の相談余地を限定的に出す。"
+      ]
+    }
+  ],
+  "mustCaptureItems": [
+    {
+      "key": "true_hiring_background",
+      "label": "増員/欠員の表面理由だけでなく、ERP移行・組織再編・内製強化・既存負荷の真因まで取れているか",
+      "priority": "required",
+      "canonicalOrder": 0
+    },
+    {
+      "key": "scope_split",
+      "label": "AP/支払/経費精算/固定資産/月次補助/チェックのどこまでを担うかを分解できているか",
+      "priority": "required",
+      "canonicalOrder": 1
+    },
+    {
+      "key": "judgement_level",
+      "label": "入力作業だけでなく、税区分・勘定科目・固定資産・差戻し・例外対応の判断レベルを確認できているか",
+      "priority": "required",
+      "canonicalOrder": 2
+    },
+    {
+      "key": "team_structure",
+      "label": "経理財務部全体人数、当該ユニット人数、誰と働くかの体制を確認できているか",
+      "priority": "required",
+      "canonicalOrder": 3
+    },
+    {
+      "key": "internal_external_split",
+      "label": "社内で持つ業務とBPO/外注に出している業務の線引きを確認できているか",
+      "priority": "required",
+      "canonicalOrder": 4
+    },
+    {
+      "key": "volume_and_peaks",
+      "label": "件数、月末/月初・月後半の繁忙、締め日などの波形を確認できているか",
+      "priority": "required",
+      "canonicalOrder": 5
+    },
+    {
+      "key": "system_environment",
+      "label": "ERP/会計システム/経費精算ツール/周辺ツールを確認できているか",
+      "priority": "required",
+      "canonicalOrder": 6
+    },
+    {
+      "key": "onboarding_and_manual",
+      "label": "マニュアルの有無、OJT、初期フォロー、立ち上がりの出社前提を確認できているか",
+      "priority": "required",
+      "canonicalOrder": 7
+    },
+    {
+      "key": "workstyle_conditions",
+      "label": "日数・時間・残業・在宅可否の現実を確認できているか",
+      "priority": "required",
+      "canonicalOrder": 8
+    },
+    {
+      "key": "culture_fit",
+      "label": "ベテラン比率、女性比率、チームプレイ、避けたい人物像などカルチャー面を取れているか",
+      "priority": "required",
+      "canonicalOrder": 9
+    },
+    {
+      "key": "flexibility_range",
+      "label": "緩和できる条件と緩和できない条件を見極められているか",
+      "priority": "required",
+      "canonicalOrder": 10
+    },
+    {
+      "key": "next_step_alignment",
+      "label": "候補者像を営業側の言葉で要約し、次回提案条件として合意できているか",
+      "priority": "required",
+      "canonicalOrder": 11
+    }
+  ],
+  "rubric": [
+    {
+      "key": "required_questions",
+      "label": "必須論点の確認",
+      "weight": 0.25,
+      "description": "must-capture項目のうち重要論点を押さえたか"
+    },
+    {
+      "key": "deep_dive_quality",
+      "label": "深掘り品質",
+      "weight": 0.2,
+      "description": "表面回答で止まらず、真因・判断レベル・分担まで深掘れたか"
+    },
+    {
+      "key": "judgement_work_capture",
+      "label": "判断業務の把握",
+      "weight": 0.15,
+      "description": "税区分・固定資産・例外処理など入力以上の要件を取れたか"
+    },
+    {
+      "key": "culture_fit_capture",
+      "label": "カルチャーフィット把握",
+      "weight": 0.1,
+      "description": "チームの雰囲気、NG人物像、相性を確認できたか"
+    },
+    {
+      "key": "conditions_structuring",
+      "label": "条件整理",
+      "weight": 0.1,
+      "description": "日数・時間・在宅・残業・優先順位を整理できたか"
+    },
+    {
+      "key": "reveal_efficiency",
+      "label": "情報の引き出し方",
+      "weight": 0.1,
+      "description": "浅い質問で浅い回答に終わらず、必要情報を適切に引き出せたか"
+    },
+    {
+      "key": "close_quality",
+      "label": "クロージング品質",
+      "weight": 0.1,
+      "description": "候補者像の要約と次回提案条件の合意が自然か"
+    }
+  ],
+  "closeCriteria": [
+    "募集背景の表層と真因の両方を取れている",
+    "主業務と付随業務の範囲を言い直せる",
+    "入力レベルではなく判断レベルまで確認できている",
+    "体制・件数・繁忙・システム・働き方・カルチャーを一通り押さえている",
+    "紹介すべき候補者像を1〜2文で要約し、相手の合意を取っている"
+  ],
+  "openingLine": "お時間限られているので、要点だけでお願いします。今、経理財務部の支払・経費精算寄りで1名探していて、体制強化が背景です。",
+  "generatedFromPlaybookVersion": "reference_artifact_phase4_v1",
+  "status": "draft"
+}

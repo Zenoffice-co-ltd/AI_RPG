@@ -2,6 +2,11 @@
 
 派遣営業トップパフォーマーのオーダーヒアリングを、`transcript -> playbook -> scenario -> roleplay -> scorecard` の流れで再現する monorepo です。tenant は `adecco` 固定です。
 
+現在は 2 系統を並行運用しています。
+
+- `staffing_order_hearing`: legacy `transcripts/import -> playbooks/build -> scenarios/compile -> publish`
+- `accounting_clerk_enterprise_ap`: Phase 3/4 v2 `xlsx -> source registry -> canonical transcript -> derived artifacts -> norms -> scenario pack -> local eval -> publish`
+
 ## Stack
 
 - Frontend: Next.js 16 / React 19 / TypeScript / Tailwind CSS 4
@@ -64,10 +69,29 @@ pnpm dev
 pnpm import:transcripts
 pnpm build:playbooks
 pnpm compile:scenarios
+pnpm eval:accounting
 pnpm publish:scenario --scenario staffing_order_hearing_busy_manager_medium
 pnpm smoke:eleven
 pnpm smoke:liveavatar
 pnpm verify:acceptance
+```
+
+## Accounting Phase 3/4
+
+Corpus SoT は transcript corpus のみです。
+
+- Corpus SoT: `enterprise_accounting_ap_gold_v1`
+- Acceptance reference artifact: [docs/references/accounting_clerk_enterprise_ap_100pt_output.json](/C:/AI_RPG/docs/references/accounting_clerk_enterprise_ap_100pt_output.json)
+- Human-readable design reference: [docs/references/accounting_clerk_enterprise_ap_100pt_analysis.md](/C:/AI_RPG/docs/references/accounting_clerk_enterprise_ap_100pt_analysis.md)
+
+代表コマンド:
+
+```bash
+pnpm import:transcripts -- --path "C:/Users/yukih/Downloads/【ビースタイルスマートキャリア】トランスクリプト格納.xlsx" --family accounting_clerk_enterprise_ap --mode v2
+pnpm build:playbooks -- --family accounting_clerk_enterprise_ap --mode v2
+pnpm compile:scenarios -- --family accounting_clerk_enterprise_ap --mode v2 --reference ./docs/references/accounting_clerk_enterprise_ap_100pt_output.json
+pnpm eval:accounting -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium
+pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium
 ```
 
 ## Verification
@@ -85,6 +109,7 @@ pnpm test:e2e
 - Admin pages and `/api/admin/*` are protected by basic auth via `proxy.ts`.
 - Runtime settings are stored in Firestore at `/settings/runtime`.
 - Session transcripts are stored in `/sessions/{sessionId}/turns/*`, scorecards in `/sessions/{sessionId}/artifacts/scorecard`.
+- accounting v2 scorecards reuse the legacy scorecard storage shape and add `evaluationMode=accounting_v2`, `qualitySignals`, and `evaluationBreakdown`.
 - `ENABLE_ELEVEN_WEBHOOKS=false` keeps Eleven webhook endpoints optional and out of the critical path.
 - OpenAI key resolution is `OPENAI_API_KEY env -> Secret Manager(project: zapier-transfer, secret: openai-api-key-default) -> fail-closed`.
 - ElevenLabs key resolution is `ELEVENLABS_API_KEY env -> Secret Manager(project: zapier-transfer, secret: ELEVENLABS_API_KEY) -> fail-closed`.
