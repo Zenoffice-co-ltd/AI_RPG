@@ -1,5 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { aggregatePlaybook, compileScenarios, importTranscriptsFromDirectory, mineTranscriptBehaviors, publishScenarioAgent } from "@top-performer/scenario-engine";
+import {
+  aggregatePlaybook,
+  buildLegacyVoiceSelection,
+  buildProfileVoiceSelection,
+  compileScenarios,
+  importTranscriptsFromDirectory,
+  mineTranscriptBehaviors,
+  publishScenarioAgent,
+  resolveMappedVoiceProfile,
+} from "@top-performer/scenario-engine";
 import {
   compileScenariosRequestSchema,
   playbookBuildRequestSchema,
@@ -174,10 +183,24 @@ export async function publishScenarioJob(input: unknown) {
     if (!scenario || !assets) {
       throw new Error(`Scenario or assets not found: ${parsed.scenarioId}`);
     }
+    const mappedProfile = await resolveMappedVoiceProfile(parsed.scenarioId);
     const resolvedVoice = await ctx.vendors.elevenLabs.resolveVoiceId(
-      ctx.env.DEFAULT_ELEVEN_VOICE_ID,
-      "ja"
+      mappedProfile?.voiceId ?? ctx.env.DEFAULT_ELEVEN_VOICE_ID,
+      scenario.language
     );
+    const voiceSelection = mappedProfile
+      ? buildProfileVoiceSelection({
+          scenarioId: parsed.scenarioId,
+          scenarioOpeningLine: scenario.openingLine,
+          profile: mappedProfile,
+          resolvedVoiceId: resolvedVoice.voiceId,
+        })
+      : buildLegacyVoiceSelection({
+          scenarioId: parsed.scenarioId,
+          scenarioOpeningLine: scenario.openingLine,
+          resolvedVoiceId: resolvedVoice.voiceId,
+          language: scenario.language,
+        });
 
     const existingBinding = await ctx.repositories.agentBindings.get(parsed.scenarioId);
     const result = await publishScenarioAgent({
@@ -185,8 +208,8 @@ export async function publishScenarioJob(input: unknown) {
       scenario,
       assets,
       existingBinding,
-      defaultModel: ctx.env.DEFAULT_ELEVEN_MODEL,
-      defaultVoiceId: resolvedVoice.voiceId,
+      llmModel: ctx.env.DEFAULT_ELEVEN_MODEL,
+      voiceSelection,
     });
 
     if (result.binding) {
@@ -197,7 +220,28 @@ export async function publishScenarioJob(input: unknown) {
       });
     }
 
-    await writeGeneratedJson(`publish/${parsed.scenarioId}.json`, result);
+    const publishSnapshot = {
+      ...result,
+      voiceSelection: {
+        mode: voiceSelection.mode,
+        voiceProfileId:
+          voiceSelection.mode === "profile"
+            ? voiceSelection.voiceProfileId
+            : undefined,
+        candidateId: mappedProfile?.metadata?.candidateId,
+        source: mappedProfile?.metadata?.source,
+        gender: mappedProfile?.metadata?.gender,
+        stage: mappedProfile?.metadata?.stage,
+        label: voiceSelection.label,
+        voiceId: voiceSelection.voiceId,
+        ttsModel: voiceSelection.ttsModel,
+        textNormalisationType: voiceSelection.textNormalisationType,
+      },
+      voiceResolution: resolvedVoice.resolution,
+      voiceName: resolvedVoice.voiceName,
+    };
+
+    await writeGeneratedJson(`publish/${parsed.scenarioId}.json`, publishSnapshot);
 
     await ctx.repositories.jobs.upsert({
       ...job,
@@ -207,7 +251,7 @@ export async function publishScenarioJob(input: unknown) {
       ...(result.passed ? {} : { error: "Agent tests failed" }),
     });
 
-    return result;
+    return publishSnapshot;
   } catch (error) {
     await ctx.repositories.jobs.upsert({
       ...job,

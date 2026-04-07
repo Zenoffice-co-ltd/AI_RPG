@@ -19,6 +19,13 @@
     "build:playbooks": "tsx scripts/build-playbooks.ts",
     "compile:scenarios": "tsx scripts/compile-scenarios.ts",
     "publish:scenario": "tsx scripts/publish-scenario.ts",
+    "voices:list": "tsx scripts/elevenlabs/list-voices.ts",
+    "voices:collect:ja": "tsx scripts/elevenlabs/collect-ja-voices.ts",
+    "voices:promote:shared": "tsx scripts/elevenlabs/promote-shared-voice.ts",
+    "voices:design:ja": "tsx scripts/elevenlabs/design-ja-rescue-voices.ts",
+    "benchmark:render": "tsx scripts/elevenlabs/render-benchmark.ts",
+    "benchmark:render:ja": "tsx scripts/elevenlabs/render-ja-voice-benchmark.ts",
+    "review:summarize:ja": "tsx scripts/elevenlabs/summarize-ja-voice-review.ts",
     "smoke:eleven": "tsx scripts/smoke-eleven.ts",
     "smoke:liveavatar": "tsx scripts/smoke-liveavatar.ts",
     "verify:acceptance": "tsx scripts/verify-acceptance.ts"

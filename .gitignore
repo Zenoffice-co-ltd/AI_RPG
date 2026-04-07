@@ -12,3 +12,4 @@ test-results
 firebase-debug.log
 *.tsbuildinfo
 *.log
+data/generated/voice-benchmark/

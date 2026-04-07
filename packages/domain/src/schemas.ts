@@ -242,6 +242,7 @@ export const agentBindingSchema = z.object({
   elevenAgentId: z.string().min(1),
   elevenBranchId: z.string().min(1).optional(),
   elevenVersionId: z.string().min(1).optional(),
+  voiceProfileId: z.string().min(1).optional(),
   voiceId: z.string().min(1),
   publishedAt: timestampSchema,
 });

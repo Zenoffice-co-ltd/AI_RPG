@@ -1,0 +1,202 @@
+{
+  "cohortId": "busy_manager_ja_voice15",
+  "scenarioId": "staffing_order_hearing_busy_manager_medium",
+  "model": "eleven_multilingual_v2",
+  "language": "ja",
+  "firstMessageJa": "お時間ありがとうございます。要点だけ確認させてください。",
+  "textNormalisationType": "elevenlabs",
+  "voiceSettings": {
+    "stability": 0.7,
+    "similarityBoost": 0.82,
+    "speed": 0.96,
+    "style": 0,
+    "useSpeakerBoost": true
+  },
+  "controlProfileIds": [
+    "busy_manager_ja_baseline_v1",
+    "busy_manager_ja_multilingual_candidate_v1",
+    "busy_manager_ja_v3_candidate_v1"
+  ],
+  "candidates": [
+    {
+      "candidateId": "F01",
+      "profileId": "busy_manager_ja_voice15_f01",
+      "voiceId": "PmgfHCGeS5b7sH90BOOJ",
+      "voiceName": "Fumi",
+      "source": "shared",
+      "gender": "female",
+      "stage": "round1",
+      "finalist": false,
+      "liveCandidate": false,
+      "rescueFallback": false
+    },
+    {
+      "candidateId": "F02",
+      "profileId": "busy_manager_ja_voice15_f02",
+      "voiceId": "EGPLqH9Wz2tNLu58EJVR",
+      "voiceName": "Sakura - Japanese Narration",
+      "source": "shared",
+      "gender": "female",
+      "stage": "round1",
+      "finalist": false,
+      "liveCandidate": false,
+      "rescueFallback": false
+    },
+    {
+      "candidateId": "F03",
+      "profileId": "busy_manager_ja_voice15_f03",
+      "voiceId": "l7ME2dcqpdvq6E8sCS24",
+      "voiceName": "Sara",
+      "source": "shared",
+      "gender": "female",
+      "stage": "round1",
+      "finalist": false,
+      "liveCandidate": false,
+      "rescueFallback": false
+    },
+    {
+      "candidateId": "F04",
+      "profileId": "busy_manager_ja_voice15_f04",
+      "voiceId": "c2XJrw7TvNGtOc6r0ijG",
+      "voiceName": "Harune",
+      "source": "shared",
+      "gender": "female",
+      "stage": "round1",
+      "finalist": false,
+      "liveCandidate": false,
+      "rescueFallback": false
+    },
+    {
+      "candidateId": "F05",
+      "profileId": "busy_manager_ja_voice15_f05",
+      "voiceId": "Z5Rahxh8jMhJKEgBfCSS",
+      "voiceName": "Yukiko",
+      "source": "shared",
+      "gender": "female",
+      "stage": "finalist",
+      "finalist": true,
+      "liveCandidate": false,
+      "rescueFallback": false
+    },
+    {
+      "candidateId": "F06",
+      "profileId": "busy_manager_ja_voice15_f06",
+      "voiceId": "4lOQ7A2l7HPuG7UIHiKA",
+      "voiceName": "Kyoko",
+      "source": "shared",
+      "gender": "female",
+      "stage": "primary",
+      "finalist": true,
+      "liveCandidate": true,
+      "rescueFallback": false
+    },
+    {
+      "candidateId": "M01",
+      "profileId": "busy_manager_ja_voice15_m01",
+      "voiceId": "urE3OJfJRxJuk9kAMN0Y",
+      "voiceName": "Gojo",
+      "source": "shared",
+      "gender": "male",
+      "stage": "round1",
+      "finalist": false,
+      "liveCandidate": false,
+      "rescueFallback": false
+    },
+    {
+      "candidateId": "M02",
+      "profileId": "busy_manager_ja_voice15_m02",
+      "voiceId": "SOuiRq8aXqyALuq5QIQ8",
+      "voiceName": "Hajime",
+      "source": "shared",
+      "gender": "male",
+      "stage": "round1",
+      "finalist": false,
+      "liveCandidate": false,
+      "rescueFallback": false
+    },
+    {
+      "candidateId": "M03",
+      "profileId": "busy_manager_ja_voice15_m03",
+      "voiceId": "umjlutQo1p1XQpWffYUI",
+      "voiceName": "ken",
+      "source": "shared",
+      "gender": "male",
+      "stage": "fallback",
+      "finalist": true,
+      "liveCandidate": true,
+      "rescueFallback": false
+    },
+    {
+      "candidateId": "M04",
+      "profileId": "busy_manager_ja_voice15_m04",
+      "voiceId": "GKDaBI8TKSBJVhsCLD6n",
+      "voiceName": "Asahi",
+      "source": "shared",
+      "gender": "male",
+      "stage": "round1",
+      "finalist": false,
+      "liveCandidate": false,
+      "rescueFallback": false
+    },
+    {
+      "candidateId": "M05",
+      "profileId": "busy_manager_ja_voice15_m05",
+      "voiceId": "ETXjMrhy5NZL6i4w0V3W",
+      "voiceName": "Gen",
+      "source": "shared",
+      "gender": "male",
+      "stage": "round1",
+      "finalist": false,
+      "liveCandidate": false,
+      "rescueFallback": false
+    },
+    {
+      "candidateId": "M06",
+      "profileId": "busy_manager_ja_voice15_m06",
+      "voiceId": "TgOeD7klye637sG2MesF",
+      "voiceName": "Hiro",
+      "source": "shared",
+      "gender": "male",
+      "stage": "finalist",
+      "finalist": true,
+      "liveCandidate": false,
+      "rescueFallback": false
+    },
+    {
+      "candidateId": "R01",
+      "profileId": "busy_manager_ja_voice15_r01",
+      "voiceId": "XSU0ffVjUjKGhQcHLhu5",
+      "voiceName": "Aki",
+      "source": "shared",
+      "gender": "female",
+      "stage": "round1",
+      "finalist": false,
+      "liveCandidate": false,
+      "rescueFallback": true
+    },
+    {
+      "candidateId": "R02",
+      "profileId": "busy_manager_ja_voice15_r02",
+      "voiceId": "JR1hjFne0jQEA059Vyez",
+      "voiceName": "Kuya",
+      "source": "shared",
+      "gender": "male",
+      "stage": "finalist",
+      "finalist": true,
+      "liveCandidate": false,
+      "rescueFallback": true
+    },
+    {
+      "candidateId": "R03",
+      "profileId": "busy_manager_ja_voice15_r03",
+      "voiceId": "o9LUwv6JgbYpDvUZ1W1f",
+      "voiceName": "Yuki",
+      "source": "shared",
+      "gender": "female",
+      "stage": "round1",
+      "finalist": false,
+      "liveCandidate": false,
+      "rescueFallback": true
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "busy_manager_ja_multilingual_candidate_v1",
+  "label": "Busy Manager JA Multilingual Candidate v1",
+  "language": "ja",
+  "model": "eleven_multilingual_v2",
+  "voiceId": "g6xIsTj2HwM6VR4iXFCw",
+  "firstMessageJa": "お時間ありがとうございます。要点を整理しながら進めていただけると助かります。",
+  "textNormalisationType": "elevenlabs",
+  "voiceSettings": {
+    "stability": 0.7,
+    "similarityBoost": 0.82,
+    "speed": 0.97,
+    "style": 0,
+    "useSpeakerBoost": true
+  },
+  "metadata": {
+    "personaKey": "busy_manager_medium",
+    "scenarioIds": [
+      "staffing_order_hearing_busy_manager_medium"
+    ],
+    "benchmarkStatus": "candidate",
+    "notes": "Candidate profile for Japanese quality comparison against flash v2.5."
+  }
+}

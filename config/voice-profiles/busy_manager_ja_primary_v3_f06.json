@@ -1,0 +1,28 @@
+{
+  "id": "busy_manager_ja_primary_v3_f06",
+  "label": "Busy Manager JA Primary V3 F06",
+  "language": "ja",
+  "model": "eleven_v3",
+  "voiceId": "4lOQ7A2l7HPuG7UIHiKA",
+  "firstMessageJa": "ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。",
+  "textNormalisationType": "elevenlabs",
+  "voiceSettings": {
+    "speed": 0.96,
+    "style": 0
+  },
+  "metadata": {
+    "personaKey": "busy_manager_medium",
+    "scenarioIds": [
+      "staffing_order_hearing_busy_manager_medium"
+    ],
+    "benchmarkStatus": "approved",
+    "candidateId": "F06",
+    "source": "shared",
+    "gender": "female",
+    "voiceName": "Kyoko",
+    "cohortId": "busy_manager_ja_voice15",
+    "stage": "primary",
+    "controlGroup": false,
+    "notes": "Approved on 2026-04-07 from round2-v3 shortlist."
+  }
+}

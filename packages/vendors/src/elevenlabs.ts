@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { requestJson } from "./http";
+import type {
+  PronunciationDictionaryLocator,
+  TextNormalisationType,
+  VoiceSettings,
+} from "@top-performer/domain";
+import { HttpError, requestJson } from "./http";
+import { logStructured } from "./logging";
 
 const kbDocumentSchema = z.object({
   id: z.string().min(1),
@@ -85,21 +91,116 @@ const knowledgeBaseListSchema = z.object({
   next_cursor: z.string().nullable().optional(),
 });
 
+const voiceSummarySchema = z.object({
+  voice_id: z.string().min(1),
+  name: z.string().min(1),
+  category: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  preview_url: z.string().nullable().optional(),
+  labels: z.record(z.string(), z.string()).optional(),
+  created_at_unix: z.number().nullable().optional(),
+  verified_languages: z
+    .array(
+      z.object({
+        language: z.string().optional(),
+        locale: z.string().nullable().optional(),
+      })
+    )
+    .optional(),
+});
+
+const sharedVoiceSummarySchema = z.object({
+  public_owner_id: z.string().min(1),
+  voice_id: z.string().min(1),
+  date_unix: z.number().nullable().optional(),
+  name: z.string().min(1),
+  accent: z.string().nullable().optional(),
+  gender: z.string().nullable().optional(),
+  age: z.string().nullable().optional(),
+  descriptive: z.string().nullable().optional(),
+  use_case: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+  language: z.string().nullable().optional(),
+  locale: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  preview_url: z.string().nullable().optional(),
+  rate: z.number().nullable().optional(),
+  fiat_rate: z.number().nullable().optional(),
+  free_users_allowed: z.boolean().nullable().optional(),
+  live_moderation_enabled: z.boolean().nullable().optional(),
+  featured: z.boolean().nullable().optional(),
+  notice_period: z.number().nullable().optional(),
+  image_url: z.string().nullable().optional(),
+  is_added_by_user: z.boolean().nullable().optional(),
+  is_bookmarked: z.boolean().nullable().optional(),
+  verified_languages: z
+    .array(
+      z.object({
+        language: z.string().optional(),
+        model_id: z.string().nullable().optional(),
+        accent: z.string().nullable().optional(),
+        locale: z.string().nullable().optional(),
+        preview_url: z.string().nullable().optional(),
+      })
+    )
+    .optional(),
+});
+
 const voicesListSchema = z.object({
-  voices: z.array(
-    z.object({
-      voice_id: z.string().min(1),
-      name: z.string().min(1),
-      verified_languages: z
-        .array(
-          z.object({
-            language: z.string().optional(),
-            locale: z.string().nullable().optional(),
-          })
-        )
-        .optional(),
+  voices: z.array(voiceSummarySchema),
+  has_more: z.boolean().optional(),
+  next_page_token: z.string().nullable().optional(),
+});
+
+const sharedVoicesListSchema = z.object({
+  voices: z.array(sharedVoiceSummarySchema),
+  has_more: z.boolean().optional(),
+  last_sort_id: z.string().nullable().optional(),
+});
+
+const addSharedVoiceResponseSchema = z.object({
+  voice_id: z.string().min(1),
+});
+
+const voiceDetailSchema = z.object({
+  voice_id: z.string().min(1),
+  name: z.string().min(1),
+  category: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  preview_url: z.string().nullable().optional(),
+  labels: z.record(z.string(), z.string()).nullable().optional(),
+  verified_languages: voiceSummarySchema.shape.verified_languages.nullable().optional(),
+  sharing: z
+    .object({
+      public_owner_id: z.string().min(1).optional(),
+      original_voice_id: z.string().min(1).optional(),
+      category: z.string().nullable().optional(),
     })
-  ),
+    .nullable()
+    .optional(),
+});
+
+const designVoicePreviewSchema = z.object({
+  audio_base_64: z.string().optional(),
+  generated_voice_id: z.string().min(1),
+  media_type: z.string().nullable().optional(),
+  duration_secs: z.number().nullable().optional(),
+  language: z.string().nullable().optional(),
+});
+
+const designVoiceResponseSchema = z.object({
+  previews: z.array(designVoicePreviewSchema),
+  text: z.string().optional(),
+});
+
+const createVoiceFromPreviewResponseSchema = z.object({
+  voice_id: z.string().min(1),
+  name: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  preview_url: z.string().nullable().optional(),
+  labels: z.record(z.string(), z.string()).nullable().optional(),
+  verified_languages: voiceSummarySchema.shape.verified_languages.nullable().optional(),
 });
 
 type AgentConfigPayload = {
@@ -107,14 +208,168 @@ type AgentConfigPayload = {
   prompt: string;
   firstMessage: string;
   knowledgeBase: Array<{ id: string; name: string; type: "text" }>;
-  model: string;
-  voiceId: string;
+  llmModel: string;
   language: string;
+  tts: {
+    modelId: string;
+    voiceId: string;
+    languageCode?: string;
+    textNormalisationType?: TextNormalisationType;
+    voiceSettings?: VoiceSettings;
+    pronunciationDictionaryLocators?: PronunciationDictionaryLocator[];
+  };
+};
+
+export type ElevenLabsVoiceSummary = z.infer<typeof voiceSummarySchema>;
+export type ElevenLabsSharedVoiceSummary = z.infer<
+  typeof sharedVoiceSummarySchema
+>;
+export type ElevenLabsVoiceDetail = z.infer<typeof voiceDetailSchema>;
+export type ElevenLabsDesignedVoicePreview = z.infer<
+  typeof designVoicePreviewSchema
+>;
+export type ElevenLabsDesignVoiceResponse = z.infer<
+  typeof designVoiceResponseSchema
+>;
+
+export type RenderSpeechInput = {
+  text: string;
+  modelId: string;
+  voiceId: string;
+  languageCode?: string;
+  outputFormat?: string;
+  seed?: number;
+  textNormalisationType?: TextNormalisationType;
+  voiceSettings?: VoiceSettings;
+  pronunciationDictionaryLocators?: PronunciationDictionaryLocator[];
+};
+
+export type ListSharedVoicesOptions = {
+  pageSize?: number;
+  page?: number;
+  category?: "professional" | "famous" | "high_quality";
+  gender?: string;
+  age?: string;
+  accent?: string;
+  language?: string;
+  locale?: string;
+  search?: string;
+  useCases?: string;
+  descriptives?: string;
+  featured?: boolean;
+  minNoticePeriodDays?: number;
+  includeCustomRates?: boolean;
+  includeLiveModerated?: boolean;
+  readerAppEnabled?: boolean;
+  ownerId?: string;
+  sort?: string;
+  maxPages?: number;
+};
+
+export type DesignVoiceInput = {
+  voiceDescription: string;
+  modelId?: "eleven_multilingual_ttv_v2" | "eleven_ttv_v3";
+  text?: string;
+  autoGenerateText?: boolean;
+  outputFormat?: string;
+  loudness?: number;
+  seed?: number;
+  guidanceScale?: number;
+  streamPreviews?: boolean;
+  shouldEnhance?: boolean;
+  referenceAudioBase64?: string;
+  promptStrength?: number;
+};
+
+export type CreateVoiceFromPreviewInput = {
+  voiceName: string;
+  voiceDescription: string;
+  generatedVoiceId: string;
+  labels?: Record<string, string>;
+  playedNotSelectedVoiceIds?: string[];
 };
 
 type ApiKeyProvider = string | (() => Promise<string>);
 
-function buildConversationConfig(payload: AgentConfigPayload) {
+function mapVoiceSettingsToAgentTts(
+  voiceSettings: VoiceSettings | undefined
+) {
+  if (!voiceSettings) {
+    return {};
+  }
+
+  return {
+    ...(voiceSettings.stability !== undefined
+      ? { stability: voiceSettings.stability }
+      : {}),
+    ...(voiceSettings.similarityBoost !== undefined
+      ? { similarity_boost: voiceSettings.similarityBoost }
+      : {}),
+    ...(voiceSettings.speed !== undefined ? { speed: voiceSettings.speed } : {}),
+    ...(voiceSettings.style !== undefined ? { style: voiceSettings.style } : {}),
+    ...(voiceSettings.useSpeakerBoost !== undefined
+      ? { use_speaker_boost: voiceSettings.useSpeakerBoost }
+      : {}),
+  };
+}
+
+function mapVoiceSettingsToRenderPayload(
+  voiceSettings: VoiceSettings | undefined
+) {
+  if (!voiceSettings) {
+    return undefined;
+  }
+
+  return {
+    ...(voiceSettings.stability !== undefined
+      ? { stability: voiceSettings.stability }
+      : {}),
+    ...(voiceSettings.similarityBoost !== undefined
+      ? { similarity_boost: voiceSettings.similarityBoost }
+      : {}),
+    ...(voiceSettings.speed !== undefined ? { speed: voiceSettings.speed } : {}),
+    ...(voiceSettings.style !== undefined ? { style: voiceSettings.style } : {}),
+    ...(voiceSettings.useSpeakerBoost !== undefined
+      ? { use_speaker_boost: voiceSettings.useSpeakerBoost }
+      : {}),
+  };
+}
+
+function mapPronunciationDictionaryLocators(
+  locators: PronunciationDictionaryLocator[] | undefined
+) {
+  return locators?.map((locator) => ({
+    pronunciation_dictionary_id: locator.pronunciationDictionaryId,
+    version_id: locator.versionId,
+  }));
+}
+
+function buildRenderTextNormalisationPayload(
+  modelId: string,
+  textNormalisationType: TextNormalisationType | undefined
+) {
+  if (!textNormalisationType) {
+    return {};
+  }
+
+  if (modelId === "eleven_v3") {
+    return textNormalisationType === "elevenlabs"
+      ? { apply_text_normalization: "auto" }
+      : { apply_text_normalization: "off" };
+  }
+
+  return textNormalisationType === "elevenlabs"
+    ? {
+        apply_text_normalization: "on",
+        apply_language_text_normalization: true,
+      }
+    : {
+        apply_text_normalization: "off",
+        apply_language_text_normalization: false,
+      };
+}
+
+export function buildConversationConfig(payload: AgentConfigPayload) {
   return {
     agent: {
       first_message: payload.firstMessage,
@@ -128,16 +383,30 @@ function buildConversationConfig(payload: AgentConfigPayload) {
       text_only: false,
     },
     llm: {
-      model: payload.model,
+      model: payload.llmModel,
       temperature: 0,
       reasoning: {
         effort: "none",
       },
     },
     tts: {
-      model_id: "eleven_flash_v2_5",
-      voice_id: payload.voiceId,
+      model_id: payload.tts.modelId,
+      voice_id: payload.tts.voiceId,
       agent_output_audio_format: "pcm_24000",
+      ...(payload.tts.languageCode
+        ? { language_code: payload.tts.languageCode }
+        : {}),
+      ...(payload.tts.textNormalisationType
+        ? { text_normalisation_type: payload.tts.textNormalisationType }
+        : {}),
+      ...(payload.tts.pronunciationDictionaryLocators
+        ? {
+            pronunciation_dictionary_locators: mapPronunciationDictionaryLocators(
+              payload.tts.pronunciationDictionaryLocators
+            ),
+          }
+        : {}),
+      ...mapVoiceSettingsToAgentTts(payload.tts.voiceSettings),
     },
   };
 }
@@ -211,11 +480,25 @@ export class ElevenLabsClient {
     return response;
   }
 
-  async listVoices() {
+  async listVoicesPage(options?: {
+    nextPageToken?: string;
+    query?: string;
+    pageSize?: number;
+  }) {
     const apiKey = await this.resolveApiKey();
+    const query = new URLSearchParams({
+      page_size: String(options?.pageSize ?? 100),
+    });
+    if (options?.nextPageToken) {
+      query.set("next_page_token", options.nextPageToken);
+    }
+    if (options?.query) {
+      query.set("search", options.query);
+    }
+
     const response = await requestJson({
       scope: "elevenlabs.listVoices",
-      url: `${this.baseUrl}/v1/voices`,
+      url: `${this.baseUrl}/v1/voices?${query.toString()}`,
       headers: {
         "xi-api-key": apiKey,
         accept: "application/json",
@@ -224,7 +507,308 @@ export class ElevenLabsClient {
       timeoutMs: 20_000,
     });
 
-    return response.voices;
+    return response;
+  }
+
+  async listVoices(options?: { query?: string; pageSize?: number }) {
+    let nextPageToken: string | undefined;
+    const voices: ElevenLabsVoiceSummary[] = [];
+
+    do {
+      const response = await this.listVoicesPage({
+        ...(nextPageToken ? { nextPageToken } : {}),
+        ...(options?.query ? { query: options.query } : {}),
+        ...(options?.pageSize !== undefined
+          ? { pageSize: options.pageSize }
+          : {}),
+      });
+      voices.push(...response.voices);
+      nextPageToken = response.has_more
+        ? (response.next_page_token ?? undefined)
+        : undefined;
+    } while (nextPageToken);
+
+    return voices;
+  }
+
+  async listSharedVoicesPage(options?: ListSharedVoicesOptions) {
+    const apiKey = await this.resolveApiKey();
+    const query = new URLSearchParams({
+      page_size: String(options?.pageSize ?? 30),
+      page: String(options?.page ?? 0),
+    });
+    if (options?.category) {
+      query.set("category", options.category);
+    }
+    if (options?.gender) {
+      query.set("gender", options.gender);
+    }
+    if (options?.age) {
+      query.set("age", options.age);
+    }
+    if (options?.accent) {
+      query.set("accent", options.accent);
+    }
+    if (options?.language) {
+      query.set("language", options.language);
+    }
+    if (options?.locale) {
+      query.set("locale", options.locale);
+    }
+    if (options?.search) {
+      query.set("search", options.search);
+    }
+    if (options?.useCases) {
+      query.set("use_cases", options.useCases);
+    }
+    if (options?.descriptives) {
+      query.set("descriptives", options.descriptives);
+    }
+    if (options?.featured !== undefined) {
+      query.set("featured", String(options.featured));
+    }
+    if (options?.minNoticePeriodDays !== undefined) {
+      query.set("min_notice_period_days", String(options.minNoticePeriodDays));
+    }
+    if (options?.includeCustomRates !== undefined) {
+      query.set("include_custom_rates", String(options.includeCustomRates));
+    }
+    if (options?.includeLiveModerated !== undefined) {
+      query.set("include_live_moderated", String(options.includeLiveModerated));
+    }
+    if (options?.readerAppEnabled !== undefined) {
+      query.set("reader_app_enabled", String(options.readerAppEnabled));
+    }
+    if (options?.ownerId) {
+      query.set("owner_id", options.ownerId);
+    }
+    if (options?.sort) {
+      query.set("sort", options.sort);
+    }
+
+    return requestJson({
+      scope: "elevenlabs.listSharedVoices",
+      url: `${this.baseUrl}/v1/shared-voices?${query.toString()}`,
+      headers: {
+        "xi-api-key": apiKey,
+        accept: "application/json",
+      },
+      schema: sharedVoicesListSchema,
+      timeoutMs: 20_000,
+    });
+  }
+
+  async listSharedVoices(options?: ListSharedVoicesOptions) {
+    const voices: ElevenLabsSharedVoiceSummary[] = [];
+    const startPage = options?.page ?? 0;
+    const maxPages = options?.maxPages ?? 10;
+
+    for (let page = startPage; page < startPage + maxPages; page += 1) {
+      const response = await this.listSharedVoicesPage({
+        ...options,
+        page,
+      });
+      voices.push(...response.voices);
+      if (!response.has_more) {
+        break;
+      }
+    }
+
+    return voices;
+  }
+
+  async getVoice(voiceId: string) {
+    const apiKey = await this.resolveApiKey();
+    return requestJson({
+      scope: "elevenlabs.getVoice",
+      url: `${this.baseUrl}/v1/voices/${voiceId}`,
+      headers: {
+        "xi-api-key": apiKey,
+        accept: "application/json",
+      },
+      schema: voiceDetailSchema,
+      timeoutMs: 20_000,
+    });
+  }
+
+  async renderSpeech(input: RenderSpeechInput) {
+    const apiKey = await this.resolveApiKey();
+    const startedAt = Date.now();
+    const query = new URLSearchParams({
+      output_format: input.outputFormat ?? "mp3_44100_128",
+    });
+    const response = await fetch(
+      `${this.baseUrl}/v1/text-to-speech/${input.voiceId}?${query.toString()}`,
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": apiKey,
+          accept: "audio/mpeg",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          text: input.text,
+          model_id: input.modelId,
+          ...(input.languageCode ? { language_code: input.languageCode } : {}),
+          ...(input.seed !== undefined ? { seed: input.seed } : {}),
+          ...buildRenderTextNormalisationPayload(
+            input.modelId,
+            input.textNormalisationType
+          ),
+          ...(input.pronunciationDictionaryLocators
+            ? {
+                pronunciation_dictionary_locators: mapPronunciationDictionaryLocators(
+                  input.pronunciationDictionaryLocators
+                ),
+              }
+            : {}),
+          ...(input.voiceSettings
+            ? {
+                voice_settings: mapVoiceSettingsToRenderPayload(
+                  input.voiceSettings
+                ),
+              }
+            : {}),
+        }),
+      }
+    );
+
+    const vendorRequestId = response.headers.get("x-request-id") ?? undefined;
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new HttpError(
+        `HTTP ${response.status} for ${response.url}`,
+        response.status,
+        errorText,
+        vendorRequestId
+      );
+    }
+
+    const audio = Buffer.from(await response.arrayBuffer());
+    logStructured({
+      scope: "elevenlabs.renderSpeech",
+      message: "Vendor request succeeded",
+      latencyMs: Date.now() - startedAt,
+      ...(vendorRequestId ? { vendorRequestId } : {}),
+      details: {
+        modelId: input.modelId,
+        voiceId: input.voiceId,
+      },
+    });
+    return {
+      audio,
+      latencyMs: Date.now() - startedAt,
+      vendorRequestId,
+    };
+  }
+
+  async findSharedVoice(voiceId: string) {
+    const response = await this.listSharedVoices({
+      pageSize: 100,
+      search: voiceId,
+      maxPages: 2,
+    });
+
+    return response.find((voice) => voice.voice_id === voiceId);
+  }
+
+  async addSharedVoice(
+    publicOwnerId: string,
+    voiceId: string,
+    newName: string
+  ) {
+    const apiKey = await this.resolveApiKey();
+    const response = await requestJson({
+      scope: "elevenlabs.addSharedVoice",
+      url: `${this.baseUrl}/v1/voices/add/${publicOwnerId}/${voiceId}`,
+      method: "POST",
+      headers: {
+        "xi-api-key": apiKey,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        new_name: newName,
+        bookmarked: true,
+      }),
+      schema: addSharedVoiceResponseSchema,
+      timeoutMs: 30_000,
+    });
+
+    return response;
+  }
+
+  async designVoicePreviews(input: DesignVoiceInput) {
+    const apiKey = await this.resolveApiKey();
+    const query = new URLSearchParams();
+    if (input.outputFormat) {
+      query.set("output_format", input.outputFormat);
+    }
+
+    return requestJson({
+      scope: "elevenlabs.designVoicePreviews",
+      url: `${this.baseUrl}/v1/text-to-voice/design${
+        query.size > 0 ? `?${query.toString()}` : ""
+      }`,
+      method: "POST",
+      headers: {
+        "xi-api-key": apiKey,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        voice_description: input.voiceDescription,
+        ...(input.modelId ? { model_id: input.modelId } : {}),
+        ...(input.text ? { text: input.text } : {}),
+        ...(input.autoGenerateText !== undefined
+          ? { auto_generate_text: input.autoGenerateText }
+          : {}),
+        ...(input.loudness !== undefined ? { loudness: input.loudness } : {}),
+        ...(input.seed !== undefined ? { seed: input.seed } : {}),
+        ...(input.guidanceScale !== undefined
+          ? { guidance_scale: input.guidanceScale }
+          : {}),
+        ...(input.streamPreviews !== undefined
+          ? { stream_previews: input.streamPreviews }
+          : {}),
+        ...(input.shouldEnhance !== undefined
+          ? { should_enhance: input.shouldEnhance }
+          : {}),
+        ...(input.referenceAudioBase64
+          ? { reference_audio_base64: input.referenceAudioBase64 }
+          : {}),
+        ...(input.promptStrength !== undefined
+          ? { prompt_strength: input.promptStrength }
+          : {}),
+      }),
+      schema: designVoiceResponseSchema,
+      timeoutMs: 45_000,
+    });
+  }
+
+  async createVoiceFromPreview(input: CreateVoiceFromPreviewInput) {
+    const apiKey = await this.resolveApiKey();
+    return requestJson({
+      scope: "elevenlabs.createVoiceFromPreview",
+      url: `${this.baseUrl}/v1/text-to-voice`,
+      method: "POST",
+      headers: {
+        "xi-api-key": apiKey,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        voice_name: input.voiceName,
+        voice_description: input.voiceDescription,
+        generated_voice_id: input.generatedVoiceId,
+        ...(input.labels ? { labels: input.labels } : {}),
+        ...(input.playedNotSelectedVoiceIds
+          ? { played_not_selected_voice_ids: input.playedNotSelectedVoiceIds }
+          : {}),
+      }),
+      schema: createVoiceFromPreviewResponseSchema,
+      timeoutMs: 45_000,
+    });
   }
 
   async resolveVoiceId(preferredVoiceId?: string, localePrefix = "ja") {
@@ -240,6 +824,27 @@ export class ElevenLabsClient {
         voiceName: preferred.name,
         resolution: "preferred",
       } as const;
+    }
+
+    if (preferredVoiceId) {
+      const sharedVoice = await this.findSharedVoice(preferredVoiceId);
+      if (sharedVoice) {
+        const addedVoice = await this.addSharedVoice(
+          sharedVoice.public_owner_id,
+          sharedVoice.voice_id,
+          sharedVoice.name
+        );
+
+        return {
+          voiceId: addedVoice.voice_id,
+          voiceName: sharedVoice.name,
+          resolution: "preferred_added",
+        } as const;
+      }
+
+      throw new Error(
+        `Preferred ElevenLabs voice ${preferredVoiceId} is not available to this workspace and was not found in the shared voice library.`
+      );
     }
 
     const localized =

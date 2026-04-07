@@ -1,0 +1,24 @@
+{
+  "id": "busy_manager_ja_baseline_v1",
+  "label": "Busy Manager JA Baseline v1",
+  "language": "ja",
+  "model": "eleven_flash_v2_5",
+  "voiceId": "g6xIsTj2HwM6VR4iXFCw",
+  "firstMessageJa": "お時間ありがとうございます。要点を確認しながら進めさせてください。",
+  "textNormalisationType": "elevenlabs",
+  "voiceSettings": {
+    "stability": 0.7,
+    "similarityBoost": 0.82,
+    "speed": 0.97,
+    "style": 0,
+    "useSpeakerBoost": true
+  },
+  "metadata": {
+    "personaKey": "busy_manager_medium",
+    "scenarioIds": [
+      "staffing_order_hearing_busy_manager_medium"
+    ],
+    "benchmarkStatus": "candidate",
+    "notes": "Phase 1 baseline profile seeded from the current published busy_manager voice."
+  }
+}

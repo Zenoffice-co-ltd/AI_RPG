@@ -1,0 +1,9 @@
+id,category,utterance,contains_number,contains_company_name,contains_role_title,contains_location,notes
+bm_001,初回あいさつ,本日はお時間ありがとうございます。忙しいところですが、要点だけ順に確認できればと思っています。,false,false,false,false,短い導入と温度感の確認
+bm_003,忙しい返答,すみません、今立て込んでいるので、2分くらいで済む内容からお願いします。,true,false,false,false,時間制約と数字
+bm_004,協力的返答,もちろんです。必要な点だけ先に整理してもらえれば、こちらも答えやすいです。,false,false,false,false,協力姿勢
+bm_005,決裁者関連,最終的な確認は現場だけでなく、部門長の承認も必要でしょうか。,false,false,true,false,承認構造の確認
+bm_006,予算 / 金額,時給の上限はありますか。それとも、着任が早ければ少し相談余地がありますか。,false,false,false,false,予算柔軟性
+bm_007,日付 / 期限,開始希望は来月頭とのことですが、実際に候補を固めたい期限はいつ頃でしょうか。,false,false,false,false,開始日と締切
+bm_008,締めの一言,今日は大枠がつかめました。次は条件を一度整理して、候補をご提案できればと思います。,false,false,false,false,次アクション合意
+bm_009,固有名詞 / 略語 / 数字,アデコさんの提案だと、3名の追加で足りますか。それとも、もう少し幅を見た方がよさそうですか。,true,true,false,false,会社名と人数

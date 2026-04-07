@@ -1,0 +1,28 @@
+{
+  "id": "busy_manager_ja_fallback_v3_m03",
+  "label": "Busy Manager JA Fallback V3 M03",
+  "language": "ja",
+  "model": "eleven_v3",
+  "voiceId": "umjlutQo1p1XQpWffYUI",
+  "firstMessageJa": "ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。",
+  "textNormalisationType": "elevenlabs",
+  "voiceSettings": {
+    "speed": 0.96,
+    "style": 0
+  },
+  "metadata": {
+    "personaKey": "busy_manager_medium",
+    "scenarioIds": [
+      "staffing_order_hearing_busy_manager_medium"
+    ],
+    "benchmarkStatus": "approved",
+    "candidateId": "M03",
+    "source": "shared",
+    "gender": "male",
+    "voiceName": "ken",
+    "cohortId": "busy_manager_ja_voice15",
+    "stage": "fallback",
+    "controlGroup": false,
+    "notes": "Approved fallback on 2026-04-07 from round2-v3 shortlist."
+  }
+}
