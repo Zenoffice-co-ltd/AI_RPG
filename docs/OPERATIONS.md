@@ -79,6 +79,14 @@ pnpm review:summarize:ja -- --csv data/generated/voice-benchmark/<runId>/review-
 
 `benchmark:render` writes `manifest.json`, `summary.csv`, `review-sheet.csv`, `index.html`, and rendered audio files to `data/generated/voice-benchmark/<runId>/`.
 
+### Approved Voice Profile Blocker
+
+- 2026-04-07 時点で `GET /v1/pronunciation-dictionaries?page_size=100` は `pronunciation_dictionaries=[]` を返した
+- そのため approved profile の remote dictionary locator は未設定
+- `busy_manager_ja_primary_v3_f06` と `busy_manager_ja_fallback_v3_m03` は publish-ready ではなく、`pronunciationDictionaryLocators` が入るまで fail-closed で扱う
+- `pnpm smoke:eleven -- --preflight` と `pnpm verify:acceptance -- --preflight` はこの状態を blocker として表示する
+- 本番投入前に ElevenLabs 側で remote dictionary を作成し、approved profile JSON に locator を追加すること
+
 ## JA Voice 15 Workflow
 
 `busy_manager_ja_voice15` の運用は次の順序で進める。
@@ -91,6 +99,8 @@ pnpm review:summarize:ja -- --csv data/generated/voice-benchmark/<runId>/review-
 6. `pnpm review:summarize:ja -- --csv data/generated/voice-benchmark/<runId>/review-sheet.csv` で shortlist を記録する
 
 `R01` から `R03` は現時点では shared fallback の rescue slots であり、final approval 前に explicit Voice Design を実行する。
+
+`data/voice-benchmark/review-sheet-ja-voice15.csv` は final shortlist の監査用記録で、manual review をスキップした場合も `pending` を残さず理由を閉じる。補足説明は `data/voice-benchmark/review-audit-ja-voice15.md` に残す。
 
 `smoke:eleven` validates KB creation and optional agent/test execution.
 

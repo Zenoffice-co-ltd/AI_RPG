@@ -1,5 +1,6 @@
 import { getAppContext } from "../../apps/web/server/appContext";
 import {
+  assertVoiceProfileProductionReady,
   buildLegacyVoiceSelection,
   buildProfileVoiceSelection,
   resolveMappedVoiceProfile,
@@ -97,6 +98,25 @@ export async function getSmokeElevenPreflightBlockers() {
       blocker.requiredInput === "ELEVENLABS_API_KEY" ||
       blocker.requiredInput === "FIREBASE_PROJECT_ID"
   );
+
+  const mappedProfile = await resolveMappedVoiceProfile(ACCEPTANCE_SCENARIO_ID);
+  if (!mappedProfile) {
+    return blockers;
+  }
+
+  try {
+    assertVoiceProfileProductionReady(mappedProfile);
+  } catch (error) {
+    blockers.push({
+      kind: "needs_manual_account",
+      step: "publish:scenario / smoke:eleven",
+      detail:
+        error instanceof Error
+          ? error.message
+          : "Approved voice profile is blocked for production until pronunciationDictionaryLocators are configured.",
+      requiredInput: "pronunciationDictionaryLocators",
+    });
+  }
 
   return blockers;
 }

@@ -39,6 +39,8 @@ active profile の実値:
 
 `voiceName` は last publish artifact の観測値です。workspace に preferred voice が無い場合は shared voice 追加または auto-resolve が走るため、将来も常に同名とは限りません。
 
+ただし、2026-04-07 時点では ElevenLabs account 上に remote pronunciation dictionary が 0 件で、approved profile には `pronunciationDictionaryLocators` が未設定です。したがって current active profile は mapping 上は approved でも、production publish readiness としては block 中です。
+
 ## Profile Matrix
 
 現在 repo に入っている主要な日本語 profile は以下です。
@@ -97,7 +99,7 @@ validation ルール:
 - `pronunciationDictionaryLocators` は最大 3 件
 - locator は `pronunciationDictionaryId` と `versionId` を両方必須
 
-dictionary locator が欠落している場合は fail-closed とし、silent fallback は行いません。
+dictionary locator が欠落している場合は fail-closed とし、silent fallback は行いません。特に `metadata.benchmarkStatus=approved` の profile は、locator 未設定のまま publish / smoke / acceptance に進めない設計です。
 
 ## Resolution Order
 
@@ -222,7 +224,7 @@ raw TTS benchmark では model ごとに送信方法を分けます。
 
 ## Pronunciation Dictionary Policy
 
-current profile では remote locator はまだ未設定です。local の元ファイルは `data/pronunciation/adecco-ja-business-v1.pls` を使います。
+2026-04-07 に `GET /v1/pronunciation-dictionaries?page_size=100` を確認した結果、`pronunciation_dictionaries=[]` でした。current profile では remote locator はまだ未設定です。local の元ファイルは `data/pronunciation/adecco-ja-business-v1.pls` を使います。
 
 remote dictionary を profile に載せる条件:
 
@@ -230,6 +232,12 @@ remote dictionary を profile に載せる条件:
 - `pronunciationDictionaryId` が確定している
 - `versionId` が確定している
 - shortlist / approved profile に紐づく読み補正である
+
+approved profile に関する運用ルール:
+
+- locator 未設定の approved profile は fail-open にしない
+- `packages/scenario-engine/src/voiceProfiles.ts` の readiness check が publish / smoke 側で block する
+- blocker は `pnpm smoke:eleven -- --preflight` と `pnpm verify:acceptance -- --preflight` にも出す
 
 登録例:
 

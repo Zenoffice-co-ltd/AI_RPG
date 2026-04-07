@@ -9,6 +9,11 @@ import {
   selectJaVoiceVariationCandidates,
   summarizeJaVoiceReviewSheet,
 } from "./jaVoiceVariations";
+import {
+  JA_VOICE_VARIATION_COHORT_PATH,
+  listVoiceVariationProfiles,
+  loadVoiceVariationCohort,
+} from "./voiceProfiles";
 
 describe("jaVoiceVariations inventory", () => {
   it("scores calm professional Japanese voices above playful or foreign-accented ones", () => {
@@ -220,5 +225,36 @@ describe("jaVoiceVariations review summary", () => {
     expect(summary.rows).toHaveLength(1);
     expect(summary.rows[0]?.knockout).toBe(false);
     expect(summary.rows[0]?.overallScore).toBeGreaterThan(80);
+  });
+});
+
+describe("jaVoiceVariations repo cohort", () => {
+  it("keeps all 15 candidate voiceIds unique and includes both genders", async () => {
+    const cohort = await loadVoiceVariationCohort(JA_VOICE_VARIATION_COHORT_PATH);
+    const uniqueVoiceIds = new Set(cohort.candidates.map((candidate) => candidate.voiceId));
+    const genders = new Set(cohort.candidates.map((candidate) => candidate.gender));
+
+    expect(cohort.candidates).toHaveLength(15);
+    expect(uniqueVoiceIds.size).toBe(15);
+    expect(genders.has("female")).toBe(true);
+    expect(genders.has("male")).toBe(true);
+  });
+
+  it("marks F06 as primary and M03 as fallback in the live shortlist", async () => {
+    const cohort = await loadVoiceVariationCohort(JA_VOICE_VARIATION_COHORT_PATH);
+    const profiles = await listVoiceVariationProfiles(JA_VOICE_VARIATION_COHORT_PATH);
+    const primary = cohort.candidates.find((candidate) => candidate.stage === "primary");
+    const fallback = cohort.candidates.find((candidate) => candidate.stage === "fallback");
+    const primaryProfile = profiles.find(
+      (entry) => entry.candidate.candidateId === "F06"
+    )?.profile;
+    const fallbackProfile = profiles.find(
+      (entry) => entry.candidate.candidateId === "M03"
+    )?.profile;
+
+    expect(primary?.candidateId).toBe("F06");
+    expect(fallback?.candidateId).toBe("M03");
+    expect(primaryProfile?.metadata?.stage).toBe("primary");
+    expect(fallbackProfile?.metadata?.stage).toBe("fallback");
   });
 });

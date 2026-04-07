@@ -342,4 +342,43 @@ describe("ElevenLabsClient.renderSpeech", () => {
       },
     });
   });
+
+  it("maps approved-profile dictionary locators to snake_case in render payloads", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      url: "https://api.elevenlabs.io/v1/text-to-speech/voice_approved",
+      headers: new Headers(),
+      arrayBuffer: async () => Uint8Array.from([1, 2, 3]).buffer,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new ElevenLabsClient("test-key");
+    await client.renderSpeech({
+      text: "Excel と WMS の基本操作ができる方だと助かります。",
+      modelId: "eleven_v3",
+      voiceId: "voice_approved",
+      textNormalisationType: "elevenlabs",
+      pronunciationDictionaryLocators: [
+        {
+          pronunciationDictionaryId: "pdict_approved",
+          versionId: "ver_3",
+        },
+      ],
+    });
+
+    const [, renderInit] = fetchMock.mock.calls[0] ?? [];
+    expect(JSON.parse(String(renderInit?.body))).toMatchObject({
+      model_id: "eleven_v3",
+      apply_text_normalization: "auto",
+      pronunciation_dictionary_locators: [
+        {
+          pronunciation_dictionary_id: "pdict_approved",
+          version_id: "ver_3",
+        },
+      ],
+    });
+    expect(JSON.parse(String(renderInit?.body))).not.toHaveProperty(
+      "apply_language_text_normalization"
+    );
+  });
 });

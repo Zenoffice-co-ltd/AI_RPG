@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  assertVoiceProfileProductionReady,
   buildLegacyVoiceSelection,
   buildProfileVoiceSelection,
   listVoiceProfiles,
@@ -175,5 +176,49 @@ describe("voice profile resolver", () => {
     expect(mappedSelection.voiceId).toBe("voice_resolved");
     expect(legacySelection.mode).toBe("legacy");
     expect(legacySelection.ttsModel).toBe("eleven_flash_v2_5");
+  });
+
+  it("fails closed when an approved profile is missing dictionary locators", async () => {
+    expect(() =>
+      assertVoiceProfileProductionReady({
+        id: "busy_manager_ja_primary_v3_f06",
+        label: "Busy Manager JA Primary V3 F06",
+        language: "ja",
+        model: "eleven_v3",
+        voiceId: "voice_approved",
+        textNormalisationType: "elevenlabs",
+        voiceSettings: {
+          speed: 0.96,
+          style: 0,
+        },
+        metadata: {
+          benchmarkStatus: "approved",
+        },
+      })
+    ).toThrow("pronunciationDictionaryLocators");
+  });
+});
+
+describe("voice profile resolver against repo config", () => {
+  it("resolves the active approved profile and the fallback profile from the repo", async () => {
+    const activeProfile = await resolveMappedVoiceProfile(
+      "staffing_order_hearing_busy_manager_medium"
+    );
+    const fallbackProfile = await loadVoiceProfile("busy_manager_ja_fallback_v3_m03");
+
+    expect(activeProfile?.id).toBe("busy_manager_ja_primary_v3_f06");
+    expect(activeProfile?.metadata?.benchmarkStatus).toBe("approved");
+    expect(fallbackProfile.id).toBe("busy_manager_ja_fallback_v3_m03");
+    expect(fallbackProfile.metadata?.benchmarkStatus).toBe("approved");
+  });
+
+  it("builds a fallback-capable matrix where the active mapped profile exists", async () => {
+    const mapping = await loadScenarioVoiceProfileMap();
+    const activeProfileId =
+      mapping.activeProfiles.staffing_order_hearing_busy_manager_medium;
+
+    await expect(loadVoiceProfile(activeProfileId)).resolves.toMatchObject({
+      id: "busy_manager_ja_primary_v3_f06",
+    });
   });
 });
