@@ -162,27 +162,46 @@ export async function resolveMappedVoiceProfile(
   return loadVoiceProfile(profileId, configRoot);
 }
 
+export function assertVoiceProfileProductionReady(profile: VoiceProfile) {
+  if (profile.metadata?.benchmarkStatus !== "approved") {
+    return profile;
+  }
+
+  if (
+    !profile.pronunciationDictionaryLocators ||
+    profile.pronunciationDictionaryLocators.length === 0
+  ) {
+    throw new Error(
+      `Approved voice profile ${profile.id} is blocked for production until pronunciationDictionaryLocators are configured.`
+    );
+  }
+
+  return profile;
+}
+
 export function buildProfileVoiceSelection(input: {
   scenarioId: string;
   scenarioOpeningLine: string;
   profile: VoiceProfile;
   resolvedVoiceId?: string;
 }): ResolvedScenarioVoiceSelection {
+  const readyProfile = assertVoiceProfileProductionReady(input.profile);
+
   return {
     mode: "profile",
     scenarioId: input.scenarioId,
-    voiceProfileId: input.profile.id,
-    label: input.profile.label,
-    language: input.profile.language,
-    ttsModel: input.profile.model,
-    voiceId: input.resolvedVoiceId ?? input.profile.voiceId,
-    firstMessage: input.profile.firstMessageJa ?? input.scenarioOpeningLine,
-    textNormalisationType: input.profile.textNormalisationType,
-    voiceSettings: input.profile.voiceSettings,
-    ...(input.profile.pronunciationDictionaryLocators
+    voiceProfileId: readyProfile.id,
+    label: readyProfile.label,
+    language: readyProfile.language,
+    ttsModel: readyProfile.model,
+    voiceId: input.resolvedVoiceId ?? readyProfile.voiceId,
+    firstMessage: readyProfile.firstMessageJa ?? input.scenarioOpeningLine,
+    textNormalisationType: readyProfile.textNormalisationType,
+    voiceSettings: readyProfile.voiceSettings,
+    ...(readyProfile.pronunciationDictionaryLocators
       ? {
           pronunciationDictionaryLocators:
-            input.profile.pronunciationDictionaryLocators,
+            readyProfile.pronunciationDictionaryLocators,
         }
       : {}),
   };

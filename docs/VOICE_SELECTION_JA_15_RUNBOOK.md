@@ -2,6 +2,8 @@
 
 この runbook は、`busy_manager_ja_voice15` の 15 バリエーションを比較し、`busy_manager_medium` に採用する voice を決めるための手順です。
 
+より再利用しやすい repo-local 版は [docs/skills/elevenlabs_voice_selection.md](./skills/elevenlabs_voice_selection.md) にあります。
+
 ## 目的
 
 - 15 候補を同じ条件で比較する
@@ -90,10 +92,12 @@ pnpm review:summarize:ja -- --csv data/generated/voice-benchmark/<runId>/review-
 
 ## 参照先
 
+- reusable workflow: `docs/skills/elevenlabs_voice_selection.md`
 - cohort 定義: `config/voice-profiles/ja_voice_variations/cohort.json`
 - profile 群: `config/voice-profiles/ja_voice_variations/`
 - benchmark utterances: `data/voice-benchmark/utterances_ja_busy_manager_sanity.csv`
 - full utterances: `data/voice-benchmark/utterances_ja_busy_manager.csv`
-- review sheet template: `data/voice-benchmark/review-sheet-ja-voice15.csv`
+- final shortlist audit: `data/voice-benchmark/review-sheet-ja-voice15.csv`
+- audit note: `data/voice-benchmark/review-audit-ja-voice15.md`
 - benchmark review output: `data/generated/voice-benchmark/<runId>/review-sheet.csv`
 - pronunciation dictionary: `data/pronunciation/adecco-ja-business-v1.pls`

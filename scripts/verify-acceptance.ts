@@ -19,6 +19,7 @@ import {
   type AcceptanceBlocker,
 } from "./lib/acceptance";
 import {
+  getSmokeElevenPreflightBlockers,
   inspectAcceptanceSeedState,
   runBootstrapVendors,
   runElevenSmoke,
@@ -397,6 +398,11 @@ async function main() {
   const report = await buildBasePreflightReport();
 
   let seedState: Awaited<ReturnType<typeof checkSeedState>> | null = null;
+  if (report.blockers.length === 0) {
+    report.blockers.push(...(await getSmokeElevenPreflightBlockers()));
+    report.ready = report.blockers.length === 0;
+  }
+
   if (report.blockers.length === 0) {
     seedState = await checkSeedState();
     appendSeedBlockers(report.blockers, seedState);

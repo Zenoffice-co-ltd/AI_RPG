@@ -57,6 +57,8 @@ type VoiceProfile = {
 - `similarityBoost` は 0 から 1 の範囲
 - `style` は 0 から 1 の範囲
 - `pronunciationDictionaryLocators` の各要素は `pronunciationDictionaryId` と `versionId` を必須にする
+- `metadata.benchmarkStatus=approved` の profile は `pronunciationDictionaryLocators` が空なら production-ready と見なさない
+- approved profile の locator 欠落は fail-open ではなく fail-closed で扱う
 
 ## 既定値
 
