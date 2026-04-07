@@ -1,0 +1,26 @@
+{
+  "id": "busy_manager_ja_voice15_m04",
+  "label": "Busy Manager JA Voice15 M04 Asahi",
+  "language": "ja",
+  "model": "eleven_multilingual_v2",
+  "voiceId": "GKDaBI8TKSBJVhsCLD6n",
+  "firstMessageJa": "お時間ありがとうございます。要点だけ確認させてください。",
+  "textNormalisationType": "elevenlabs",
+  "voiceSettings": {
+    "stability": 0.7,
+    "similarityBoost": 0.82,
+    "speed": 0.96,
+    "style": 0,
+    "useSpeakerBoost": true
+  },
+  "metadata": {
+    "candidateId": "M04",
+    "source": "shared",
+    "gender": "male",
+    "voiceName": "Asahi",
+    "cohortId": "busy_manager_ja_voice15",
+    "stage": "round1",
+    "controlGroup": false,
+    "benchmarkStatus": "candidate"
+  }
+}

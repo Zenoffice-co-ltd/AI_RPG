@@ -1,5 +1,6 @@
 import type { AgentBinding, CompiledScenarioAssets, ScenarioPack } from "@top-performer/domain";
 import type { ElevenLabsClient } from "@top-performer/vendors";
+import type { ResolvedScenarioVoiceSelection } from "./voiceProfiles";
 
 function sleep(ms: number) {
   return new Promise((resolve) => {
@@ -201,8 +202,8 @@ export async function publishScenarioAgent(input: {
   scenario: ScenarioPack;
   assets: CompiledScenarioAssets;
   existingBinding?: AgentBinding | null;
-  defaultModel: string;
-  defaultVoiceId: string;
+  llmModel: string;
+  voiceSelection: ResolvedScenarioVoiceSelection;
 }) {
   const knowledgeBaseName = `${input.scenario.id}:${input.scenario.version}`;
   const knowledgeBase = await input.elevenLabs.createKnowledgeBaseDocumentFromText(
@@ -213,7 +214,7 @@ export async function publishScenarioAgent(input: {
   const agentPayload = {
     name: input.scenario.title,
     prompt: input.assets.agentSystemPrompt,
-    firstMessage: input.scenario.openingLine,
+    firstMessage: input.voiceSelection.firstMessage,
     knowledgeBase: [
       {
         id: knowledgeBase.id,
@@ -221,9 +222,21 @@ export async function publishScenarioAgent(input: {
         type: "text" as const,
       },
     ],
-    model: input.defaultModel,
-    voiceId: input.defaultVoiceId,
-    language: "ja",
+    llmModel: input.llmModel,
+    language: input.voiceSelection.language,
+    tts: {
+      modelId: input.voiceSelection.ttsModel,
+      voiceId: input.voiceSelection.voiceId,
+      languageCode: input.voiceSelection.language,
+      textNormalisationType: input.voiceSelection.textNormalisationType,
+      voiceSettings: input.voiceSelection.voiceSettings,
+      ...(input.voiceSelection.pronunciationDictionaryLocators
+        ? {
+            pronunciationDictionaryLocators:
+              input.voiceSelection.pronunciationDictionaryLocators,
+          }
+        : {}),
+    },
   };
 
   const agentId =
@@ -297,7 +310,10 @@ export async function publishScenarioAgent(input: {
       elevenAgentId: agentId,
       elevenBranchId: stagingBranchId,
       elevenVersionId: updatedAgent.version_id ?? undefined,
-      voiceId: input.defaultVoiceId,
+      ...(input.voiceSelection.mode === "profile"
+        ? { voiceProfileId: input.voiceSelection.voiceProfileId }
+        : {}),
+      voiceId: input.voiceSelection.voiceId,
       publishedAt: new Date().toISOString(),
     } satisfies AgentBinding,
   };

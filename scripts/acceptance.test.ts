@@ -30,7 +30,7 @@ describe("acceptance helpers", () => {
     expect(report.blockers.map((blocker) => blocker.requiredInput)).toContain(
       "FIREBASE_PROJECT_ID"
     );
-    expect(report.blockers.map((blocker) => blocker.requiredInput)).toContain(
+    expect(report.blockers.map((blocker) => blocker.requiredInput)).not.toContain(
       "DEFAULT_ELEVEN_VOICE_ID"
     );
   });
@@ -215,5 +215,16 @@ describe("acceptance helpers", () => {
     expect(why).toContain("FIREBASE_PROJECT_ID");
     expect(why).not.toContain("DEFAULT_ELEVEN_VOICE_ID");
     expect(why).not.toContain("QUEUE_SHARED_SECRET");
+  });
+
+  it("describes DEFAULT_ELEVEN_VOICE_ID as a legacy fallback instead of a hard blocker", () => {
+    const why = buildWhyNeededBlock({
+      includeDefaultElevenVoiceId: true,
+      includeFirebaseProjectId: false,
+      includeQueueSharedSecret: false,
+    });
+
+    expect(why).toContain("legacy fallback");
+    expect(why).toContain("auto-resolve");
   });
 });

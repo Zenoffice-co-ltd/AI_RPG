@@ -222,16 +222,6 @@ export async function buildBasePreflightReport(
     }
   }
 
-  if (!getConfiguredValue(env, "DEFAULT_ELEVEN_VOICE_ID")) {
-    blockers.push({
-      kind: "needs_manual_account",
-      step: "publish:scenario / smoke:eleven",
-      detail:
-        "DEFAULT_ELEVEN_VOICE_ID が未設定のため、ElevenLabs agent publish と smoke test の音声設定を確定できません。",
-      requiredInput: "DEFAULT_ELEVEN_VOICE_ID",
-    });
-  }
-
   return {
     ready: blockers.length === 0,
     blockers,
@@ -359,7 +349,7 @@ export function buildWhyNeededBlock(options?: {
   }
   if (options?.includeDefaultElevenVoiceId ?? true) {
     lines.push(
-      "- DEFAULT_ELEVEN_VOICE_ID: scenario publish と smoke:eleven の音声設定を確定するため。"
+      "- DEFAULT_ELEVEN_VOICE_ID: voiceProfile 未設定 scenario の legacy fallback voice を固定したい場合だけ使います。未設定でも auto-resolve で進められます。"
     );
   }
   if (options?.includeQueueSharedSecret ?? true) {
@@ -449,6 +439,9 @@ export function buildNextCommandsBlock(
 export function buildHumanInputRequest(
   source: Record<string, string | undefined> = process.env,
   options?: {
+    includeFirebaseProjectId?: boolean;
+    includeDefaultElevenVoiceId?: boolean;
+    includeQueueSharedSecret?: boolean;
     includeFirebaseCredentialSecret?: boolean;
     includeElevenLabsCredential?: boolean;
     includeLiveAvatarCredential?: boolean;

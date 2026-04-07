@@ -1,0 +1,21 @@
+{
+  "id": "busy_manager_ja_v3_candidate_v1",
+  "label": "Busy Manager JA V3 Candidate v1",
+  "language": "ja",
+  "model": "eleven_v3",
+  "voiceId": "g6xIsTj2HwM6VR4iXFCw",
+  "firstMessageJa": "ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。",
+  "textNormalisationType": "elevenlabs",
+  "voiceSettings": {
+    "speed": 0.97,
+    "style": 0
+  },
+  "metadata": {
+    "personaKey": "busy_manager_medium",
+    "scenarioIds": [
+      "staffing_order_hearing_busy_manager_medium"
+    ],
+    "benchmarkStatus": "candidate",
+    "notes": "Candidate profile for final live confirmation on context-aware v3."
+  }
+}

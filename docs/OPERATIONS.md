@@ -60,6 +60,38 @@ pnpm verify:acceptance -- --preflight
 pnpm verify:acceptance
 ```
 
+## Voice Benchmark
+
+```bash
+pnpm voices:list
+pnpm voices:collect:ja
+pnpm voices:promote:shared
+pnpm voices:design:ja
+pnpm benchmark:render -- --scenario staffing_order_hearing_busy_manager_medium
+pnpm benchmark:render -- --scenario staffing_order_hearing_busy_manager_medium --profile busy_manager_ja_baseline_v1 --profile busy_manager_ja_multilingual_candidate_v1 --profile busy_manager_ja_v3_candidate_v1 --seed 42
+pnpm benchmark:render:ja -- --scenario staffing_order_hearing_busy_manager_medium --round round1-sanity
+pnpm benchmark:render:ja -- --scenario staffing_order_hearing_busy_manager_medium --round round1-full
+pnpm benchmark:render:ja -- --scenario staffing_order_hearing_busy_manager_medium --round round2-v3 --include-profile busy_manager_ja_v3_candidate_v1
+pnpm review:summarize:ja -- --csv data/generated/voice-benchmark/<runId>/review-sheet.csv
+```
+
+`voices:list` writes the current voice inventory to `data/generated/voice-benchmark/voices/`.
+
+`benchmark:render` writes `manifest.json`, `summary.csv`, `review-sheet.csv`, `index.html`, and rendered audio files to `data/generated/voice-benchmark/<runId>/`.
+
+## JA Voice 15 Workflow
+
+`busy_manager_ja_voice15` の運用は次の順序で進める。
+
+1. `pnpm voices:collect:ja` で shared/workspace 候補を棚卸しする
+2. `pnpm benchmark:render:ja -- --scenario staffing_order_hearing_busy_manager_medium --round round1-sanity` で first pass を行う
+3. `config/voice-profiles/ja_voice_variations/cohort.json` で Top 6 に `finalist: true` を付ける
+4. `pnpm benchmark:render:ja -- --scenario staffing_order_hearing_busy_manager_medium --round round1-full` で full pass を行う
+5. `pnpm voices:design:ja` で rescue slots を explicit Voice Design に差し替える
+6. `pnpm review:summarize:ja -- --csv data/generated/voice-benchmark/<runId>/review-sheet.csv` で shortlist を記録する
+
+`R01` から `R03` は現時点では shared fallback の rescue slots であり、final approval 前に explicit Voice Design を実行する。
+
 `smoke:eleven` validates KB creation and optional agent/test execution.
 
 `smoke:liveavatar` requires:

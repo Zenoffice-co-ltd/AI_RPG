@@ -1,0 +1,26 @@
+{
+  "id": "busy_manager_ja_voice15_f06",
+  "label": "Busy Manager JA Voice15 F06 Kyoko",
+  "language": "ja",
+  "model": "eleven_multilingual_v2",
+  "voiceId": "4lOQ7A2l7HPuG7UIHiKA",
+  "firstMessageJa": "お時間ありがとうございます。要点だけ確認させてください。",
+  "textNormalisationType": "elevenlabs",
+  "voiceSettings": {
+    "stability": 0.7,
+    "similarityBoost": 0.82,
+    "speed": 0.96,
+    "style": 0,
+    "useSpeakerBoost": true
+  },
+  "metadata": {
+    "candidateId": "F06",
+    "source": "shared",
+    "gender": "female",
+    "voiceName": "Kyoko",
+    "cohortId": "busy_manager_ja_voice15",
+    "stage": "primary",
+    "controlGroup": false,
+    "benchmarkStatus": "candidate"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "id": "busy_manager_ja_voice15_f02",
+  "label": "Busy Manager JA Voice15 F02 Sakura",
+  "language": "ja",
+  "model": "eleven_multilingual_v2",
+  "voiceId": "EGPLqH9Wz2tNLu58EJVR",
+  "firstMessageJa": "お時間ありがとうございます。要点だけ確認させてください。",
+  "textNormalisationType": "elevenlabs",
+  "voiceSettings": {
+    "stability": 0.7,
+    "similarityBoost": 0.82,
+    "speed": 0.96,
+    "style": 0,
+    "useSpeakerBoost": true
+  },
+  "metadata": {
+    "candidateId": "F02",
+    "source": "shared",
+    "gender": "female",
+    "voiceName": "Sakura - Japanese Narration",
+    "cohortId": "busy_manager_ja_voice15",
+    "stage": "round1",
+    "controlGroup": false,
+    "benchmarkStatus": "candidate"
+  }
+}

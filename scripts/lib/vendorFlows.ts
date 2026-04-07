@@ -1,15 +1,20 @@
 import { getAppContext } from "../../apps/web/server/appContext";
 import {
+  buildLegacyVoiceSelection,
+  buildProfileVoiceSelection,
+  resolveMappedVoiceProfile,
+} from "../../packages/scenario-engine/src/voiceProfiles";
+import {
   DEFAULT_ELEVENLABS_SECRET_NAME,
   getEnvOrSecret,
 } from "../../apps/web/server/secrets";
 import { writeGeneratedJson } from "../../apps/web/server/workspace";
 import {
   ACCEPTANCE_SCENARIO_ID,
-  AcceptanceBlocker,
   buildBasePreflightReport,
   getConfiguredValue,
 } from "./acceptance";
+import type { AcceptanceBlocker } from "./acceptance";
 
 export type BootstrapOptions = {
   refreshSecret?: boolean;
@@ -90,7 +95,6 @@ export async function getSmokeElevenPreflightBlockers() {
   const blockers = (await buildBasePreflightReport()).blockers.filter(
     (blocker) =>
       blocker.requiredInput === "ELEVENLABS_API_KEY" ||
-      blocker.requiredInput === "DEFAULT_ELEVEN_VOICE_ID" ||
       blocker.requiredInput === "FIREBASE_PROJECT_ID"
   );
 
@@ -194,10 +198,23 @@ export async function runBootstrapVendors(options: BootstrapOptions = {}) {
 
 export async function runElevenSmoke() {
   const ctx = getAppContext();
+  const mappedProfile = await resolveMappedVoiceProfile(ACCEPTANCE_SCENARIO_ID);
   const resolvedVoice = await ctx.vendors.elevenLabs.resolveVoiceId(
-    getConfiguredValue(process.env, "DEFAULT_ELEVEN_VOICE_ID"),
+    mappedProfile?.voiceId ?? getConfiguredValue(process.env, "DEFAULT_ELEVEN_VOICE_ID"),
     "ja"
   );
+  const voiceSelection = mappedProfile
+    ? buildProfileVoiceSelection({
+        scenarioId: ACCEPTANCE_SCENARIO_ID,
+        scenarioOpeningLine: "本日はお時間ありがとうございます。よろしくお願いします。",
+        profile: mappedProfile,
+        resolvedVoiceId: resolvedVoice.voiceId,
+      })
+    : buildLegacyVoiceSelection({
+        scenarioId: ACCEPTANCE_SCENARIO_ID,
+        scenarioOpeningLine: "本日はお時間ありがとうございます。よろしくお願いします。",
+        resolvedVoiceId: resolvedVoice.voiceId,
+      });
 
   const knowledgeBase =
     await ctx.vendors.elevenLabs.createKnowledgeBaseDocumentFromText(
@@ -209,7 +226,7 @@ export async function runElevenSmoke() {
     name: `Smoke Agent ${Date.now()}`,
     prompt:
       "You are a polite Japanese customer-side contact for a staffing order hearing. Stay in character as a natural business counterpart and do not mention testing.",
-    firstMessage: "本日はお時間ありがとうございます。よろしくお願いします。",
+    firstMessage: voiceSelection.firstMessage,
     knowledgeBase: [
       {
         id: knowledgeBase.id,
@@ -217,9 +234,22 @@ export async function runElevenSmoke() {
         type: "text",
       },
     ],
-    model: ctx.env.DEFAULT_ELEVEN_MODEL,
-    voiceId: resolvedVoice.voiceId,
-    language: "ja",
+    llmModel: ctx.env.DEFAULT_ELEVEN_MODEL,
+    language: voiceSelection.language,
+    tts: {
+      modelId: voiceSelection.ttsModel,
+      voiceId: voiceSelection.voiceId,
+      languageCode: voiceSelection.language,
+      textNormalisationType: voiceSelection.textNormalisationType,
+      voiceSettings: voiceSelection.voiceSettings,
+      ...(voiceSelection.mode === "profile" &&
+      voiceSelection.pronunciationDictionaryLocators
+        ? {
+            pronunciationDictionaryLocators:
+              voiceSelection.pronunciationDictionaryLocators,
+          }
+        : {}),
+    },
   });
   const agentId = created.agent_id;
   const testId = await ctx.vendors.elevenLabs.createTest({
@@ -264,6 +294,9 @@ export async function runElevenSmoke() {
     voiceId: resolvedVoice.voiceId,
     voiceResolution: resolvedVoice.resolution,
     voiceName: resolvedVoice.voiceName,
+    voiceProfileId:
+      voiceSelection.mode === "profile" ? voiceSelection.voiceProfileId : undefined,
+    ttsModel: voiceSelection.ttsModel,
   };
 }
 
