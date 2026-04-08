@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI RPG Acceptance Verification"
+  short_description: "Run the repo's acceptance, smoke, and release-readiness checks."
+  default_prompt: "Use the acceptance verification skill to prove release readiness for this repository."

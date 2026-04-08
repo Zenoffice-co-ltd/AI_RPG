@@ -31,6 +31,23 @@ data
 docs
 ```
 
+## Codex Repository Layout
+
+This repo now follows Codex's repo-scoped guidance layout.
+
+- Root guidance: [AGENTS.md](/C:/AI_RPG/AGENTS.md)
+- Focused overrides:
+  - [packages/scenario-engine/AGENTS.override.md](/C:/AI_RPG/packages/scenario-engine/AGENTS.override.md)
+  - [config/voice-profiles/AGENTS.override.md](/C:/AI_RPG/config/voice-profiles/AGENTS.override.md)
+- Repo skills: [`.agents/skills/`](/C:/AI_RPG/.agents/skills)
+- Repo rules: [`.codex/rules/repo.rules`](/C:/AI_RPG/.codex/rules/repo.rules)
+- Repo hooks: [`.codex/hooks.json`](/C:/AI_RPG/.codex/hooks.json)
+
+Notes:
+
+- Repo skills are intentionally thin and point back to canonical docs in `docs/`.
+- Hooks are experimental and, per the official Codex hooks guide, currently disabled on Windows. The repo still checks in hook config so non-Windows Codex sessions can reuse the same guardrails.
+
 ## Setup
 
 1. Install dependencies:
