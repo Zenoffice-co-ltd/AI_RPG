@@ -29,4 +29,24 @@ export const DRILL_LIBRARY = [
     label: "競合状況確認 drill",
     description: "他社提案状況と差別化条件を引き出す練習。",
   },
+  {
+    key: "true_hiring_background",
+    label: "募集背景真因 drill",
+    description: "表面的な体制強化ではなく、ERP移行や内製化の真因まで深掘りする練習。",
+  },
+  {
+    key: "scope_and_judgement",
+    label: "業務範囲 / 判断業務 drill",
+    description: "AP/経費精算/固定資産の切り分けと、入力以上の判断レベルを確認する練習。",
+  },
+  {
+    key: "system_and_volume",
+    label: "システム / 件数 drill",
+    description: "ERP環境、件数、繁忙波形を構造的に確認する練習。",
+  },
+  {
+    key: "culture_and_fit",
+    label: "カルチャーフィット drill",
+    description: "チームの雰囲気、避けたい人物像、enterprise 会計特有の相性を確認する練習。",
+  },
 ] as const;

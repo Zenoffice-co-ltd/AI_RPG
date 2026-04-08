@@ -15,6 +15,15 @@ export async function writeGeneratedJson(
   await writeFile(target, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
+export async function writeGeneratedText(
+  relativePath: string,
+  contents: string
+): Promise<void> {
+  const target = resolve(GENERATED_ROOT, relativePath);
+  await mkdir(dirname(target), { recursive: true });
+  await writeFile(target, `${contents}\n`, "utf8");
+}
+
 export function resolveWorkspacePath(inputPath: string) {
   return inputPath.startsWith(".")
     ? resolve(WORKSPACE_ROOT, inputPath)

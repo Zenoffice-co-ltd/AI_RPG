@@ -1,5 +1,7 @@
 # ElevenLabs Voice Selection Workflow
 
+This document is the long-form reference behind the repo-scoped Codex skill at `.agents/skills/ai-rpg-repo-elevenlabs-voice/SKILL.md`.
+
 This doc is the repo-local, reusable version of the Japanese ElevenLabs voice-selection workflow. It is intended to be usable without any dependency on `CODEX_HOME` or the local skill store.
 
 ## Use This When
@@ -115,3 +117,5 @@ The final verification should confirm:
 - Do not treat rescue slots as approved until explicit Voice Design has been run.
 - Prefer generated artifacts and recorded review sheets over memory or ad hoc notes.
 - If the active mapping changes, verify the publish snapshot before calling the result final.
+- Treat approved profiles as non-publish-ready until dictionary readiness is confirmed.
+- Hooks are not a required part of this workflow on Windows Codex sessions; follow the commands and guardrails here directly.

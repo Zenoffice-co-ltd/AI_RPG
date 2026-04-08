@@ -54,11 +54,35 @@ This script:
 ## Smoke Tests
 
 ```bash
+pnpm eval:accounting -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium
 pnpm smoke:eleven
 pnpm smoke:liveavatar
 pnpm verify:acceptance -- --preflight
 pnpm verify:acceptance
 ```
+
+## Accounting Phase 3/4 Runbook
+
+Source of Truth は transcript corpus のみです。
+
+- Corpus SoT: `enterprise_accounting_ap_gold_v1`
+- Acceptance reference artifact: [docs/references/accounting_clerk_enterprise_ap_100pt_output.json](/C:/AI_RPG/docs/references/accounting_clerk_enterprise_ap_100pt_output.json)
+- Human-readable design reference: [docs/references/accounting_clerk_enterprise_ap_100pt_analysis.md](/C:/AI_RPG/docs/references/accounting_clerk_enterprise_ap_100pt_analysis.md)
+
+標準実行順:
+
+1. `pnpm import:transcripts -- --path "C:/Users/yukih/Downloads/【ビースタイルスマートキャリア】トランスクリプト格納.xlsx" --family accounting_clerk_enterprise_ap --mode v2`
+2. `pnpm build:playbooks -- --family accounting_clerk_enterprise_ap --mode v2`
+3. `pnpm compile:scenarios -- --family accounting_clerk_enterprise_ap --mode v2 --reference ./docs/references/accounting_clerk_enterprise_ap_100pt_output.json`
+4. `pnpm eval:accounting -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium`
+5. `pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium`
+
+運用ルール:
+
+- proper noun と direct identifier は canonical transcript で不可逆 redact する
+- `industry / companyScale / businessContext / systemContext / workflowCharacteristics` は抽象属性として保持する
+- local eval gate は semantic acceptance と `rule-based + llm-based` の両方が green でない限り publish しない
+- publish snapshot と generated artifacts を `data/generated/` に残し、rollback は prior snapshot を基準に行う
 
 ## Voice Benchmark
 
@@ -81,11 +105,12 @@ pnpm review:summarize:ja -- --csv data/generated/voice-benchmark/<runId>/review-
 
 ### Approved Voice Profile Blocker
 
-- 2026-04-07 時点で `GET /v1/pronunciation-dictionaries?page_size=100` は `pronunciation_dictionaries=[]` を返した
-- そのため approved profile の remote dictionary locator は未設定
-- `busy_manager_ja_primary_v3_f06` と `busy_manager_ja_fallback_v3_m03` は publish-ready ではなく、`pronunciationDictionaryLocators` が入るまで fail-closed で扱う
-- `pnpm smoke:eleven -- --preflight` と `pnpm verify:acceptance -- --preflight` はこの状態を blocker として表示する
-- 本番投入前に ElevenLabs 側で remote dictionary を作成し、approved profile JSON に locator を追加すること
+- 2026-04-08 時点で remote dictionary `adecco-ja-business-v1` を作成済み
+- approved profile の remote dictionary locator は primary / fallback の両方に設定済み
+- current workspace では expressive TTS entitlement が無く、`busy_manager_ja_primary_v3_f06` / `busy_manager_ja_fallback_v3_m03` を agent publish に使うと `expressive_tts_not_allowed` が返る
+- そのため active runtime mapping は `busy_manager_ja_baseline_v1` を使う
+- locator を削除した場合は `pnpm smoke:eleven -- --preflight` と `pnpm verify:acceptance -- --preflight` が blocker を返す
+- dictionary を更新した場合は profile JSON の locator も同時に更新すること
 
 ## JA Voice 15 Workflow
 
@@ -122,6 +147,15 @@ pnpm review:summarize:ja -- --csv data/generated/voice-benchmark/<runId>/review-
 8. result polling and 60 second scorecard SLA check
 
 If `APP_BASE_URL` is local, the script boots a local production server and delivers `/api/internal/analyze-session` directly after queue enqueue so the scorecard path remains verifiable.
+
+## Accounting Runtime Assertions
+
+accounting family の E2E では次を確認する。
+
+- hidden facts が早漏しない
+- shallow question では shallow response になる
+- must-capture を取りに行くと十分な情報が返る
+- close 時に自然な next action が返る
 
 ## Admin Auth
 

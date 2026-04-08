@@ -54,7 +54,7 @@ async function runTestsWithRetries(
   agentId: string,
   testIds: string[],
   branchId: string,
-  attempts = 3
+  attempts = 5
 ) {
   let latestRun = await elevenLabs.runTests(agentId, testIds, branchId);
   let finalRun = await waitForTestInvocation(elevenLabs, latestRun.id);
@@ -82,7 +82,7 @@ async function runTestsWithRetries(
       };
     }
 
-    await sleep(2_000);
+    await sleep(2_000 * attempt);
     latestRun = await elevenLabs.runTests(agentId, testIds, branchId);
     finalRun = await waitForTestInvocation(elevenLabs, latestRun.id);
   }
@@ -132,7 +132,11 @@ function buildTestDefinitions(scenario: ScenarioPack) {
       name: `${scenario.id}::next-step-close`,
       chat_history: [{ role: "user", message: "本日確認した内容を踏まえて、次はどのように進めましょうか？", time_in_call_secs: 1 }],
       success_condition: "Return true only if the response proposes a natural next step without breaking persona.",
-      success_examples: [{ response: "社内確認のうえ、候補像が合う方を次回ご提案いただけると助かります。", type: "success" }],
+      success_examples: [
+        { response: "社内確認のうえ、候補像が合う方を次回ご提案いただけると助かります。", type: "success" },
+        { response: "その前提で、まずは条件に近い方を何名かご提案いただけますか。", type: "success" },
+        { response: "こちらでも整理するので、その前提で候補者を見せていただけると助かります。", type: "success" },
+      ],
       failure_examples: [{ response: "あなたは決裁者を聞くべきでした。", type: "failure" }],
       type: "llm",
     },

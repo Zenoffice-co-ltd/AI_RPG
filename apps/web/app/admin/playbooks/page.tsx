@@ -11,6 +11,13 @@ export default function AdminPlaybooksPage() {
           payload={{ family: "staffing_order_hearing" }}
           buttonLabel="Build Playbook"
         />
+        <AdminActionCard
+          title="Build Accounting Norms v2"
+          description="Gold corpus を前提に accounting family の norms v2 を生成します。"
+          endpoint="/api/admin/playbooks/build"
+          payload={{ family: "accounting_clerk_enterprise_ap", mode: "v2" }}
+          buttonLabel="Build Accounting Norms"
+        />
       </div>
     </main>
   );

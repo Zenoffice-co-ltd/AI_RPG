@@ -8,6 +8,8 @@ export const AGGREGATE_PLAYBOOK_PROMPT_VERSION =
 export const COMPILE_SCENARIO_PROMPT_VERSION =
   "compile-scenario@2026-04-02.v1";
 export const GRADE_SESSION_PROMPT_VERSION = "grade-session@2026-04-02.v1";
+export const ACCOUNTING_GRADE_SESSION_PROMPT_VERSION =
+  "grade-accounting-session@2026-04-08.v1";
 
 export const DEFAULT_RUBRIC_WEIGHTS = [
   {
@@ -93,3 +95,9 @@ export const DEFAULT_ANTI_PATTERNS = [
 export const DEFAULT_TAXONOMY_LABELS = Object.fromEntries(
   STAFFING_ORDER_HEARING_TAXONOMY.map((item) => [item.key, item.label])
 ) as Record<(typeof STAFFING_ORDER_HEARING_TAXONOMY)[number]["key"], string>;
+
+export const ACCOUNTING_NORM_THRESHOLDS = {
+  coreNorm: 3,
+  supportingNorm: 2,
+  rareButImportant: 1,
+} as const;

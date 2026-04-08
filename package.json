@@ -18,6 +18,7 @@
     "import:transcripts": "tsx scripts/import-transcripts.ts",
     "build:playbooks": "tsx scripts/build-playbooks.ts",
     "compile:scenarios": "tsx scripts/compile-scenarios.ts",
+    "eval:accounting": "tsx scripts/evaluate-accounting-scenario.ts",
     "publish:scenario": "tsx scripts/publish-scenario.ts",
     "voices:list": "tsx scripts/elevenlabs/list-voices.ts",
     "voices:collect:ja": "tsx scripts/elevenlabs/collect-ja-voices.ts",
@@ -28,6 +29,7 @@
     "review:summarize:ja": "tsx scripts/elevenlabs/summarize-ja-voice-review.ts",
     "smoke:eleven": "tsx scripts/smoke-eleven.ts",
     "smoke:liveavatar": "tsx scripts/smoke-liveavatar.ts",
+    "eval:accounting:local": "tsx scripts/eval-accounting-local.ts",
     "verify:acceptance": "tsx scripts/verify-acceptance.ts"
   },
   "devDependencies": {

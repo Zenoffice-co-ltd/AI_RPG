@@ -3,6 +3,11 @@
 ## Runtime Flow
 
 - tenant は `adecco` 固定
+- `staffing_order_hearing` と `accounting_clerk_enterprise_ap` は同居する
+
+## Family Flows
+
+### `staffing_order_hearing` legacy
 
 1. `POST /api/admin/transcripts/import`
    - `packages/scenario-engine/normalize.ts` で JSON / JSONL / CSV を正規化
@@ -12,19 +17,47 @@
    - deterministic aggregation で `PlaybookNorms` を構築
 3. `POST /api/admin/scenarios/compile`
    - 3 variants の scenario pack と compiled assets を生成
-4. `POST /api/admin/scenarios/[scenarioId]/publish`
+
+### `accounting_clerk_enterprise_ap` Phase 3/4 v2
+
+1. `POST /api/admin/transcripts/import`
+   - workbook `シート1` を source registry 化
+   - corpus manifest を `gold / silver / reject` で管理
+   - Gold 6本, Silver 2本を manifest で固定
+2. canonical transcript normalization
+   - `seller / client / unknown` の話者推定
+   - proper noun と direct identifier の不可逆 redact
+   - `industry / companyScale / businessContext / systemContext / workflowCharacteristics` は抽象属性として保持
+   - `unknown speaker ratio` と主話者推定で gold/silver/reject を gate
+3. `POST /api/admin/playbooks/build`
+   - transcript ごとに `scenarioSetting / roleSipoc / cultureFit / topPerformerBehavior` を生成
+   - required field 欠落は artifact failed, optional field 欠落は `unknown` or `[]`
+   - Gold のみから norms を構築
+   - threshold: `coreNorm>=3`, `supportingNorm>=2`, `rareButImportant>=1 + human approved`
+4. `POST /api/admin/scenarios/compile`
+   - reference artifact は [docs/references/accounting_clerk_enterprise_ap_100pt_output.json](/C:/AI_RPG/docs/references/accounting_clerk_enterprise_ap_100pt_output.json)
+   - exact match は取らず、semantic acceptance で判定
+   - compiled assets に `promptSections`, `platformConfig`, `semanticAcceptance` を保持
+5. `POST /api/admin/scenarios/[scenarioId]/publish`
+   - local eval gate を先行実行
+   - `rule-based + llm-based` が green の場合のみ ElevenLabs publish へ進む
+
+## Shared Session Flow
+
+1. `POST /api/admin/scenarios/[scenarioId]/publish`
    - ElevenLabs KB / agent / branch / tests を更新
    - pass 時に `/agentBindings/{scenarioId}` を更新
-5. `POST /api/sessions`
+2. `POST /api/sessions`
    - Firestore session record を作成
    - LiveAvatar LITE + ElevenLabs plugin で session を開始
-6. `GET /api/sessions/[id]/transcript`
+3. `GET /api/sessions/[id]/transcript`
    - LiveAvatar transcript endpoint を差分取得
    - `/sessions/{id}/turns/*` に upsert
-7. `POST /api/sessions/[id]/end`
+4. `POST /api/sessions/[id]/end`
    - transcript drain 後に Cloud Tasks を enqueue
-8. `POST /api/internal/analyze-session`
-   - session turns + scenario + playbook を OpenAI grading
+5. `POST /api/internal/analyze-session`
+   - staffing は legacy grading
+   - accounting は `evaluationMode=accounting_v2` の grader を使い、`qualitySignals` と `evaluationBreakdown(rule_based / llm_based)` を保存
    - scorecard を `/sessions/{id}/artifacts/scorecard` に保存
    - duplicate delivery は idempotent lock で処理し、同じ `analysisVersion` の scorecard があれば no-op で completed を返す
 
@@ -49,6 +82,8 @@
   - Firestore credentials are ADC-first; credential secret fallback is only needed when ADC is unavailable
 - `packages/scenario-engine`
   - transcript normalization
+  - workbook ingest / source registry / canonical transcript
+  - accounting derived artifacts / norms v2 / semantic acceptance
   - behavior mining orchestration
   - playbook aggregation
   - scenario compilation
@@ -56,7 +91,8 @@
 - `packages/scoring`
   - prompt assets
   - structured output schemas
-  - grading pipeline
+  - legacy grading pipeline
+  - accounting v2 grading pipeline
 
 ## UI Surface
 
@@ -76,6 +112,7 @@
   - misses
   - missed questions
   - next drills
+  - accounting v2 では `qualitySignals` と `evaluationBreakdown` も返る
 - `/admin/*`
   - basic auth protected admin action pages
 
@@ -93,3 +130,6 @@
   - canonical acceptance orchestrator
   - fail-fast on `missing_secret / missing_project / missing_seed / vendor_failure / app_failure`
   - local `APP_BASE_URL` の場合は web app を起動し、queue enqueue 後に `/api/internal/analyze-session` を直接 deliver できる
+- `scripts/evaluate-accounting-scenario.ts`
+  - accounting compile artifact に対する local eval gate
+  - semantic acceptance と `rule-based + llm-based` checks を同時に確認する

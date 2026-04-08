@@ -2,9 +2,9 @@
   "secretAction": "reuse",
   "secretId": "ea482057-b180-4d5d-b96a-4567fc06bb12",
   "defaultAvatarId": "65f9e3c9-d48b-4118-b73a-4ae2e3cbb8f0",
-  "defaultVoiceId": "JBFqnCBsd6RMkjVDRZzb",
-  "voiceResolution": "fallback",
-  "voiceName": "George - Warm, Captivating Storyteller",
+  "defaultVoiceId": "g6xIsTj2HwM6VR4iXFCw",
+  "voiceResolution": "preferred",
+  "voiceName": "Jessica Anne Bogart - Chatty and Friendly",
   "shortlist": [
     {
       "avatar_id": "1c690fe7-23e0-49f9-bfba-14344450285b",

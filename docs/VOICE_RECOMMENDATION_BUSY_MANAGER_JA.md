@@ -7,7 +7,7 @@
 - decision date: `2026-04-07`
 - primary profile: `busy_manager_ja_primary_v3_f06`
 - fallback profile: `busy_manager_ja_fallback_v3_m03`
-- active scenario mapping: `staffing_order_hearing_busy_manager_medium -> busy_manager_ja_primary_v3_f06`
+- active scenario mapping: `staffing_order_hearing_busy_manager_medium -> busy_manager_ja_baseline_v1`
 - benchmark artifact: `data/generated/voice-benchmark/ja-voice15-round2-v3-2026-04-07/`
 - review audit: `data/voice-benchmark/review-sheet-ja-voice15.csv`
 
@@ -60,12 +60,13 @@
   - proper reading of `Adecco`, `WMS`, `Excel`, `BPO`, and `KPI`
   - whether the voice stays natural after 2-3 turns in context-aware `eleven_v3`
 
-## Production Hardening Gap
+## Runtime Release Status
 
-- remote pronunciation dictionary status: not configured
-- verification result: `GET /v1/pronunciation-dictionaries?page_size=100` returned zero dictionaries on `2026-04-07`
-- current impact: approved profiles are intentionally blocked for publish/runtime selection until `pronunciationDictionaryLocators` are configured
-- blocker owner: next ElevenLabs account setup pass
+- remote pronunciation dictionary status: configured
+- verification result: `adecco-ja-business-v1` remote dictionary was created on `2026-04-08`
+- current impact: approved v3 profiles are config-ready, but the current ElevenLabs workspace returns `expressive_tts_not_allowed` for Conversational AI agent publish using expressive TTS
+- current locator: `2arpjQXtKr7DoHrM5zuT:GpJghKIrZi1u2nDXHP7S`
+- runtime mapping decision: keep `staffing_order_hearing_busy_manager_medium` on `busy_manager_ja_baseline_v1` until the workspace gains expressive TTS entitlement
 
 ## Related Files
 

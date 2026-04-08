@@ -13,6 +13,22 @@ type ResultPayload = {
     misses: string[];
     missedQuestions: string[];
     nextDrills: string[];
+    evaluationMode?: "legacy" | "accounting_v2";
+    qualitySignals?: {
+      requiredQuestions: number;
+      deepDiveQuality: number;
+      judgementWorkCapture: number;
+      cultureFitCapture: number;
+      conditionsStructuring: number;
+      revealEfficiency: number;
+      closeQuality: number;
+    };
+    evaluationBreakdown?: Array<{
+      key: string;
+      method: "rule_based" | "llm_based";
+      passed: boolean;
+      notes: string;
+    }>;
     rubricScores: Array<{
       key: string;
       label: string;
@@ -213,6 +229,61 @@ export function ResultClient({ sessionId }: { sessionId: string }) {
           </div>
         </div>
       </section>
+
+      {result.scorecard.qualitySignals ? (
+        <section className="grid gap-5 lg:grid-cols-2">
+          <div className="glass-panel p-6">
+            <h2 className="text-lg font-bold text-slate-950">Quality Signals</h2>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {Object.entries(result.scorecard.qualitySignals).map(([key, score]) => (
+                <div
+                  key={key}
+                  className="rounded-[1.2rem] border border-white/70 bg-white/80 px-4 py-3"
+                >
+                  <div className="text-xs uppercase tracking-[0.18em] text-slate-500">
+                    {key}
+                  </div>
+                  <div className="mt-2 text-2xl font-bold text-slate-900">
+                    {score}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="glass-panel p-6">
+            <h2 className="text-lg font-bold text-slate-950">Evaluation Gate</h2>
+            <div className="mt-4 grid gap-3">
+              {result.scorecard.evaluationBreakdown?.length ? (
+                result.scorecard.evaluationBreakdown.map((item) => (
+                  <div
+                    key={item.key}
+                    className="rounded-[1.2rem] border border-white/70 bg-white/80 px-4 py-3"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium text-slate-900">{item.key}</span>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                          item.passed
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-rose-100 text-rose-700"
+                        }`}
+                      >
+                        {item.method}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-7 text-slate-600">
+                      {item.notes}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <EmptyState text="evaluation breakdown はまだありません。" />
+              )}
+            </div>
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid gap-5 lg:grid-cols-4">
         <div className="glass-panel p-6">

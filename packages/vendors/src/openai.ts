@@ -21,6 +21,11 @@ const responseEnvelopeSchema = z.object({
     .optional(),
 });
 
+export type StructuredOutputResult<T> = {
+  responseId: string;
+  parsed: T;
+};
+
 export class OpenAiResponsesClient {
   constructor(
     private readonly apiKeyProvider: string | (() => Promise<string>),
@@ -41,6 +46,18 @@ export class OpenAiResponsesClient {
     userPrompt: string;
     responseSchema: TSchema;
   }): Promise<z.infer<TSchema>> {
+    const result = await this.createStructuredOutputWithMetadata(input);
+    return result.parsed;
+  }
+
+  async createStructuredOutputWithMetadata<TSchema extends z.ZodTypeAny>(input: {
+    model: string;
+    schemaName: string;
+    jsonSchema: Record<string, unknown>;
+    systemPrompt: string;
+    userPrompt: string;
+    responseSchema: TSchema;
+  }): Promise<StructuredOutputResult<z.infer<TSchema>>> {
     const apiKey = await this.resolveApiKey();
     const response = await requestJson({
       scope: "openai.responses.create",
@@ -97,6 +114,9 @@ export class OpenAiResponsesClient {
       throw new Error("OpenAI response did not include structured output text");
     }
 
-    return input.responseSchema.parse(JSON.parse(text));
+    return {
+      responseId: response.id,
+      parsed: input.responseSchema.parse(JSON.parse(text)),
+    };
   }
 }

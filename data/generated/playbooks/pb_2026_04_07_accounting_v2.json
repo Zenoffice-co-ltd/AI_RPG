@@ -1,0 +1,50 @@
+{
+  "version": "pb_2026_04_07_accounting_v2",
+  "family": "accounting_clerk_enterprise_ap",
+  "taxonomyVersion": "accounting-derived-artifacts@2026-04-08.v1",
+  "requiredItems": [
+    {
+      "key": "hiring_background",
+      "label": "採用背景",
+      "frequency": 1,
+      "medianFirstTurnIndex": 1,
+      "targetDepthMedian": 4,
+      "evidenceTranscriptIds": [
+        "rx_japan_20260331",
+        "ep_pharmaline_20260317",
+        "tepco_realestate_20260304",
+        "mol_logistics_20260128",
+        "medirom_aoki",
+        "nihon_waso_20260407"
+      ]
+    }
+  ],
+  "recommendedItems": [
+    {
+      "key": "team_structure",
+      "label": "チーム構成",
+      "frequency": 0.5,
+      "medianFirstTurnIndex": 8
+    }
+  ],
+  "winningMoves": [
+    {
+      "key": "background_true_reason",
+      "label": "背景の真因深掘り",
+      "description": "増員理由を真因まで深掘りする。",
+      "frequency": 1
+    }
+  ],
+  "antiPatterns": [
+    {
+      "key": "shallow_requirement_dump",
+      "label": "浅い要件確認で終了",
+      "description": "背景や判断レベルまで進まずに終える。"
+    }
+  ],
+  "canonicalOrder": [
+    "hiring_background",
+    "team_structure"
+  ],
+  "generatedAt": "2026-04-07T23:18:17.626Z"
+}

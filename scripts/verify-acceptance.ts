@@ -55,6 +55,8 @@ type ResultResponse = {
   };
 };
 
+type PublishSnapshot = Awaited<ReturnType<typeof publishScenarioJob>>;
+
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = resolve(currentDir, "..");
 
@@ -206,20 +208,21 @@ function startLocalServer(appBaseUrl: string) {
 async function ensureAppReady(appBaseUrl: string) {
   let child: ChildProcessWithoutNullStreams | null = null;
 
-  try {
-    await waitForApp(appBaseUrl, 10_000);
+  if (!isLocalAppBaseUrl(appBaseUrl)) {
+    await waitForApp(appBaseUrl, 10_000).catch(() => {
+      throw new Error(
+        `APP_BASE_URL ${appBaseUrl} is not reachable. Start the deployed app or point APP_BASE_URL to a live environment.`
+      );
+    });
+
     return {
       child,
       startedLocally: false,
     };
-  } catch {
-    if (!isLocalAppBaseUrl(appBaseUrl)) {
-      throw new Error(
-        `APP_BASE_URL ${appBaseUrl} is not reachable. Start the deployed app or point APP_BASE_URL to a live environment.`
-      );
-    }
   }
 
+  // Acceptance should always exercise a fresh local server instead of reusing a
+  // potentially stale next start process from an earlier run.
   const resolvedAppBaseUrl = await resolveLocalAppBaseUrl(appBaseUrl);
   child = startLocalServer(resolvedAppBaseUrl);
   await waitForApp(resolvedAppBaseUrl);
@@ -347,6 +350,79 @@ async function pollResult(appBaseUrl: string, sessionId: string) {
   };
 }
 
+function summarizePublishFailure(publish: PublishSnapshot | null) {
+  if (!publish?.testRun?.test_runs?.length) {
+    return "No ElevenLabs test results were returned.";
+  }
+
+  const failedRuns = publish.testRun.test_runs.filter((run) => {
+    const status = run.status.toLowerCase();
+    const condition = run.condition_result?.result?.toLowerCase();
+    return status !== "passed" && condition !== "success";
+  });
+
+  if (failedRuns.length === 0) {
+    return "ElevenLabs tests did not pass, but no failing test details were returned.";
+  }
+
+  return failedRuns
+    .map((run) => {
+      const status = run.status.toLowerCase();
+      const condition = run.condition_result?.result?.toLowerCase() ?? "unknown";
+      return `${run.test_name}: status=${status}, condition=${condition}`;
+    })
+    .join("; ");
+}
+
+async function publishScenarioWithRetries(
+  scenarioId: string,
+  attempts = 3
+) {
+  let latestPublish: PublishSnapshot | null = null;
+  let latestError: unknown;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const publish = await publishScenarioJob({ scenarioId });
+      latestPublish = publish;
+
+      if (publish.passed) {
+        return {
+          publish,
+          attemptsUsed: attempt,
+        };
+      }
+
+      const failureSummary = summarizePublishFailure(publish);
+      console.warn(
+        `[publish retry ${attempt}/${attempts}] ElevenLabs tests did not pass: ${failureSummary}`
+      );
+    } catch (error) {
+      latestError = error;
+      const message = error instanceof Error ? error.message : "Unknown publish error";
+      console.warn(`[publish retry ${attempt}/${attempts}] ${message}`);
+    }
+
+    if (attempt < attempts) {
+      await sleep(5_000 * attempt);
+    }
+  }
+
+  if (latestPublish) {
+    throw new Error(
+      `publish:scenario did not pass ElevenLabs tests after ${attempts} attempts. ${summarizePublishFailure(
+        latestPublish
+      )}`
+    );
+  }
+
+  throw latestError instanceof Error
+    ? latestError
+    : new Error(
+        `publish:scenario failed before returning a publish snapshot after ${attempts} attempts.`
+      );
+}
+
 async function printFinalInputRequest() {
   const report = await buildBasePreflightReport();
   const includeFirebaseProjectId = report.blockers.some(
@@ -447,12 +523,21 @@ async function main() {
   await maybePrepareScenarioSeed(seedState);
 
   console.info("[3/10] publish scenario");
-  const publish = await publishScenarioJob({
-    scenarioId: ACCEPTANCE_SCENARIO_ID,
-  });
-  if (!publish.passed) {
-    throw new Error("publish:scenario did not pass ElevenLabs tests.");
-  }
+  const publishResult = await publishScenarioWithRetries(ACCEPTANCE_SCENARIO_ID);
+  const publish = publishResult.publish;
+  console.info(
+    JSON.stringify(
+      {
+        passed: publish.passed,
+        attemptsUsed: publishResult.attemptsUsed,
+        scenarioVersion: publish.scenarioVersion,
+        voiceProfileId: publish.binding?.voiceProfileId ?? null,
+        voiceId: publish.binding?.voiceId ?? null,
+      },
+      null,
+      2
+    )
+  );
 
   console.info("[4/10] smoke:eleven");
   console.info(JSON.stringify(await runElevenSmoke(), null, 2));

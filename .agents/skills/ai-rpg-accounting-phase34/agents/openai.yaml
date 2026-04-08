@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI RPG Accounting Phase 3/4"
+  short_description: "Operate the accounting v2 transcript-to-publish pipeline."
+  default_prompt: "Use the accounting pipeline skill to work on the accounting_clerk_enterprise_ap family."

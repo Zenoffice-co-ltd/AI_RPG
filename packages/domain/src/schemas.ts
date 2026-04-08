@@ -5,7 +5,10 @@ import {
 } from "./taxonomy";
 
 export const timestampSchema = z.string().min(1);
-export const familySchema = z.literal("staffing_order_hearing");
+export const familySchema = z.enum([
+  "staffing_order_hearing",
+  "accounting_clerk_enterprise_ap",
+]);
 export const languageSchema = z.literal("ja");
 export const performanceTierSchema = z.literal("top");
 export const transcriptSpeakerSchema = z.enum(["sales", "client"]);
@@ -124,10 +127,30 @@ export const playbookNormsSchema = z.object({
   ),
   canonicalOrder: z.array(taxonomyKeySchema),
   generatedAt: timestampSchema,
+  thresholdPolicy: z
+    .object({
+      coreNorm: z.number().int().positive(),
+      supportingNorm: z.number().int().positive(),
+      rareButImportant: z.number().int().positive(),
+    })
+    .optional(),
+  normItems: z
+    .array(
+      z.object({
+        key: z.string().min(1),
+        label: z.string().min(1),
+        promotion: z.enum(["coreNorm", "supportingNorm", "rareButImportant"]),
+        supportCount: z.number().int().positive(),
+        transcriptIds: z.array(z.string().min(1)).min(1),
+        applicableWhen: z.array(z.string().min(1)).default([]),
+        summary: z.string().min(1),
+      })
+    )
+    .optional(),
 });
 
 export const scenarioMustCaptureItemSchema = z.object({
-  key: taxonomyKeySchema,
+  key: z.string().min(1),
   label: z.string().min(1),
   priority: z.enum(["required", "recommended"]),
   canonicalOrder: z.number().int().nonnegative(),
@@ -167,6 +190,40 @@ export const scenarioPackSchema = z.object({
   openingLine: z.string().min(1),
   generatedFromPlaybookVersion: z.string().min(1),
   status: scenarioStatusSchema,
+  scenarioSetting: z.record(z.string(), z.unknown()).optional(),
+  roleSipoc: z.record(z.string(), z.unknown()).optional(),
+  cultureFit: z.record(z.string(), z.unknown()).optional(),
+  topPerformerPlaybook: z.array(z.record(z.string(), z.unknown())).optional(),
+  promptSections: z
+    .array(
+      z.object({
+        key: z.string().min(1),
+        title: z.string().min(1),
+        body: z.string().min(1),
+      })
+    )
+    .optional(),
+  provenance: z
+    .object({
+      corpusId: z.string().min(1),
+      transcriptIds: z.array(z.string().min(1)).min(1),
+      referenceArtifactPath: z.string().min(1).optional(),
+      designMemoPath: z.string().min(1).optional(),
+    })
+    .optional(),
+  publishContract: z
+    .object({
+      companyAliasDefault: z.string().min(1).optional(),
+      runtimeVariables: z.array(z.string().min(1)).default([]),
+      dictionaryRequired: z.boolean().default(false),
+    })
+    .optional(),
+  acceptancePolicy: z
+    .object({
+      exactTextMatchForbidden: z.boolean(),
+      semanticChecks: z.array(z.string().min(1)).min(1),
+    })
+    .optional(),
 });
 
 export const compiledScenarioAssetsSchema = z.object({
@@ -175,6 +232,17 @@ export const compiledScenarioAssetsSchema = z.object({
   knowledgeBaseText: z.string().min(1),
   agentSystemPrompt: z.string().min(1),
   generatedAt: timestampSchema,
+  promptSections: z
+    .array(
+      z.object({
+        key: z.string().min(1),
+        title: z.string().min(1),
+        body: z.string().min(1),
+      })
+    )
+    .optional(),
+  platformConfig: z.record(z.string(), z.unknown()).optional(),
+  semanticAcceptance: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const sessionTurnSchema = z.object({
@@ -222,7 +290,7 @@ export const scorecardSchema = z.object({
   ),
   mustCaptureResults: z.array(
     z.object({
-      key: taxonomyKeySchema,
+      key: z.string().min(1),
       label: z.string().min(1),
       status: mustCaptureStatusSchema,
       evidenceTurnIds: z.array(z.string().min(1)),
@@ -235,6 +303,28 @@ export const scorecardSchema = z.object({
   summary: z.string().min(1),
   generatedAt: timestampSchema,
   promptVersion: z.string().min(1),
+  evaluationMode: z.enum(["legacy", "accounting_v2"]).optional(),
+  qualitySignals: z
+    .object({
+      requiredQuestions: z.number().min(0).max(100),
+      deepDiveQuality: z.number().min(0).max(100),
+      judgementWorkCapture: z.number().min(0).max(100),
+      cultureFitCapture: z.number().min(0).max(100),
+      conditionsStructuring: z.number().min(0).max(100),
+      revealEfficiency: z.number().min(0).max(100),
+      closeQuality: z.number().min(0).max(100),
+    })
+    .optional(),
+  evaluationBreakdown: z
+    .array(
+      z.object({
+        key: z.string().min(1),
+        method: z.enum(["rule_based", "llm_based"]),
+        passed: z.boolean(),
+        notes: z.string().min(1),
+      })
+    )
+    .optional(),
 });
 
 export const agentBindingSchema = z.object({
@@ -306,14 +396,22 @@ export const analyzeSessionRequestSchema = z.object({
 
 export const transcriptImportRequestSchema = z.object({
   path: z.string().min(1),
+  family: familySchema.optional(),
+  mode: z.enum(["legacy", "v2"]).optional(),
+  manifestPath: z.string().min(1).optional(),
 });
 
 export const playbookBuildRequestSchema = z.object({
   family: familySchema,
+  mode: z.enum(["legacy", "v2"]).optional(),
 });
 
 export const compileScenariosRequestSchema = z.object({
-  playbookVersion: z.string().min(1),
+  playbookVersion: z.string().min(1).optional(),
+  family: familySchema.optional(),
+  mode: z.enum(["legacy", "v2"]).optional(),
+  referenceArtifactPath: z.string().min(1).optional(),
+  designMemoPath: z.string().min(1).optional(),
 });
 
 export const publishScenarioRequestSchema = z.object({

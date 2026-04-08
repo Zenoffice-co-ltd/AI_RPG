@@ -1,0 +1,131 @@
+{
+  "id": "enterprise_accounting_ap_gold_v1",
+  "family": "accounting_clerk_enterprise_ap",
+  "sourceOfTruth": "corpus",
+  "workbookPath": "C:\\Users\\yukih\\Downloads\\【ビースタイルスマートキャリア】トランスクリプト格納.xlsx",
+  "sheetName": "シート1",
+  "entries": [
+    {
+      "sourceRecordId": "sheet1_row_66",
+      "canonicalTranscriptId": "rx_japan_20260331",
+      "qualityTier": "gold",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "abstractedMeta": {
+        "industry": "展示会運営",
+        "companyScale": "enterprise",
+        "businessContext": ["ERP移行", "BAU負荷", "経理財務部の分業体制"],
+        "systemContext": ["Oracle", "Fusion", "海外ERP"],
+        "workflowCharacteristics": ["AP", "支払", "経費精算", "固定資産", "高件数"]
+      },
+      "notes": ["Anchor transcript", "Primary top performer behavior source"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_154",
+      "canonicalTranscriptId": "ep_pharmaline_20260317",
+      "qualityTier": "gold",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "abstractedMeta": {
+        "industry": "製薬支援",
+        "companyScale": "enterprise",
+        "businessContext": ["内製強化", "判断業務", "会計運用の厳格さ"],
+        "systemContext": ["会計システム変更"],
+        "workflowCharacteristics": ["税区分", "固定資産", "承認ワークフロー", "例外処理"]
+      },
+      "notes": ["Judgement depth reinforcement"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_253",
+      "canonicalTranscriptId": "tepco_realestate_20260304",
+      "qualityTier": "gold",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "abstractedMeta": {
+        "industry": "不動産",
+        "companyScale": "enterprise",
+        "businessContext": ["高件数ルーチン", "大手バックオフィス"],
+        "systemContext": ["会計ソフト運用"],
+        "workflowCharacteristics": ["請求書処理", "支払起票", "会計入力"]
+      },
+      "notes": ["High-volume routine reinforcement"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_564",
+      "canonicalTranscriptId": "mol_logistics_20260128",
+      "qualityTier": "gold",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "abstractedMeta": {
+        "industry": "物流",
+        "companyScale": "enterprise",
+        "businessContext": ["締め前プレッシャー", "部門連携", "支払継続性"],
+        "systemContext": ["会計運用"],
+        "workflowCharacteristics": ["支払", "伝票", "予実理解", "バックアップ体制"]
+      },
+      "notes": ["Department handoff reinforcement"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_609",
+      "canonicalTranscriptId": "medirom_aoki",
+      "qualityTier": "gold",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "abstractedMeta": {
+        "industry": "ヘルスケアサービス",
+        "companyScale": "enterprise",
+        "businessContext": ["グループ経理", "外部委託境界", "集中経理"],
+        "systemContext": ["会計運用"],
+        "workflowCharacteristics": ["内製外注分担", "レビュー", "支払管理"]
+      },
+      "notes": ["Group accounting boundary reinforcement"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_1",
+      "canonicalTranscriptId": "nihon_waso_20260407",
+      "qualityTier": "gold",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "abstractedMeta": {
+        "industry": "小売支援",
+        "companyScale": "enterprise",
+        "businessContext": ["引継ぎあり", "立ち上がり支援", "手順ベース運用"],
+        "systemContext": ["楽楽精算", "ネットバンキング", "会計ソフト"],
+        "workflowCharacteristics": ["経費精算", "承認", "支払申請", "銀行対応"]
+      },
+      "notes": ["Onboarding reinforcement"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_33",
+      "canonicalTranscriptId": "tepco_realestate_20260403",
+      "qualityTier": "silver",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "abstractedMeta": {
+        "industry": "不動産",
+        "companyScale": "enterprise",
+        "businessContext": ["カルチャー適合", "条件交渉"],
+        "systemContext": [],
+        "workflowCharacteristics": ["企業文化", "年齢感", "雇用条件"]
+      },
+      "notes": ["Silver culture-fit edge case"]
+    },
+    {
+      "sourceRecordId": "sheet1_row_474",
+      "canonicalTranscriptId": "emplus_20260204",
+      "qualityTier": "silver",
+      "reviewStatus": "approved",
+      "humanApproved": true,
+      "abstractedMeta": {
+        "industry": "製造",
+        "companyScale": "enterprise",
+        "businessContext": ["enterprise signal", "比較補助"],
+        "systemContext": [],
+        "workflowCharacteristics": ["補助学習"]
+      },
+      "notes": ["Silver enterprise support case"]
+    }
+  ],
+  "createdAt": "2026-04-08T00:00:00.000Z",
+  "updatedAt": "2026-04-08T00:00:00.000Z"
+}

@@ -1,28 +1,19 @@
-const scenarioCards = [
-  {
-    id: "staffing_order_hearing_friendly_manager_easy",
-    title: "協力的な現場責任者",
-    difficulty: "Easy",
-    description:
-      "情報は比較的出やすいが、トップ基準どおりの順番と要約確認ができるかを見る初級シナリオ。"
-  },
-  {
-    id: "staffing_order_hearing_busy_manager_medium",
-    title: "忙しい現場責任者",
-    difficulty: "Medium",
-    description:
-      "短時間で要件を構造化できるかを確認する中級シナリオ。要点を外すと情報開示が浅くなる。"
-  },
-  {
-    id: "staffing_order_hearing_skeptical_manager_hard",
-    title: "懐疑的な決裁関与者",
-    difficulty: "Hard",
-    description:
-      "競合状況・決裁構造・制約条件を深掘りしない限り本音が出てこない上級シナリオ。"
-  }
-];
+import { listScenarios } from "../server/use-cases/scenarios";
 
-export default function HomePage() {
+const difficultyLabel: Record<string, string> = {
+  easy: "Easy",
+  medium: "Medium",
+  hard: "Hard",
+};
+
+export default async function HomePage() {
+  const scenarioCards = (await listScenarios()).map((scenario) => ({
+    id: scenario.id,
+    title: scenario.title,
+    difficulty: difficultyLabel[scenario.difficulty] ?? scenario.difficulty,
+    description: scenario.publicBrief,
+  }));
+
   return (
     <main className="min-h-screen overflow-hidden px-6 py-8 md:px-10 lg:px-14">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-7xl flex-col gap-8">
@@ -41,11 +32,11 @@ export default function HomePage() {
               LiveAvatar と ElevenLabs で自然な相手役を生成し、会話後はトップ基準との差分を evidence 付きで返します。
             </p>
           </div>
-          <div className="grid w-full max-w-sm grid-cols-2 gap-4 text-sm md:w-80">
-            <div className="soft-card">
-              <span className="metric-label">Scenarios</span>
-              <strong className="metric-value">3</strong>
-            </div>
+            <div className="grid w-full max-w-sm grid-cols-2 gap-4 text-sm md:w-80">
+              <div className="soft-card">
+                <span className="metric-label">Scenarios</span>
+                <strong className="metric-value">{scenarioCards.length}</strong>
+              </div>
             <div className="soft-card">
               <span className="metric-label">Transcript SoT</span>
               <strong className="metric-value">LiveAvatar</strong>

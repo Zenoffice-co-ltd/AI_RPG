@@ -12,6 +12,34 @@ export function buildDrills(input: {
 
   const drillKeys = new Set<string>();
 
+  if (input.scenario.family === "accounting_clerk_enterprise_ap") {
+    if (missedKeys.has("true_hiring_background")) {
+      drillKeys.add("start_date_urgency");
+    }
+    if (
+      missedKeys.has("scope_split") ||
+      missedKeys.has("judgement_level") ||
+      missedKeys.has("internal_external_split")
+    ) {
+      drillKeys.add("constraints");
+    }
+    if (missedKeys.has("culture_fit")) {
+      drillKeys.add("competing_agencies");
+    }
+    if (
+      missedKeys.has("next_step_alignment") ||
+      missedKeys.has("workstyle_conditions")
+    ) {
+      drillKeys.add("close_next_step");
+    }
+    if (missedKeys.has("flexibility_range") || missedKeys.has("team_structure")) {
+      drillKeys.add("decision_maker");
+    }
+    if (missedKeys.has("onboarding_and_manual")) {
+      drillKeys.add("recap_confirmation");
+    }
+  }
+
   if (missedKeys.has("start_date") || missedKeys.has("urgency")) {
     drillKeys.add("start_date_urgency");
   }
@@ -33,6 +61,25 @@ export function buildDrills(input: {
   }
   if (missedKeys.has("competing_agencies")) {
     drillKeys.add("competing_agencies");
+  }
+  if (missedKeys.has("true_hiring_background")) {
+    drillKeys.add("true_hiring_background");
+  }
+  if (
+    missedKeys.has("scope_split") ||
+    missedKeys.has("judgement_level") ||
+    missedKeys.has("internal_external_split")
+  ) {
+    drillKeys.add("scope_and_judgement");
+  }
+  if (
+    missedKeys.has("volume_and_peaks") ||
+    missedKeys.has("system_environment")
+  ) {
+    drillKeys.add("system_and_volume");
+  }
+  if (missedKeys.has("culture_fit")) {
+    drillKeys.add("culture_and_fit");
   }
 
   if (drillKeys.size === 0) {

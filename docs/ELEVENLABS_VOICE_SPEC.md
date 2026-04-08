@@ -19,27 +19,27 @@
 
 | scenarioId | activeProfileId |
 | --- | --- |
-| `staffing_order_hearing_busy_manager_medium` | `busy_manager_ja_primary_v3_f06` |
+| `staffing_order_hearing_busy_manager_medium` | `busy_manager_ja_baseline_v1` |
 
 active profile の実値:
 
 | field | value |
 | --- | --- |
-| `id` | `busy_manager_ja_primary_v3_f06` |
-| `label` | `Busy Manager JA Primary V3 F06` |
+| `id` | `busy_manager_ja_baseline_v1` |
+| `label` | `Busy Manager JA Baseline v1` |
 | `language` | `ja` |
-| `model` | `eleven_v3` |
-| `voiceId` | `4lOQ7A2l7HPuG7UIHiKA` |
-| `voiceName` | `Kyoko` |
-| `firstMessageJa` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` |
+| `model` | `eleven_flash_v2_5` |
+| `voiceId` | `g6xIsTj2HwM6VR4iXFCw` |
+| `voiceName` | `Jessica Anne Bogart - Chatty and Friendly` |
+| `firstMessageJa` | `お時間ありがとうございます。要点を確認しながら進めさせてください。` |
 | `textNormalisationType` | `elevenlabs` |
-| `voiceSettings.speed` | `0.96` |
+| `voiceSettings.speed` | `0.97` |
 | `voiceSettings.style` | `0` |
-| `metadata.benchmarkStatus` | `approved` |
+| `metadata.benchmarkStatus` | `candidate` |
 
 `voiceName` は last publish artifact の観測値です。workspace に preferred voice が無い場合は shared voice 追加または auto-resolve が走るため、将来も常に同名とは限りません。
 
-ただし、2026-04-07 時点では ElevenLabs account 上に remote pronunciation dictionary が 0 件で、approved profile には `pronunciationDictionaryLocators` が未設定です。したがって current active profile は mapping 上は approved でも、production publish readiness としては block 中です。
+2026-04-08 時点では ElevenLabs account 上に remote pronunciation dictionary `adecco-ja-business-v1` を作成済みで、approved profile に `pronunciationDictionaryLocators` を設定しています。ただし current workspace では `expressive_tts_not_allowed` が返るため、runtime の active mapping は `busy_manager_ja_baseline_v1` に置いています。approved v3 profile は config-ready ですが、Expressive TTS entitlement が有効になるまで active publish mapping には使いません。
 
 ## Profile Matrix
 
@@ -224,7 +224,16 @@ raw TTS benchmark では model ごとに送信方法を分けます。
 
 ## Pronunciation Dictionary Policy
 
-2026-04-07 に `GET /v1/pronunciation-dictionaries?page_size=100` を確認した結果、`pronunciation_dictionaries=[]` でした。current profile では remote locator はまだ未設定です。local の元ファイルは `data/pronunciation/adecco-ja-business-v1.pls` を使います。
+2026-04-08 に `POST /v1/pronunciation-dictionaries/add-from-file` で `data/pronunciation/adecco-ja-business-v1.pls` を登録し、remote dictionary `adecco-ja-business-v1` を作成しました。current profile では以下の locator を使います。
+
+```json
+[
+  {
+    "pronunciationDictionaryId": "2arpjQXtKr7DoHrM5zuT",
+    "versionId": "GpJghKIrZi1u2nDXHP7S"
+  }
+]
+```
 
 remote dictionary を profile に載せる条件:
 

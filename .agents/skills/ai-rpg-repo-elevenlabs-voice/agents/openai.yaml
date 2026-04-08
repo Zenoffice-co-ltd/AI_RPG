@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI RPG ElevenLabs Voice"
+  short_description: "Operate the repo-local Japanese ElevenLabs voice workflow."
+  default_prompt: "Use the repo ElevenLabs voice skill for selection, tuning, and publish-readiness work."
