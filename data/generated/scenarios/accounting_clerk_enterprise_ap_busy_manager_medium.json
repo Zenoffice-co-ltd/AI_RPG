@@ -22,7 +22,8 @@
     "最初の2〜3か月は出社前提。独り立ち後は週1〜2日の在宅相談余地がある。残業は多くないが締め前の柔軟さは欲しい。",
     "チームは穏やかだが、既存運用にプライドがある。強く押し出しすぎる人、管理だけしたい人は合いにくい。",
     "優先順位は、1.スキル/手が動くこと 2.チームに馴染めること 3.日数や時間の条件。",
-    "入力や一部処理は外部活用の余地があるが、支払・レビュー・例外対応・内部チェックは中で持ちたい。"
+    "入力や一部処理は外部活用の余地があるが、支払・レビュー・例外対応・内部チェックは中で持ちたい。",
+    "最終的な採用可否や条件調整は部門責任者の承認が必要で、現場判断だけでは確定しない。"
   ],
   "revealRules": [
     {
@@ -71,6 +72,12 @@
       "trigger": "優先順位や条件緩和を比較で聞かれた",
       "reveals": [
         "スキル > カルチャー > 日数/時間 の順で答え、exact match が難しい場合の相談余地を限定的に出す。"
+      ]
+    },
+    {
+      "trigger": "承認フローや誰が最終判断するかを聞かれた",
+      "reveals": [
+        "現場だけでは確定せず、部門責任者の承認が必要と答える。"
       ]
     }
   ],
@@ -201,5 +208,455 @@
   ],
   "openingLine": "お時間限られているので、要点だけでお願いします。今、経理財務部の支払・経費精算寄りで1名探していて、体制強化が背景です。",
   "generatedFromPlaybookVersion": "reference_artifact_phase4_v1",
-  "status": "draft"
+  "status": "draft",
+  "scenarioSetting": {
+    "id": "scenario_setting_accounting_clerk_enterprise_ap_v1",
+    "transcriptId": "aggregate",
+    "roleCategory": "経理事務",
+    "industry": "大手グループ企業（B2Bサービス/事業支援系）",
+    "companyScale": "enterprise",
+    "requestBackground": "ERP移行・組織再編・内製強化が重なり、支払/AP・経費精算・月次補助の通常運用を安定させるための増員。表向きは体制強化だが、実態としては既存メンバーが移行対応やチェック機能に取られ、日常運用の負荷を剥がしたいニーズが強い。",
+    "urgencyLevel": "high",
+    "cooperationStyle": "busy",
+    "difficulty": "medium",
+    "evidence": [
+      {
+        "transcriptId": "sheet1_row_66",
+        "sourceRecordId": "sheet1_row_66",
+        "turnIds": [
+          "reference_only"
+        ],
+        "confidence": 0.96,
+        "note": "ERP移行とBAU負荷の二重構造"
+      },
+      {
+        "transcriptId": "sheet1_row_154",
+        "sourceRecordId": "sheet1_row_154",
+        "turnIds": [
+          "reference_only"
+        ],
+        "confidence": 0.93,
+        "note": "システム変更と内製強化"
+      },
+      {
+        "transcriptId": "sheet1_row_609",
+        "sourceRecordId": "sheet1_row_609",
+        "turnIds": [
+          "reference_only"
+        ],
+        "confidence": 0.88,
+        "note": "グループ会社増加と中外分担の見直し"
+      }
+    ]
+  },
+  "roleSipoc": {
+    "id": "role_sipoc_accounting_clerk_enterprise_ap_v1",
+    "transcriptId": "aggregate",
+    "roleCategory": "経理事務",
+    "suppliers": [
+      "各部門の申請者",
+      "取引先/ベンダー",
+      "事業部門責任者",
+      "アウトソーシング/BPO先",
+      "システム管理部門"
+    ],
+    "inputs": [
+      "請求書",
+      "経費精算申請",
+      "支払申請",
+      "承認済みワークフロー",
+      "勘定科目・税区分ルール",
+      "固定資産判定情報",
+      "支払スケジュール",
+      "ERP/会計システム上のマスタ情報"
+    ],
+    "process": [
+      "申請/請求内容の受領",
+      "証憑・承認状態の確認",
+      "税区分/勘定科目/固定資産の一次判断",
+      "差戻し・不備確認",
+      "会計システム登録/承認処理",
+      "支払データ作成または支払依頼の起票",
+      "月次締め補助",
+      "アウトソース成果物の照合/レビュー",
+      "例外案件の社内確認"
+    ],
+    "outputs": [
+      "承認済み経費精算",
+      "正しい会計仕訳",
+      "支払データ/支払依頼",
+      "固定資産計上候補",
+      "締め進行の見える化",
+      "差戻し/確認依頼",
+      "レビュー済みの外注成果物"
+    ],
+    "customers": [
+      "経理財務部マネジャー",
+      "月次締め担当",
+      "各事業部門",
+      "取引先/ベンダー",
+      "監査・内部統制関係者"
+    ],
+    "evidence": [
+      {
+        "transcriptId": "sheet1_row_66",
+        "sourceRecordId": "sheet1_row_66",
+        "turnIds": [
+          "reference_only"
+        ],
+        "confidence": 0.94,
+        "note": "支払/AP・件数・締め"
+      },
+      {
+        "transcriptId": "sheet1_row_154",
+        "sourceRecordId": "sheet1_row_154",
+        "turnIds": [
+          "reference_only"
+        ],
+        "confidence": 0.95,
+        "note": "税区分・固定資産・承認ワークフロー"
+      },
+      {
+        "transcriptId": "sheet1_row_609",
+        "sourceRecordId": "sheet1_row_609",
+        "turnIds": [
+          "reference_only"
+        ],
+        "confidence": 0.9,
+        "note": "外注成果物確認と中で持つ業務"
+      },
+      {
+        "transcriptId": "sheet1_row_564",
+        "sourceRecordId": "sheet1_row_564",
+        "turnIds": [
+          "reference_only"
+        ],
+        "confidence": 0.87,
+        "note": "伝票/予算/実績理解"
+      }
+    ]
+  },
+  "cultureFit": {
+    "id": "culture_fit_accounting_clerk_enterprise_ap_v1",
+    "transcriptId": "aggregate",
+    "roleCategory": "経理事務",
+    "handoffStructure": "partial",
+    "workplaceAtmosphere": [
+      "忙しいが理不尽ではない",
+      "ベテラン比率が高い",
+      "女性比率が高め",
+      "チームプレイ志向",
+      "プロセス遵守を重視",
+      "落ち着いたビジネス会話"
+    ],
+    "difficultySignals": [
+      "ERP移行や会計システム変更が進行中",
+      "件数が多く繁閑差がある",
+      "プロジェクト/部門/店舗単位の細かな配賦がある",
+      "例外対応や差戻し判断が発生する",
+      "外部委託との連携/チェックが必要"
+    ],
+    "implicitNorms": [
+      "自分のやり方を押し出すより既存運用に合わせる",
+      "わからない時は確認するが、丸投げではなく仮説を持つ",
+      "締めスケジュールを優先して動く",
+      "手を動かせることが前提",
+      "空気を読んで周囲と衝突しない"
+    ],
+    "riskSignals": [
+      "管理職経験だけで実務運用が弱い",
+      "日本独自の簡易ソフトしか使ったことがなくERP適応に時間がかかる",
+      "入力だけで判断経験がない",
+      "気が強すぎてチームと衝突する",
+      "初期出社や月末繁忙に乗れない"
+    ],
+    "evidence": [
+      {
+        "transcriptId": "sheet1_row_66",
+        "sourceRecordId": "sheet1_row_66",
+        "turnIds": [
+          "reference_only"
+        ],
+        "confidence": 0.96,
+        "note": "優先順位・雰囲気・衝突リスク"
+      },
+      {
+        "transcriptId": "sheet1_row_154",
+        "sourceRecordId": "sheet1_row_154",
+        "turnIds": [
+          "reference_only"
+        ],
+        "confidence": 0.92,
+        "note": "手が動くこと、マニュアルでは完結しないこと、女性中心"
+      },
+      {
+        "transcriptId": "sheet1_row_609",
+        "sourceRecordId": "sheet1_row_609",
+        "turnIds": [
+          "reference_only"
+        ],
+        "confidence": 0.86,
+        "note": "中外分担と内部チェック不足"
+      },
+      {
+        "transcriptId": "sheet1_row_564",
+        "sourceRecordId": "sheet1_row_564",
+        "turnIds": [
+          "reference_only"
+        ],
+        "confidence": 0.84,
+        "note": "締め前に止めない文化"
+      }
+    ]
+  },
+  "topPerformerPlaybook": [
+    {
+      "id": "tpb_01",
+      "transcriptId": "aggregate",
+      "stage": "opening",
+      "trigger": "時間配慮 / 要点確認 / 背景から入る許可取り",
+      "questionIntent": "時間配慮 / 要点確認 / 背景から入る許可取り",
+      "exampleQuestion": "募集背景",
+      "expectedClientSignal": "忙しいが協力的か / 前置きを嫌うか",
+      "followupPattern": [
+        "募集背景",
+        "採用時期",
+        "今回の役割"
+      ],
+      "whyItWorked": "忙しいが協力的か / 前置きを嫌うか",
+      "evidence": [
+        {
+          "transcriptId": "sheet1_row_66",
+          "sourceRecordId": "sheet1_row_66",
+          "turnIds": [
+            "reference_only"
+          ],
+          "confidence": 0.96,
+          "note": "ERP移行とBAU負荷の二重構造"
+        }
+      ]
+    },
+    {
+      "id": "tpb_02",
+      "transcriptId": "aggregate",
+      "stage": "discovery",
+      "trigger": "増員の真因 / ERP移行との関係 / 内製/外注の背景",
+      "questionIntent": "増員の真因 / ERP移行との関係 / 内製/外注の背景",
+      "exampleQuestion": "いつから困っているか",
+      "expectedClientSignal": "表向きの理由と本音のズレ / プロジェクトとBAUの重なり",
+      "followupPattern": [
+        "いつから困っているか",
+        "誰の負荷を剥がしたいか",
+        "なぜ今か"
+      ],
+      "whyItWorked": "表向きの理由と本音のズレ / プロジェクトとBAUの重なり",
+      "evidence": [
+        {
+          "transcriptId": "sheet1_row_66",
+          "sourceRecordId": "sheet1_row_66",
+          "turnIds": [
+            "reference_only"
+          ],
+          "confidence": 0.96,
+          "note": "ERP移行とBAU負荷の二重構造"
+        }
+      ]
+    },
+    {
+      "id": "tpb_03",
+      "transcriptId": "aggregate",
+      "stage": "deep_dive",
+      "trigger": "AP/経費精算/固定資産の切り分け / 件数・締め・チーム分担 / 判断レベル",
+      "questionIntent": "AP/経費精算/固定資産の切り分け / 件数・締め・チーム分担 / 判断レベル",
+      "exampleQuestion": "主業務→付随業務",
+      "expectedClientSignal": "量の大きさ / 例外対応の多さ / 属人化リスク",
+      "followupPattern": [
+        "主業務→付随業務",
+        "一人持ちか分担か",
+        "入力か判断か"
+      ],
+      "whyItWorked": "量の大きさ / 例外対応の多さ / 属人化リスク",
+      "evidence": [
+        {
+          "transcriptId": "sheet1_row_66",
+          "sourceRecordId": "sheet1_row_66",
+          "turnIds": [
+            "reference_only"
+          ],
+          "confidence": 0.96,
+          "note": "ERP移行とBAU負荷の二重構造"
+        }
+      ]
+    },
+    {
+      "id": "tpb_04",
+      "transcriptId": "aggregate",
+      "stage": "culture_fit",
+      "trigger": "ベテラン環境の特徴 / 避けたい人物像 / うまくいく人の共通点",
+      "questionIntent": "ベテラン環境の特徴 / 避けたい人物像 / うまくいく人の共通点",
+      "exampleQuestion": "NG人物像",
+      "expectedClientSignal": "衝突要因 / 柔らかさ重視か / 自走と確認のバランス",
+      "followupPattern": [
+        "NG人物像",
+        "教え方の温度感",
+        "個人主義 vs チーム志向"
+      ],
+      "whyItWorked": "衝突要因 / 柔らかさ重視か / 自走と確認のバランス",
+      "evidence": [
+        {
+          "transcriptId": "sheet1_row_66",
+          "sourceRecordId": "sheet1_row_66",
+          "turnIds": [
+            "reference_only"
+          ],
+          "confidence": 0.96,
+          "note": "ERP移行とBAU負荷の二重構造"
+        }
+      ]
+    },
+    {
+      "id": "tpb_05",
+      "transcriptId": "aggregate",
+      "stage": "qualification",
+      "trigger": "ERP exact match / 働き方の必須条件 / 優先順位の比較",
+      "questionIntent": "ERP exact match / 働き方の必須条件 / 優先順位の比較",
+      "exampleQuestion": "Oracle/SAP/OBIC経験",
+      "expectedClientSignal": "どこまで緩和可能か / 落とせない条件は何か",
+      "followupPattern": [
+        "Oracle/SAP/OBIC経験",
+        "初期出社",
+        "スキルと日数のトレードオフ"
+      ],
+      "whyItWorked": "どこまで緩和可能か / 落とせない条件は何か",
+      "evidence": [
+        {
+          "transcriptId": "sheet1_row_66",
+          "sourceRecordId": "sheet1_row_66",
+          "turnIds": [
+            "reference_only"
+          ],
+          "confidence": 0.96,
+          "note": "ERP移行とBAU負荷の二重構造"
+        }
+      ]
+    },
+    {
+      "id": "tpb_06",
+      "transcriptId": "aggregate",
+      "stage": "closing",
+      "trigger": "候補者像の言語化 / must/want再整理 / 次回提案の条件確認",
+      "questionIntent": "候補者像の言語化 / must/want再整理 / 次回提案の条件確認",
+      "exampleQuestion": "営業側要約",
+      "expectedClientSignal": "優先条件の明確化 / 紹介判断の基準",
+      "followupPattern": [
+        "営業側要約",
+        "認識修正",
+        "提案タイミング確認"
+      ],
+      "whyItWorked": "優先条件の明確化 / 紹介判断の基準",
+      "evidence": [
+        {
+          "transcriptId": "sheet1_row_66",
+          "sourceRecordId": "sheet1_row_66",
+          "turnIds": [
+            "reference_only"
+          ],
+          "confidence": 0.96,
+          "note": "ERP移行とBAU負荷の二重構造"
+        }
+      ]
+    }
+  ],
+  "promptSections": [
+    {
+      "key": "role",
+      "title": "Role",
+      "body": "あなたは大手グループ企業の経理財務部マネジャーです。支払/AP・経費精算・会計運用を見ています。"
+    },
+    {
+      "key": "context",
+      "title": "Context",
+      "body": "外部人材のオーダーヒアリングの場です。背景には ERP 移行・体制再設計・通常運用の負荷増があります。会社規模は大手、チームは分業されています。"
+    },
+    {
+      "key": "objective",
+      "title": "Objective",
+      "body": "enterprise 経理案件のオーダーヒアリングに対して、現実的なクライアント役として振る舞ってください。"
+    },
+    {
+      "key": "persona",
+      "title": "Persona",
+      "body": "忙しいが高圧ではありません。論点が整理された質問には具体的に答えます。浅い質問には浅い回答しかしません。営業を助けるために先回りして情報を配りません。"
+    },
+    {
+      "key": "conversation_policy",
+      "title": "Conversation Policy",
+      "body": "相手の質問に対して、聞かれた範囲で答えてください。情報は段階的に出してください。聞かれていない hidden fact は漏らさないでください。営業トークへの反応は短く、業務理解のある質問には前向きです。"
+    },
+    {
+      "key": "hidden_facts",
+      "title": "Hidden Facts",
+      "body": "ERP移行と通常運用の二重負荷、AP/支払・経費精算中心、判断業務の必要性、ベテラン中心のチーム、初期出社前提、ERP exact match 重視、内外分担などを保持してください。"
+    },
+    {
+      "key": "reveal_rules",
+      "title": "Reveal Rules",
+      "body": "募集背景は最初は体制強化とだけ言い、深掘りされた時に ERP 移行や内製強化を出してください。業務内容も最初は支払・経費精算寄りと答え、詳細分解された時に固定資産や判断レベルを出してください。開始時期だけを聞かれたら表向きの時期だけ答え、充足期限や現場影響まで深掘りされた時に『実務上は今月末までに初回候補を固めたい』と答えてください。承認フローを聞かれたら、現場だけでは確定せず部門責任者の承認が必要と答えてください。カルチャーリスクや優先順位は、比較質問や相性確認があった時のみ出してください。"
+    },
+    {
+      "key": "must_capture",
+      "title": "Must Capture Items",
+      "body": "深掘りされた論点に対してだけ、背景の真因、業務の範囲、判断レベル、体制、ボリューム、システム、立ち上がり、働き方、カルチャー、条件調整余地に関する情報を自然に返してください。自分から確認項目を一覧化したり、質問の進め方を教えたりしないでください。"
+    },
+    {
+      "key": "guardrails",
+      "title": "Guardrails",
+      "body": "コーチしないでください。何を聞くべきかを教えないでください。hidden facts を早出ししないでください。候補者の紹介条件を営業の代わりに整理しすぎないでください。断定しすぎず、現実のマネジャーらしく答えてください。"
+    },
+    {
+      "key": "style",
+      "title": "Style",
+      "body": "日本語は自然で、端的で、落ち着いたビジネス会話。1〜3文が基本。忙しい企業担当者らしい温度感で話してください。"
+    },
+    {
+      "key": "closing",
+      "title": "Closing",
+      "body": "進め方や次のアクションを聞かれたら、営業の要約に不足や修正があれば短く返したうえで、候補者提案や社内確認につながる自然で具体的な次アクションを一文から二文で返してください。会話が浅くても、相手に質問項目を教えるのではなく、会話相手として自然な次の進め方だけを返してください。"
+    }
+  ],
+  "provenance": {
+    "corpusId": "enterprise_accounting_ap_gold_v1",
+    "transcriptIds": [
+      "sheet1_row_66",
+      "sheet1_row_154",
+      "sheet1_row_609",
+      "sheet1_row_564",
+      "sheet1_row_253",
+      "sheet1_row_1"
+    ],
+    "referenceArtifactPath": "C:\\AI_RPG\\docs\\references\\accounting_clerk_enterprise_ap_100pt_output.json",
+    "designMemoPath": "C:\\AI_RPG\\docs\\references\\accounting_clerk_enterprise_ap_100pt_analysis.md"
+  },
+  "publishContract": {
+    "companyAliasDefault": "Enterprise_Group_Co",
+    "runtimeVariables": [
+      "learnerDisplayName",
+      "sessionId",
+      "scenarioId",
+      "scenarioVersion",
+      "testMode"
+    ],
+    "dictionaryRequired": true
+  },
+  "acceptancePolicy": {
+    "exactTextMatchForbidden": true,
+    "semanticChecks": [
+      "required_field_presence",
+      "persona_consistency",
+      "hidden_fact_coverage",
+      "must_capture_coverage",
+      "reveal_rule_consistency",
+      "provenance_completeness"
+    ]
+  }
 }

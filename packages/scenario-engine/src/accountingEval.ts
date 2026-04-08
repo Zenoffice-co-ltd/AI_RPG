@@ -172,6 +172,17 @@ export async function runAccountingLocalEval(input: {
 
   const ruleBased = evaluateRuleBasedScenarioChecks(input.scenario, input.assets);
   const semanticAcceptance = evaluateSemanticAcceptance(input.scenario);
+  const llmEvalScenarioView = {
+    id: input.scenario.id,
+    family: input.scenario.family,
+    persona: input.scenario.persona,
+    publicBrief: input.scenario.publicBrief,
+    openingLine: input.scenario.openingLine,
+    hiddenFacts: input.scenario.hiddenFacts,
+    revealRules: input.scenario.revealRules,
+    mustCaptureItems: input.scenario.mustCaptureItems,
+    promptSections: input.scenario.promptSections,
+  };
   const llmEval = await input.client.createStructuredOutput({
     model: input.model,
     schemaName: "accounting_local_eval",
@@ -179,13 +190,14 @@ export async function runAccountingLocalEval(input: {
     responseSchema: llmEvalResponseSchema,
     systemPrompt: [
       "You are reviewing a Japanese enterprise accounting roleplay scenario before publish.",
-      "Judge only the provided scenario and agent prompt.",
+      "Judge only the user-facing behavior implied by the provided scenario view and agent prompt.",
+      "Ignore internal grading, top performer guidance, provenance, and non-prompt metadata.",
       "Use llm_based checks for natural_japanese, busy_but_not_hostile, no_coaching, close_quality, captures_culture_fit, captures_judgement_work.",
       "Return strict JSON only.",
     ].join("\n"),
     userPrompt: JSON.stringify(
       {
-        scenario: input.scenario,
+        scenario: llmEvalScenarioView,
         assets: {
           scenarioId: input.assets.scenarioId,
           promptVersion: input.assets.promptVersion,

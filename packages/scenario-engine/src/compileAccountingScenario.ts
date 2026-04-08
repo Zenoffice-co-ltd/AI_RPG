@@ -47,6 +47,49 @@ function stringArray(input: unknown) {
   return Array.isArray(input) ? input.map((item) => String(item)) : [];
 }
 
+function ensureDecisionStructureHiddenFact(hiddenFacts: string[]) {
+  if (hiddenFacts.some((item) => /決裁|承認|最終判断|部門長/i.test(item))) {
+    return hiddenFacts;
+  }
+  return [
+    ...hiddenFacts,
+    "最終的な採用可否や条件調整は部門責任者の承認が必要で、現場判断だけでは確定しない。",
+  ];
+}
+
+function ensureDecisionStructureRevealRule(
+  revealRules: Array<{ trigger: string; reveals: string[] }>
+) {
+  if (revealRules.some((item) => /決裁|承認|最終判断/i.test(item.trigger))) {
+    return revealRules;
+  }
+  return [
+    ...revealRules,
+    {
+      trigger: "承認フローや誰が最終判断するかを聞かれた",
+      reveals: [
+        "現場だけでは確定せず、部門責任者の承認が必要と答える。",
+      ],
+    },
+  ];
+}
+
+function rewritePromptSectionBody(title: string, body: string) {
+  if (title === "Objective") {
+    return "enterprise 経理案件のオーダーヒアリングに対して、現実的なクライアント役として振る舞ってください。";
+  }
+  if (title === "Reveal Rules") {
+    return "募集背景は最初は体制強化とだけ言い、深掘りされた時に ERP 移行や内製強化を出してください。業務内容も最初は支払・経費精算寄りと答え、詳細分解された時に固定資産や判断レベルを出してください。開始時期だけを聞かれたら表向きの時期だけ答え、充足期限や現場影響まで深掘りされた時に『実務上は今月末までに初回候補を固めたい』と答えてください。承認フローを聞かれたら、現場だけでは確定せず部門責任者の承認が必要と答えてください。カルチャーリスクや優先順位は、比較質問や相性確認があった時のみ出してください。";
+  }
+  if (title === "Must Capture Items") {
+    return "深掘りされた論点に対してだけ、背景の真因、業務の範囲、判断レベル、体制、ボリューム、システム、立ち上がり、働き方、カルチャー、条件調整余地に関する情報を自然に返してください。自分から確認項目を一覧化したり、質問の進め方を教えたりしないでください。";
+  }
+  if (title === "Closing") {
+    return "進め方や次のアクションを聞かれたら、営業の要約に不足や修正があれば短く返したうえで、候補者提案や社内確認につながる自然で具体的な次アクションを一文から二文で返してください。会話が浅くても、相手に質問項目を教えるのではなく、会話相手として自然な次の進め方だけを返してください。";
+  }
+  return body;
+}
+
 function mapPromptSectionKey(title: string): ScenarioPackV2["promptSections"][number]["key"] {
   const normalized = title.toLowerCase();
   if (normalized.includes("role")) return "role";
@@ -278,21 +321,25 @@ export async function compileAccountingScenarioFromReference(input: {
         phase3Setting.requestBackground ??
         "支払・経費精算寄りの人材を探している。"
     ),
-    hiddenFacts: Array.isArray(scenarioPack.hiddenFacts)
-      ? scenarioPack.hiddenFacts.map((item: unknown) =>
-          typeof item === "string"
-            ? item
-            : String((item as { value?: unknown }).value ?? "")
-        )
-      : ["背景の真因は通常運用負荷の集中にある。"],
-    revealRules: Array.isArray(scenarioPack.revealRules)
-      ? scenarioPack.revealRules.map((rule: unknown) => ({
-          trigger: String((rule as { trigger?: unknown }).trigger ?? ""),
-          reveals: [
-            String((rule as { behavior?: unknown }).behavior ?? "").trim(),
-          ].filter(Boolean),
-        }))
-      : [],
+    hiddenFacts: ensureDecisionStructureHiddenFact(
+      Array.isArray(scenarioPack.hiddenFacts)
+        ? scenarioPack.hiddenFacts.map((item: unknown) =>
+            typeof item === "string"
+              ? item
+              : String((item as { value?: unknown }).value ?? "")
+          )
+        : ["背景の真因は通常運用負荷の集中にある。"]
+    ),
+    revealRules: ensureDecisionStructureRevealRule(
+      Array.isArray(scenarioPack.revealRules)
+        ? scenarioPack.revealRules.map((rule: unknown) => ({
+            trigger: String((rule as { trigger?: unknown }).trigger ?? ""),
+            reveals: [
+              String((rule as { behavior?: unknown }).behavior ?? "").trim(),
+            ].filter(Boolean),
+          }))
+        : []
+    ),
     mustCapture: Array.isArray(scenarioPack.mustCaptureItems)
       ? scenarioPack.mustCaptureItems.map((item: unknown) => ({
           key: String((item as { key?: unknown }).key ?? ""),
@@ -346,7 +393,7 @@ export async function compileAccountingScenarioFromReference(input: {
     promptSections: Object.entries(promptSections).map(([key, value]) => ({
       key: mapPromptSectionKey(key),
       title: key,
-      body: String(value),
+      body: rewritePromptSectionBody(key, String(value)),
     })),
   });
 
