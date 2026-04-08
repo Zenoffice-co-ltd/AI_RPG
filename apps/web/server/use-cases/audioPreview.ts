@@ -1,8 +1,4 @@
-import {
-  ACCOUNTING_SCENARIO_FAMILY,
-  type ScenarioPack,
-  type ScenarioPackV2,
-} from "@top-performer/domain";
+import type { ScenarioPack } from "@top-performer/domain";
 import {
   buildLegacyVoiceSelection,
   buildProfileVoiceSelection,
@@ -11,7 +7,7 @@ import {
 } from "@top-performer/scenario-engine";
 import { getAppContext } from "../appContext";
 
-type RoleplayScenario = ScenarioPack | ScenarioPackV2;
+type RoleplayScenario = ScenarioPack;
 
 export type ScenarioAudioPreviewSample = {
   key: string;
@@ -45,29 +41,6 @@ function buildScenarioAudioPreviewSamples(
   const openingLine =
     scenario.openingLine?.trim() ||
     "本日はありがとうございます。まず今回の募集背景からご相談させてください。";
-
-  if (scenario.family === ACCOUNTING_SCENARIO_FAMILY) {
-    return [
-      {
-        key: "opening",
-        label: "冒頭",
-        description: "最初の応答トーンを確認します。",
-        text: openingLine,
-      },
-      {
-        key: "deep_dive",
-        label: "深掘り",
-        description: "支払処理だけでなく判断業務も含む話し方を確認します。",
-        text: "支払処理だけではなく、請求書の不備確認や部門への差し戻し判断まで任せられるかを見ています。そこまで対応できる人材かどうかを知りたいです。",
-      },
-      {
-        key: "closing",
-        label: "締め",
-        description: "自然な次アクションの返し方を確認します。",
-        text: "こちらで優先条件を整理して戻します。今日中に要件のたたき台を送ってもらえれば、社内確認を進めます。",
-      },
-    ];
-  }
 
   return [
     {
