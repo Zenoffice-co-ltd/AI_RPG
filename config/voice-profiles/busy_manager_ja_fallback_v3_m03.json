@@ -10,6 +10,12 @@
     "speed": 0.96,
     "style": 0
   },
+  "pronunciationDictionaryLocators": [
+    {
+      "pronunciationDictionaryId": "2arpjQXtKr7DoHrM5zuT",
+      "versionId": "GpJghKIrZi1u2nDXHP7S"
+    }
+  ],
   "metadata": {
     "personaKey": "busy_manager_medium",
     "scenarioIds": [

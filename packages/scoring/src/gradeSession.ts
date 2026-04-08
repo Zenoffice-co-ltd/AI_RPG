@@ -49,6 +49,7 @@ export async function gradeSession(input: GradeSessionInput): Promise<Scorecard>
     ...rawScorecard,
     sessionId: input.sessionId,
     scenarioId: input.scenario.id,
+    nextDrills: [],
     generatedAt: new Date().toISOString(),
     promptVersion: GRADE_SESSION_PROMPT_VERSION,
   });

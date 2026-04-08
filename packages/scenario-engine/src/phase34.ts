@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import XLSX from "xlsx";
+import * as XLSX from "xlsx";
 import {
   ACCOUNTING_CORPUS_SOT_ID,
   ACCOUNTING_SCENARIO_FAMILY,

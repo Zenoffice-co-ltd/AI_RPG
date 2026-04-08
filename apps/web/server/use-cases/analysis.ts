@@ -82,7 +82,6 @@ export async function analyzeSession(sessionId: string) {
     await ctx.repositories.sessions.saveScorecard(scorecard);
     await ctx.repositories.sessions.update(sessionId, {
       status: "completed",
-      error: undefined,
     });
 
     return resultResponseSchema.parse({
