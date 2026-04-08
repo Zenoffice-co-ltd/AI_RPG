@@ -26,6 +26,20 @@ export type StructuredOutputResult<T> = {
   parsed: T;
 };
 
+export type TextResponseMessage = {
+  role: "user" | "assistant";
+  text: string;
+};
+
+function extractResponseText(response: z.infer<typeof responseEnvelopeSchema>) {
+  return (
+    response.output_text ??
+    response.output
+      ?.flatMap((item) => item.content ?? [])
+      .map((part) => part.text)
+      .find((value): value is string => typeof value === "string")
+  );
+}
 export class OpenAiResponsesClient {
   constructor(
     private readonly apiKeyProvider: string | (() => Promise<string>),
@@ -103,12 +117,7 @@ export class OpenAiResponsesClient {
       retries: 2,
     });
 
-    const text =
-      response.output_text ??
-      response.output
-        ?.flatMap((item) => item.content ?? [])
-        .map((part) => part.text)
-        .find((value): value is string => typeof value === "string");
+    const text = extractResponseText(response);
 
     if (!text) {
       throw new Error("OpenAI response did not include structured output text");
@@ -117,6 +126,64 @@ export class OpenAiResponsesClient {
     return {
       responseId: response.id,
       parsed: input.responseSchema.parse(JSON.parse(text)),
+    };
+  }
+
+  async createTextResponse(input: {
+    model: string;
+    systemPrompt: string;
+    messages: TextResponseMessage[];
+    maxOutputTokens?: number;
+  }) {
+    const apiKey = await this.resolveApiKey();
+    const response = await requestJson({
+      scope: "openai.responses.create",
+      url: `${this.baseUrl}/responses`,
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: input.model,
+        truncation: "disabled",
+        ...(input.maxOutputTokens !== undefined
+          ? { max_output_tokens: input.maxOutputTokens }
+          : {}),
+        input: [
+          {
+            role: "system",
+            content: [
+              {
+                type: "input_text",
+                text: input.systemPrompt,
+              },
+            ],
+          },
+          ...input.messages.map((message) => ({
+            role: message.role,
+            content: [
+              {
+                type: "input_text",
+                text: message.text,
+              },
+            ],
+          })),
+        ],
+      }),
+      schema: responseEnvelopeSchema,
+      timeoutMs: 180_000,
+      retries: 2,
+    });
+
+    const text = extractResponseText(response);
+    if (!text) {
+      throw new Error("OpenAI response did not include text output");
+    }
+
+    return {
+      responseId: response.id,
+      text,
     };
   }
 }

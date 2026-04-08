@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { Route } from "next";
+import Link from "next/link";
 import { Room, RoomEvent, Track } from "livekit-client";
 import { cn } from "@/lib/utils";
 
@@ -187,6 +189,10 @@ export function RoleplayClient({ scenario }: { scenario: ScenarioDetails }) {
   }, [cameraOn]);
 
   const latestTurnId = turns.at(-1)?.turnId;
+  const audioPreviewHref =
+    scenario.id === "staffing_order_hearing_busy_manager_medium"
+      ? ("/audio-preview/staffing_order_hearing_busy_manager_medium.html" as Route)
+      : (`/audio-preview/${scenario.id}` as Route);
   const elapsedLabel = useMemo(() => {
     const minutes = Math.floor(elapsedSeconds / 60)
       .toString()
@@ -266,6 +272,22 @@ export function RoleplayClient({ scenario }: { scenario: ScenarioDetails }) {
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 md:text-base">
               {scenario.publicBrief}
             </p>
+            <div className="mt-4">
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={(`/scenario-test/${scenario.id}`) as Route}
+                  className="inline-flex rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  テキスト会話テスト
+                </Link>
+                <Link
+                  href={audioPreviewHref}
+                  className="inline-flex rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950"
+                >
+                  音声だけ確認する
+                </Link>
+              </div>
+            </div>
           </div>
           <div className="rounded-[1.6rem] border border-white/70 bg-white/75 px-5 py-4 text-right shadow-[0_18px_44px_rgba(15,23,42,0.08)]">
             <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
