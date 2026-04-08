@@ -93,6 +93,12 @@ pnpm smoke:liveavatar
 pnpm verify:acceptance
 ```
 
+## Manual Test Surfaces
+
+- Text-only scenario tester: `/scenario-test/<scenarioId>`
+- Static audio preview page: `/audio-preview/staffing_order_hearing_busy_manager_medium.html`
+- Full avatar roleplay: `/roleplay/<scenarioId>`
+
 ## Accounting Phase 3/4
 
 Corpus SoT は transcript corpus のみです。

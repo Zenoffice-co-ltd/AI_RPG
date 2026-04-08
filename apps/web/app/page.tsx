@@ -121,10 +121,9 @@ export default async function HomePage() {
               </div>
               <div className="space-y-4">
                 {scenarioCards.map((scenario) => (
-                  <a
+                  <div
                     key={scenario.id}
-                    href={`/roleplay/${scenario.id}`}
-                    className="block rounded-[1.4rem] border border-white/65 bg-white/85 p-4 transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(14,116,144,0.18)]"
+                    className="rounded-[1.4rem] border border-white/65 bg-white/85 p-4"
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <strong className="text-base text-slate-900">
@@ -137,7 +136,21 @@ export default async function HomePage() {
                     <p className="text-sm leading-7 text-slate-600">
                       {scenario.description}
                     </p>
-                  </a>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <a
+                        href={`/roleplay/${scenario.id}`}
+                        className="rounded-full bg-slate-950 px-3 py-2 text-xs font-semibold text-white"
+                      >
+                        ロープレ
+                      </a>
+                      <a
+                        href={`/scenario-test/${scenario.id}`}
+                        className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                      >
+                        テキスト会話テスト
+                      </a>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

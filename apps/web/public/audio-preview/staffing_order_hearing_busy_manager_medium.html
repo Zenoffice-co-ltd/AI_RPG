@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>音声確認 | 忙しい現場責任者</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #eef4f8;
+        --panel: rgba(255, 255, 255, 0.88);
+        --line: rgba(148, 163, 184, 0.28);
+        --text: #0f172a;
+        --muted: #475569;
+        --accent: #0f766e;
+        --accent-soft: #ccfbf1;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(15, 118, 110, 0.14), transparent 30%),
+          linear-gradient(180deg, #f8fbfd 0%, var(--bg) 100%);
+        color: var(--text);
+      }
+
+      main {
+        width: min(920px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 32px 0 56px;
+      }
+
+      .hero,
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.08);
+      }
+
+      .hero {
+        padding: 28px;
+      }
+
+      .eyebrow {
+        display: inline-block;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 14px 0 0;
+        font-size: clamp(28px, 5vw, 42px);
+        line-height: 1.15;
+      }
+
+      .lead {
+        margin: 14px 0 0;
+        color: var(--muted);
+        line-height: 1.8;
+        font-size: 15px;
+      }
+
+      .meta {
+        margin-top: 18px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .meta span {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: #ffffff;
+        border: 1px solid var(--line);
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .grid {
+        margin-top: 18px;
+        display: grid;
+        gap: 16px;
+      }
+
+      .card {
+        padding: 22px;
+      }
+
+      .card h2 {
+        margin: 0;
+        font-size: 20px;
+      }
+
+      .description {
+        margin: 8px 0 0;
+        color: var(--muted);
+        line-height: 1.7;
+        font-size: 14px;
+      }
+
+      .script {
+        margin-top: 16px;
+        padding: 16px 18px;
+        border-radius: 18px;
+        background: #f8fafc;
+        border: 1px solid var(--line);
+        color: #334155;
+        line-height: 1.9;
+        font-size: 15px;
+      }
+
+      audio {
+        width: 100%;
+        margin-top: 16px;
+      }
+
+      .note {
+        margin-top: 18px;
+        padding: 16px 18px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px dashed rgba(15, 118, 110, 0.24);
+        color: var(--muted);
+        line-height: 1.8;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <span class="eyebrow">Audio Only Preview</span>
+        <h1>忙しい現場責任者 シナリオ音声確認</h1>
+        <p class="lead">
+          これはロープレ本体ではなく、相手役の音声だけを確認するための単純なページです。
+          下の再生ボタンを押すだけで聞けます。
+        </p>
+        <div class="meta">
+          <span>Scenario: staffing_order_hearing_busy_manager_medium</span>
+          <span>Voice Profile: Busy Manager JA Baseline v1</span>
+          <span>TTS: eleven_flash_v2_5</span>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>1. 冒頭</h2>
+          <p class="description">最初の応答トーンです。会話開始直後の空気感を確認できます。</p>
+          <div class="script">時間がないので要点だけお願いします。</div>
+          <audio controls preload="none">
+            <source src="./staffing_order_hearing_busy_manager_medium/opening.mp3" type="audio/mpeg" />
+          </audio>
+        </article>
+
+        <article class="card">
+          <h2>2. 深掘り</h2>
+          <p class="description">忙しい現場責任者らしい返し方を確認するための中盤サンプルです。</p>
+          <div class="script">
+            現場としては急ぎなので、まず欠員理由と任せたい業務の優先順位を整理したいです。どこまで任せられる人材を想定していますか。
+          </div>
+          <audio controls preload="none">
+            <source src="./staffing_order_hearing_busy_manager_medium/deep_dive.mp3" type="audio/mpeg" />
+          </audio>
+        </article>
+
+        <article class="card">
+          <h2>3. 締め</h2>
+          <p class="description">会話の終わり方と、次アクションの返し方を確認できます。</p>
+          <div class="script">
+            一度こちらで整理して、今日中に条件のたたき台を見せてもらえますか。社内確認して折り返します。
+          </div>
+          <audio controls preload="none">
+            <source src="./staffing_order_hearing_busy_manager_medium/closing.mp3" type="audio/mpeg" />
+          </audio>
+        </article>
+      </section>
+
+      <div class="note">
+        ブラウザで再生できない場合は、ページを再読み込みしてから再度押してください。音声ファイルはこのページに直接埋め込まれている static asset です。
+      </div>
+    </main>
+  </body>
+</html>
