@@ -13,6 +13,7 @@ const {
   resolveWorkspacePath,
   resolveMappedVoiceProfile,
   assertScenarioVoiceProfileAvailable,
+  loadVoiceProfile,
   publishScenarioAgent,
   evaluateCompiledAccountingScenario,
   runAccountingLocalEval,
@@ -28,6 +29,7 @@ const {
   resolveWorkspacePath: vi.fn((value: string) => value),
   resolveMappedVoiceProfile: vi.fn(),
   assertScenarioVoiceProfileAvailable: vi.fn(),
+  loadVoiceProfile: vi.fn(),
   publishScenarioAgent: vi.fn(),
   evaluateCompiledAccountingScenario: vi.fn(),
   runAccountingLocalEval: vi.fn(),
@@ -97,6 +99,7 @@ vi.mock("@top-performer/scenario-engine", () => ({
   assertScenarioVoiceProfileAvailable,
   evaluateCompiledAccountingScenario,
   importTranscriptsFromDirectory: vi.fn(),
+  loadVoiceProfile,
   mineTranscriptBehaviors: vi.fn(),
   publishScenarioAgent,
   resolveMappedVoiceProfile,
@@ -177,6 +180,7 @@ describe("publishScenarioJob", () => {
     resolveVoiceId.mockReset();
     writeGeneratedJson.mockReset();
     resolveMappedVoiceProfile.mockReset();
+    loadVoiceProfile.mockReset();
     publishScenarioAgent.mockReset();
     evaluateCompiledAccountingScenario.mockReset();
     runAccountingLocalEval.mockReset();
@@ -205,6 +209,20 @@ describe("publishScenarioJob", () => {
       },
     });
     assertScenarioVoiceProfileAvailable.mockImplementation((input) => input.profile);
+    loadVoiceProfile.mockResolvedValue({
+      id: "accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1",
+      label: "Accounting Clerk Enterprise AP JA V3 System Prompt Candidate v1",
+      language: "ja",
+      model: "eleven_v3",
+      voiceId: "profile_voice",
+      firstMessageJa: "よろしくお願いします。",
+      textNormalisationType: "system_prompt",
+      voiceSettings: {},
+      metadata: {
+        scenarioIds: ["accounting_clerk_enterprise_ap_busy_manager_medium"],
+        benchmarkStatus: "candidate",
+      },
+    });
   });
 
   it("uses the mapped voice profile when one exists", async () => {
@@ -310,5 +328,77 @@ describe("publishScenarioJob", () => {
       })
     );
     expect(resolveVoiceId).not.toHaveBeenCalled();
+  });
+
+  it("allows an explicit voice profile override for live comparison without changing active mapping", async () => {
+    scenariosGet.mockResolvedValue(
+      createScenario({
+        id: "accounting_clerk_enterprise_ap_busy_manager_medium",
+        family: "accounting_clerk_enterprise_ap",
+        publishContract: {
+          runtimeVariables: [],
+          dictionaryRequired: true,
+        },
+      })
+    );
+    scenariosGetAssets.mockResolvedValue(
+      createAssets({
+        scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+      })
+    );
+    resolveMappedVoiceProfile.mockResolvedValue(null);
+    resolveVoiceId.mockResolvedValue({
+      voiceId: "voice_resolved",
+      voiceName: "Resolved Voice",
+      resolution: "preferred",
+    });
+
+    const result = await publishScenarioJob({
+      scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+      voiceProfileId: "accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1",
+    });
+
+    expect(loadVoiceProfile).toHaveBeenCalledWith(
+      "accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1"
+    );
+    expect(resolveMappedVoiceProfile).not.toHaveBeenCalled();
+    expect(resolveVoiceId).toHaveBeenCalledWith("profile_voice", "ja");
+    expect(publishScenarioAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        voiceSelection: expect.objectContaining({
+          mode: "profile",
+          voiceProfileId:
+            "accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1",
+          textNormalisationType: "system_prompt",
+        }),
+      })
+    );
+    expect(result.voiceSelection.selectionSource).toBe("override");
+  });
+
+  it("rejects an explicit voice profile override that targets another scenario", async () => {
+    loadVoiceProfile.mockResolvedValue({
+      id: "busy_manager_ja_baseline_v1",
+      label: "Busy Manager JA Baseline v1",
+      language: "ja",
+      model: "eleven_flash_v2_5",
+      voiceId: "profile_voice",
+      firstMessageJa: "よろしくお願いします。",
+      textNormalisationType: "elevenlabs",
+      voiceSettings: {},
+      metadata: {
+        scenarioIds: ["staffing_order_hearing_busy_manager_medium"],
+        benchmarkStatus: "candidate",
+      },
+    });
+
+    await expect(
+      publishScenarioJob({
+        scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+        voiceProfileId: "busy_manager_ja_baseline_v1",
+      })
+    ).rejects.toThrow(
+      "Voice profile busy_manager_ja_baseline_v1 does not support scenario accounting_clerk_enterprise_ap_busy_manager_medium."
+    );
   });
 });

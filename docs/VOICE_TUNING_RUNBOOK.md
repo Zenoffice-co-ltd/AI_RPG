@@ -54,7 +54,8 @@
 2. real `pronunciationDictionaryId` と `versionId` を控える
 3. `config/voice-profiles/accounting_clerk_enterprise_ap_ja_v3_candidate_v1.json` に locator を反映する
 4. preview / benchmark で誤読改善を確認する
-5. 確認後に `metadata.benchmarkStatus` を見直し、`config/voice-profiles/scenario-map.json` の `activeProfiles` に昇格する
+5. live では dictionary-first lane と `accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` を 2 から 3 ターン比較する
+6. 確認後に `metadata.benchmarkStatus` を見直し、`config/voice-profiles/scenario-map.json` の `activeProfiles` に昇格する
 
 注意:
 
@@ -62,6 +63,13 @@
 - fake locator は入れない
 - locator 未確定の間は `previewProfiles` / `benchmarkProfiles` のみで使う
 - live path は dictionary first。assistant 本文の rewrite や prompt hack をデフォルトにしない
+- `system_prompt` profile は比較レーン専用。`pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` の explicit override でだけ publish する
+- `system_prompt` lane では local PLS から使われている lexeme だけを抽出し、system prompt 末尾へ pronunciation guide を追加する
+
+未解決事項:
+
+- accounting dictionary の real locator 取得
+- dictionary-first lane と `system_prompt` comparison lane の live 比較完了
 
 ## 推奨比較順
 

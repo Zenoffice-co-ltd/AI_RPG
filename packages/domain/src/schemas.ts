@@ -417,6 +417,7 @@ export const compileScenariosRequestSchema = z.object({
 export const publishScenarioRequestSchema = z.object({
   scenarioId: z.string().min(1),
   avatarId: z.string().min(1).optional(),
+  voiceProfileId: z.string().min(1).optional(),
 });
 
 export const getSessionResponseSchema = z.object({

@@ -11,6 +11,7 @@ import {
   extractAccountingArtifactsForTranscript,
   importCorpusFromWorkbook,
   importTranscriptsFromDirectory,
+  loadVoiceProfile,
   mineTranscriptBehaviors,
   publishScenarioAgent,
   renderCanonicalTranscriptReview,
@@ -409,10 +410,25 @@ export async function publishScenarioJob(input: unknown) {
         );
       }
     }
+    const requestedProfile = parsed.voiceProfileId
+      ? await loadVoiceProfile(parsed.voiceProfileId)
+      : null;
+    if (
+      requestedProfile?.metadata?.scenarioIds &&
+      requestedProfile.metadata.scenarioIds.length > 0 &&
+      !requestedProfile.metadata.scenarioIds.includes(parsed.scenarioId)
+    ) {
+      throw new Error(
+        `Voice profile ${requestedProfile.id} does not support scenario ${parsed.scenarioId}.`
+      );
+    }
+
     const mappedProfile = assertScenarioVoiceProfileAvailable({
       scenarioId: parsed.scenarioId,
       purpose: "publish",
-      profile: await resolveMappedVoiceProfile(parsed.scenarioId),
+      profile:
+        requestedProfile ??
+        (await resolveMappedVoiceProfile(parsed.scenarioId)),
       ...(scenario.publishContract?.dictionaryRequired !== undefined
         ? { dictionaryRequired: scenario.publishContract.dictionaryRequired }
         : {}),
@@ -469,6 +485,7 @@ export async function publishScenarioJob(input: unknown) {
         source: mappedProfile?.metadata?.source,
         gender: mappedProfile?.metadata?.gender,
         stage: mappedProfile?.metadata?.stage,
+        selectionSource: parsed.voiceProfileId ? "override" : "mapping",
         label: voiceSelection.label,
         voiceId: voiceSelection.voiceId,
         ttsModel: voiceSelection.ttsModel,
@@ -489,6 +506,12 @@ export async function publishScenarioJob(input: unknown) {
       status: result.passed ? "completed" : "failed",
       updatedAt: new Date().toISOString(),
       scenarioId: parsed.scenarioId,
+      metadata: {
+        ...job.metadata,
+        ...(parsed.voiceProfileId
+          ? { voiceProfileId: parsed.voiceProfileId }
+          : {}),
+      },
       ...(result.passed ? {} : { error: "Agent tests failed" }),
     });
 

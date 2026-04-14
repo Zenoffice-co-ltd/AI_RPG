@@ -121,6 +121,7 @@ pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_
 - accounting preview / benchmark は candidate voice profile を使い、live/publish は active mapping が入るまで fail-closed です。
 - accounting pronunciation の repo SoT は `data/pronunciation/adecco-ja-accounting-v1.pls` です。
 - remote locator が real 値で確定するまでは `config/voice-profiles/accounting_clerk_enterprise_ap_ja_v3_candidate_v1.json` を `candidate` のまま維持します。
+- live 比較用に `config/voice-profiles/accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1.json` を追加しています。default にはせず、`pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` の explicit override でだけ使います。
 
 ## Verification
 

@@ -56,6 +56,19 @@ accounting candidate profile の実値:
 
 accounting profile は remote dictionary locator 未確定のため `activeProfiles` には入れていません。preview / benchmark のみ candidate を解決し、live / publish は inactive のままにします。
 
+live 比較用の explicit candidate profile:
+
+| field | value |
+| --- | --- |
+| `id` | `accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` |
+| `language` | `ja` |
+| `model` | `eleven_v3` |
+| `voiceId` | `g6xIsTj2HwM6VR4iXFCw` |
+| `textNormalisationType` | `system_prompt` |
+| `metadata.benchmarkStatus` | `candidate` |
+
+この profile は `activeProfiles` にも `previewProfiles` / `benchmarkProfiles` にも載せません。`pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` のように explicit override したときだけ、dictionary-first lane との live 比較に使います。
+
 ## Profile Matrix
 
 現在 repo に入っている主要な日本語 profile は以下です。
@@ -68,6 +81,7 @@ accounting profile は remote dictionary locator 未確定のため `activeProfi
 | `busy_manager_ja_primary_v3_f06` | `eleven_v3` | `4lOQ7A2l7HPuG7UIHiKA` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` | `elevenlabs` | `speed=0.96`, `style=0` |
 | `busy_manager_ja_fallback_v3_m03` | `eleven_v3` | `umjlutQo1p1XQpWffYUI` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` | `elevenlabs` | `speed=0.96`, `style=0` |
 | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の体制から確認させてください。` | `elevenlabs` | `speed=0.97`, `style=0` |
+| `accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の体制から確認させてください。` | `system_prompt` | `speed=0.97`, `style=0` |
 
 最新の v3 shortlist run は `data/generated/voice-benchmark/ja-voice15-round2-v3-2026-04-07/` にあります。
 
@@ -213,6 +227,8 @@ benchmark 出力先:
 - `elevenlabs`: ElevenLabs 側の text normalization を使う
 - `system_prompt`: system / prompt 側で読み方を寄せ、TTS 側の normalization を切る
 
+live/publish では default を `elevenlabs` に置きます。`system_prompt` を明示した profile だけ、local PLS から抽出した発音ガイドを system prompt 末尾に追加して比較できます。assistant 本文や scenario source は書き換えません。
+
 raw TTS benchmark では model ごとに送信方法を分けます。
 
 ### Non-v3 Models
@@ -312,6 +328,18 @@ approved profile に関する運用ルール:
 
 accounting benchmark では `data/voice-benchmark/utterances_ja_accounting_clerk.csv` を使い、preview / benchmark に限って minimal pre-TTS rewrite を比較できます。live ConvAI path の assistant 本文は repo 側で書き換えません。
 
+accounting live review の比較レーン:
+
+1. dictionary-first 本線: `accounting_clerk_enterprise_ap_ja_v3_candidate_v1`
+2. system-prompt 比較線: `accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1`
+
+default は 1 です。2 は explicit publish override でのみ使い、dictionary locator が揃ったあとに live でどちらが自然かを比較します。
+
+未解決事項:
+
+- `adecco-ja-accounting-v1.pls` の real `pronunciationDictionaryId` / `versionId` を取得して default lane に反映すること
+- dictionary-first lane と `system_prompt` comparison lane の live 2 から 3 ターン比較を完了すること
+
 試聴の正本:
 
 - 比較ページ: `data/generated/voice-benchmark/<runId>/index.html`
@@ -349,10 +377,12 @@ ElevenLabs 周りで運用上重要な env は以下です。
 - `config/voice-profiles/busy_manager_ja_multilingual_candidate_v1.json`
 - `config/voice-profiles/busy_manager_ja_v3_candidate_v1.json`
 - `config/voice-profiles/accounting_clerk_enterprise_ap_ja_v3_candidate_v1.json`
+- `config/voice-profiles/accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1.json`
 - `packages/domain/src/voiceProfile.ts`
 - `packages/scenario-engine/src/voiceProfiles.ts`
 - `packages/scenario-engine/src/benchmarkRenderer.ts`
 - `packages/scenario-engine/src/tts/jaTextNormalization.ts`
+- `packages/scenario-engine/src/tts/livePronunciationGuide.ts`
 - `packages/vendors/src/elevenlabs.ts`
 - `docs/VOICE_PROFILE_SCHEMA.md`
 - `docs/VOICE_TUNING_RUNBOOK.md`

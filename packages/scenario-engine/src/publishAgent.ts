@@ -1,5 +1,6 @@
 import type { AgentBinding, CompiledScenarioAssets, ScenarioPack } from "@top-performer/domain";
 import type { ElevenLabsClient } from "@top-performer/vendors";
+import { buildLivePronunciationGuide } from "./tts/livePronunciationGuide";
 import type { ResolvedScenarioVoiceSelection } from "./voiceProfiles";
 
 function sleep(ms: number) {
@@ -214,10 +215,21 @@ export async function publishScenarioAgent(input: {
     knowledgeBaseName,
     input.assets.knowledgeBaseText
   );
+  const pronunciationGuide = await buildLivePronunciationGuide({
+    scenarioId: input.scenario.id,
+    textNormalisationType: input.voiceSelection.textNormalisationType,
+    referenceTexts: [
+      input.assets.agentSystemPrompt,
+      input.assets.knowledgeBaseText,
+      input.voiceSelection.firstMessage,
+    ],
+  });
 
   const agentPayload = {
     name: input.scenario.title,
-    prompt: input.assets.agentSystemPrompt,
+    prompt: pronunciationGuide
+      ? `${input.assets.agentSystemPrompt}\n\n${pronunciationGuide}`
+      : input.assets.agentSystemPrompt,
     firstMessage: input.voiceSelection.firstMessage,
     knowledgeBase: [
       {

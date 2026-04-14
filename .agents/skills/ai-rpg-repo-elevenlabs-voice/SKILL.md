@@ -21,6 +21,7 @@ Use this skill for the repo-local ElevenLabs voice workflow.
 2. Read the schema or runbook only when the task needs that extra detail.
 3. Keep profile JSON, scenario map, and benchmark evidence aligned.
 4. Treat dictionary-locator readiness as part of the publish decision, not as an afterthought.
+5. For live comparison, prefer an explicit `--profile` publish override over changing `activeProfiles` prematurely.
 
 ## Representative Commands
 
@@ -31,6 +32,7 @@ pnpm benchmark:render:ja -- --scenario staffing_order_hearing_busy_manager_mediu
 pnpm voices:promote:shared
 pnpm voices:design:ja
 pnpm review:summarize:ja -- --csv data/generated/voice-benchmark/<runId>/review-sheet.csv
+pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1
 ```
 
 ## Guardrails

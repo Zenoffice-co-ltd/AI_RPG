@@ -56,6 +56,8 @@ type VoiceProfile = {
 
 accounting scenario は fail-closed です。candidate profile を `previewProfiles` / `benchmarkProfiles` に置いても active 化とは見なしません。
 
+live 比較のために explicit profile override を使う場合は例外的に candidate profile を publish できますが、これは active mapping の代替ではありません。`system_prompt` profile は local PLS 由来の pronunciation guide を system prompt に追加する比較レーン専用です。
+
 ## バリデーション
 
 - `id`, `label`, `language`, `model`, `voiceId` は必須
