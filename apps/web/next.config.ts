@@ -12,7 +12,10 @@ const nextConfig: NextConfig = {
   ],
   serverExternalPackages: ["firebase-admin"],
   outputFileTracingIncludes: {
-    "/*": ["../../packages/scoring/src/prompts/**/*.md"]
+    "/*": [
+      "../../packages/scoring/src/prompts/**/*.md",
+      "../../config/voice-profiles/**/*.json",
+    ]
   }
 };
 
