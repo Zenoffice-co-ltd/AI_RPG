@@ -52,9 +52,10 @@ accounting candidate profile の実値:
 | `model` | `eleven_v3` |
 | `voiceId` | `g6xIsTj2HwM6VR4iXFCw` |
 | `textNormalisationType` | `elevenlabs` |
+| `pronunciationDictionaryLocators[0]` | `0GxlLMOqlBr3dvEhX6Ji:GGzWcurA2ogrgciNu7u5` |
 | `metadata.benchmarkStatus` | `candidate` |
 
-accounting profile は remote dictionary locator 未確定のため `activeProfiles` には入れていません。preview / benchmark のみ candidate を解決し、live / publish は inactive のままにします。
+accounting profile には real remote dictionary locator を反映済みです。ただし current workspace の ConvAI publish は `expressive_tts_not_allowed` で `eleven_v3` live agent を拒否するため、`activeProfiles` にはまだ入れていません。preview / benchmark は candidate を解決し、live / publish default は inactive のままにします。
 
 live 比較用の explicit candidate profile:
 
@@ -67,7 +68,7 @@ live 比較用の explicit candidate profile:
 | `textNormalisationType` | `system_prompt` |
 | `metadata.benchmarkStatus` | `candidate` |
 
-この profile は `activeProfiles` にも `previewProfiles` / `benchmarkProfiles` にも載せません。`pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` のように explicit override したときだけ、dictionary-first lane との live 比較に使います。
+この profile は `activeProfiles` にも `previewProfiles` / `benchmarkProfiles` にも載せません。`pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` のように explicit override したときだけ、dictionary-first lane との live 比較に使います。なお current workspace では v3 live publish 自体が `expressive_tts_not_allowed` のため、この比較は entitlement 解放後に行います。
 
 ## Profile Matrix
 
@@ -304,6 +305,7 @@ approved profile に関する運用ルール:
 - local PLS (`data/pronunciation/*.pls`) を repo の正本とする
 - profile に入れてよいのは ElevenLabs upload 後に得た real `pronunciationDictionaryId` / `versionId` のみ
 - locator 未確定 profile は `metadata.benchmarkStatus: "candidate"` のままにし、`activeProfiles` へは昇格しない
+- current accounting locator: `0GxlLMOqlBr3dvEhX6Ji:GGzWcurA2ogrgciNu7u5`
 
 登録例:
 
@@ -337,7 +339,7 @@ default は 1 です。2 は explicit publish override でのみ使い、diction
 
 未解決事項:
 
-- `adecco-ja-accounting-v1.pls` の real `pronunciationDictionaryId` / `versionId` を取得して default lane に反映すること
+- ElevenLabs workspace で `eleven_v3` live publish が `expressive_tts_not_allowed` にならない entitlement 状態を用意すること
 - dictionary-first lane と `system_prompt` comparison lane の live 2 から 3 ターン比較を完了すること
 
 試聴の正本:

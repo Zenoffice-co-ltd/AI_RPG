@@ -10,12 +10,18 @@
     "speed": 0.97,
     "style": 0
   },
+  "pronunciationDictionaryLocators": [
+    {
+      "pronunciationDictionaryId": "0GxlLMOqlBr3dvEhX6Ji",
+      "versionId": "GGzWcurA2ogrgciNu7u5"
+    }
+  ],
   "metadata": {
     "personaKey": "busy_manager_medium",
     "scenarioIds": [
       "accounting_clerk_enterprise_ap_busy_manager_medium"
     ],
     "benchmarkStatus": "candidate",
-    "notes": "Accounting preview and benchmark candidate profile. Keep inactive for publish until a real remote pronunciation dictionary locator is confirmed and validated."
+    "notes": "Accounting candidate profile backed by the uploaded adecco-ja-accounting-v1 remote pronunciation dictionary. Validate benchmark and live publish before further promotion decisions."
   }
 }

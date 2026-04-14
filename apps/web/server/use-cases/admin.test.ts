@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CompiledScenarioAssets, ScenarioPack } from "@top-performer/domain";
+import { HttpError } from "@top-performer/vendors";
 
 const {
   jobsUpsert,
@@ -400,5 +401,42 @@ describe("publishScenarioJob", () => {
     ).rejects.toThrow(
       "Voice profile busy_manager_ja_baseline_v1 does not support scenario accounting_clerk_enterprise_ap_busy_manager_medium."
     );
+  });
+
+  it("surfaces a clear blocker when eleven_v3 live publish is not entitled", async () => {
+    scenariosGet.mockResolvedValue(
+      createScenario({
+        id: "accounting_clerk_enterprise_ap_busy_manager_medium",
+        family: "accounting_clerk_enterprise_ap",
+        publishContract: {
+          runtimeVariables: [],
+          dictionaryRequired: true,
+        },
+      })
+    );
+    scenariosGetAssets.mockResolvedValue(
+      createAssets({
+        scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+      })
+    );
+    resolveVoiceId.mockResolvedValue({
+      voiceId: "voice_resolved",
+      voiceName: "Resolved Voice",
+      resolution: "preferred",
+    });
+    publishScenarioAgent.mockRejectedValue(
+      new HttpError("blocked", 400, {
+        detail: {
+          status: "expressive_tts_not_allowed",
+        },
+      })
+    );
+
+    await expect(
+      publishScenarioJob({
+        scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+        voiceProfileId: "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
+      })
+    ).rejects.toThrow("expressive_tts_not_allowed");
   });
 });

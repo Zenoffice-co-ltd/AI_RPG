@@ -35,6 +35,7 @@ import {
   writeGeneratedJson,
   writeGeneratedText,
 } from "../workspace";
+import { HttpError } from "@top-performer/vendors";
 
 function createJob(type: JobRecord["type"], metadata: JobRecord["metadata"] = {}) {
   const now = new Date().toISOString();
@@ -452,14 +453,36 @@ export async function publishScenarioJob(input: unknown) {
         });
 
     const existingBinding = await ctx.repositories.agentBindings.get(parsed.scenarioId);
-    const result = await publishScenarioAgent({
-      elevenLabs: ctx.vendors.elevenLabs,
-      scenario,
-      assets,
-      existingBinding,
-      llmModel: ctx.env.DEFAULT_ELEVEN_MODEL,
-      voiceSelection,
-    });
+    let result;
+    try {
+      result = await publishScenarioAgent({
+        elevenLabs: ctx.vendors.elevenLabs,
+        scenario,
+        assets,
+        existingBinding,
+        llmModel: ctx.env.DEFAULT_ELEVEN_MODEL,
+        voiceSelection,
+      });
+    } catch (error) {
+      const publishBlockedByExpressiveTts =
+        error instanceof HttpError &&
+        voiceSelection.ttsModel === "eleven_v3" &&
+        typeof error.body === "object" &&
+        error.body !== null &&
+        "detail" in error.body &&
+        typeof error.body.detail === "object" &&
+        error.body.detail !== null &&
+        "status" in error.body.detail &&
+        error.body.detail.status === "expressive_tts_not_allowed";
+
+      if (publishBlockedByExpressiveTts) {
+        throw new Error(
+          `ElevenLabs workspace blocked ${parsed.scenarioId} live publish for ${voiceSelection.ttsModel} with expressive_tts_not_allowed. Keep active mapping inactive until Expressive TTS entitlement is enabled for this workspace.`
+        );
+      }
+
+      throw error;
+    }
 
     if (result.binding) {
       await ctx.repositories.agentBindings.upsert(result.binding);

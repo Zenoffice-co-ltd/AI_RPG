@@ -31,6 +31,7 @@ pnpm voices:collect:ja
 pnpm benchmark:render:ja -- --scenario staffing_order_hearing_busy_manager_medium --round round1-sanity
 pnpm voices:promote:shared
 pnpm voices:design:ja
+pnpm voices:dictionary:upload -- --file data/pronunciation/adecco-ja-accounting-v1.pls --name adecco-ja-accounting-v1
 pnpm review:summarize:ja -- --csv data/generated/voice-benchmark/<runId>/review-sheet.csv
 pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1
 ```

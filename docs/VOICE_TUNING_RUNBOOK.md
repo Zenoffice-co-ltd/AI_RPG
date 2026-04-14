@@ -50,10 +50,10 @@
 
 `accounting_clerk_enterprise_ap_busy_manager_medium` は live/publish inactive のまま管理します。active 化の条件は以下です。
 
-1. `data/pronunciation/adecco-ja-accounting-v1.pls` を ElevenLabs に upload する
-2. real `pronunciationDictionaryId` と `versionId` を控える
-3. `config/voice-profiles/accounting_clerk_enterprise_ap_ja_v3_candidate_v1.json` に locator を反映する
-4. preview / benchmark で誤読改善を確認する
+1. `pnpm voices:dictionary:upload -- --file data/pronunciation/adecco-ja-accounting-v1.pls --name adecco-ja-accounting-v1` で remote dictionary を作成または再利用する
+2. real `pronunciationDictionaryId` と `versionId` を `config/voice-profiles/accounting_clerk_enterprise_ap_ja_v3_candidate_v1.json` に反映する
+3. preview / benchmark で誤読改善を確認する
+4. target workspace で `eleven_v3` live publish が `expressive_tts_not_allowed` にならないことを確認する
 5. live では dictionary-first lane と `accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` を 2 から 3 ターン比較する
 6. 確認後に `metadata.benchmarkStatus` を見直し、`config/voice-profiles/scenario-map.json` の `activeProfiles` に昇格する
 
@@ -68,7 +68,7 @@
 
 未解決事項:
 
-- accounting dictionary の real locator 取得
+- `eleven_v3` live publish entitlement の解放
 - dictionary-first lane と `system_prompt` comparison lane の live 比較完了
 
 ## 推奨比較順

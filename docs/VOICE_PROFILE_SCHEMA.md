@@ -56,7 +56,7 @@ type VoiceProfile = {
 
 accounting scenario は fail-closed です。candidate profile を `previewProfiles` / `benchmarkProfiles` に置いても active 化とは見なしません。
 
-live 比較のために explicit profile override を使う場合は例外的に candidate profile を publish できますが、これは active mapping の代替ではありません。`system_prompt` profile は local PLS 由来の pronunciation guide を system prompt に追加する比較レーン専用です。
+live 比較のために explicit profile override を使う場合は例外的に candidate profile を publish できますが、これは active mapping の代替ではありません。`system_prompt` profile は local PLS 由来の pronunciation guide を system prompt に追加する比較レーン専用です。workspace が `expressive_tts_not_allowed` を返す場合は v3 live publish 自体を fail-closed で止め、active mapping は更新しません。
 
 ## バリデーション
 
