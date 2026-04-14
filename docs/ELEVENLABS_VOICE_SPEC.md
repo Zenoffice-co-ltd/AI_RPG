@@ -5,21 +5,23 @@
 ## Scope
 
 - 対象 scenario: `staffing_order_hearing_busy_manager_medium`
+- 対象 scenario: `accounting_clerk_enterprise_ap_busy_manager_medium`
 - 対象 persona: `busy_manager_medium`
 - 対象設定: `voiceId`, `tts model`, `first message`, `text normalization`, `voice settings`, `pronunciation dictionary locators`
 - 正本:
   - profile 定義: `config/voice-profiles/*.json`
-  - scenario ごとの active mapping: `config/voice-profiles/scenario-map.json`
+  - scenario ごとの mapping: `config/voice-profiles/scenario-map.json`
   - schema / validation: `packages/domain/src/voiceProfile.ts`
   - ElevenLabs payload 変換: `packages/vendors/src/elevenlabs.ts`
 
 ## Current Active Configuration
 
-2026-04-07 時点の active mapping は以下です。
+2026-04-14 時点の mapping は以下です。
 
-| scenarioId | activeProfileId |
-| --- | --- |
-| `staffing_order_hearing_busy_manager_medium` | `busy_manager_ja_baseline_v1` |
+| scenarioId | activeProfileId | previewProfileId | benchmarkProfileId |
+| --- | --- | --- | --- |
+| `staffing_order_hearing_busy_manager_medium` | `busy_manager_ja_baseline_v1` | - | - |
+| `accounting_clerk_enterprise_ap_busy_manager_medium` | - | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` |
 
 active profile の実値:
 
@@ -41,6 +43,19 @@ active profile の実値:
 
 2026-04-08 時点では ElevenLabs account 上に remote pronunciation dictionary `adecco-ja-business-v1` を作成済みで、approved profile に `pronunciationDictionaryLocators` を設定しています。ただし current workspace では `expressive_tts_not_allowed` が返るため、runtime の active mapping は `busy_manager_ja_baseline_v1` に置いています。approved v3 profile は config-ready ですが、Expressive TTS entitlement が有効になるまで active publish mapping には使いません。
 
+accounting candidate profile の実値:
+
+| field | value |
+| --- | --- |
+| `id` | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` |
+| `language` | `ja` |
+| `model` | `eleven_v3` |
+| `voiceId` | `g6xIsTj2HwM6VR4iXFCw` |
+| `textNormalisationType` | `elevenlabs` |
+| `metadata.benchmarkStatus` | `candidate` |
+
+accounting profile は remote dictionary locator 未確定のため `activeProfiles` には入れていません。preview / benchmark のみ candidate を解決し、live / publish は inactive のままにします。
+
 ## Profile Matrix
 
 現在 repo に入っている主要な日本語 profile は以下です。
@@ -52,6 +67,7 @@ active profile の実値:
 | `busy_manager_ja_v3_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` | `elevenlabs` | `speed=0.97`, `style=0` |
 | `busy_manager_ja_primary_v3_f06` | `eleven_v3` | `4lOQ7A2l7HPuG7UIHiKA` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` | `elevenlabs` | `speed=0.96`, `style=0` |
 | `busy_manager_ja_fallback_v3_m03` | `eleven_v3` | `umjlutQo1p1XQpWffYUI` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` | `elevenlabs` | `speed=0.96`, `style=0` |
+| `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の体制から確認させてください。` | `elevenlabs` | `speed=0.97`, `style=0` |
 
 最新の v3 shortlist run は `data/generated/voice-benchmark/ja-voice15-round2-v3-2026-04-07/` にあります。
 
@@ -88,6 +104,16 @@ type VoiceProfile = {
 };
 ```
 
+scenario map は以下の 3 レーンを持ちます。
+
+```ts
+type ScenarioVoiceProfileMap = {
+  activeProfiles: Record<string, string>;
+  previewProfiles: Record<string, string>;
+  benchmarkProfiles: Record<string, string>;
+};
+```
+
 validation ルール:
 
 - `id`, `label`, `language`, `model`, `voiceId`, `voiceSettings` は必須
@@ -103,13 +129,25 @@ dictionary locator が欠落している場合は fail-closed とし、silent fa
 
 ## Resolution Order
 
-publish / smoke / benchmark での解決順は以下です。
+用途ごとの解決順は以下です。
 
-1. `scenario-map.json` から `scenarioId -> activeProfileId` を引く
+1. `scenario-map.json` から用途別 mapping を引く
 2. 該当 profile JSON を load する
 3. `resolveVoiceId()` で preferred voice の利用可否を確認する
 4. profile が有効なら profile を publish / benchmark に使う
-5. mapping が無い scenario だけ legacy fallback を使う
+5. legacy staffing scenario だけ mapping 不足時に legacy fallback を使う
+
+用途別 mapping:
+
+- `publish`: `activeProfiles`
+- `preview`: `previewProfiles -> activeProfiles`
+- `benchmark`: `benchmarkProfiles -> activeProfiles`
+
+accounting scenario は fail-closed です。
+
+- `preview` / `benchmark` は explicit mapping 必須
+- `publish` / live は `activeProfiles` 必須
+- candidate profile が `previewProfiles` / `benchmarkProfiles` にあるだけでは active 化されたことにはならない
 
 legacy fallback:
 
@@ -247,6 +285,9 @@ approved profile に関する運用ルール:
 - locator 未設定の approved profile は fail-open にしない
 - `packages/scenario-engine/src/voiceProfiles.ts` の readiness check が publish / smoke 側で block する
 - blocker は `pnpm smoke:eleven -- --preflight` と `pnpm verify:acceptance -- --preflight` にも出す
+- local PLS (`data/pronunciation/*.pls`) を repo の正本とする
+- profile に入れてよいのは ElevenLabs upload 後に得た real `pronunciationDictionaryId` / `versionId` のみ
+- locator 未確定 profile は `metadata.benchmarkStatus: "candidate"` のままにし、`activeProfiles` へは昇格しない
 
 登録例:
 
@@ -268,6 +309,8 @@ approved profile に関する運用ルール:
 1. `pnpm voices:list` で workspace 利用可能 voice を棚卸しする
 2. `pnpm benchmark:render -- --scenario staffing_order_hearing_busy_manager_medium --profile busy_manager_ja_baseline_v1 --profile busy_manager_ja_multilingual_candidate_v1 --profile busy_manager_ja_v3_candidate_v1 --seed 42` で offline 比較を作る
 3. shortlist を publish して、opening line と 2 から 3 ターンを live で確認する
+
+accounting benchmark では `data/voice-benchmark/utterances_ja_accounting_clerk.csv` を使い、preview / benchmark に限って minimal pre-TTS rewrite を比較できます。live ConvAI path の assistant 本文は repo 側で書き換えません。
 
 試聴の正本:
 
@@ -305,9 +348,11 @@ ElevenLabs 周りで運用上重要な env は以下です。
 - `config/voice-profiles/busy_manager_ja_baseline_v1.json`
 - `config/voice-profiles/busy_manager_ja_multilingual_candidate_v1.json`
 - `config/voice-profiles/busy_manager_ja_v3_candidate_v1.json`
+- `config/voice-profiles/accounting_clerk_enterprise_ap_ja_v3_candidate_v1.json`
 - `packages/domain/src/voiceProfile.ts`
 - `packages/scenario-engine/src/voiceProfiles.ts`
 - `packages/scenario-engine/src/benchmarkRenderer.ts`
+- `packages/scenario-engine/src/tts/jaTextNormalization.ts`
 - `packages/vendors/src/elevenlabs.ts`
 - `docs/VOICE_PROFILE_SCHEMA.md`
 - `docs/VOICE_TUNING_RUNBOOK.md`

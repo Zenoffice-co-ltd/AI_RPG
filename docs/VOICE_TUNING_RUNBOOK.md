@@ -12,8 +12,10 @@
 ## 主な資産
 
 - benchmark utterance: `data/voice-benchmark/utterances_ja.csv`
+- accounting benchmark utterance: `data/voice-benchmark/utterances_ja_accounting_clerk.csv`
 - reviewer rubric: `data/voice-benchmark/reviewer-rubric.md`
 - pronunciation dictionary: `data/pronunciation/adecco-ja-business-v1.pls`
+- accounting pronunciation dictionary: `data/pronunciation/adecco-ja-accounting-v1.pls`
 - voice profile schema: `docs/VOICE_PROFILE_SCHEMA.md`
 - recommendation pack: `docs/VOICE_RECOMMENDATION_BUSY_MANAGER_JA.md`
 
@@ -43,6 +45,23 @@
 - 次に settings を詰める
 - 最後に prompt を微修正する
 - 1 回の比較で voice と settings と prompt を同時に変えない
+
+## Accounting v3 Activation
+
+`accounting_clerk_enterprise_ap_busy_manager_medium` は live/publish inactive のまま管理します。active 化の条件は以下です。
+
+1. `data/pronunciation/adecco-ja-accounting-v1.pls` を ElevenLabs に upload する
+2. real `pronunciationDictionaryId` と `versionId` を控える
+3. `config/voice-profiles/accounting_clerk_enterprise_ap_ja_v3_candidate_v1.json` に locator を反映する
+4. preview / benchmark で誤読改善を確認する
+5. 確認後に `metadata.benchmarkStatus` を見直し、`config/voice-profiles/scenario-map.json` の `activeProfiles` に昇格する
+
+注意:
+
+- local `.pls` が repo の正本
+- fake locator は入れない
+- locator 未確定の間は `previewProfiles` / `benchmarkProfiles` のみで使う
+- live path は dictionary first。assistant 本文の rewrite や prompt hack をデフォルトにしない
 
 ## 推奨比較順
 

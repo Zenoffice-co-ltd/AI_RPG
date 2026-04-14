@@ -9,4 +9,5 @@ export * from "./mineBehaviors";
 export * from "./normalize";
 export * from "./phase34";
 export * from "./publishAgent";
+export * from "./tts/jaTextNormalization";
 export * from "./voiceProfiles";

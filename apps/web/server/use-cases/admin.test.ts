@@ -12,6 +12,7 @@ const {
   writeGeneratedJson,
   resolveWorkspacePath,
   resolveMappedVoiceProfile,
+  assertScenarioVoiceProfileAvailable,
   publishScenarioAgent,
   evaluateCompiledAccountingScenario,
   runAccountingLocalEval,
@@ -26,6 +27,7 @@ const {
   writeGeneratedJson: vi.fn(),
   resolveWorkspacePath: vi.fn((value: string) => value),
   resolveMappedVoiceProfile: vi.fn(),
+  assertScenarioVoiceProfileAvailable: vi.fn(),
   publishScenarioAgent: vi.fn(),
   evaluateCompiledAccountingScenario: vi.fn(),
   runAccountingLocalEval: vi.fn(),
@@ -92,6 +94,7 @@ vi.mock("@top-performer/scenario-engine", () => ({
     voiceSettings: input.profile.voiceSettings,
   })),
   compileScenarios: vi.fn(),
+  assertScenarioVoiceProfileAvailable,
   evaluateCompiledAccountingScenario,
   importTranscriptsFromDirectory: vi.fn(),
   mineTranscriptBehaviors: vi.fn(),
@@ -182,6 +185,7 @@ describe("publishScenarioJob", () => {
     scenariosGetAssets.mockResolvedValue(createAssets());
     bindingGet.mockResolvedValue(null);
     writeGeneratedJson.mockResolvedValue(undefined);
+    assertScenarioVoiceProfileAvailable.mockReset();
     evaluateCompiledAccountingScenario.mockResolvedValue({
       semanticAcceptancePassed: true,
     });
@@ -200,6 +204,7 @@ describe("publishScenarioJob", () => {
         publishedAt: new Date().toISOString(),
       },
     });
+    assertScenarioVoiceProfileAvailable.mockImplementation((input) => input.profile);
   });
 
   it("uses the mapped voice profile when one exists", async () => {
@@ -262,11 +267,15 @@ describe("publishScenarioJob", () => {
     expect(result.voiceSelection.mode).toBe("legacy");
   });
 
-  it("runs the accounting local eval gate before publish", async () => {
+  it("runs the accounting local eval gate before blocking publish without an active mapping", async () => {
     scenariosGet.mockResolvedValue(
       createScenario({
         id: "accounting_clerk_enterprise_ap_busy_manager_medium",
         family: "accounting_clerk_enterprise_ap",
+        publishContract: {
+          runtimeVariables: [],
+          dictionaryRequired: true,
+        },
       })
     );
     scenariosGetAssets.mockResolvedValue(
@@ -275,15 +284,17 @@ describe("publishScenarioJob", () => {
       })
     );
     resolveMappedVoiceProfile.mockResolvedValue(null);
-    resolveVoiceId.mockResolvedValue({
-      voiceId: "voice_fallback",
-      voiceName: "Fallback Voice",
-      resolution: "auto",
+    assertScenarioVoiceProfileAvailable.mockImplementation(() => {
+      throw new Error(
+        "Scenario accounting_clerk_enterprise_ap_busy_manager_medium requires a mapped voice profile for publish."
+      );
     });
 
-    await publishScenarioJob({
-      scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
-    });
+    await expect(
+      publishScenarioJob({
+        scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+      })
+    ).rejects.toThrow("requires a mapped voice profile for publish");
 
     expect(evaluateCompiledAccountingScenario).toHaveBeenCalled();
     expect(runAccountingLocalEval).toHaveBeenCalled();
@@ -298,5 +309,6 @@ describe("publishScenarioJob", () => {
         }),
       })
     );
+    expect(resolveVoiceId).not.toHaveBeenCalled();
   });
 });

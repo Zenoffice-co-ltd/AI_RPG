@@ -1,0 +1,21 @@
+{
+  "id": "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
+  "label": "Accounting Clerk Enterprise AP JA V3 Candidate v1",
+  "language": "ja",
+  "model": "eleven_v3",
+  "voiceId": "g6xIsTj2HwM6VR4iXFCw",
+  "firstMessageJa": "本日はありがとうございます。まずは支払、経費精算、請求書処理の体制から確認させてください。",
+  "textNormalisationType": "elevenlabs",
+  "voiceSettings": {
+    "speed": 0.97,
+    "style": 0
+  },
+  "metadata": {
+    "personaKey": "busy_manager_medium",
+    "scenarioIds": [
+      "accounting_clerk_enterprise_ap_busy_manager_medium"
+    ],
+    "benchmarkStatus": "candidate",
+    "notes": "Accounting preview and benchmark candidate profile. Keep inactive for publish until a real remote pronunciation dictionary locator is confirmed and validated."
+  }
+}

@@ -144,6 +144,12 @@ export const voiceVariationCohortSchema = z
 export const scenarioVoiceProfileMapSchema = z
   .object({
     activeProfiles: z.record(z.string().min(1), z.string().min(1)),
+    previewProfiles: z
+      .record(z.string().min(1), z.string().min(1))
+      .default({}),
+    benchmarkProfiles: z
+      .record(z.string().min(1), z.string().min(1))
+      .default({}),
   })
   .strict();
 

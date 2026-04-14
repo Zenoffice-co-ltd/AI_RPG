@@ -43,10 +43,18 @@ type VoiceProfile = {
 
 ## 解決順
 
-1. `scenarioId -> activeProfileId` mapping を読む
+1. `scenarioId -> profileId` mapping を用途別に読む
 2. profile をロードする
-3. profile があればそれを publish に使う
-4. profile がない場合のみ legacy fallback に落とす
+3. profile があればその用途で使う
+4. staffing legacy scenario だけ mapping 不足時に legacy fallback に落とす
+
+用途別 mapping:
+
+- `activeProfiles`: publish / live
+- `previewProfiles`: audio preview
+- `benchmarkProfiles`: offline benchmark
+
+accounting scenario は fail-closed です。candidate profile を `previewProfiles` / `benchmarkProfiles` に置いても active 化とは見なしません。
 
 ## バリデーション
 

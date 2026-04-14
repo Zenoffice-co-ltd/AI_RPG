@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  ACCOUNTING_BENCHMARK_UTTERANCE_CSV,
   buildBenchmarkIndexHtml,
   buildReviewSheetCsv,
   buildSummaryCsv,
@@ -39,6 +40,9 @@ describe("benchmarkRenderer", () => {
         profileId: "busy_manager_ja_baseline_v1",
         utteranceId: "u1",
         utterance: "よろしくお願いします。",
+        originalText: "よろしくお願いします。",
+        normalizedText: "よろしくお願いします。",
+        appliedRules: [],
         category: "opening",
         model: "eleven_flash_v2_5",
         requestedVoiceId: "voice_123",
@@ -62,6 +66,7 @@ describe("benchmarkRenderer", () => {
 
     expect(reviewSheet).toContain("自然さ");
     expect(summary).toContain("resolvedVoiceId");
+    expect(summary).toContain("normalizedText");
     expect(html).toContain("<audio controls");
   });
 
@@ -123,5 +128,48 @@ describe("benchmarkRenderer", () => {
     const manifest = await readFile(result.manifestPath, "utf8");
     expect(manifest).toContain('"status": "failed"');
     expect(manifest).toContain('"seed": 42');
+    expect(manifest).toContain('"normalizedText": "よろしくお願いします"');
+  });
+
+  it("uses accounting profile resolution and records normalized text in the manifest", async () => {
+    const outputDir = resolve(
+      await mkdtemp(resolve(tmpdir(), "voice-benchmark-accounting-")),
+      "out"
+    );
+    const renderInputs: Array<{ text: string; modelId: string }> = [];
+    const fakeElevenLabs = {
+      resolveVoiceId: async (voiceId: string) => ({
+        voiceId,
+        voiceName: "Resolved Voice",
+        resolution: "preferred" as const,
+      }),
+      renderSpeech: async (input: { text: string; modelId: string }) => {
+        renderInputs.push(input);
+        return {
+          audio: Buffer.from("audio"),
+          latencyMs: 111,
+        };
+      },
+    } as const;
+
+    const result = await renderVoiceBenchmark({
+      elevenLabs: fakeElevenLabs as never,
+      scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+      outputDir,
+      seed: 7,
+    });
+
+    expect(result.failed).toBe(0);
+    const manifest = await readFile(result.manifestPath, "utf8");
+    expect(manifest).toContain(ACCOUNTING_BENCHMARK_UTTERANCE_CSV.replaceAll("\\", "\\\\"));
+    expect(manifest).toContain('"normalizedText": "支払、経費精算、請求書処理が主業務です。"');
+    expect(manifest).toContain('"appliedRules": [');
+    expect(manifest).toContain('"accounting-main-work-bullets"');
+    expect(renderInputs.some((input) => input.modelId === "eleven_v3")).toBe(true);
+    expect(
+      renderInputs.some(
+        (input) => input.text === "支払、経費精算、請求書処理が主業務です。"
+      )
+    ).toBe(true);
   });
 });

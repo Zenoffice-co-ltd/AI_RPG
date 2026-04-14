@@ -96,7 +96,7 @@ pnpm verify:acceptance
 ## Manual Test Surfaces
 
 - Text-only scenario tester: `/scenario-test/<scenarioId>`
-- Static audio preview page: `/audio-preview/staffing_order_hearing_busy_manager_medium.html`
+- Static audio preview page: `/audio-preview/<scenarioId>`
 - Full avatar roleplay: `/roleplay/<scenarioId>`
 ## Accounting Phase 3/4
 
@@ -115,6 +115,12 @@ pnpm compile:scenarios -- --family accounting_clerk_enterprise_ap --mode v2 --re
 pnpm eval:accounting -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium
 pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium
 ```
+
+音声 tuning の補足:
+
+- accounting preview / benchmark は candidate voice profile を使い、live/publish は active mapping が入るまで fail-closed です。
+- accounting pronunciation の repo SoT は `data/pronunciation/adecco-ja-accounting-v1.pls` です。
+- remote locator が real 値で確定するまでは `config/voice-profiles/accounting_clerk_enterprise_ap_ja_v3_candidate_v1.json` を `candidate` のまま維持します。
 
 ## Verification
 

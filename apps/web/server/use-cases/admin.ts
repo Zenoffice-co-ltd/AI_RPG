@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   aggregatePlaybook,
+  assertScenarioVoiceProfileAvailable,
   buildAccountingPlaybookFromArtifacts,
   buildLegacyVoiceSelection,
   buildProfileVoiceSelection,
@@ -408,7 +409,14 @@ export async function publishScenarioJob(input: unknown) {
         );
       }
     }
-    const mappedProfile = await resolveMappedVoiceProfile(parsed.scenarioId);
+    const mappedProfile = assertScenarioVoiceProfileAvailable({
+      scenarioId: parsed.scenarioId,
+      purpose: "publish",
+      profile: await resolveMappedVoiceProfile(parsed.scenarioId),
+      ...(scenario.publishContract?.dictionaryRequired !== undefined
+        ? { dictionaryRequired: scenario.publishContract.dictionaryRequired }
+        : {}),
+    });
     const resolvedVoice = await ctx.vendors.elevenLabs.resolveVoiceId(
       mappedProfile?.voiceId ?? ctx.env.DEFAULT_ELEVEN_VOICE_ID,
       scenario.language
