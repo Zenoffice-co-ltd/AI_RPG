@@ -149,6 +149,12 @@ export default async function HomePage() {
                       >
                         テキスト会話テスト
                       </a>
+                      <a
+                        href={`/scenario-voice-test/${scenario.id}`}
+                        className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700"
+                      >
+                        ボイス会話テスト
+                      </a>
                     </div>
                   </div>
                 ))}

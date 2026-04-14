@@ -275,6 +275,12 @@ export function RoleplayClient({ scenario }: { scenario: ScenarioDetails }) {
             <div className="mt-4">
               <div className="flex flex-wrap gap-2">
                 <Link
+                  href={(`/scenario-voice-test/${scenario.id}`) as Route}
+                  className="inline-flex rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  ボイス会話テスト
+                </Link>
+                <Link
                   href={(`/scenario-test/${scenario.id}`) as Route}
                   className="inline-flex rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
