@@ -31,6 +31,27 @@ export type TextResponseMessage = {
   text: string;
 };
 
+function buildInputTextPart(text: string) {
+  return {
+    type: "input_text" as const,
+    text,
+  };
+}
+
+function buildConversationMessage(message: TextResponseMessage) {
+  return {
+    role: message.role,
+    content: [
+      message.role === "assistant"
+        ? {
+            type: "output_text" as const,
+            text: message.text,
+          }
+        : buildInputTextPart(message.text),
+    ],
+  };
+}
+
 function extractResponseText(response: z.infer<typeof responseEnvelopeSchema>) {
   return (
     response.output_text ??
@@ -86,21 +107,11 @@ export class OpenAiResponsesClient {
         input: [
           {
             role: "system",
-            content: [
-              {
-                type: "input_text",
-                text: input.systemPrompt,
-              },
-            ],
+            content: [buildInputTextPart(input.systemPrompt)],
           },
           {
             role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: input.userPrompt,
-              },
-            ],
+            content: [buildInputTextPart(input.userPrompt)],
           },
         ],
         text: {
@@ -153,22 +164,9 @@ export class OpenAiResponsesClient {
         input: [
           {
             role: "system",
-            content: [
-              {
-                type: "input_text",
-                text: input.systemPrompt,
-              },
-            ],
+            content: [buildInputTextPart(input.systemPrompt)],
           },
-          ...input.messages.map((message) => ({
-            role: message.role,
-            content: [
-              {
-                type: "input_text",
-                text: message.text,
-              },
-            ],
-          })),
+          ...input.messages.map(buildConversationMessage),
         ],
       }),
       schema: responseEnvelopeSchema,
