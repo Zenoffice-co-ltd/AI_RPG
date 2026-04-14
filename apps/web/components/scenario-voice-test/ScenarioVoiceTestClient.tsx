@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 type VoiceMessage = {
+  id: string;
   role: "assistant" | "user";
   text: string;
 };
@@ -36,6 +37,10 @@ declare global {
   }
 }
 
+function createMessageId(role: VoiceMessage["role"]) {
+  return `${role}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export function ScenarioVoiceTestClient({
   scenarioId,
   openingLine,
@@ -45,12 +50,8 @@ export function ScenarioVoiceTestClient({
   publicBrief: string;
   openingLine: string;
 }) {
-  const [messages, setMessages] = useState<VoiceMessage[]>([
-    {
-      role: "assistant",
-      text: openingLine,
-    },
-  ]);
+  const storageKey = `scenario-voice-test:${scenarioId}:messages`;
+  const [messages, setMessages] = useState<VoiceMessage[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
@@ -58,12 +59,40 @@ export function ScenarioVoiceTestClient({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const objectUrlRef = useRef<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    const seededOpeningMessage: VoiceMessage = {
+      id: createMessageId("assistant"),
+      role: "assistant",
+      text: openingLine,
+    };
+
     setSpeechSupported(
       typeof window !== "undefined" &&
         Boolean(window.SpeechRecognition || window.webkitSpeechRecognition)
     );
+
+    if (typeof window !== "undefined") {
+      const raw = window.localStorage.getItem(storageKey);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as VoiceMessage[];
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(parsed);
+            setHasStarted(true);
+          } else {
+            setMessages([seededOpeningMessage]);
+          }
+        } catch {
+          setMessages([seededOpeningMessage]);
+        }
+      } else {
+        setMessages([seededOpeningMessage]);
+      }
+    } else {
+      setMessages([seededOpeningMessage]);
+    }
 
     return () => {
       recognitionRef.current?.stop();
@@ -71,7 +100,16 @@ export function ScenarioVoiceTestClient({
         URL.revokeObjectURL(objectUrlRef.current);
       }
     };
-  }, []);
+  }, [openingLine, storageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || messages.length === 0) {
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, JSON.stringify(messages));
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, storageKey]);
 
   async function playAssistantAudio(text: string) {
     const response = await fetch(`/api/audio-preview/${scenarioId}`, {
@@ -117,6 +155,7 @@ export function ScenarioVoiceTestClient({
 
       const data = (await response.json()) as { text: string };
       const assistantMessage: VoiceMessage = {
+        id: createMessageId("assistant"),
         role: "assistant",
         text: data.text,
       };
@@ -136,6 +175,7 @@ export function ScenarioVoiceTestClient({
     }
 
     const userMessage: VoiceMessage = {
+      id: createMessageId("user"),
       role: "user",
       text: normalized,
     };
@@ -232,53 +272,82 @@ export function ScenarioVoiceTestClient({
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    setMessages([
+    const nextMessages = [
       {
-        role: "assistant",
+        id: createMessageId("assistant"),
+        role: "assistant" as const,
         text: openingLine,
       },
-    ]);
+    ];
+    setMessages(nextMessages);
     setHasStarted(false);
     setIsListening(false);
     setIsReplying(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(storageKey, JSON.stringify(nextMessages));
+    }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-white px-4">
-      <div className="flex flex-wrap items-center justify-center gap-4">
-        <button
-          type="button"
-          onClick={() => {
-            void handleStartConversation();
-          }}
-          disabled={hasStarted || isReplying}
-          className="rounded-full bg-slate-950 px-8 py-4 text-base font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          開始
-        </button>
-        <button
-          type="button"
-          onClick={isListening ? handleStopListening : handleStartListening}
-          disabled={!hasStarted || isReplying || !speechSupported}
-          className="rounded-full bg-emerald-600 px-8 py-4 text-base font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {isListening ? "停止" : "話す"}
-        </button>
-        <button
-          type="button"
-          onClick={handleReplay}
-          disabled={!hasStarted || isReplying}
-          className="rounded-full bg-sky-600 px-8 py-4 text-base font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          再生
-        </button>
-        <button
-          type="button"
-          onClick={handleReset}
-          className="rounded-full border border-slate-300 bg-white px-8 py-4 text-base font-semibold text-slate-700"
-        >
-          リセット
-        </button>
+    <main className="flex min-h-screen flex-col bg-white px-4 py-6">
+      <header className="pb-4 text-center text-xl font-semibold text-slate-950">
+        シナリオテスト
+      </header>
+
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50">
+        <section className="flex-1 overflow-y-auto px-4 py-5">
+          <div className="flex flex-col gap-3">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={
+                  message.role === "assistant"
+                    ? "self-start max-w-[85%] rounded-3xl rounded-bl-md bg-white px-4 py-3 text-sm leading-7 text-slate-900 shadow-sm"
+                    : "self-end max-w-[85%] rounded-3xl rounded-br-md bg-slate-950 px-4 py-3 text-sm leading-7 text-white"
+                }
+              >
+                {message.text}
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        </section>
+
+        <div className="flex flex-wrap items-center justify-center gap-3 border-t border-slate-200 bg-white px-4 py-4">
+          <button
+            type="button"
+            onClick={() => {
+              void handleStartConversation();
+            }}
+            disabled={hasStarted || isReplying}
+            className="rounded-full bg-slate-950 px-8 py-4 text-base font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            開始
+          </button>
+          <button
+            type="button"
+            onClick={isListening ? handleStopListening : handleStartListening}
+            disabled={!hasStarted || isReplying || !speechSupported}
+            className="rounded-full bg-emerald-600 px-8 py-4 text-base font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isListening ? "停止" : "話す"}
+          </button>
+          <button
+            type="button"
+            onClick={handleReplay}
+            disabled={!hasStarted || isReplying}
+            className="rounded-full bg-sky-600 px-8 py-4 text-base font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            再生
+          </button>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="rounded-full border border-slate-300 bg-white px-8 py-4 text-base font-semibold text-slate-700"
+          >
+            リセット
+          </button>
+        </div>
       </div>
       <audio ref={audioRef} className="hidden" />
     </main>
