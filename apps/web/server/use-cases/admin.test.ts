@@ -437,6 +437,8 @@ describe("publishScenarioJob", () => {
         scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
         voiceProfileId: "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
       })
-    ).rejects.toThrow("expressive_tts_not_allowed");
+    ).rejects.toThrow(
+      "sent_tts_model_id=eleven_v3_conversational original_tts_model_id=eleven_v3"
+    );
   });
 });

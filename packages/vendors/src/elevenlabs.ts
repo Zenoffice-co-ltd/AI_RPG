@@ -374,6 +374,14 @@ function mapPronunciationDictionaryLocators(
   }));
 }
 
+export function normalizeAgentTtsModelId(modelId: string) {
+  if (modelId === "eleven_v3") {
+    return "eleven_v3_conversational";
+  }
+
+  return modelId;
+}
+
 function buildRenderTextNormalisationPayload(
   modelId: string,
   textNormalisationType: TextNormalisationType | undefined
@@ -420,7 +428,7 @@ export function buildConversationConfig(payload: AgentConfigPayload) {
       },
     },
     tts: {
-      model_id: payload.tts.modelId,
+      model_id: normalizeAgentTtsModelId(payload.tts.modelId),
       voice_id: payload.tts.voiceId,
       agent_output_audio_format: "pcm_24000",
       ...(payload.tts.languageCode

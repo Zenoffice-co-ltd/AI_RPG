@@ -1,5 +1,10 @@
 import type { AgentBinding, CompiledScenarioAssets, ScenarioPack } from "@top-performer/domain";
-import type { ElevenLabsClient } from "@top-performer/vendors";
+import {
+  HttpError,
+  logStructured,
+  normalizeAgentTtsModelId,
+  type ElevenLabsClient,
+} from "@top-performer/vendors";
 import { buildLivePronunciationGuide } from "./tts/livePronunciationGuide";
 import type { ResolvedScenarioVoiceSelection } from "./voiceProfiles";
 
@@ -280,9 +285,53 @@ export async function publishScenarioAgent(input: {
   const stagingBranchId =
     "created_branch_id" in stagingBranch ? stagingBranch.created_branch_id : stagingBranch.id;
 
-  const updatedAgent = await input.elevenLabs.updateAgent(agentId, agentPayload, {
-    branchId: stagingBranchId,
-  });
+  let updatedAgent: Awaited<ReturnType<ElevenLabsClient["updateAgent"]>>;
+  try {
+    updatedAgent = await input.elevenLabs.updateAgent(agentId, agentPayload, {
+      branchId: stagingBranchId,
+    });
+  } catch (error) {
+    const requestPath = `/v1/convai/agents/${agentId}?enable_versioning_if_not_enabled=true&branch_id=${stagingBranchId}`;
+    const detail =
+      error instanceof HttpError &&
+      typeof error.body === "object" &&
+      error.body !== null &&
+      "detail" in error.body &&
+      typeof error.body.detail === "object" &&
+      error.body.detail !== null
+        ? error.body.detail
+        : null;
+
+    logStructured({
+      level: "error",
+      scope: "scenario-engine.publishScenarioAgent",
+      message: "ElevenLabs agent update failed",
+      scenarioId: input.scenario.id,
+      elevenAgentId: agentId,
+      ...(error instanceof HttpError && error.vendorRequestId
+        ? { vendorRequestId: error.vendorRequestId }
+        : {}),
+      details: {
+        branchId: stagingBranchId,
+        requestPath,
+        originalModel: input.voiceSelection.ttsModel,
+        normalizedModel: normalizeAgentTtsModelId(input.voiceSelection.ttsModel),
+        agentOutputAudioFormat: "pcm_24000",
+        errorCode:
+          detail && "code" in detail && typeof detail.code === "string"
+            ? detail.code
+            : undefined,
+        errorMessage:
+          detail && "message" in detail && typeof detail.message === "string"
+            ? detail.message
+            : error instanceof Error
+              ? error.message
+              : "Unknown error",
+      },
+    });
+
+    throw error;
+  }
 
   const existingTests = await input.elevenLabs.listTests();
   const testIds: string[] = [];

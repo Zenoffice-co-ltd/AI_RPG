@@ -35,7 +35,7 @@ import {
   writeGeneratedJson,
   writeGeneratedText,
 } from "../workspace";
-import { HttpError } from "@top-performer/vendors";
+import { HttpError, normalizeAgentTtsModelId } from "@top-performer/vendors";
 
 function createJob(type: JobRecord["type"], metadata: JobRecord["metadata"] = {}) {
   const now = new Date().toISOString();
@@ -476,8 +476,37 @@ export async function publishScenarioJob(input: unknown) {
         error.body.detail.status === "expressive_tts_not_allowed";
 
       if (publishBlockedByExpressiveTts) {
+        const detail =
+          typeof error.body === "object" &&
+          error.body !== null &&
+          "detail" in error.body &&
+          typeof error.body.detail === "object" &&
+          error.body.detail !== null
+            ? error.body.detail
+            : null;
+        const requestPath = error.message.replace(/^HTTP \d+ for /, "");
+        let requestPathWithQuery = requestPath;
+        let branchId = "unknown";
+        try {
+          const requestPathUrl = new URL(requestPath);
+          requestPathWithQuery = `${requestPathUrl.pathname}${requestPathUrl.search}`;
+          branchId = requestPathUrl.searchParams.get("branch_id") ?? "unknown";
+        } catch {
+          requestPathWithQuery = requestPath;
+        }
+        const errorCode =
+          detail && "code" in detail && typeof detail.code === "string"
+            ? detail.code
+            : "unknown";
+        const errorMessage =
+          detail && "message" in detail && typeof detail.message === "string"
+            ? detail.message
+            : "Unknown error";
+
         throw new Error(
-          `ElevenLabs workspace blocked ${parsed.scenarioId} live publish for ${voiceSelection.ttsModel} with expressive_tts_not_allowed. Keep active mapping inactive until Expressive TTS entitlement is enabled for this workspace.`
+          `ElevenLabs agent publish failed for ${parsed.scenarioId} with expressive_tts_not_allowed. branch_id=${branchId} request_path=${requestPathWithQuery} sent_tts_model_id=${normalizeAgentTtsModelId(
+            voiceSelection.ttsModel
+          )} original_tts_model_id=${voiceSelection.ttsModel} agent_output_audio_format=pcm_24000 vendor_request_id=${error.vendorRequestId ?? "unknown"} error_code=${errorCode} error_message=${errorMessage}`
         );
       }
 

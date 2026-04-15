@@ -55,7 +55,7 @@ accounting candidate profile の実値:
 | `pronunciationDictionaryLocators[0]` | `0GxlLMOqlBr3dvEhX6Ji:GGzWcurA2ogrgciNu7u5` |
 | `metadata.benchmarkStatus` | `candidate` |
 
-accounting profile には real remote dictionary locator を反映済みです。ただし current workspace の ConvAI publish は `expressive_tts_not_allowed` で `eleven_v3` live agent を拒否するため、`activeProfiles` にはまだ入れていません。preview / benchmark は candidate を解決し、live / publish default は inactive のままにします。
+accounting profile には real remote dictionary locator を反映済みです。ただし current workspace の live publish はまだ再検証中のため、`activeProfiles` にはまだ入れていません。preview / benchmark は candidate を解決し、live / publish default は inactive のままにします。
 
 live 比較用の explicit candidate profile:
 
@@ -196,6 +196,9 @@ agent 作成 / 更新では `packages/vendors/src/elevenlabs.ts` の `buildConve
 
 - snake_case 変換は vendors 層に閉じ込める
 - repo 側では camelCase を維持する
+- repo SoT の `voiceProfile.model` は v3 profile でも `eleven_v3` のまま維持する
+- ただし Agents / ConvAI transport では `eleven_v3` を `eleven_v3_conversational` に正規化して送る
+- raw TTS benchmark / preview の `/v1/text-to-speech` では `eleven_v3` をそのまま送る
 - `ScenarioPack` 自体に voice 設定は埋め込まない
 - publish 結果の追跡は `AgentBinding.voiceProfileId` と `data/generated/publish/*.json` で行う
 
@@ -339,7 +342,7 @@ default は 1 です。2 は explicit publish override でのみ使い、diction
 
 未解決事項:
 
-- ElevenLabs workspace で `eleven_v3` live publish が `expressive_tts_not_allowed` にならない entitlement 状態を用意すること
+- Agents transport の `eleven_v3 -> eleven_v3_conversational` 正規化後に live publish を再確認すること
 - dictionary-first lane と `system_prompt` comparison lane の live 2 から 3 ターン比較を完了すること
 
 試聴の正本:
