@@ -1,6 +1,7 @@
 {
   "activeProfiles": {
-    "staffing_order_hearing_busy_manager_medium": "busy_manager_ja_baseline_v1"
+    "staffing_order_hearing_busy_manager_medium": "busy_manager_ja_baseline_v1",
+    "accounting_clerk_enterprise_ap_busy_manager_medium": "accounting_clerk_enterprise_ap_ja_v3_candidate_v1"
   },
   "previewProfiles": {
     "accounting_clerk_enterprise_ap_busy_manager_medium": "accounting_clerk_enterprise_ap_ja_v3_candidate_v1"

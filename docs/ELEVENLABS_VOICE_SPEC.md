@@ -16,12 +16,12 @@
 
 ## Current Active Configuration
 
-2026-04-14 時点の mapping は以下です。
+2026-04-15 時点の mapping は以下です。
 
 | scenarioId | activeProfileId | previewProfileId | benchmarkProfileId |
 | --- | --- | --- | --- |
 | `staffing_order_hearing_busy_manager_medium` | `busy_manager_ja_baseline_v1` | - | - |
-| `accounting_clerk_enterprise_ap_busy_manager_medium` | - | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` |
+| `accounting_clerk_enterprise_ap_busy_manager_medium` | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` |
 
 active profile の実値:
 
@@ -55,7 +55,7 @@ accounting candidate profile の実値:
 | `pronunciationDictionaryLocators[0]` | `0GxlLMOqlBr3dvEhX6Ji:GGzWcurA2ogrgciNu7u5` |
 | `metadata.benchmarkStatus` | `candidate` |
 
-accounting profile には real remote dictionary locator を反映済みです。ただし current workspace の live publish はまだ再検証中のため、`activeProfiles` にはまだ入れていません。preview / benchmark は candidate を解決し、live / publish default は inactive のままにします。
+accounting profile には real remote dictionary locator を反映済みです。current workspace では live publish が通ることを確認できたため、`activeProfiles` でもこの profile を既定利用します。preview / benchmark も同じ candidate profile を解決します。
 
 live 比較用の explicit candidate profile:
 
@@ -68,7 +68,7 @@ live 比較用の explicit candidate profile:
 | `textNormalisationType` | `system_prompt` |
 | `metadata.benchmarkStatus` | `candidate` |
 
-この profile は `activeProfiles` にも `previewProfiles` / `benchmarkProfiles` にも載せません。`pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` のように explicit override したときだけ、dictionary-first lane との live 比較に使います。なお current workspace では v3 live publish 自体が `expressive_tts_not_allowed` のため、この比較は entitlement 解放後に行います。
+この profile は `activeProfiles` にも `previewProfiles` / `benchmarkProfiles` にも載せません。`pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` のように explicit override したときだけ、dictionary-first lane との live 比較に使います。
 
 ## Profile Matrix
 
@@ -181,7 +181,7 @@ agent 作成 / 更新では `packages/vendors/src/elevenlabs.ts` の `buildConve
 | prompt 本文 | `agent.prompt.prompt` |
 | knowledge base | `agent.prompt.knowledge_base` |
 | `DEFAULT_ELEVEN_MODEL` | `llm.model` |
-| `voiceProfile.model` | `tts.model_id` |
+| `voiceProfile.model` | `tts.model_id` (`eleven_v3` は Agents transport で `eleven_v3_conversational` に正規化) |
 | `voiceId` | `tts.voice_id` |
 | `language` | `tts.language_code` |
 | `textNormalisationType` | `tts.text_normalisation_type` |
@@ -307,7 +307,7 @@ approved profile に関する運用ルール:
 - blocker は `pnpm smoke:eleven -- --preflight` と `pnpm verify:acceptance -- --preflight` にも出す
 - local PLS (`data/pronunciation/*.pls`) を repo の正本とする
 - profile に入れてよいのは ElevenLabs upload 後に得た real `pronunciationDictionaryId` / `versionId` のみ
-- locator 未確定 profile は `metadata.benchmarkStatus: "candidate"` のままにし、`activeProfiles` へは昇格しない
+- locator 未確定 profile は `previewProfiles` / `benchmarkProfiles` のみで扱い、`activeProfiles` へは昇格しない
 - current accounting locator: `0GxlLMOqlBr3dvEhX6Ji:GGzWcurA2ogrgciNu7u5`
 
 登録例:
@@ -342,7 +342,6 @@ default は 1 です。2 は explicit publish override でのみ使い、diction
 
 未解決事項:
 
-- Agents transport の `eleven_v3 -> eleven_v3_conversational` 正規化後に live publish を再確認すること
 - dictionary-first lane と `system_prompt` comparison lane の live 2 から 3 ターン比較を完了すること
 
 試聴の正本:

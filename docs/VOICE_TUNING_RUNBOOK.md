@@ -46,16 +46,16 @@
 - 最後に prompt を微修正する
 - 1 回の比較で voice と settings と prompt を同時に変えない
 
-## Accounting v3 Activation
+## Accounting v3 Live Status
 
-`accounting_clerk_enterprise_ap_busy_manager_medium` は live/publish inactive のまま管理します。active 化の条件は以下です。
+`accounting_clerk_enterprise_ap_busy_manager_medium` は 2026-04-15 時点で `activeProfiles` に昇格済みです。default live/publish は `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` を使います。
 
 1. `pnpm voices:dictionary:upload -- --file data/pronunciation/adecco-ja-accounting-v1.pls --name adecco-ja-accounting-v1` で remote dictionary を作成または再利用する
 2. real `pronunciationDictionaryId` と `versionId` を `config/voice-profiles/accounting_clerk_enterprise_ap_ja_v3_candidate_v1.json` に反映する
 3. preview / benchmark で誤読改善を確認する
-4. target workspace で `eleven_v3` live publish が `expressive_tts_not_allowed` にならないことを確認する
+4. live publish は Agents transport で `eleven_v3 -> eleven_v3_conversational` に正規化して通す
 5. live では dictionary-first lane と `accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` を 2 から 3 ターン比較する
-6. 確認後に `metadata.benchmarkStatus` を見直し、`config/voice-profiles/scenario-map.json` の `activeProfiles` に昇格する
+6. `metadata.benchmarkStatus` はレビュー運用の状態として別管理し、runtime active mapping の有無とは切り離して扱う
 
 注意:
 
@@ -66,10 +66,11 @@
 - `system_prompt` profile は比較レーン専用。`pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` の explicit override でだけ publish する
 - `system_prompt` lane では local PLS から使われている lexeme だけを抽出し、system prompt 末尾へ pronunciation guide を追加する
 
-未解決事項:
+運用メモ:
 
-- `eleven_v3` live publish entitlement の解放
-- dictionary-first lane と `system_prompt` comparison lane の live 比較完了
+- default publish の確認コマンドは `pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium`
+- 比較レーンの確認コマンドは `pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1`
+- candidate / approved の metadata は benchmark governance 用であり、runtime active mapping を単独では決めない
 
 ## 推奨比較順
 

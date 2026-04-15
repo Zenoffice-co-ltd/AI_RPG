@@ -267,14 +267,20 @@ describe("voice profile resolver", () => {
 });
 
 describe("voice profile resolver against repo config", () => {
-  it("resolves the active approved profile and the fallback profile from the repo", async () => {
+  it("resolves the active publish mappings from the repo", async () => {
     const activeProfile = await resolveMappedVoiceProfile(
       "staffing_order_hearing_busy_manager_medium"
+    );
+    const accountingProfile = await resolveMappedVoiceProfile(
+      "accounting_clerk_enterprise_ap_busy_manager_medium"
     );
     const fallbackProfile = await loadVoiceProfile("busy_manager_ja_fallback_v3_m03");
 
     expect(activeProfile?.id).toBe("busy_manager_ja_baseline_v1");
     expect(activeProfile?.metadata?.benchmarkStatus).toBe("candidate");
+    expect(accountingProfile?.id).toBe(
+      "accounting_clerk_enterprise_ap_ja_v3_candidate_v1"
+    );
     expect(fallbackProfile.id).toBe("busy_manager_ja_fallback_v3_m03");
     expect(fallbackProfile.metadata?.benchmarkStatus).toBe("approved");
   });
