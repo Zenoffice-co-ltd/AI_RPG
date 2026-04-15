@@ -109,7 +109,8 @@ pnpm review:summarize:ja -- --csv data/generated/voice-benchmark/<runId>/review-
 - approved profile の remote dictionary locator は primary / fallback の両方に設定済み
 - 2026-04-15 時点の実測では `pcm_24000` と dictionary locator 自体は blocker ではなく、Agents PATCH payload の `tts.model_id` が `eleven_v3` のままだと `expressive_tts_not_allowed` が返る
 - そのため v3 publish では Agents transport だけ `eleven_v3 -> eleven_v3_conversational` へ正規化して再検証する
-- そのため active runtime mapping は `busy_manager_ja_baseline_v1` を使う
+- staffing live publish は `busy_manager_ja_primary_v3_f06` override と default mapping の両方で通過済み
+- そのため active runtime mapping は `busy_manager_ja_primary_v3_f06` を使う
 - locator を削除した場合は `pnpm smoke:eleven -- --preflight` と `pnpm verify:acceptance -- --preflight` が blocker を返す
 - dictionary を更新した場合は profile JSON の locator も同時に更新すること
 

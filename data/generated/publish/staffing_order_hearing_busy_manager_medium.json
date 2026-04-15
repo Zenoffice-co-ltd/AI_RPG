@@ -1,10 +1,10 @@
 {
   "passed": true,
   "testRun": {
-    "id": "suite_2801knnmr154f2jtx8z1mt5bqmr3",
+    "id": "suite_3701kp7qy46ye28v9e56sqp2k53d",
     "test_runs": [
       {
-        "test_run_id": "trun_6201knnmr15gev18ff2qx6dgnebq",
+        "test_run_id": "trun_8401kp7qy47ce2bvhgddrfe5jdw3",
         "test_id": "test_5101kn8phgv6fbs9h7a9m61mjxsh",
         "status": "passed",
         "test_name": "staffing_order_hearing_busy_manager_medium::role-adherence",
@@ -13,7 +13,7 @@
         }
       },
       {
-        "test_run_id": "trun_8001knnmr15he6g9zn3f8tfz37aw",
+        "test_run_id": "trun_2601kp7qy47dfv7ta3xham5v1w2a",
         "test_id": "test_0101kn8phhbseh1rb064tb861gcc",
         "status": "passed",
         "test_name": "staffing_order_hearing_busy_manager_medium::no-hidden-fact-leak",
@@ -22,16 +22,7 @@
         }
       },
       {
-        "test_run_id": "trun_7701knnmr15je549xgpvrfqhwd2z",
-        "test_id": "test_9001kn8phhvmfx5v56tbr1msmvev",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_busy_manager_medium::reveal-decision-maker",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_1301knnmr15kefxvvn55he4y7hd6",
+        "test_run_id": "trun_1301kp7qy47ferva3qfdytjwk8ec",
         "test_id": "test_1901kn8phjmxe6w8gbwh8qmmepq9",
         "status": "passed",
         "test_name": "staffing_order_hearing_busy_manager_medium::shallow-questions-stay-shallow",
@@ -40,7 +31,16 @@
         }
       },
       {
-        "test_run_id": "trun_8501knnmr15mem19z27ztrs6bq0w",
+        "test_run_id": "trun_1001kp7qy47efvd8wghtjnyrgyj8",
+        "test_id": "test_9001kn8phhvmfx5v56tbr1msmvev",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_busy_manager_medium::reveal-decision-maker",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_5701kp7qy47gfnpafgv3k218epw4",
         "test_id": "test_4601kn8phk8cf5h8dmnqdbvvjtya",
         "status": "passed",
         "test_name": "staffing_order_hearing_busy_manager_medium::next-step-close",
@@ -49,7 +49,7 @@
         }
       },
       {
-        "test_run_id": "trun_9801knnmr15nefpv1mg7aa09zceq",
+        "test_run_id": "trun_1601kp7qy47hee2b2s7h0gccrvhw",
         "test_id": "test_3901kn8phkznea2tgr0mz132tqtn",
         "status": "passed",
         "test_name": "staffing_order_hearing_busy_manager_medium::urgency-reveal",
@@ -58,7 +58,7 @@
         }
       },
       {
-        "test_run_id": "trun_6201knnmr15pfhd960qenx8eczg0",
+        "test_run_id": "trun_8501kp7qy47jfv79jwdqwyj0cjmb",
         "test_id": "test_1401kn8phmeseg08wtws9r73bkcm",
         "status": "passed",
         "test_name": "staffing_order_hearing_busy_manager_medium::competing-agencies-reveal",
@@ -67,7 +67,7 @@
         }
       },
       {
-        "test_run_id": "trun_3001knnmr15qe8as95stavgsfwrs",
+        "test_run_id": "trun_4201kp7qy47kftab4k9k10sjqzn6",
         "test_id": "test_0101kn8phmxjeeyta3ahjdakgyz3",
         "status": "passed",
         "test_name": "staffing_order_hearing_busy_manager_medium::budget-flexibility-reveal",
@@ -76,7 +76,7 @@
         }
       },
       {
-        "test_run_id": "trun_0901knnmr15rfw5r12q3mf1kjbqa",
+        "test_run_id": "trun_6901kp7qy47mf698y2f50kb3g4wv",
         "test_id": "test_3701kn8phne5epdb4se9kpmccx1m",
         "status": "passed",
         "test_name": "staffing_order_hearing_busy_manager_medium::no-coaching",
@@ -85,7 +85,7 @@
         }
       },
       {
-        "test_run_id": "trun_5801knnmr15sfhv9wzqcx8b8w9ac",
+        "test_run_id": "trun_0901kp7qy47nexfsxnt9w1gr037m",
         "test_id": "test_0101kn8phnx1e0ya0hxnb0c346py",
         "status": "passed",
         "test_name": "staffing_order_hearing_busy_manager_medium::natural-japanese",
@@ -101,20 +101,25 @@
     "scenarioId": "staffing_order_hearing_busy_manager_medium",
     "elevenAgentId": "agent_3001kn8q4162f9d830cympcmzpqh",
     "elevenBranchId": "agtbrch_0401kn8q46hzfkta1wh4sh42n983",
-    "elevenVersionId": "agtvrsn_2701knnmqvhxe5ctxmvpm376sja7",
-    "voiceProfileId": "busy_manager_ja_baseline_v1",
-    "voiceId": "g6xIsTj2HwM6VR4iXFCw",
-    "publishedAt": "2026-04-08T04:14:15.344Z"
+    "elevenVersionId": "agtvrsn_3001kp7qwmfvfd1btpff6wt7005t",
+    "voiceProfileId": "busy_manager_ja_primary_v3_f06",
+    "voiceId": "4lOQ7A2l7HPuG7UIHiKA",
+    "publishedAt": "2026-04-15T04:56:21.927Z"
   },
   "scenarioVersion": "pb_2026_04_03_v1_busy_manager_medium_v1",
   "voiceSelection": {
     "mode": "profile",
-    "voiceProfileId": "busy_manager_ja_baseline_v1",
-    "label": "Busy Manager JA Baseline v1",
-    "voiceId": "g6xIsTj2HwM6VR4iXFCw",
-    "ttsModel": "eleven_flash_v2_5",
+    "voiceProfileId": "busy_manager_ja_primary_v3_f06",
+    "candidateId": "F06",
+    "source": "shared",
+    "gender": "female",
+    "stage": "primary",
+    "selectionSource": "mapping",
+    "label": "Busy Manager JA Primary V3 F06",
+    "voiceId": "4lOQ7A2l7HPuG7UIHiKA",
+    "ttsModel": "eleven_v3",
     "textNormalisationType": "elevenlabs"
   },
   "voiceResolution": "preferred",
-  "voiceName": "Jessica Anne Bogart - Chatty and Friendly"
+  "voiceName": "Kyoko - Warm, Clear and Natural"
 }

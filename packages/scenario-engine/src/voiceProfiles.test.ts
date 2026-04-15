@@ -276,8 +276,8 @@ describe("voice profile resolver against repo config", () => {
     );
     const fallbackProfile = await loadVoiceProfile("busy_manager_ja_fallback_v3_m03");
 
-    expect(activeProfile?.id).toBe("busy_manager_ja_baseline_v1");
-    expect(activeProfile?.metadata?.benchmarkStatus).toBe("candidate");
+    expect(activeProfile?.id).toBe("busy_manager_ja_primary_v3_f06");
+    expect(activeProfile?.metadata?.benchmarkStatus).toBe("approved");
     expect(accountingProfile?.id).toBe(
       "accounting_clerk_enterprise_ap_ja_v3_candidate_v1"
     );
@@ -291,7 +291,7 @@ describe("voice profile resolver against repo config", () => {
       mapping.activeProfiles.staffing_order_hearing_busy_manager_medium;
 
     await expect(loadVoiceProfile(activeProfileId)).resolves.toMatchObject({
-      id: "busy_manager_ja_baseline_v1",
+      id: "busy_manager_ja_primary_v3_f06",
     });
   });
 });

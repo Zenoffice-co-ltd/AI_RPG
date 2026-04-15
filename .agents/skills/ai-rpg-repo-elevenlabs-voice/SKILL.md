@@ -57,6 +57,8 @@ Treat `expressive_tts_not_allowed` as non-retryable unless a future task explici
 
 ## Publish Execution Notes
 
+- Staffing default live mapping is `busy_manager_ja_primary_v3_f06`.
+- Use `busy_manager_ja_fallback_v3_m03` as the approved backup when a staffing live comparison needs a fallback lane.
 - Run accounting publish lanes sequentially, not in parallel. Parallel runs can race at `mergeBranch` and produce `branch_already_merged`.
 - Re-verify both:
   - `accounting_clerk_enterprise_ap_ja_v3_candidate_v1`

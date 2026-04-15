@@ -20,28 +20,29 @@
 
 | scenarioId | activeProfileId | previewProfileId | benchmarkProfileId |
 | --- | --- | --- | --- |
-| `staffing_order_hearing_busy_manager_medium` | `busy_manager_ja_baseline_v1` | - | - |
+| `staffing_order_hearing_busy_manager_medium` | `busy_manager_ja_primary_v3_f06` | - | - |
 | `accounting_clerk_enterprise_ap_busy_manager_medium` | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` |
 
 active profile の実値:
 
 | field | value |
 | --- | --- |
-| `id` | `busy_manager_ja_baseline_v1` |
-| `label` | `Busy Manager JA Baseline v1` |
+| `id` | `busy_manager_ja_primary_v3_f06` |
+| `label` | `Busy Manager JA Primary V3 F06` |
 | `language` | `ja` |
-| `model` | `eleven_flash_v2_5` |
-| `voiceId` | `g6xIsTj2HwM6VR4iXFCw` |
-| `voiceName` | `Jessica Anne Bogart - Chatty and Friendly` |
-| `firstMessageJa` | `お時間ありがとうございます。要点を確認しながら進めさせてください。` |
+| `model` | `eleven_v3` |
+| `voiceId` | `4lOQ7A2l7HPuG7UIHiKA` |
+| `voiceName` | `Kyoko - Warm, Clear and Natural` |
+| `firstMessageJa` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` |
 | `textNormalisationType` | `elevenlabs` |
-| `voiceSettings.speed` | `0.97` |
+| `voiceSettings.speed` | `0.96` |
 | `voiceSettings.style` | `0` |
-| `metadata.benchmarkStatus` | `candidate` |
+| `pronunciationDictionaryLocators[0]` | `2arpjQXtKr7DoHrM5zuT:GpJghKIrZi1u2nDXHP7S` |
+| `metadata.benchmarkStatus` | `approved` |
 
 `voiceName` は last publish artifact の観測値です。workspace に preferred voice が無い場合は shared voice 追加または auto-resolve が走るため、将来も常に同名とは限りません。
 
-2026-04-08 時点では ElevenLabs account 上に remote pronunciation dictionary `adecco-ja-business-v1` を作成済みで、approved profile に `pronunciationDictionaryLocators` を設定しています。ただし current workspace では `expressive_tts_not_allowed` が返るため、runtime の active mapping は `busy_manager_ja_baseline_v1` に置いています。approved v3 profile は config-ready ですが、Expressive TTS entitlement が有効になるまで active publish mapping には使いません。
+staffing profile には real remote dictionary locator を反映済みです。current workspace では live publish が通ることを確認できたため、`activeProfiles` では `busy_manager_ja_primary_v3_f06` を既定利用します。fallback 用の `busy_manager_ja_fallback_v3_m03` も approved locator 付きで維持します。
 
 accounting candidate profile の実値:
 
