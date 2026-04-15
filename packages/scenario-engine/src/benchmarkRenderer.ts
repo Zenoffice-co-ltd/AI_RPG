@@ -13,11 +13,13 @@ import type {
 import type { ElevenLabsClient } from "@top-performer/vendors";
 import type { VoiceProfile } from "@top-performer/domain";
 import {
+  assertScenarioVoiceProfileAvailable,
   REPO_ROOT,
   VOICE_PROFILE_CONFIG_ROOT,
   loadVoiceProfile,
   resolveMappedVoiceProfile,
 } from "./voiceProfiles";
+import { normalizeJaTextForTts } from "./tts/jaTextNormalization";
 
 const benchmarkUtteranceSchema = z.object({
   id: z.string().min(1),
@@ -70,6 +72,9 @@ export type BenchmarkRenderRow = {
   stage?: VoiceVariationStage;
   utteranceId: string;
   utterance: string;
+  originalText: string;
+  normalizedText: string;
+  appliedRules: string[];
   category: string;
   model: string;
   requestedVoiceId: string;
@@ -99,6 +104,16 @@ export const DEFAULT_BENCHMARK_UTTERANCE_CSV = resolve(
   VOICE_BENCHMARK_SOURCE_ROOT,
   "utterances_ja.csv"
 );
+export const ACCOUNTING_BENCHMARK_UTTERANCE_CSV = resolve(
+  VOICE_BENCHMARK_SOURCE_ROOT,
+  "utterances_ja_accounting_clerk.csv"
+);
+
+function getDefaultBenchmarkUtteranceCsv(scenarioId: string) {
+  return scenarioId === "accounting_clerk_enterprise_ap_busy_manager_medium"
+    ? ACCOUNTING_BENCHMARK_UTTERANCE_CSV
+    : DEFAULT_BENCHMARK_UTTERANCE_CSV;
+}
 
 function parseBooleanFlag(value: string | undefined) {
   const normalized = value?.trim().toLowerCase() ?? "";
@@ -171,6 +186,9 @@ export function buildReviewSheetCsv(rows: BenchmarkRenderRow[]) {
       utteranceId: row.utteranceId,
       category: row.category,
       utterance: row.utterance,
+      originalText: row.originalText,
+      normalizedText: row.normalizedText,
+      appliedRules: row.appliedRules.join("|"),
       status: row.status,
       outputFile: row.outputFile ?? "",
       "自然さ": "",
@@ -200,6 +218,9 @@ export function buildSummaryCsv(rows: BenchmarkRenderRow[]) {
       utteranceId: row.utteranceId,
       category: row.category,
       status: row.status,
+      originalText: row.originalText,
+      normalizedText: row.normalizedText,
+      appliedRules: row.appliedRules.join("|"),
       model: row.model,
       requestedVoiceId: row.requestedVoiceId,
       resolvedVoiceId: row.resolvedVoiceId,
@@ -367,7 +388,15 @@ export async function resolveBenchmarkTargets(input: {
   }
 
   if (targets.length === 0) {
-    const mapped = await resolveMappedVoiceProfile(input.scenarioId, configRoot);
+    const mapped = assertScenarioVoiceProfileAvailable({
+      scenarioId: input.scenarioId,
+      purpose: "benchmark",
+      profile: await resolveMappedVoiceProfile(
+        input.scenarioId,
+        configRoot,
+        "benchmark"
+      ),
+    });
     if (mapped) {
       targets.push(createTargetFromProfile(mapped));
     }
@@ -464,7 +493,9 @@ export async function renderVoiceBenchmark(input: {
   const outputDir =
     input.outputDir ?? resolve(VOICE_BENCHMARK_GENERATED_ROOT, runId);
   const audioDir = resolve(outputDir, "audio");
-  const utterances = await loadBenchmarkUtterances(input.utteranceCsvPath);
+  const utteranceCsvPath =
+    input.utteranceCsvPath ?? getDefaultBenchmarkUtteranceCsv(input.scenarioId);
+  const utterances = await loadBenchmarkUtterances(utteranceCsvPath);
   const targets = await resolveBenchmarkTargets({
     scenarioId: input.scenarioId,
     ...(input.profileIds ? { profileIds: input.profileIds } : {}),
@@ -488,10 +519,16 @@ export async function renderVoiceBenchmark(input: {
         target.profileId ?? target.label
       )}__${sanitizeFileToken(utterance.id)}.mp3`;
       const outputFile = resolve(audioDir, audioFileName);
+      const normalized = normalizeJaTextForTts({
+        text: utterance.utterance,
+        scenarioId: input.scenarioId,
+        ttsModel: target.modelId,
+        textNormalisationType: target.textNormalisationType,
+      });
 
       try {
         const rendered = await input.elevenLabs.renderSpeech({
-          text: utterance.utterance,
+          text: normalized.ttsText,
           modelId: target.modelId,
           voiceId: resolvedVoice.voiceId,
           languageCode: target.language,
@@ -531,6 +568,9 @@ export async function renderVoiceBenchmark(input: {
           ...(target.stage ? { stage: target.stage } : {}),
           utteranceId: utterance.id,
           utterance: utterance.utterance,
+          originalText: normalized.displayText,
+          normalizedText: normalized.ttsText,
+          appliedRules: normalized.appliedRules,
           category: utterance.category,
           model: target.modelId,
           requestedVoiceId: target.voiceId,
@@ -573,6 +613,9 @@ export async function renderVoiceBenchmark(input: {
           ...(target.stage ? { stage: target.stage } : {}),
           utteranceId: utterance.id,
           utterance: utterance.utterance,
+          originalText: normalized.displayText,
+          normalizedText: normalized.ttsText,
+          appliedRules: normalized.appliedRules,
           category: utterance.category,
           model: target.modelId,
           requestedVoiceId: target.voiceId,
@@ -597,8 +640,7 @@ export async function renderVoiceBenchmark(input: {
     runId,
     timestamp: new Date().toISOString(),
     scenarioId: input.scenarioId,
-    utteranceCsvPath:
-      input.utteranceCsvPath ?? DEFAULT_BENCHMARK_UTTERANCE_CSV,
+    utteranceCsvPath,
     outputDir,
     targets: targets.map((target) => ({
       source: target.source,

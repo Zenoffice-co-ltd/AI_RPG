@@ -1,7 +1,11 @@
 import { readFile, readdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { VoiceProfile, VoiceVariationCohort } from "@top-performer/domain";
+import {
+  ACCOUNTING_SCENARIO_FAMILY,
+  type VoiceProfile,
+  type VoiceVariationCohort,
+} from "@top-performer/domain";
 import {
   scenarioVoiceProfileMapSchema,
   voiceVariationCohortSchema,
@@ -27,6 +31,7 @@ export const JA_VOICE_VARIATION_COHORT_PATH = resolve(
   JA_VOICE_VARIATIONS_CONFIG_ROOT,
   VOICE_VARIATION_COHORT_FILE
 );
+export type VoiceProfileResolutionPurpose = "publish" | "preview" | "benchmark";
 
 export type ResolvedScenarioVoiceSelection =
   | {
@@ -58,6 +63,10 @@ export type ResolvedScenarioVoiceSelection =
 async function readJsonFile(path: string) {
   const contents = await readFile(path, "utf8");
   return JSON.parse(contents) as unknown;
+}
+
+export function isAccountingScenarioVoiceFamily(scenarioId: string) {
+  return scenarioId.startsWith(`${ACCOUNTING_SCENARIO_FAMILY}_`);
 }
 
 async function listJsonFilesRecursive(root: string) {
@@ -150,16 +159,47 @@ export async function listVoiceVariationProfiles(
 
 export async function resolveMappedVoiceProfile(
   scenarioId: string,
-  configRoot = VOICE_PROFILE_CONFIG_ROOT
+  configRoot = VOICE_PROFILE_CONFIG_ROOT,
+  purpose: VoiceProfileResolutionPurpose = "publish"
 ) {
   const mapping = await loadScenarioVoiceProfileMap(configRoot);
-  const profileId = mapping.activeProfiles[scenarioId];
+  const profileId =
+    purpose === "preview"
+      ? mapping.previewProfiles[scenarioId] ?? mapping.activeProfiles[scenarioId]
+      : purpose === "benchmark"
+        ? mapping.benchmarkProfiles[scenarioId] ?? mapping.activeProfiles[scenarioId]
+        : mapping.activeProfiles[scenarioId];
 
   if (!profileId) {
     return null;
   }
 
   return loadVoiceProfile(profileId, configRoot);
+}
+
+export function assertScenarioVoiceProfileAvailable(input: {
+  scenarioId: string;
+  purpose: VoiceProfileResolutionPurpose;
+  profile: VoiceProfile | null;
+  dictionaryRequired?: boolean;
+}) {
+  if (input.profile) {
+    return input.profile;
+  }
+
+  const accountingScenario = isAccountingScenarioVoiceFamily(input.scenarioId);
+  const mappedProfileRequired =
+    input.purpose === "publish"
+      ? accountingScenario || input.dictionaryRequired === true
+      : accountingScenario;
+
+  if (!mappedProfileRequired) {
+    return null;
+  }
+
+  throw new Error(
+    `Scenario ${input.scenarioId} requires a mapped voice profile for ${input.purpose}. Legacy fallback is disabled until an explicit ${input.purpose} mapping is configured.`
+  );
 }
 
 export function assertVoiceProfileProductionReady(profile: VoiceProfile) {

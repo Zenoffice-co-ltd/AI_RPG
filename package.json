@@ -24,6 +24,7 @@
     "voices:collect:ja": "tsx scripts/elevenlabs/collect-ja-voices.ts",
     "voices:promote:shared": "tsx scripts/elevenlabs/promote-shared-voice.ts",
     "voices:design:ja": "tsx scripts/elevenlabs/design-ja-rescue-voices.ts",
+    "voices:dictionary:upload": "tsx scripts/elevenlabs/upload-pronunciation-dictionary.ts",
     "benchmark:render": "tsx scripts/elevenlabs/render-benchmark.ts",
     "benchmark:render:ja": "tsx scripts/elevenlabs/render-ja-voice-benchmark.ts",
     "review:summarize:ja": "tsx scripts/elevenlabs/summarize-ja-voice-review.ts",

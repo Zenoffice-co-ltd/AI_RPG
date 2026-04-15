@@ -224,6 +224,57 @@ describe("buildConversationConfig", () => {
       },
     ]);
   });
+
+  it("normalizes eleven_v3 to eleven_v3_conversational for Agents payloads", () => {
+    const config = buildConversationConfig({
+      name: "Busy Manager",
+      prompt: "prompt",
+      firstMessage: "よろしくお願いします。",
+      knowledgeBase: [],
+      llmModel: "gpt-5-mini",
+      language: "ja",
+      tts: {
+        modelId: "eleven_v3",
+        voiceId: "voice_123",
+      },
+    });
+
+    expect(config.tts.model_id).toBe("eleven_v3_conversational");
+  });
+
+  it("keeps non-v3 Agent models unchanged", () => {
+    const config = buildConversationConfig({
+      name: "Busy Manager",
+      prompt: "prompt",
+      firstMessage: "よろしくお願いします。",
+      knowledgeBase: [],
+      llmModel: "gpt-5-mini",
+      language: "ja",
+      tts: {
+        modelId: "eleven_multilingual_v2",
+        voiceId: "voice_123",
+      },
+    });
+
+    expect(config.tts.model_id).toBe("eleven_multilingual_v2");
+  });
+
+  it("does not double-normalize eleven_v3_conversational for Agents payloads", () => {
+    const config = buildConversationConfig({
+      name: "Busy Manager",
+      prompt: "prompt",
+      firstMessage: "よろしくお願いします。",
+      knowledgeBase: [],
+      llmModel: "gpt-5-mini",
+      language: "ja",
+      tts: {
+        modelId: "eleven_v3_conversational",
+        voiceId: "voice_123",
+      },
+    });
+
+    expect(config.tts.model_id).toBe("eleven_v3_conversational");
+  });
 });
 
 describe("ElevenLabsClient.renderSpeech", () => {

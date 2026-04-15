@@ -5,11 +5,15 @@ const {
   resolveVoiceId,
   renderSpeech,
   resolveMappedVoiceProfile,
+  assertScenarioVoiceProfileAvailable,
+  normalizeJaTextForTts,
 } = vi.hoisted(() => ({
   scenariosGet: vi.fn(),
   resolveVoiceId: vi.fn(),
   renderSpeech: vi.fn(),
   resolveMappedVoiceProfile: vi.fn(),
+  assertScenarioVoiceProfileAvailable: vi.fn(),
+  normalizeJaTextForTts: vi.fn(),
 }));
 
 vi.mock("../appContext", () => ({
@@ -56,6 +60,8 @@ vi.mock("@top-performer/scenario-engine", () => ({
     voiceSettings: input.profile.voiceSettings,
     pronunciationDictionaryLocators: input.profile.pronunciationDictionaryLocators,
   })),
+  assertScenarioVoiceProfileAvailable,
+  normalizeJaTextForTts,
   resolveMappedVoiceProfile,
 }));
 
@@ -73,12 +79,26 @@ const staffingScenario = {
   language: "ja" as const,
 };
 
+const accountingScenario = {
+  id: "accounting_clerk_enterprise_ap_busy_manager_medium",
+  family: "accounting_clerk_enterprise_ap",
+  title: "経理事務 AP 忙しい現場責任者",
+  publicBrief: "enterprise 会計の支払・経費精算ユニットの確認",
+  openingLine: "支払、経費精算、請求書処理の体制から確認します。",
+  language: "ja" as const,
+  publishContract: {
+    dictionaryRequired: true,
+  },
+};
+
 describe("audio preview use-case", () => {
   beforeEach(() => {
     scenariosGet.mockReset();
     resolveVoiceId.mockReset();
     renderSpeech.mockReset();
     resolveMappedVoiceProfile.mockReset();
+    assertScenarioVoiceProfileAvailable.mockReset();
+    normalizeJaTextForTts.mockReset();
 
     scenariosGet.mockResolvedValue(staffingScenario);
     resolveVoiceId.mockResolvedValue({
@@ -90,6 +110,12 @@ describe("audio preview use-case", () => {
       audio: Buffer.from("preview"),
       latencyMs: 120,
     });
+    assertScenarioVoiceProfileAvailable.mockImplementation((input) => input.profile);
+    normalizeJaTextForTts.mockImplementation((input) => ({
+      displayText: input.text,
+      ttsText: input.text,
+      appliedRules: [],
+    }));
   });
 
   it("returns preview metadata with sample lines", async () => {
@@ -161,5 +187,70 @@ describe("audio preview use-case", () => {
       })
     );
     expect(result.previewText).toBe("この文面だけ確認します。");
+  });
+
+  it("returns accounting preview samples and resolves preview voice mode from a profile", async () => {
+    scenariosGet.mockResolvedValue(accountingScenario);
+    resolveMappedVoiceProfile.mockResolvedValue({
+      id: "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
+      label: "Accounting Clerk Enterprise AP JA V3 Candidate v1",
+      language: "ja",
+      model: "eleven_v3",
+      voiceId: "voice_profile",
+      firstMessageJa: "支払、経費精算、請求書処理の体制から確認します。",
+      textNormalisationType: "elevenlabs",
+      voiceSettings: { speed: 0.97, style: 0 },
+    });
+
+    const preview = await getScenarioAudioPreviewData(
+      "accounting_clerk_enterprise_ap_busy_manager_medium"
+    );
+
+    expect(preview).toMatchObject({
+      voiceMode: "profile",
+      voiceProfileId: "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
+    });
+    expect(preview?.samples.map((sample) => sample.text)).toEqual([
+      "本日はありがとうございます。まずは支払、経費精算、請求書処理の体制から確認させてください。",
+      "税区分や勘定科目の一次判断、固定資産判定、差戻し対応まで含めて、どこまで任せたい想定でしょうか。",
+      "承認済みワークフローと支払データ作成の流れを社内で確認し、条件面を整理して折り返します。",
+    ]);
+    expect(resolveMappedVoiceProfile).toHaveBeenCalledWith(
+      "accounting_clerk_enterprise_ap_busy_manager_medium",
+      undefined,
+      "preview"
+    );
+  });
+
+  it("sends normalized TTS text while preserving the preview display text", async () => {
+    scenariosGet.mockResolvedValue(accountingScenario);
+    resolveMappedVoiceProfile.mockResolvedValue({
+      id: "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
+      label: "Accounting Clerk Enterprise AP JA V3 Candidate v1",
+      language: "ja",
+      model: "eleven_v3",
+      voiceId: "voice_profile",
+      firstMessageJa: "支払、経費精算、請求書処理の体制から確認します。",
+      textNormalisationType: "elevenlabs",
+      voiceSettings: { speed: 0.97, style: 0 },
+    });
+    normalizeJaTextForTts.mockReturnValue({
+      displayText: "AP/支払を確認します。",
+      ttsText: "エーピー、支払いを確認します。",
+      appliedRules: ["accounting-ap-slash-payment"],
+    });
+
+    const result = await renderScenarioAudioPreview({
+      scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+      text: "AP/支払を確認します。",
+    });
+
+    expect(renderSpeech).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "エーピー、支払いを確認します。",
+        modelId: "eleven_v3",
+      })
+    );
+    expect(result.previewText).toBe("AP/支払を確認します。");
   });
 });

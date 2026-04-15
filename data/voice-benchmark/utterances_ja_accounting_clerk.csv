@@ -1,0 +1,11 @@
+id,category,utterance,contains_number,contains_company_name,contains_role_title,contains_location,notes
+ac_001,主業務,支払・経費精算・請求書処理が主業務です。,false,false,false,false,中黒列挙の読み安定性
+ac_002,判断業務,税区分と勘定科目の一次判断もお願いします。,false,false,false,false,判断業務の基本語彙
+ac_003,例外対応,固定資産判定や差戻し対応があります。,false,false,false,false,経理固有語の組み合わせ
+ac_004,システム,Oracle系ERPとSAPの利用経験がある方を想定しています。,false,false,false,false,ERP略語と製品名の混在
+ac_005,ワークフロー,承認済みワークフローと支払データ作成が発生します。,false,false,false,false,承認済みと支払データ
+ac_006,繁忙,月初締めと月末の繁忙があります。,false,false,false,false,締めタイミングの自然さ
+ac_007,要件,背景と求人要件を中心に、要点だけ確認させてください。,false,false,false,false,要件と件の読み
+ac_008,件数,件数感としては月どのくらいで、その方1人で持つのか、複数名で分担するのかを教えてください。,true,false,false,false,件数感と複数名
+ac_009,勤務条件,立ち上がりの出社前提や、その後の在宅可否、最低実働時間、残業の考え方を教えてください。,false,false,false,false,勤務条件語彙
+ac_010,要約,では、OracleやSAP等のERPで手を動かした支払/AP経験者で、税区分や固定資産の一次判断ができ、チームに柔らかく馴染める方を優先で見る、という理解でよろしいですか。,false,false,false,false,画像由来の複合読み

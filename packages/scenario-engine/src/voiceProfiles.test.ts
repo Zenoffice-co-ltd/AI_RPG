@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  assertScenarioVoiceProfileAvailable,
   assertVoiceProfileProductionReady,
   buildLegacyVoiceSelection,
   buildProfileVoiceSelection,
@@ -24,6 +25,14 @@ async function createConfigRoot() {
       activeProfiles: {
         staffing_order_hearing_busy_manager_medium: "busy_manager_ja_baseline_v1",
       },
+      previewProfiles: {
+        accounting_clerk_enterprise_ap_busy_manager_medium:
+          "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
+      },
+      benchmarkProfiles: {
+        accounting_clerk_enterprise_ap_busy_manager_medium:
+          "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
+      },
     }),
     "utf8"
   );
@@ -39,6 +48,27 @@ async function createConfigRoot() {
       textNormalisationType: "elevenlabs",
       voiceSettings: {
         stability: 0.7,
+      },
+    }),
+    "utf8"
+  );
+  await writeFile(
+    resolve(root, "accounting_clerk_enterprise_ap_ja_v3_candidate_v1.json"),
+    JSON.stringify({
+      id: "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
+      label: "Accounting Clerk Enterprise AP JA V3 Candidate v1",
+      language: "ja",
+      model: "eleven_v3",
+      voiceId: "voice_acc_v3",
+      firstMessageJa: "支払、経費精算、請求書処理から確認します。",
+      textNormalisationType: "elevenlabs",
+      voiceSettings: {
+        speed: 0.97,
+        style: 0,
+      },
+      metadata: {
+        scenarioIds: ["accounting_clerk_enterprise_ap_busy_manager_medium"],
+        benchmarkStatus: "candidate",
       },
     }),
     "utf8"
@@ -120,6 +150,32 @@ describe("voice profile resolver", () => {
     expect(profile?.voiceId).toBe("voice_123");
   });
 
+  it("resolves preview and benchmark mappings independently from publish", async () => {
+    const root = await createConfigRoot();
+    const previewProfile = await resolveMappedVoiceProfile(
+      "accounting_clerk_enterprise_ap_busy_manager_medium",
+      root,
+      "preview"
+    );
+    const benchmarkProfile = await resolveMappedVoiceProfile(
+      "accounting_clerk_enterprise_ap_busy_manager_medium",
+      root,
+      "benchmark"
+    );
+    const publishProfile = await resolveMappedVoiceProfile(
+      "accounting_clerk_enterprise_ap_busy_manager_medium",
+      root
+    );
+
+    expect(previewProfile?.id).toBe(
+      "accounting_clerk_enterprise_ap_ja_v3_candidate_v1"
+    );
+    expect(benchmarkProfile?.id).toBe(
+      "accounting_clerk_enterprise_ap_ja_v3_candidate_v1"
+    );
+    expect(publishProfile).toBeNull();
+  });
+
   it("returns null when the scenario is unmapped", async () => {
     const root = await createConfigRoot();
     await expect(
@@ -134,7 +190,7 @@ describe("voice profile resolver", () => {
       id: "busy_manager_ja_voice15_f01",
       voiceId: "voice_f01",
     });
-    await expect(listVoiceProfiles(root)).resolves.toHaveLength(2);
+    await expect(listVoiceProfiles(root)).resolves.toHaveLength(3);
   });
 
   it("loads the voice variation cohort and candidate profiles", async () => {
@@ -196,6 +252,17 @@ describe("voice profile resolver", () => {
         },
       })
     ).toThrow("pronunciationDictionaryLocators");
+  });
+
+  it("blocks accounting scenarios from using legacy fallback when a mapped profile is required", () => {
+    expect(() =>
+      assertScenarioVoiceProfileAvailable({
+        scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+        purpose: "publish",
+        profile: null,
+        dictionaryRequired: true,
+      })
+    ).toThrow("requires a mapped voice profile");
   });
 });
 

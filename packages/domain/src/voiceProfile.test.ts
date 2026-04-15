@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  scenarioVoiceProfileMapSchema,
   voiceProfileSchema,
   voiceVariationCohortSchema,
 } from "./voiceProfile";
@@ -100,6 +101,24 @@ describe("voiceProfileSchema", () => {
           cohortId: "busy_manager_ja_voice15",
           stage: "round1",
           controlGroup: false,
+        },
+      })
+    ).not.toThrow();
+  });
+
+  it("accepts scenario voice maps with preview and benchmark profiles", () => {
+    expect(() =>
+      scenarioVoiceProfileMapSchema.parse({
+        activeProfiles: {
+          staffing_order_hearing_busy_manager_medium: "busy_manager_ja_baseline_v1",
+        },
+        previewProfiles: {
+          accounting_clerk_enterprise_ap_busy_manager_medium:
+            "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
+        },
+        benchmarkProfiles: {
+          accounting_clerk_enterprise_ap_busy_manager_medium:
+            "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
         },
       })
     ).not.toThrow();

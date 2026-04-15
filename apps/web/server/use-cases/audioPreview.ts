@@ -1,7 +1,9 @@
 import type { ScenarioPack } from "@top-performer/domain";
 import {
+  assertScenarioVoiceProfileAvailable,
   buildLegacyVoiceSelection,
   buildProfileVoiceSelection,
+  normalizeJaTextForTts,
   resolveMappedVoiceProfile,
   type ResolvedScenarioVoiceSelection,
 } from "@top-performer/scenario-engine";
@@ -38,6 +40,29 @@ async function getScenarioOrThrow(scenarioId: string) {
 function buildScenarioAudioPreviewSamples(
   scenario: RoleplayScenario
 ): ScenarioAudioPreviewSample[] {
+  if (scenario.id === "accounting_clerk_enterprise_ap_busy_manager_medium") {
+    return [
+      {
+        key: "opening",
+        label: "冒頭",
+        description: "経理の主業務をどう読み上げるか確認します。",
+        text: "本日はありがとうございます。まずは支払、経費精算、請求書処理の体制から確認させてください。",
+      },
+      {
+        key: "deep_dive",
+        label: "深掘り",
+        description: "判断業務と差戻し対応の自然さを確認します。",
+        text: "税区分や勘定科目の一次判断、固定資産判定、差戻し対応まで含めて、どこまで任せたい想定でしょうか。",
+      },
+      {
+        key: "closing",
+        label: "締め",
+        description: "承認済みワークフローの締め方を確認します。",
+        text: "承認済みワークフローと支払データ作成の流れを社内で確認し、条件面を整理して折り返します。",
+      },
+    ];
+  }
+
   const openingLine =
     scenario.openingLine?.trim() ||
     "本日はありがとうございます。まず今回の募集背景からご相談させてください。";
@@ -66,7 +91,14 @@ function buildScenarioAudioPreviewSamples(
 
 async function resolvePreviewVoiceSelection(scenario: RoleplayScenario) {
   const ctx = getAppContext();
-  const mappedProfile = await resolveMappedVoiceProfile(scenario.id);
+  const mappedProfile = assertScenarioVoiceProfileAvailable({
+    scenarioId: scenario.id,
+    purpose: "preview",
+    profile: await resolveMappedVoiceProfile(scenario.id, undefined, "preview"),
+    ...(scenario.publishContract?.dictionaryRequired !== undefined
+      ? { dictionaryRequired: scenario.publishContract.dictionaryRequired }
+      : {}),
+  });
   const resolvedVoice = await ctx.vendors.elevenLabs.resolveVoiceId(
     mappedProfile?.voiceId ?? ctx.env.DEFAULT_ELEVEN_VOICE_ID,
     scenario.language
@@ -135,8 +167,14 @@ export async function renderScenarioAudioPreview(input: {
   }
 
   const { voiceSelection, resolvedVoice } = await resolvePreviewVoiceSelection(scenario);
-  const rendered = await getAppContext().vendors.elevenLabs.renderSpeech({
+  const normalized = normalizeJaTextForTts({
     text: previewText,
+    scenarioId: scenario.id,
+    ttsModel: voiceSelection.ttsModel,
+    textNormalisationType: voiceSelection.textNormalisationType,
+  });
+  const rendered = await getAppContext().vendors.elevenLabs.renderSpeech({
+    text: normalized.ttsText,
     modelId: voiceSelection.ttsModel,
     voiceId: voiceSelection.voiceId,
     languageCode: voiceSelection.language,
@@ -153,7 +191,7 @@ export async function renderScenarioAudioPreview(input: {
 
   return {
     audio: rendered.audio,
-    previewText,
+    previewText: normalized.displayText,
     voiceSelection,
     voiceName: resolvedVoice.voiceName,
     latencyMs: rendered.latencyMs,

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   aggregatePlaybook,
+  assertScenarioVoiceProfileAvailable,
   buildAccountingPlaybookFromArtifacts,
   buildLegacyVoiceSelection,
   buildProfileVoiceSelection,
@@ -10,6 +11,7 @@ import {
   extractAccountingArtifactsForTranscript,
   importCorpusFromWorkbook,
   importTranscriptsFromDirectory,
+  loadVoiceProfile,
   mineTranscriptBehaviors,
   publishScenarioAgent,
   renderCanonicalTranscriptReview,
@@ -33,6 +35,7 @@ import {
   writeGeneratedJson,
   writeGeneratedText,
 } from "../workspace";
+import { HttpError, normalizeAgentTtsModelId } from "@top-performer/vendors";
 
 function createJob(type: JobRecord["type"], metadata: JobRecord["metadata"] = {}) {
   const now = new Date().toISOString();
@@ -408,7 +411,29 @@ export async function publishScenarioJob(input: unknown) {
         );
       }
     }
-    const mappedProfile = await resolveMappedVoiceProfile(parsed.scenarioId);
+    const requestedProfile = parsed.voiceProfileId
+      ? await loadVoiceProfile(parsed.voiceProfileId)
+      : null;
+    if (
+      requestedProfile?.metadata?.scenarioIds &&
+      requestedProfile.metadata.scenarioIds.length > 0 &&
+      !requestedProfile.metadata.scenarioIds.includes(parsed.scenarioId)
+    ) {
+      throw new Error(
+        `Voice profile ${requestedProfile.id} does not support scenario ${parsed.scenarioId}.`
+      );
+    }
+
+    const mappedProfile = assertScenarioVoiceProfileAvailable({
+      scenarioId: parsed.scenarioId,
+      purpose: "publish",
+      profile:
+        requestedProfile ??
+        (await resolveMappedVoiceProfile(parsed.scenarioId)),
+      ...(scenario.publishContract?.dictionaryRequired !== undefined
+        ? { dictionaryRequired: scenario.publishContract.dictionaryRequired }
+        : {}),
+    });
     const resolvedVoice = await ctx.vendors.elevenLabs.resolveVoiceId(
       mappedProfile?.voiceId ?? ctx.env.DEFAULT_ELEVEN_VOICE_ID,
       scenario.language
@@ -428,14 +453,65 @@ export async function publishScenarioJob(input: unknown) {
         });
 
     const existingBinding = await ctx.repositories.agentBindings.get(parsed.scenarioId);
-    const result = await publishScenarioAgent({
-      elevenLabs: ctx.vendors.elevenLabs,
-      scenario,
-      assets,
-      existingBinding,
-      llmModel: ctx.env.DEFAULT_ELEVEN_MODEL,
-      voiceSelection,
-    });
+    let result;
+    try {
+      result = await publishScenarioAgent({
+        elevenLabs: ctx.vendors.elevenLabs,
+        scenario,
+        assets,
+        existingBinding,
+        llmModel: ctx.env.DEFAULT_ELEVEN_MODEL,
+        voiceSelection,
+      });
+    } catch (error) {
+      const publishBlockedByExpressiveTts =
+        error instanceof HttpError &&
+        voiceSelection.ttsModel === "eleven_v3" &&
+        typeof error.body === "object" &&
+        error.body !== null &&
+        "detail" in error.body &&
+        typeof error.body.detail === "object" &&
+        error.body.detail !== null &&
+        "status" in error.body.detail &&
+        error.body.detail.status === "expressive_tts_not_allowed";
+
+      if (publishBlockedByExpressiveTts) {
+        const detail =
+          typeof error.body === "object" &&
+          error.body !== null &&
+          "detail" in error.body &&
+          typeof error.body.detail === "object" &&
+          error.body.detail !== null
+            ? error.body.detail
+            : null;
+        const requestPath = error.message.replace(/^HTTP \d+ for /, "");
+        let requestPathWithQuery = requestPath;
+        let branchId = "unknown";
+        try {
+          const requestPathUrl = new URL(requestPath);
+          requestPathWithQuery = `${requestPathUrl.pathname}${requestPathUrl.search}`;
+          branchId = requestPathUrl.searchParams.get("branch_id") ?? "unknown";
+        } catch {
+          requestPathWithQuery = requestPath;
+        }
+        const errorCode =
+          detail && "code" in detail && typeof detail.code === "string"
+            ? detail.code
+            : "unknown";
+        const errorMessage =
+          detail && "message" in detail && typeof detail.message === "string"
+            ? detail.message
+            : "Unknown error";
+
+        throw new Error(
+          `ElevenLabs agent publish failed for ${parsed.scenarioId} with expressive_tts_not_allowed. branch_id=${branchId} request_path=${requestPathWithQuery} sent_tts_model_id=${normalizeAgentTtsModelId(
+            voiceSelection.ttsModel
+          )} original_tts_model_id=${voiceSelection.ttsModel} agent_output_audio_format=pcm_24000 vendor_request_id=${error.vendorRequestId ?? "unknown"} error_code=${errorCode} error_message=${errorMessage}`
+        );
+      }
+
+      throw error;
+    }
 
     if (result.binding) {
       await ctx.repositories.agentBindings.upsert(result.binding);
@@ -461,6 +537,7 @@ export async function publishScenarioJob(input: unknown) {
         source: mappedProfile?.metadata?.source,
         gender: mappedProfile?.metadata?.gender,
         stage: mappedProfile?.metadata?.stage,
+        selectionSource: parsed.voiceProfileId ? "override" : "mapping",
         label: voiceSelection.label,
         voiceId: voiceSelection.voiceId,
         ttsModel: voiceSelection.ttsModel,
@@ -481,6 +558,12 @@ export async function publishScenarioJob(input: unknown) {
       status: result.passed ? "completed" : "failed",
       updatedAt: new Date().toISOString(),
       scenarioId: parsed.scenarioId,
+      metadata: {
+        ...job.metadata,
+        ...(parsed.voiceProfileId
+          ? { voiceProfileId: parsed.voiceProfileId }
+          : {}),
+      },
       ...(result.passed ? {} : { error: "Agent tests failed" }),
     });
 

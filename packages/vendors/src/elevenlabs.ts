@@ -203,6 +203,26 @@ const createVoiceFromPreviewResponseSchema = z.object({
   verified_languages: voiceSummarySchema.shape.verified_languages.nullable().optional(),
 });
 
+const pronunciationDictionarySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  latest_version_id: z.string().min(1).nullable().optional(),
+  latest_version_rules_num: z.number().int().nonnegative().optional(),
+  version_id: z.string().min(1).nullable().optional(),
+  version_rules_num: z.number().int().nonnegative().optional(),
+  permission_on_resource: z.string().nullable().optional(),
+  created_by: z.string().min(1).optional(),
+  creation_time_unix: z.number().nullable().optional(),
+  archived_time_unix: z.number().nullable().optional(),
+  description: z.string().nullable().optional(),
+});
+
+const pronunciationDictionaryListSchema = z.object({
+  pronunciation_dictionaries: z.array(pronunciationDictionarySchema),
+  next_cursor: z.string().nullable().optional(),
+  has_more: z.boolean().optional(),
+});
+
 type AgentConfigPayload = {
   name: string;
   prompt: string;
@@ -230,6 +250,9 @@ export type ElevenLabsDesignedVoicePreview = z.infer<
 >;
 export type ElevenLabsDesignVoiceResponse = z.infer<
   typeof designVoiceResponseSchema
+>;
+export type ElevenLabsPronunciationDictionary = z.infer<
+  typeof pronunciationDictionarySchema
 >;
 
 export type RenderSpeechInput = {
@@ -289,6 +312,13 @@ export type CreateVoiceFromPreviewInput = {
   playedNotSelectedVoiceIds?: string[];
 };
 
+export type AddPronunciationDictionaryFromFileInput = {
+  name: string;
+  fileName: string;
+  fileContents: Uint8Array;
+  description?: string;
+};
+
 type ApiKeyProvider = string | (() => Promise<string>);
 
 function mapVoiceSettingsToAgentTts(
@@ -344,6 +374,14 @@ function mapPronunciationDictionaryLocators(
   }));
 }
 
+export function normalizeAgentTtsModelId(modelId: string) {
+  if (modelId === "eleven_v3") {
+    return "eleven_v3_conversational";
+  }
+
+  return modelId;
+}
+
 function buildRenderTextNormalisationPayload(
   modelId: string,
   textNormalisationType: TextNormalisationType | undefined
@@ -390,7 +428,7 @@ export function buildConversationConfig(payload: AgentConfigPayload) {
       },
     },
     tts: {
-      model_id: payload.tts.modelId,
+      model_id: normalizeAgentTtsModelId(payload.tts.modelId),
       voice_id: payload.tts.voiceId,
       agent_output_audio_format: "pcm_24000",
       ...(payload.tts.languageCode
@@ -700,6 +738,73 @@ export class ElevenLabsClient {
       latencyMs: Date.now() - startedAt,
       vendorRequestId,
     };
+  }
+
+  async listPronunciationDictionaries(pageSize = 100) {
+    const apiKey = await this.resolveApiKey();
+    const query = new URLSearchParams({
+      page_size: String(pageSize),
+    });
+
+    const response = await requestJson({
+      scope: "elevenlabs.listPronunciationDictionaries",
+      url: `${this.baseUrl}/v1/pronunciation-dictionaries?${query.toString()}`,
+      headers: {
+        "xi-api-key": apiKey,
+        accept: "application/json",
+      },
+      schema: pronunciationDictionaryListSchema,
+      timeoutMs: 20_000,
+    });
+
+    return response.pronunciation_dictionaries;
+  }
+
+  async addPronunciationDictionaryFromFile(
+    input: AddPronunciationDictionaryFromFileInput
+  ) {
+    const apiKey = await this.resolveApiKey();
+    const form = new FormData();
+    const fileBuffer = input.fileContents;
+    const fileArrayBuffer = fileBuffer.buffer.slice(
+      fileBuffer.byteOffset,
+      fileBuffer.byteOffset + fileBuffer.byteLength
+    ) as ArrayBuffer;
+    form.set(
+      "file",
+      new File([fileArrayBuffer], input.fileName, {
+        type: "application/octet-stream",
+      })
+    );
+    form.set("name", input.name);
+    if (input.description) {
+      form.set("description", input.description);
+    }
+
+    const response = await fetch(
+      `${this.baseUrl}/v1/pronunciation-dictionaries/add-from-file`,
+      {
+        method: "POST",
+        headers: {
+          "xi-api-key": apiKey,
+          accept: "application/json",
+        },
+        body: form,
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      const vendorRequestId = response.headers.get("x-request-id") ?? undefined;
+      throw new HttpError(
+        `HTTP ${response.status} for ${response.url}`,
+        response.status,
+        errorText,
+        vendorRequestId
+      );
+    }
+
+    return pronunciationDictionarySchema.parse(await response.json());
   }
 
   async findSharedVoice(voiceId: string) {
