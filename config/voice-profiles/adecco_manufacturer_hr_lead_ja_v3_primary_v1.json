@@ -1,0 +1,31 @@
+{
+  "id": "adecco_manufacturer_hr_lead_ja_v3_primary_v1",
+  "label": "Adecco Manufacturer HR Lead JA V3 Primary v1",
+  "language": "ja",
+  "model": "eleven_v3",
+  "voiceId": "4lOQ7A2l7HPuG7UIHiKA",
+  "firstMessageJa": "本日はありがとうございます。人事課長から新しい派遣会社さんも見ておくように言われていて、アデコさんも大手さんなので一度お話を伺えればと思っていました。まだ初めてなので、今日は依頼できそうかどうかも含めて見させてください。",
+  "textNormalisationType": "elevenlabs",
+  "voiceSettings": {
+    "speed": 0.96,
+    "style": 0
+  },
+  "pronunciationDictionaryLocators": [
+    {
+      "pronunciationDictionaryId": "2arpjQXtKr7DoHrM5zuT",
+      "versionId": "GpJghKIrZi1u2nDXHP7S"
+    }
+  ],
+  "metadata": {
+    "personaKey": "busy_manager_medium",
+    "scenarioIds": [
+      "staffing_order_hearing_adecco_manufacturer_hr_lead_medium"
+    ],
+    "benchmarkStatus": "approved",
+    "source": "shared",
+    "gender": "female",
+    "voiceName": "Kyoko",
+    "stage": "primary",
+    "notes": "Reuses the approved busy-manager v3 voice for the Adecco manufacturer HR order-hearing scenario."
+  }
+}
