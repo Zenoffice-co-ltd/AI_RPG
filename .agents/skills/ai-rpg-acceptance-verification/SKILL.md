@@ -22,7 +22,9 @@ Use this skill when the job is to prove that the repo is shippable.
    - vendor readiness
    - local app startup
    - actual product regression
-4. Record concrete evidence, not just that scripts exist.
+4. For a blocker outside the touched scenario or package, run the narrow targeted command enough times to distinguish deterministic failure from a one-off vendor judge result.
+5. When a legacy scenario fails during a new-scenario task, compare the relevant generated scenario/assets and live test definition before calling it a regression. If needed, use a temporary clean worktree at the pre-task baseline to establish causality.
+6. Record concrete evidence, not just that scripts exist.
 
 ## Representative Commands
 
@@ -39,3 +41,4 @@ pnpm verify:acceptance
 - Do not claim acceptance is done unless the canonical gate passed or you explicitly document the remaining blocker.
 - For publish-facing work, include the exact scenario or profile that was exercised.
 - If a local server is involved, prefer a fresh process over reusing stale output.
+- If `verify:acceptance` remains blocked, add or update `docs/OPERATIONS.md` Known issues / Follow-up Backlog with status, scope, owner placeholder, and acceptance criteria.
