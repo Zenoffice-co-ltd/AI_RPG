@@ -7,6 +7,7 @@ const {
   scenariosGet,
   scenariosGetAssets,
   scenariosUpsert,
+  scenariosSaveAssets,
   bindingGet,
   bindingUpsert,
   resolveVoiceId,
@@ -15,6 +16,7 @@ const {
   resolveMappedVoiceProfile,
   assertScenarioVoiceProfileAvailable,
   loadVoiceProfile,
+  compileStaffingReferenceScenario,
   publishScenarioAgent,
   evaluateCompiledAccountingScenario,
   runAccountingLocalEval,
@@ -23,6 +25,7 @@ const {
   scenariosGet: vi.fn(),
   scenariosGetAssets: vi.fn(),
   scenariosUpsert: vi.fn(),
+  scenariosSaveAssets: vi.fn(),
   bindingGet: vi.fn(),
   bindingUpsert: vi.fn(),
   resolveVoiceId: vi.fn(),
@@ -31,6 +34,7 @@ const {
   resolveMappedVoiceProfile: vi.fn(),
   assertScenarioVoiceProfileAvailable: vi.fn(),
   loadVoiceProfile: vi.fn(),
+  compileStaffingReferenceScenario: vi.fn(),
   publishScenarioAgent: vi.fn(),
   evaluateCompiledAccountingScenario: vi.fn(),
   runAccountingLocalEval: vi.fn(),
@@ -51,6 +55,7 @@ vi.mock("../appContext", () => ({
         get: scenariosGet,
         getAssets: scenariosGetAssets,
         upsert: scenariosUpsert,
+        saveAssets: scenariosSaveAssets,
       },
       agentBindings: {
         get: bindingGet,
@@ -97,6 +102,7 @@ vi.mock("@top-performer/scenario-engine", () => ({
     voiceSettings: input.profile.voiceSettings,
   })),
   compileScenarios: vi.fn(),
+  compileStaffingReferenceScenario,
   assertScenarioVoiceProfileAvailable,
   evaluateCompiledAccountingScenario,
   importTranscriptsFromDirectory: vi.fn(),
@@ -107,7 +113,11 @@ vi.mock("@top-performer/scenario-engine", () => ({
   runAccountingLocalEval,
 }));
 
-import { publishScenarioJob } from "./admin";
+import {
+  buildElevenLabsDashboardLinks,
+  compileScenariosJob,
+  publishScenarioJob,
+} from "./admin";
 
 function createScenario(
   overrides: Partial<ScenarioPack> = {}
@@ -170,12 +180,75 @@ function createAssets(
   };
 }
 
+describe("compileScenariosJob", () => {
+  beforeEach(() => {
+    jobsUpsert.mockReset();
+    scenariosUpsert.mockReset();
+    scenariosSaveAssets.mockReset();
+    writeGeneratedJson.mockReset();
+    resolveWorkspacePath.mockReset();
+    compileStaffingReferenceScenario.mockReset();
+
+    resolveWorkspacePath.mockImplementation((value: string) => value);
+    writeGeneratedJson.mockResolvedValue(undefined);
+    compileStaffingReferenceScenario.mockResolvedValue({
+      scenario: createScenario({
+        id: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+        title: "住宅設備メーカー 人事課主任 初回派遣オーダーヒアリング",
+      }),
+      assets: createAssets({
+        scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+      }),
+    });
+  });
+
+  it("compiles a staffing reference scenario without requiring a playbook", async () => {
+    const result = await compileScenariosJob({
+      family: "staffing_order_hearing",
+      referenceArtifactPath:
+        "./docs/references/adecco_manufacturer_order_hearing_reference.json",
+    });
+
+    expect(compileStaffingReferenceScenario).toHaveBeenCalledWith({
+      referenceArtifactPath:
+        "./docs/references/adecco_manufacturer_order_hearing_reference.json",
+    });
+    expect(scenariosUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+      })
+    );
+    expect(scenariosSaveAssets).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+      })
+    );
+    expect(writeGeneratedJson).toHaveBeenCalledWith(
+      "scenarios/staffing_order_hearing_adecco_manufacturer_busy_manager_medium.json",
+      expect.any(Object)
+    );
+    expect(result).toHaveLength(1);
+  });
+});
+
+describe("buildElevenLabsDashboardLinks", () => {
+  it("builds the ElevenLabs dashboard and orb preview URLs from an agent id", () => {
+    expect(buildElevenLabsDashboardLinks("agent_2801kpj49tj1f43sr840cvy17zcc")).toEqual({
+      agentUrl:
+        "https://elevenlabs.io/app/conversational-ai/agents/agent_2801kpj49tj1f43sr840cvy17zcc",
+      orbPreviewUrl:
+        "https://elevenlabs.io/app/talk-to?agent_id=agent_2801kpj49tj1f43sr840cvy17zcc",
+    });
+  });
+});
+
 describe("publishScenarioJob", () => {
   beforeEach(() => {
     jobsUpsert.mockReset();
     scenariosGet.mockReset();
     scenariosGetAssets.mockReset();
     scenariosUpsert.mockReset();
+    scenariosSaveAssets.mockReset();
     bindingGet.mockReset();
     bindingUpsert.mockReset();
     resolveVoiceId.mockReset();
@@ -200,6 +273,9 @@ describe("publishScenarioJob", () => {
     });
     publishScenarioAgent.mockResolvedValue({
       passed: true,
+      testRun: {
+        id: "test_run_123",
+      },
       binding: {
         scenarioId: "staffing_order_hearing_busy_manager_medium",
         elevenAgentId: "agent_123",
@@ -284,6 +360,17 @@ describe("publishScenarioJob", () => {
       })
     );
     expect(result.voiceSelection.mode).toBe("legacy");
+    expect(result).toMatchObject({
+      scenarioId: "staffing_order_hearing_busy_manager_medium",
+      elevenAgentId: "agent_123",
+      voiceId: "voice_fallback",
+      ttsModel: "eleven_flash_v2_5",
+      testRunId: "test_run_123",
+      dashboard: {
+        agentUrl: "https://elevenlabs.io/app/conversational-ai/agents/agent_123",
+        orbPreviewUrl: "https://elevenlabs.io/app/talk-to?agent_id=agent_123",
+      },
+    });
   });
 
   it("runs the accounting local eval gate before blocking publish without an active mapping", async () => {
@@ -366,6 +453,7 @@ describe("publishScenarioJob", () => {
     expect(resolveVoiceId).toHaveBeenCalledWith("profile_voice", "ja");
     expect(publishScenarioAgent).toHaveBeenCalledWith(
       expect.objectContaining({
+        llmModel: "gpt-5-mini",
         voiceSelection: expect.objectContaining({
           mode: "profile",
           voiceProfileId:

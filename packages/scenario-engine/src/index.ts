@@ -4,6 +4,7 @@ export * from "./accountingArtifacts";
 export * from "./benchmarkRenderer";
 export * from "./compileAccountingScenario";
 export * from "./compileScenarios";
+export * from "./compileStaffingReferenceScenario";
 export * from "./jaVoiceVariations";
 export * from "./mineBehaviors";
 export * from "./normalize";

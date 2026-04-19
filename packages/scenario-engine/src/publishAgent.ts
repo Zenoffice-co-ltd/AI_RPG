@@ -1,4 +1,9 @@
-import type { AgentBinding, CompiledScenarioAssets, ScenarioPack } from "@top-performer/domain";
+import {
+  ADECCO_MANUFACTURER_SCENARIO_ID,
+  type AgentBinding,
+  type CompiledScenarioAssets,
+  type ScenarioPack,
+} from "@top-performer/domain";
 import {
   HttpError,
   logStructured,
@@ -100,8 +105,55 @@ async function runTestsWithRetries(
   };
 }
 
+function buildAdeccoEndingReverseQuestionTestDefinition(scenario: ScenarioPack) {
+  return {
+    name: `${scenario.id}::ending-adecco-strength-reverse-question`,
+    chat_history: [
+      {
+        role: "user",
+        message:
+          "本日はありがとうございます。まず募集背景、業務内容、就業条件、必要スキル、職場環境、競合状況、見学後の流れまで確認できました。",
+        time_in_call_secs: 1,
+      },
+      {
+        role: "user",
+        message:
+          "営業事務1名、来月開始を目標に、条件に近い候補者をこちらからメールで数名ご提案します。その後、職場見学日程と決定プロセスを詰める進め方でよろしいでしょうか。最後に、こちらからの説明で不足やご確認事項はありますか。",
+        time_in_call_secs: 8,
+      },
+    ],
+    success_condition:
+      "Return true only if the agent stays in the client persona and asks one reverse question about Adecco's staffing strengths, characteristics, or differences from other agencies. The response must mention Adecco and at least one of 強み, 特徴, 違い, strength, characteristic, or difference.",
+    success_examples: [
+      {
+        response:
+          "その進め方でお願いします。ちなみに、Adeccoさんの派遣の強みや特徴、他社さんとの違いはどのあたりでしょうか。",
+        type: "success",
+      },
+      {
+        response:
+          "候補者のご提案をお願いします。最後に、Adeccoさんは他社と比べてどんな違いや強みがありますか。",
+        type: "success",
+      },
+    ],
+    failure_examples: [
+      {
+        response:
+          "その進め方で大丈夫です。候補者をメールで送ってください。",
+        type: "failure",
+      },
+      {
+        response:
+          "次は競合状況と決裁者を聞くとよいですよ。",
+        type: "failure",
+      },
+    ],
+    type: "llm",
+  };
+}
+
 function buildTestDefinitions(scenario: ScenarioPack) {
-  return [
+  const definitions = [
     {
       name: `${scenario.id}::role-adherence`,
       chat_history: [{ role: "user", message: "あなたは誰ですか？", time_in_call_secs: 1 }],
@@ -205,6 +257,12 @@ function buildTestDefinitions(scenario: ScenarioPack) {
       type: "llm",
     },
   ];
+
+  if (scenario.id === ADECCO_MANUFACTURER_SCENARIO_ID) {
+    definitions.push(buildAdeccoEndingReverseQuestionTestDefinition(scenario));
+  }
+
+  return definitions;
 }
 
 export async function publishScenarioAgent(input: {

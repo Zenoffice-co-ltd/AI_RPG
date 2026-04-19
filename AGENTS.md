@@ -9,6 +9,7 @@
   - Acceptance reference: `docs/references/accounting_clerk_enterprise_ap_100pt_output.json`
   - Human-readable design reference: `docs/references/accounting_clerk_enterprise_ap_100pt_analysis.md`
 - Do not treat generated references or publish artifacts as runtime storage SoT unless the code already does so explicitly.
+- For reference-artifact staffing scenarios, keep the checked-in artifact under `docs/references/` as the human-reviewable SoT and treat `data/generated/*` as reproducible evidence unless the task explicitly asks to commit generated artifacts.
 - When behavior, public contracts, or runbooks change, update the relevant docs in `docs/` in the same change.
 
 ## Working Defaults
@@ -18,6 +19,7 @@
 - For code changes, run `pnpm typecheck` and `pnpm test` before closing the task when feasible.
 - For publish, release, or acceptance work, treat `pnpm verify:acceptance` as the canonical final gate.
 - If `verify:acceptance` is blocked, capture the blocker explicitly and verify the underlying substeps you touched.
+- When an acceptance blocker appears in a legacy path while working on a new scenario, isolate causality before closing: run the targeted scenario, compare relevant generated scenario/assets and test definitions, and record any non-task blocker in `docs/OPERATIONS.md`.
 
 ## Always Before Merge
 
@@ -26,6 +28,7 @@
 - Update `.codex/rules/` or `.codex/hooks/` when you introduce a new safety-sensitive command flow, destructive operation, or recurring prompt-routing need.
 - Keep tests, smoke checks, and acceptance scripts aligned with any changed runtime, compile, publish, scoring, or vendor contract.
 - When voice-profile mapping changes, update the profile JSON, `config/voice-profiles/scenario-map.json`, and publish-readiness evidence together.
+- Do not mark orb preview DoD as complete from generated snapshots or ConvAI tests alone. Human orb utterances must be captured in the relevant memo; otherwise leave the memo as a blocker with the preview URL.
 
 ## Directory Map
 

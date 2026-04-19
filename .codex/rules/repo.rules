@@ -40,7 +40,7 @@ prefix_rule(
 prefix_rule(
     pattern = ["pnpm", "publish:scenario"],
     decision = "prompt",
-    justification = "Publishing mutates external vendor state. Confirm the scenario id, environment, and readiness evidence before running it.",
+    justification = "Publishing mutates external vendor state. Confirm the scenario id, environment, readiness evidence, and whether generated publish snapshots are evidence-only or intended for commit.",
     match = [
         "pnpm publish:scenario -- --scenario staffing_order_hearing_busy_manager_medium",
         "pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium",
@@ -51,9 +51,35 @@ prefix_rule(
 )
 
 prefix_rule(
+    pattern = ["pnpm", "verify:acceptance"],
+    decision = "prompt",
+    justification = "Acceptance is the canonical release gate. If it blocks, preserve targeted substep evidence and record non-task blockers in docs/OPERATIONS.md before merge.",
+    match = [
+        "pnpm verify:acceptance",
+        "pnpm verify:acceptance -- --preflight",
+    ],
+    not_match = [
+        "pnpm test",
+    ],
+)
+
+prefix_rule(
+    pattern = ["git", "worktree", "remove"],
+    decision = "prompt",
+    justification = "Removing a worktree can delete local baseline evidence. Confirm the target path is temporary and inside the intended workspace before removal.",
+    match = [
+        "git worktree remove --force tmp/pre-adecco-baseline",
+        "git worktree remove tmp/baseline",
+    ],
+    not_match = [
+        "git worktree list",
+    ],
+)
+
+prefix_rule(
     pattern = ["git", "merge"],
     decision = "prompt",
-    justification = "Before merging, update README/docs for workflow or behavior changes, refresh repo skills or Codex safety config if the workflow changed, and confirm current verification evidence.",
+    justification = "Before merging, update README/docs for workflow or behavior changes, refresh repo skills or Codex safety config if the workflow changed, confirm current verification evidence, and explicitly separate any out-of-scope blockers.",
     match = [
         "git merge codex/accounting-phase34-v2",
         "git merge --no-ff main",
@@ -66,7 +92,7 @@ prefix_rule(
 prefix_rule(
     pattern = ["gh", "pr", "merge"],
     decision = "prompt",
-    justification = "Before merging a PR, confirm docs/runbooks, repo skills, Codex safety config, and release verification evidence are updated for the final state.",
+    justification = "Before merging a PR, confirm docs/runbooks, repo skills, Codex safety config, release verification evidence, and any human-evidence blockers are documented for the final state.",
     match = [
         "gh pr merge 5 --squash",
         "gh pr merge https://github.com/iwase-cpu/AI_RPG/pull/5 --merge",
