@@ -23,6 +23,9 @@ export const ACCOUNTING_SCENARIO_IDS = {
   busy_manager_medium: ACCOUNTING_SCENARIO_ID,
 } as const;
 
+export const ADECCO_MANUFACTURER_HR_SCENARIO_ID =
+  "staffing_order_hearing_adecco_manufacturer_hr_lead_medium";
+
 export const CORPUS_SOURCE_OF_TRUTH = {
   enterpriseAccountingApGoldV1: "enterprise_accounting_ap_gold_v1",
 } as const;
@@ -35,6 +38,11 @@ export const SCENARIO_VARIANT_TITLES: Record<ScenarioVariant, string> = {
 
 export const ACCOUNTING_SCENARIO_TITLES = {
   busy_manager_medium: "経理事務 AP 忙しい現場責任者",
+} as const;
+
+export const STAFFING_SPECIAL_SCENARIO_TITLES = {
+  adeccoManufacturerHrLeadMedium:
+    "住宅設備メーカー 人事課主任の新規オーダーヒアリング",
 } as const;
 
 export const BUILTIN_SCENARIO_SUMMARIES: PublicScenarioSummary[] = [
@@ -60,6 +68,14 @@ export const BUILTIN_SCENARIO_SUMMARIES: PublicScenarioSummary[] = [
     status: "draft",
   },
   {
+    id: ADECCO_MANUFACTURER_HR_SCENARIO_ID,
+    title: STAFFING_SPECIAL_SCENARIO_TITLES.adeccoManufacturerHrLeadMedium,
+    difficulty: "medium",
+    publicBrief:
+      "住宅設備メーカーの人事課主任が、初回発注候補としてアデコの営業対応を見極めるオーダーヒアリングシナリオ",
+    status: "draft",
+  },
+  {
     id: ACCOUNTING_SCENARIO_ID,
     title: ACCOUNTING_SCENARIO_TITLES.busy_manager_medium,
     difficulty: "medium",
@@ -71,6 +87,7 @@ export const BUILTIN_SCENARIO_SUMMARIES: PublicScenarioSummary[] = [
 
 export const PUBLISHABLE_SCENARIO_IDS = [
   DEFAULT_SCENARIO_IDS.busy_manager_medium,
+  ADECCO_MANUFACTURER_HR_SCENARIO_ID,
   ACCOUNTING_SCENARIO_ID,
 ] as const;
 
