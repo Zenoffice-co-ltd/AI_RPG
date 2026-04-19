@@ -16,17 +16,22 @@ async function main() {
   const referenceArtifactPath = getArg("--reference");
   const acceptanceReferencePath = getArg("--acceptance-reference");
   const designMemoPath = getArg("--design-memo");
+  const referenceOnlyStaffingCompile =
+    family === "staffing_order_hearing" && Boolean(referenceArtifactPath);
 
-  const playbooks = await getAppContext().repositories.playbooks.list();
-  const latest = family
-    ? playbooks.find((item) => item.family === family)
-    : playbooks[0];
-  if (!latest) {
+  const latest = referenceOnlyStaffingCompile
+    ? null
+    : await getAppContext()
+        .repositories.playbooks.list()
+        .then((playbooks) =>
+          family ? playbooks.find((item) => item.family === family) : playbooks[0]
+        );
+  if (!latest && !referenceOnlyStaffingCompile) {
     throw new Error("No playbook found. Run pnpm build:playbooks first.");
   }
 
   const result = await compileScenariosJob({
-    playbookVersion: latest.version,
+    ...(latest ? { playbookVersion: latest.version } : {}),
     ...(family ? { family } : {}),
     ...(mode ? { mode } : {}),
     ...((referenceArtifactPath ?? acceptanceReferencePath)

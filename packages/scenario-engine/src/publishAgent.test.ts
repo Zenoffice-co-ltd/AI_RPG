@@ -29,18 +29,9 @@ function createElevenLabsStub(): ElevenLabsClient {
       version_id: "version_456",
     }),
     listTests: vi.fn().mockResolvedValue([]),
-    createTest: vi
-      .fn()
-      .mockResolvedValueOnce("test_1")
-      .mockResolvedValueOnce("test_2")
-      .mockResolvedValueOnce("test_3")
-      .mockResolvedValueOnce("test_4")
-      .mockResolvedValueOnce("test_5")
-      .mockResolvedValueOnce("test_6")
-      .mockResolvedValueOnce("test_7")
-      .mockResolvedValueOnce("test_8")
-      .mockResolvedValueOnce("test_9")
-      .mockResolvedValueOnce("test_10"),
+    createTest: vi.fn().mockImplementation((definition: { name?: string }) =>
+      Promise.resolve(`test_${definition.name ?? "unknown"}`)
+    ),
     updateTest: vi.fn(),
     runTests: vi.fn().mockResolvedValue({
       id: "invocation_123",
@@ -99,6 +90,60 @@ describe("publishScenarioAgent", () => {
         prompt: expect.stringContaining("# Pronunciation Guide"),
       }),
       expect.any(Object)
+    );
+  });
+
+  it("adds an Adecco-specific ending reverse-question ConvAI test", async () => {
+    const elevenLabs = createElevenLabsStub();
+
+    await publishScenarioAgent({
+      elevenLabs,
+      scenario: {
+        id: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+        title: "Adecco Manufacturer",
+        version: "v1.0.0",
+      } as never,
+      assets: {
+        knowledgeBaseText: "営業事務1名の初回派遣オーダーです。",
+        agentSystemPrompt:
+          "終盤で Adecco の派遣の特徴や強み、他社との違いを一度逆質問してください。",
+        promptVersion: "v1",
+        scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+        generatedAt: new Date().toISOString(),
+      },
+      llmModel: "gpt-5-mini",
+      voiceSelection: {
+        mode: "legacy",
+        scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+        label: "Legacy default voice",
+        language: "ja",
+        ttsModel: "eleven_flash_v2_5",
+        voiceId: "voice_123",
+        firstMessage:
+          "お時間ありがとうございます。今回は新しい派遣会社さんとして一度お話を伺いたいと思っています。",
+        textNormalisationType: "elevenlabs",
+        voiceSettings: {},
+      },
+    });
+
+    expect(elevenLabs.createTest).toHaveBeenCalledTimes(11);
+    expect(elevenLabs.createTest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::ending-adecco-strength-reverse-question",
+        success_condition: expect.stringContaining("Adecco"),
+      })
+    );
+    expect(elevenLabs.createTest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success_condition: expect.stringContaining("強み"),
+      })
+    );
+    expect(elevenLabs.runTests).toHaveBeenCalledWith(
+      "agent_123",
+      expect.arrayContaining([
+        "test_staffing_order_hearing_adecco_manufacturer_busy_manager_medium::ending-adecco-strength-reverse-question",
+      ]),
+      "branch_staging"
     );
   });
 

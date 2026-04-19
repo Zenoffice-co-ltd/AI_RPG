@@ -17,6 +17,9 @@
    - deterministic aggregation で `PlaybookNorms` を構築
 3. `POST /api/admin/scenarios/compile`
    - 3 variants の scenario pack と compiled assets を生成
+   - `family=staffing_order_hearing` かつ `referenceArtifactPath` 指定時は、playbook ではなく reference artifact から単一 scenario を compile
+   - Adecco manufacturer reference scenario は `docs/references/adecco_manufacturer_order_hearing_reference.json` を読み、`staffing_order_hearing_adecco_manufacturer_busy_manager_medium` を生成
+   - この reference path は既存 3 variants を置換せず、publish も legacy fallback voice / `dictionaryRequired=false` を使う
 
 ### `accounting_clerk_enterprise_ap` Phase 3/4 v2
 
@@ -47,6 +50,7 @@
 1. `POST /api/admin/scenarios/[scenarioId]/publish`
    - ElevenLabs KB / agent / branch / tests を更新
    - pass 時に `/agentBindings/{scenarioId}` を更新
+   - publish snapshot は `scenarioId`, `elevenAgentId`, `voiceId`, `ttsModel`, `testRunId`, `dashboard.agentUrl`, `dashboard.orbPreviewUrl` を追跡できる
 2. `POST /api/sessions`
    - Firestore session record を作成
    - LiveAvatar LITE + ElevenLabs plugin で session を開始

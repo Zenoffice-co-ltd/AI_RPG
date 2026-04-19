@@ -86,8 +86,10 @@ pnpm dev
 pnpm import:transcripts
 pnpm build:playbooks
 pnpm compile:scenarios
+pnpm compile:scenarios -- --family staffing_order_hearing --reference ./docs/references/adecco_manufacturer_order_hearing_reference.json
 pnpm eval:accounting
 pnpm publish:scenario --scenario staffing_order_hearing_busy_manager_medium
+pnpm publish:scenario -- --scenario staffing_order_hearing_adecco_manufacturer_busy_manager_medium
 pnpm smoke:eleven
 pnpm smoke:liveavatar
 pnpm verify:acceptance
@@ -98,6 +100,23 @@ pnpm verify:acceptance
 - Text-only scenario tester: `/scenario-test/<scenarioId>`
 - Static audio preview page: `/audio-preview/<scenarioId>`
 - Full avatar roleplay: `/roleplay/<scenarioId>`
+
+## Adecco Manufacturer Reference Scenario
+
+Adecco の住宅設備メーカー向け初回派遣オーダーヒアリングは、`staffing_order_hearing` family の reference-based scenario として追加しています。
+
+- Scenario ID: `staffing_order_hearing_adecco_manufacturer_busy_manager_medium`
+- Runtime reference: [docs/references/adecco_manufacturer_order_hearing_reference.json](/C:/AI_RPG/docs/references/adecco_manufacturer_order_hearing_reference.json)
+- Human memo: [docs/references/adecco_manufacturer_order_hearing_memo.md](/C:/AI_RPG/docs/references/adecco_manufacturer_order_hearing_memo.md)
+
+代表コマンド:
+
+```bash
+pnpm compile:scenarios -- --family staffing_order_hearing --reference ./docs/references/adecco_manufacturer_order_hearing_reference.json
+pnpm publish:scenario -- --scenario staffing_order_hearing_adecco_manufacturer_busy_manager_medium
+```
+
+publish 後は ElevenLabs の default orb preview で `dashboard.orbPreviewUrl` を開き、初回メッセージ、浅い質問への浅い返答、終盤の Adecco 強みの逆質問を確認します。publish snapshot は `data/generated/publish/staffing_order_hearing_adecco_manufacturer_busy_manager_medium.json` に残り、`dashboard.agentUrl` と `dashboard.orbPreviewUrl` も追跡します。
 ## Accounting Phase 3/4
 
 Corpus SoT は transcript corpus のみです。

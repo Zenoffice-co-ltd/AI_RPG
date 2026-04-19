@@ -61,6 +61,23 @@ pnpm verify:acceptance -- --preflight
 pnpm verify:acceptance
 ```
 
+## Adecco Manufacturer Staffing Reference Runbook
+
+Adecco の住宅設備メーカー向け初回派遣オーダーヒアリングは、legacy staffing family の単一 reference scenario として運用する。
+
+- Scenario ID: `staffing_order_hearing_adecco_manufacturer_busy_manager_medium`
+- Runtime reference: [docs/references/adecco_manufacturer_order_hearing_reference.json](/C:/AI_RPG/docs/references/adecco_manufacturer_order_hearing_reference.json)
+- Human memo: [docs/references/adecco_manufacturer_order_hearing_memo.md](/C:/AI_RPG/docs/references/adecco_manufacturer_order_hearing_memo.md)
+- Voice: active voice mapping は追加せず、legacy fallback voice を使う
+- Publish contract: `dictionaryRequired=false`
+
+標準実行順:
+
+1. `pnpm compile:scenarios -- --family staffing_order_hearing --reference ./docs/references/adecco_manufacturer_order_hearing_reference.json`
+2. `pnpm publish:scenario -- --scenario staffing_order_hearing_adecco_manufacturer_busy_manager_medium`
+3. `data/generated/publish/staffing_order_hearing_adecco_manufacturer_busy_manager_medium.json` で `scenarioId`, `elevenAgentId`, `voiceId`, `ttsModel`, `testRunId`, `dashboard.agentUrl`, `dashboard.orbPreviewUrl` を確認
+4. `dashboard.orbPreviewUrl` から ElevenLabs の default orb preview を開き、初回メッセージ、浅い質問への浅い返答、hidden facts の段階開示、終盤の Adecco 強みの逆質問を確認
+
 ## Accounting Phase 3/4 Runbook
 
 Source of Truth は transcript corpus のみです。
@@ -163,3 +180,24 @@ accounting family の E2E では次を確認する。
 
 - `/admin/*` and `/api/admin/*` are protected by Basic Auth
 - enforcement lives in [apps/web/proxy.ts](/C:/AI_RPG/apps/web/proxy.ts)
+
+## Known lint debt
+
+- `packages/scenario-engine/src/compileAccountingScenario.ts`: existing unsafe-any style lint findings.
+- `packages/scenario-engine/src/accountingArtifacts.ts`: existing require-await style lint findings.
+- `packages/scenario-engine/src/benchmarkRenderer.ts`: existing unused variable lint finding.
+- `packages/scenario-engine/src/phase34.ts`: existing no-base-to-string / unnecessary assertion lint findings.
+- `packages/scenario-engine/src/voiceProfiles.ts`: existing unused type and empty object type lint findings.
+
+## Known issues
+
+- 2026-04-19: `staffing_order_hearing_busy_manager_medium::no-coaching` failed 3/3 targeted publish reruns in the current working tree. Pre-Adecco baseline `4bcb980` passed on `suite_1301kpj8dk0yeezbwqj72sqf681f`; legacy scenario/assets and the no-coaching test definition had no Adecco-related diff, so this is not an Adecco reference-scenario regression.
+- 2026-04-19: `accounting_clerk_enterprise_ap_busy_manager_medium::no-hidden-fact-leak` failed once during publish and passed on immediate rerun. Treat busy-manager ConvAI judge results as vendor-side unstable when a single run fails without code or prompt changes.
+
+## Follow-up Backlog
+
+- [ ] `staffing_order_hearing_busy_manager_medium::no-coaching` legacy live ConvAI judge mismatch
+  - Status: 3/3 fail on 2026-04-19 in the current working tree; pre-Adecco baseline `4bcb980` passed on `suite_1301kpj8dk0yeezbwqj72sqf681f`
+  - Scope: legacy compileScenarios path / system prompt / vendor transport payload / vendor judge prompt のいずれか
+  - Owner: TBD
+  - Acceptance: smoke:eleven 経由で 3/3 pass

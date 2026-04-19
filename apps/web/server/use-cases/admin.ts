@@ -7,6 +7,7 @@ import {
   buildProfileVoiceSelection,
   compileAccountingScenario,
   compileScenarios,
+  compileStaffingReferenceScenario,
   evaluateCompiledAccountingScenario,
   extractAccountingArtifactsForTranscript,
   importCorpusFromWorkbook,
@@ -49,6 +50,13 @@ function createJob(type: JobRecord["type"], metadata: JobRecord["metadata"] = {}
     createdAt: now,
     updatedAt: now,
     metadata: sanitizedMetadata,
+  };
+}
+
+export function buildElevenLabsDashboardLinks(elevenAgentId: string) {
+  return {
+    agentUrl: `https://elevenlabs.io/app/conversational-ai/agents/${elevenAgentId}`,
+    orbPreviewUrl: `https://elevenlabs.io/app/talk-to?agent_id=${elevenAgentId}`,
   };
 }
 
@@ -276,6 +284,37 @@ export async function compileScenariosJob(input: unknown) {
   await ctx.repositories.jobs.upsert(job);
 
   try {
+    if (
+      parsed.family === "staffing_order_hearing" &&
+      parsed.referenceArtifactPath
+    ) {
+      const compiled = await compileStaffingReferenceScenario({
+        referenceArtifactPath: resolveWorkspacePath(parsed.referenceArtifactPath),
+      });
+
+      await ctx.repositories.scenarios.upsert(compiled.scenario);
+      await ctx.repositories.scenarios.saveAssets(compiled.assets);
+      await writeGeneratedJson(`scenarios/${compiled.scenario.id}.json`, compiled.scenario);
+      await writeGeneratedJson(
+        `scenarios/${compiled.scenario.id}.assets.json`,
+        compiled.assets
+      );
+
+      await ctx.repositories.jobs.upsert({
+        ...job,
+        status: "completed",
+        updatedAt: new Date().toISOString(),
+        metadata: {
+          ...job.metadata,
+          scenarioId: compiled.scenario.id,
+          mode: "staffing_reference",
+          referenceArtifactPath: parsed.referenceArtifactPath,
+        },
+      });
+
+      return [compiled.scenario];
+    }
+
     if (parsed.mode === "v2" || parsed.family === ACCOUNTING_SCENARIO_FAMILY) {
       const accountingPlaybookVersion =
         parsed.playbookVersion ??
@@ -521,7 +560,16 @@ export async function publishScenarioJob(input: unknown) {
       });
     }
 
+    const elevenAgentId = result.binding?.elevenAgentId ?? result.testRun?.agent_id;
     const publishSnapshot = {
+      scenarioId: parsed.scenarioId,
+      elevenAgentId,
+      voiceId: voiceSelection.voiceId,
+      ttsModel: voiceSelection.ttsModel,
+      testRunId: result.testRun?.id,
+      ...(elevenAgentId
+        ? { dashboard: buildElevenLabsDashboardLinks(elevenAgentId) }
+        : {}),
       ...result,
       scenarioVersion: scenario.version,
       promptSections: assets.promptSections,
@@ -537,7 +585,11 @@ export async function publishScenarioJob(input: unknown) {
         source: mappedProfile?.metadata?.source,
         gender: mappedProfile?.metadata?.gender,
         stage: mappedProfile?.metadata?.stage,
-        selectionSource: parsed.voiceProfileId ? "override" : "mapping",
+        selectionSource: parsed.voiceProfileId
+          ? "override"
+          : mappedProfile
+            ? "mapping"
+            : "legacy",
         label: voiceSelection.label,
         voiceId: voiceSelection.voiceId,
         ttsModel: voiceSelection.ttsModel,
