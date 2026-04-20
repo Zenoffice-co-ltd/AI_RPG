@@ -38,4 +38,5 @@ pnpm publish:scenario -- --scenario staffing_order_hearing_adecco_manufacturer_b
 - Generated scenario pack and assets under `data/generated/scenarios/`.
 - Publish snapshot under `data/generated/publish/` containing `scenarioId`, `elevenAgentId`, `voiceId`, `ttsModel`, `testRunId`, `dashboard.agentUrl`, and `dashboard.orbPreviewUrl`.
 - Adecco publish should include the extra ConvAI test `ending-adecco-strength-reverse-question`; expected count is `11/11`.
+- Adecco live agent display names should make ownership obvious: active publish uses `[MAIN][Adecco Orb] ...`; older manual duplicates may be renamed `[ARCHIVE yyyy-mm-dd hh:mm][Adecco Orb] ...`.
 - Orb preview memo must include real human-captured lines for opening, shallow-stays-shallow, staged hidden-fact reveal, and the Adecco strength/difference reverse question before marking the orb DoD complete.
