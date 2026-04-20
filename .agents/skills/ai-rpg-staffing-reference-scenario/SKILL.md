@@ -25,6 +25,7 @@ Use this skill for staffing scenarios compiled directly from a checked-in refere
 - Keep `dictionaryRequired=false` for the Adecco staffing reference scenario unless the publish contract is intentionally redesigned.
 - Do not fabricate orb preview evidence. If Codex cannot perform the human orb conversation, leave blocker placeholders in the memo with the exact preview URL.
 - If a legacy staffing ConvAI test fails while validating Adecco, prove whether it is Adecco-caused by comparing legacy scenario/assets and test definitions; record non-Adecco blockers in `docs/OPERATIONS.md`.
+- When borrowing enterprise ERP/AP learning for manufacturer staffing, reuse the hearing structure, not AP-specific facts: map it to input vs coordination/exception level and the split between employee-owned decisions and dispatched-staff work.
 
 ## Representative Commands
 
