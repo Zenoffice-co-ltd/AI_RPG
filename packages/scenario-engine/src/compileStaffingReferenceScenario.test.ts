@@ -32,6 +32,8 @@ describe("compileStaffingReferenceScenario", () => {
       expect.arrayContaining([
         "募集背景",
         "業務内容・1日の流れ",
+        "入力/調整/例外判断の線引き",
+        "社員が持つ業務と派遣に任せる業務の線引き",
         "請求金額・交通費",
         "競合他社依頼状況",
         "具体的なネクストアクションと期日",
@@ -40,6 +42,8 @@ describe("compileStaffingReferenceScenario", () => {
     expect(compiled.assets.agentSystemPrompt).toContain("営業をコーチしない");
     expect(compiled.assets.agentSystemPrompt).toContain("浅い質問には浅く返し");
     expect(compiled.assets.agentSystemPrompt).toContain("Adecco の派遣の特徴や強み");
+    expect(compiled.assets.agentSystemPrompt).toContain("例外対応の線引き");
     expect(compiled.assets.knowledgeBaseText).toContain("早出し禁止");
+    expect(compiled.assets.knowledgeBaseText).toContain("社員が持つ業務と派遣スタッフに任せる業務");
   });
 });

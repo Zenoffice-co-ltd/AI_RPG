@@ -29,6 +29,7 @@ Runtime SoT は [adecco_manufacturer_order_hearing_reference.json](/C:/AI_RPG/do
 - The contact has order and vendor-selection authority, but is an HR window and may need to confirm detailed field requirements with the workplace.
 - Shallow questions receive shallow answers. Deep, well-structured questions reveal hidden facts in stages.
 - Hidden facts include current-vendor dissatisfaction, task decomposition, volume and peak cycle, price flexibility, competition, decision process, and the closing Adecco differentiation question.
+- Enterprise ERP/AP scenario の共通ヒアリング設計を住宅設備メーカー向けに移植し、職種名で止めずに、入力作業と納期調整・在庫不足・品番不一致などの例外対応の線引き、社員側に残す最終判断を確認する設計にしています。
 - Near the end, the client asks: `Adecco の派遣の特徴や強みは？ 他社と何が違うの？`
 
 ## Compile And Publish
