@@ -126,6 +126,11 @@ describe("publishScenarioAgent", () => {
       },
     });
 
+    expect(elevenLabs.createAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "[MAIN][Adecco Orb] Adecco Manufacturer",
+      })
+    );
     expect(elevenLabs.createTest).toHaveBeenCalledTimes(11);
     expect(elevenLabs.createTest).toHaveBeenCalledWith(
       expect.objectContaining({

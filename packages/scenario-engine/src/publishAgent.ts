@@ -152,6 +152,14 @@ function buildAdeccoEndingReverseQuestionTestDefinition(scenario: ScenarioPack) 
   };
 }
 
+function buildAgentDisplayName(scenario: ScenarioPack) {
+  if (scenario.id === ADECCO_MANUFACTURER_SCENARIO_ID) {
+    return `[MAIN][Adecco Orb] ${scenario.title}`;
+  }
+
+  return scenario.title;
+}
+
 function buildTestDefinitions(scenario: ScenarioPack) {
   const definitions = [
     {
@@ -289,7 +297,7 @@ export async function publishScenarioAgent(input: {
   });
 
   const agentPayload = {
-    name: input.scenario.title,
+    name: buildAgentDisplayName(input.scenario),
     prompt: pronunciationGuide
       ? `${input.assets.agentSystemPrompt}\n\n${pronunciationGuide}`
       : input.assets.agentSystemPrompt,
