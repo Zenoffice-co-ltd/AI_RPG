@@ -6,6 +6,7 @@ export type NormalizedConversationEvent = {
   isFinal: boolean;
   sdkMessageId?: string | undefined;
   channel: "voice" | "chat";
+  partType?: "start" | "delta" | "stop" | undefined;
 };
 
 export function normalizeConversationEvent(
@@ -45,18 +46,19 @@ export function normalizeAgentChatResponsePart(
 
   const record = part as Record<string, unknown>;
   const text = stringValue(record["text"]);
-  if (!text.trim()) {
+  const partType = normalizePartType(record["type"]);
+  if (!text.trim() && partType !== "stop") {
     return null;
   }
 
   const eventId = numberOrString(record["event_id"]);
-  const partType = stringValue(record["type"]);
   return {
     role: "agent",
     text,
     isFinal: partType === "stop",
     channel: "chat",
     sdkMessageId: eventId ? `agent-chat-${eventId}` : undefined,
+    partType,
   };
 }
 
@@ -140,6 +142,14 @@ function normalizeRole(value: unknown) {
     return "user" as const;
   }
   return null;
+}
+
+function normalizePartType(value: unknown) {
+  const partType = stringValue(value).toLowerCase();
+  if (partType === "start" || partType === "delta" || partType === "stop") {
+    return partType;
+  }
+  return undefined;
 }
 
 function stringValue(value: unknown) {

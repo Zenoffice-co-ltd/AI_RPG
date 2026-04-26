@@ -230,6 +230,20 @@ type AgentConfigPayload = {
   knowledgeBase: Array<{ id: string; name: string; type: "text" }>;
   llmModel: string;
   language: string;
+  turn?: {
+    turnTimeoutSeconds: number;
+    initialWaitTimeSeconds?: number;
+    silenceEndCallTimeoutSeconds?: number;
+    softTimeout?: {
+      timeoutSeconds: number;
+      message: string;
+    };
+    turnEagerness?: "auto" | "low" | "normal" | "high" | "eager" | "patient";
+    spellingPatience?: "auto" | "low" | "normal" | "high";
+    speculativeTurn?: boolean;
+    retranscribeOnTurnTimeout?: boolean;
+    mode?: "turn" | "silence";
+  };
   tts: {
     modelId: string;
     voiceId: string;
@@ -420,6 +434,46 @@ export function buildConversationConfig(payload: AgentConfigPayload) {
     conversation: {
       text_only: false,
     },
+    ...(payload.turn
+      ? {
+          turn: {
+            turn_timeout: payload.turn.turnTimeoutSeconds,
+            ...(payload.turn.initialWaitTimeSeconds !== undefined
+              ? { initial_wait_time: payload.turn.initialWaitTimeSeconds }
+              : {}),
+            ...(payload.turn.silenceEndCallTimeoutSeconds !== undefined
+              ? {
+                  silence_end_call_timeout:
+                    payload.turn.silenceEndCallTimeoutSeconds,
+                }
+              : {}),
+            ...(payload.turn.softTimeout
+              ? {
+                  soft_timeout_config: {
+                    timeout_seconds: payload.turn.softTimeout.timeoutSeconds,
+                    message: payload.turn.softTimeout.message,
+                  },
+                }
+              : {}),
+            ...(payload.turn.turnEagerness
+              ? { turn_eagerness: payload.turn.turnEagerness }
+              : {}),
+            ...(payload.turn.spellingPatience
+              ? { spelling_patience: payload.turn.spellingPatience }
+              : {}),
+            ...(payload.turn.speculativeTurn !== undefined
+              ? { speculative_turn: payload.turn.speculativeTurn }
+              : {}),
+            ...(payload.turn.retranscribeOnTurnTimeout !== undefined
+              ? {
+                  retranscribe_on_turn_timeout:
+                    payload.turn.retranscribeOnTurnTimeout,
+                }
+              : {}),
+            ...(payload.turn.mode ? { mode: payload.turn.mode } : {}),
+          },
+        }
+      : {}),
     llm: {
       model: payload.llmModel,
       temperature: 0,

@@ -68,4 +68,34 @@ describe("normalizeConversationEvent", () => {
       sdkMessageId: "agent-chat-99",
     });
   });
+
+  it("keeps typed chat response metadata for streaming merge", () => {
+    expect(
+      normalizeAgentChatResponsePart({
+        text: "承知",
+        type: "delta",
+        event_id: 100,
+      })
+    ).toMatchObject({
+      role: "agent",
+      text: "承知",
+      isFinal: false,
+      partType: "delta",
+      sdkMessageId: "agent-chat-100",
+    });
+
+    expect(
+      normalizeAgentChatResponsePart({
+        text: "",
+        type: "stop",
+        event_id: 100,
+      })
+    ).toMatchObject({
+      role: "agent",
+      text: "",
+      isFinal: true,
+      partType: "stop",
+      sdkMessageId: "agent-chat-100",
+    });
+  });
 });

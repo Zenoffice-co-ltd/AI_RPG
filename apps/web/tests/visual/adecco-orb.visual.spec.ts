@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("adecco orb visual shell is stable", async ({ page }) => {
   await page.setViewportSize({ width: 1912, height: 1099 });
-  await page.goto("/demo/adecco-orb?mock=1&visualTest=1");
+  await page.goto("/demo/adecco-roleplay?mock=1&visualTest=1");
   await expect(page.getByTestId("roleplay-header")).toBeVisible();
   await expect(page.getByTestId("left-orb-panel")).toBeVisible();
   await expect(page.getByTestId("right-transcript-panel")).toBeVisible();

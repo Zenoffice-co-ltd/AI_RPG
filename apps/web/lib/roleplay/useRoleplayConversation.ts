@@ -12,6 +12,7 @@ import {
 } from "./conversation-types";
 import { createFakeLiveAdapter, type FakeLiveAdapter } from "./fake-live-adapter";
 import {
+  normalizeAgentChatResponsePart,
   normalizeConversationEvent,
   type NormalizedConversationEvent,
 } from "./normalize-conversation-event";
@@ -20,12 +21,13 @@ import {
   transcriptReducer,
 } from "./transcript-reducer";
 import { ADECCO_SCENARIO_ID, SESSION_LIMIT_MS } from "./scenario";
-import { SAFE_SESSION_ERROR } from "./voice-session";
+import { getSafeClientSessionError, SAFE_SESSION_ERROR } from "./voice-session";
 import { buildMockAgentResponse, canSendMessage, MOCK_INITIAL_TRANSCRIPT } from "./transcript";
 
 const HISTORY_KEY = "roleplay:adecco-orb:history";
 const CONNECT_TIMEOUT_MS = 20_000;
 const AGENT_RESPONSE_TIMEOUT_MS = 15_000;
+const DEBUG_QUERY_PARAM = "debugEvents";
 
 type StartTrigger = "call" | "text" | "new-conversation";
 
@@ -74,8 +76,15 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
   const sessionWarningRef = useRef<number | null>(null);
   const agentResponseTimerRef = useRef<number | null>(null);
   const fakeAdapterRef = useRef<FakeLiveAdapter | null>(null);
+  const agentChatPartBuffersRef = useRef(new Map<string, string>());
+  const debugEventsEnabledRef = useRef(false);
 
   const conversation = useConversation();
+  const conversationRef = useRef(conversation);
+
+  useEffect(() => {
+    conversationRef.current = conversation;
+  }, [conversation]);
 
   useEffect(() => {
     statusRef.current = status;
@@ -93,6 +102,7 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     setIsAwaitingAgentResponse(false);
     setLimitWarning(false);
     setIsMuted(false);
+    agentChatPartBuffersRef.current.clear();
     sessionGenerationRef.current += 1;
     localConversationIdRef.current = createLocalConversationId();
   }, [mode]);
@@ -102,6 +112,8 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
   }, [isMuted]);
 
   useEffect(() => {
+    debugEventsEnabledRef.current =
+      new URLSearchParams(window.location.search).get(DEBUG_QUERY_PARAM) === "1";
     try {
       const raw = window.localStorage.getItem(HISTORY_KEY);
       if (raw) {
@@ -117,20 +129,20 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
       cleanupTimers();
       clearStartGate();
       if (isActiveStatus(statusRef.current) || statusRef.current === "connecting") {
-        conversation.endSession();
+        conversationRef.current.endSession();
       }
     };
-  }, [conversation]);
+  }, []);
 
   useEffect(() => {
     const onBeforeUnload = () => {
       if (isActiveStatus(statusRef.current)) {
-        conversation.endSession();
+        conversationRef.current.endSession();
       }
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [conversation]);
+  }, []);
 
   const handleNormalizedEvent = useCallback(
     (
@@ -138,10 +150,25 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
       generation: number,
       conversationLocalId: string
     ) => {
+      recordDebugEvent(debugEventsEnabledRef.current, "normalized-event", {
+        role: event.role,
+        channel: event.channel,
+        isFinal: event.isFinal,
+        partType: event.partType,
+        textLength: event.text.length,
+        sdkMessageId: event.sdkMessageId,
+        generation,
+      });
+
       if (
         generation !== sessionGenerationRef.current ||
         conversationLocalId !== localConversationIdRef.current
       ) {
+        recordDebugEvent(debugEventsEnabledRef.current, "stale-event-dropped", {
+          role: event.role,
+          generation,
+          currentGeneration: sessionGenerationRef.current,
+        });
         return;
       }
 
@@ -151,27 +178,53 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
         setIsAwaitingAgentResponse(false);
       }
 
+      const mergedEvent = mergeAgentChatPart(event);
+      if (!mergedEvent) {
+        recordDebugEvent(debugEventsEnabledRef.current, "event-dropped-empty-merge", {
+          role: event.role,
+          channel: event.channel,
+          partType: event.partType,
+          sdkMessageId: event.sdkMessageId,
+        });
+        return;
+      }
+
       dispatchMessages({
         type: "append",
         message: createTranscriptMessage({
-          role: event.role,
-          channel: event.channel,
-          text: event.text,
-          status: event.isFinal ? "final" : "interim",
+          role: mergedEvent.role,
+          channel: mergedEvent.channel,
+          text: mergedEvent.text,
+          status: mergedEvent.isFinal ? "final" : "interim",
           source: "sdk",
-          sdkMessageId: event.sdkMessageId,
+          sdkMessageId: mergedEvent.sdkMessageId,
           createdAt: now,
         }),
+      });
+      recordDebugEvent(debugEventsEnabledRef.current, "message-dispatched", {
+        role: mergedEvent.role,
+        channel: mergedEvent.channel,
+        status: mergedEvent.isFinal ? "final" : "interim",
+        textLength: mergedEvent.text.length,
+        sdkMessageId: mergedEvent.sdkMessageId,
       });
     },
     []
   );
 
   const startConversation = useCallback(async () => {
-    await startConversationInternal("call");
+    try {
+      await startConversationInternal("call");
+    } catch (error) {
+      setErrorMessage(getSafeClientSessionError(error));
+    }
   }, []);
 
   const endConversation = useCallback(async () => {
+    const wasConnecting = statusRef.current === "connecting";
+    if (wasConnecting) {
+      sessionGenerationRef.current += 1;
+    }
     cleanupTimers();
     clearAgentResponseTimer();
     clearStartGate();
@@ -190,7 +243,10 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
       return;
     }
 
-    if (isActiveStatus(statusRef.current) || statusRef.current === "connecting") {
+    if (wasConnecting) {
+      conversation.endSession();
+      setStatus("ended");
+    } else if (isActiveStatus(statusRef.current)) {
       setStatus("ending");
       conversation.endSession();
     } else {
@@ -212,6 +268,7 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     cleanupTimers();
     clearAgentResponseTimer();
     clearStartGate();
+    agentChatPartBuffersRef.current.clear();
     persistHistory();
 
     if (modeRef.current === "fakeLive") {
@@ -290,9 +347,9 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
         dispatchMessages({ type: "updateStatus", clientMessageId, status: "sent" });
         setIsAwaitingAgentResponse(true);
         armAgentResponseTimeout();
-      } catch {
+      } catch (error) {
         dispatchMessages({ type: "updateStatus", clientMessageId, status: "failed" });
-        setErrorMessage(SAFE_SESSION_ERROR);
+        setErrorMessage(getSafeClientSessionError(error));
       }
     },
     [conversation]
@@ -353,6 +410,9 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
 
   async function startConversationInternal(trigger: StartTrigger) {
     if (modeRef.current === "mock" || modeRef.current === "visualTest") {
+      recordDebugEvent(debugEventsEnabledRef.current, "start-mock", {
+        mode: modeRef.current,
+      });
       setStatus("connected");
       setErrorMessage(null);
       return;
@@ -386,6 +446,11 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     const conversationLocalId = localConversationIdRef.current;
     const deferred = createStartDeferred(generation, conversationLocalId);
     startRef.current = deferred;
+    recordDebugEvent(debugEventsEnabledRef.current, "start-requested", {
+      mode: modeRef.current,
+      trigger,
+      generation,
+    });
 
     if (modeRef.current === "fakeLive") {
       fakeAdapterRef.current = createFakeLiveAdapter({
@@ -403,12 +468,22 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
 
     try {
       if (navigator.mediaDevices?.getUserMedia) {
+        recordDebugEvent(debugEventsEnabledRef.current, "mic-permission-request", {
+          generation,
+        });
         const permissionStream = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
         for (const track of permissionStream.getTracks()) {
           track.stop();
         }
+        recordDebugEvent(debugEventsEnabledRef.current, "mic-permission-granted", {
+          generation,
+        });
+      }
+      if (isStaleStart(generation, conversationLocalId)) {
+        setStatus("ended");
+        return;
       }
 
       const response = await fetch("/api/voice/session-token", {
@@ -425,6 +500,16 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
       };
       if (!response.ok || !data.conversationToken) {
         throw new Error(data.error ?? SAFE_SESSION_ERROR);
+      }
+      recordDebugEvent(debugEventsEnabledRef.current, "token-response", {
+        generation,
+        ok: response.ok,
+        status: response.status,
+        hasToken: Boolean(data.conversationToken),
+      });
+      if (isStaleStart(generation, conversationLocalId)) {
+        setStatus("ended");
+        return;
       }
 
       conversation.startSession({
@@ -466,7 +551,26 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
           });
         },
         onMessage: (event) => {
+          recordDebugEvent(debugEventsEnabledRef.current, "sdk-on-message", {
+            summary: summarizeUnknownEvent(event),
+            generation,
+          });
           const normalized = normalizeConversationEvent(event);
+          if (normalized) {
+            handleNormalizedEvent(normalized, generation, conversationLocalId);
+          } else {
+            recordDebugEvent(debugEventsEnabledRef.current, "sdk-on-message-unhandled", {
+              summary: summarizeUnknownEvent(event),
+              generation,
+            });
+          }
+        },
+        onAgentChatResponsePart: (event) => {
+          recordDebugEvent(debugEventsEnabledRef.current, "sdk-on-agent-part", {
+            summary: summarizeUnknownEvent(event),
+            generation,
+          });
+          const normalized = normalizeAgentChatResponsePart(event);
           if (normalized) {
             handleNormalizedEvent(normalized, generation, conversationLocalId);
           }
@@ -503,11 +607,22 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     }
     setStatus("connected");
     setErrorMessage(null);
+    recordDebugEvent(debugEventsEnabledRef.current, "connected", {
+      generation,
+      mode: modeRef.current,
+    });
     if (modeRef.current === "live" && isMutedRef.current) {
       conversation.setMuted(true);
     }
     armSessionLimit();
     resolveStartGate(generation);
+  }
+
+  function isStaleStart(generation: number, conversationLocalId: string) {
+    return (
+      generation !== sessionGenerationRef.current ||
+      conversationLocalId !== localConversationIdRef.current
+    );
   }
 
   function handleDisconnect(
@@ -523,10 +638,15 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     }
     cleanupTimers();
     clearAgentResponseTimer();
+    agentChatPartBuffersRef.current.clear();
     setIsAwaitingAgentResponse(false);
     setStatus((current) => (current === "error" ? current : "ended"));
     clearStartGate();
     persistHistory();
+    recordDebugEvent(debugEventsEnabledRef.current, "disconnected", {
+      generation,
+      mode: modeRef.current,
+    });
   }
 
   function handleError(
@@ -541,10 +661,15 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     }
     cleanupTimers();
     clearAgentResponseTimer();
+    agentChatPartBuffersRef.current.clear();
     setIsAwaitingAgentResponse(false);
     setStatus("error");
     setErrorMessage(SAFE_SESSION_ERROR);
     rejectStartGate(generation, new Error(SAFE_SESSION_ERROR));
+    recordDebugEvent(debugEventsEnabledRef.current, "session-error", {
+      generation,
+      mode: modeRef.current,
+    });
   }
 
   function createStartDeferred(
@@ -621,6 +746,43 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
       window.clearTimeout(sessionWarningRef.current);
       sessionWarningRef.current = null;
     }
+  }
+
+  function mergeAgentChatPart(
+    event: NormalizedConversationEvent
+  ): NormalizedConversationEvent | null {
+    if (event.role !== "agent" || event.channel !== "chat" || !event.partType) {
+      return event;
+    }
+
+    const key = event.sdkMessageId;
+    if (!key) {
+      return event.text.trim() ? event : null;
+    }
+
+    const currentText = agentChatPartBuffersRef.current.get(key) ?? "";
+    const nextText =
+      event.partType === "start"
+        ? event.text
+        : event.partType === "delta" || event.text
+          ? `${currentText}${event.text}`
+          : currentText;
+
+    if (event.partType === "stop") {
+      agentChatPartBuffersRef.current.delete(key);
+    } else {
+      agentChatPartBuffersRef.current.set(key, nextText);
+    }
+
+    if (!nextText.trim()) {
+      return null;
+    }
+
+    return {
+      ...event,
+      text: nextText,
+      isFinal: event.partType === "stop",
+    };
   }
 
   function armAgentResponseTimeout() {
@@ -741,4 +903,48 @@ function createLocalConversationId() {
 
 function createClientMessageId() {
   return `client-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+type RoleplayDebugDetail = Record<string, boolean | number | string | undefined>;
+
+function recordDebugEvent(
+  enabled: boolean,
+  eventName: string,
+  detail: RoleplayDebugDetail
+) {
+  if (!enabled || typeof window === "undefined") {
+    return;
+  }
+
+  const entry = {
+    at: new Date().toISOString(),
+    event: eventName,
+    ...detail,
+  };
+
+  const target = window as Window & {
+    __roleplayDebugEvents?: Array<typeof entry>;
+  };
+  target.__roleplayDebugEvents = [...(target.__roleplayDebugEvents ?? []), entry].slice(-200);
+  window.dispatchEvent(
+    new CustomEvent("roleplay:debug-event", {
+      detail: entry,
+    })
+  );
+  console.info("[roleplay-debug]", entry);
+}
+
+function summarizeUnknownEvent(event: unknown) {
+  if (!event || typeof event !== "object") {
+    return typeof event;
+  }
+
+  const record = event as Record<string, unknown>;
+  const keys = Object.keys(record).slice(0, 12).join(",");
+  const type = typeof record["type"] === "string" ? record["type"] : undefined;
+  const role = typeof record["role"] === "string" ? record["role"] : undefined;
+  const source = typeof record["source"] === "string" ? record["source"] : undefined;
+  return [type ? `type=${type}` : "", role ? `role=${role}` : "", source ? `source=${source}` : "", `keys=${keys}`]
+    .filter(Boolean)
+    .join(" ");
 }

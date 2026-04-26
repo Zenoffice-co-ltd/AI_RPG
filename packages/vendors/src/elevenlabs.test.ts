@@ -275,6 +275,50 @@ describe("buildConversationConfig", () => {
 
     expect(config.tts.model_id).toBe("eleven_v3_conversational");
   });
+
+  it("maps live turn-taking configuration to the Agents conversation payload", () => {
+    const config = buildConversationConfig({
+      name: "Busy Manager",
+      prompt: "prompt",
+      firstMessage: "よろしくお願いします。",
+      knowledgeBase: [],
+      llmModel: "gpt-5-mini",
+      language: "ja",
+      turn: {
+        turnTimeoutSeconds: 7,
+        initialWaitTimeSeconds: 1,
+        silenceEndCallTimeoutSeconds: -1,
+        softTimeout: {
+          timeoutSeconds: -1,
+          message: "ご確認したい点からで大丈夫です。",
+        },
+        turnEagerness: "patient",
+        spellingPatience: "auto",
+        speculativeTurn: false,
+        retranscribeOnTurnTimeout: true,
+        mode: "turn",
+      },
+      tts: {
+        modelId: "eleven_v3",
+        voiceId: "voice_123",
+      },
+    });
+
+    expect(config.turn).toEqual({
+      turn_timeout: 7,
+      initial_wait_time: 1,
+      silence_end_call_timeout: -1,
+      soft_timeout_config: {
+        timeout_seconds: -1,
+        message: "ご確認したい点からで大丈夫です。",
+      },
+      turn_eagerness: "patient",
+      spelling_patience: "auto",
+      speculative_turn: false,
+      retranscribe_on_turn_timeout: true,
+      mode: "turn",
+    });
+  });
 });
 
 describe("ElevenLabsClient.renderSpeech", () => {

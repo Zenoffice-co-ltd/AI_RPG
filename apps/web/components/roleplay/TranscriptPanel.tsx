@@ -62,7 +62,10 @@ export function TranscriptPanel({
       <div ref={scrollRef} className="transcript-scroll" onScroll={handleScroll}>
         <MessageList messages={messages} onRetry={onRetry} />
         {isAwaitingAgentResponse ? (
-          <p className="transcript-indicator">応答を待っています...</p>
+          <div className="transcript-indicator" aria-live="polite">
+            <span className="transcript-indicator__spinner" aria-hidden="true" />
+            <span>エージェントが応答中...</span>
+          </div>
         ) : null}
         {state === "ended" ? (
           <div className="transcript-ended">

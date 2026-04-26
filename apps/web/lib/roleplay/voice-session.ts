@@ -4,6 +4,8 @@ import type { VoiceServerEnv } from "./server-env";
 
 export const SAFE_SESSION_ERROR =
   "セッションの開始に失敗しました。時間をおいて再試行してください。";
+export const MIC_PERMISSION_ERROR =
+  "マイクの使用が許可されていません。ブラウザのマイク設定を確認してから再試行してください。";
 
 export const sessionTokenRequestSchema = z.object({
   scenarioId: z.literal(ADECCO_SCENARIO_ID),
@@ -60,4 +62,25 @@ export async function issueConversationToken(input: {
   }
 
   throw new Error("Voice token upstream failed.");
+}
+
+export function getSafeClientSessionError(error: unknown) {
+  if (isMicrophonePermissionError(error)) {
+    return MIC_PERMISSION_ERROR;
+  }
+  return SAFE_SESSION_ERROR;
+}
+
+function isMicrophonePermissionError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const candidate = error as { name?: unknown; message?: unknown };
+  const name = typeof candidate.name === "string" ? candidate.name : "";
+  const message = typeof candidate.message === "string" ? candidate.message : "";
+  return (
+    name === "NotAllowedError" ||
+    name === "SecurityError" ||
+    message.toLowerCase().includes("permission denied")
+  );
 }

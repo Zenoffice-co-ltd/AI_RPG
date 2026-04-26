@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
 export default function HomePage() {
-  redirect("/demo/adecco-orb" as never);
+  redirect("/demo/adecco-roleplay" as never);
 }
