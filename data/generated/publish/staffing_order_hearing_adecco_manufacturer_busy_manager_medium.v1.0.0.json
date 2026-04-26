@@ -3,53 +3,17 @@
   "elevenAgentId": "agent_2801kpj49tj1f43sr840cvy17zcc",
   "voiceId": "g6xIsTj2HwM6VR4iXFCw",
   "ttsModel": "eleven_v3",
-  "testRunId": "suite_6301kq4pxcyeeqm81bg4w1hsjx7p",
+  "testRunId": "suite_8901kq5f96qtej6sng9wppx7ax2m",
   "dashboard": {
     "agentUrl": "https://elevenlabs.io/app/conversational-ai/agents/agent_2801kpj49tj1f43sr840cvy17zcc",
     "orbPreviewUrl": "https://elevenlabs.io/app/talk-to?agent_id=agent_2801kpj49tj1f43sr840cvy17zcc"
   },
   "passed": true,
   "testRun": {
-    "id": "suite_6301kq4pxcyeeqm81bg4w1hsjx7p",
+    "id": "suite_8901kq5f96qtej6sng9wppx7ax2m",
     "test_runs": [
       {
-        "test_run_id": "trun_7401kq4pxcynfkr9s2q7agd9ap7m",
-        "test_id": "test_8101kq43ysxhemnvjappzys9yetj",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::opening-line",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_4401kq4pxcyrf9ftrnn3edh1r8qx",
-        "test_id": "test_2001kq43yvmxf64b819206gvwwq3",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::background-deep-followup",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_4201kq4pxcyqf4htsnftbwrgp6v7",
-        "test_id": "test_7201kq43yv4pe30b35w773g5616k",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::shallow-overview",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_7701kq4pxcysewarpx9dk1hakk05",
-        "test_id": "test_5101kq43yw38ezqvzrwe9tpjd7km",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::next-step-close-safe",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_6701kq4pxcypehj8k103m50j3rk5",
+        "test_run_id": "trun_0601kq5f96r5eqx8n4rr824xymwv",
         "test_id": "test_7301kq43yth9fs4bnq372ns2hk7y",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::headcount-only",
@@ -58,7 +22,52 @@
         }
       },
       {
-        "test_run_id": "trun_0301kq4pxcyvetxbrqwj1tsy1se1",
+        "test_run_id": "trun_7701kq5f96r4fper087w234d65b9",
+        "test_id": "test_8101kq43ysxhemnvjappzys9yetj",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::opening-line",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_1701kq5f96r7e13tzsg64d4xcyz6",
+        "test_id": "test_2001kq43yvmxf64b819206gvwwq3",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::background-deep-followup",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_4201kq5f96r8fe7a56twtf7xrvcb",
+        "test_id": "test_5101kq43yw38ezqvzrwe9tpjd7km",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::next-step-close-safe",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_5701kq5f96r6fqmr783gtdykq9cm",
+        "test_id": "test_7201kq43yv4pe30b35w773g5616k",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::shallow-overview",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_6101kq5f96r9fsaaq7jfpbazy9sq",
+        "test_id": "test_7001kq43ywg2e4aamgf4pw2ndfrz",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::sap-absence-safe",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_4901kq5f96raeb9rprsykfpvrqee",
         "test_id": "test_8701kq43yx9dfdy8144ncfrmk1jf",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::no-coaching-safe",
@@ -67,19 +76,10 @@
         }
       },
       {
-        "test_run_id": "trun_8401kq4pxcywf69tn40s7bjm3yd2",
+        "test_run_id": "trun_7901kq5f96rbft493k28xcaeaza1",
         "test_id": "test_5501kq43yxsnftgtqaf7v1v7q2n7",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::closing-summary-simple",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_6601kq4pxcytfzat2trbxrzzexe9",
-        "test_id": "test_7001kq43ywg2e4aamgf4pw2ndfrz",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::sap-absence-safe",
         "condition_result": {
           "result": "success"
         }
@@ -91,12 +91,13 @@
   "binding": {
     "scenarioId": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
     "elevenAgentId": "agent_2801kpj49tj1f43sr840cvy17zcc",
-    "elevenBranchId": "agtbrch_8001kpj49xpsermt0fy3xrr5ph8z",
-    "elevenVersionId": "agtvrsn_1101kq4px7b6f0j9xamvkf40984x",
-    "voiceProfileId": "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1",
+    "elevenBranchId": "agtbrch_9701kpj49vbdepjr8szvwc6w7e6b",
+    "elevenVersionId": "agtvrsn_0801kq5f92bpfv98kjyaggst35c4",
+    "voiceProfileId": "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2",
     "voiceId": "g6xIsTj2HwM6VR4iXFCw",
-    "publishedAt": "2026-04-26T10:56:22.107Z"
+    "publishedAt": "2026-04-26T18:02:17.728Z"
   },
+  "testedBranchId": "agtbrch_8001kpj49xpsermt0fy3xrr5ph8z",
   "testPolicy": {
     "vendorSmokeCount": 8,
     "localRegressionCount": 29,
@@ -191,9 +192,9 @@
   },
   "voiceSelection": {
     "mode": "profile",
-    "voiceProfileId": "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1",
+    "voiceProfileId": "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2",
     "selectionSource": "mapping",
-    "label": "Adecco Manufacturer Order Hearing JA V3 Candidate v1 (mirror of accounting)",
+    "label": "Adecco Manufacturer Order Hearing JA V3 Candidate v2",
     "voiceId": "g6xIsTj2HwM6VR4iXFCw",
     "ttsModel": "eleven_v3",
     "textNormalisationType": "elevenlabs"

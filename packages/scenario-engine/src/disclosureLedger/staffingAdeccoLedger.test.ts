@@ -6,7 +6,7 @@ import {
 } from "./staffingAdeccoLedger";
 
 describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
-  it("contains the 17 trigger intents required by DoD 1 + Auto-Gate Recovery", () => {
+  it("contains the 20 trigger intents required by DoD 1 + Auto-Gate Recovery + manual orb v6 Excel-design coverage", () => {
     const expectedTriggers = [
       "identity_self",
       "overview_shallow",
@@ -16,12 +16,17 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
       "job_shallow",
       "job_detail_tasks",
       "volume_cycle",
+      // v6 (Excel design Sheet 03 §4 後半): handover の独立 trigger
+      "handover_method",
       "competition",
       "first_proposal_window",
       "decision_structure",
       "start_date_only",
       "urgency_or_submission_deadline",
       "commercial_terms",
+      // v6 (Excel design Sheet 03 §6 + §7): forced ranking + culture fit の独立 trigger
+      "selection_priority_ranking",
+      "culture_fit_question",
       "next_step_close",
       "closing_summary",
       "coaching_request",
@@ -29,6 +34,61 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     expect(STAFFING_ADECCO_DISCLOSURE_LEDGER.map((item) => item.triggerIntent)).toEqual(
       expectedTriggers
     );
+  });
+
+  it("Manual orb v6 (Excel design coverage): handover_method / selection_priority_ranking / culture_fit_question triggers exist with substantive allowedAnswer", () => {
+    const newTriggers = [
+      "handover_method",
+      "selection_priority_ranking",
+      "culture_fit_question",
+    ];
+    for (const triggerIntent of newTriggers) {
+      const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+        (i) => i.triggerIntent === triggerIntent
+      );
+      expect(item, `trigger ${triggerIntent} must exist`).toBeDefined();
+      expect(item!.allowedAnswer.length).toBeGreaterThan(20);
+      expect(item!.asrVariantTriggers.length).toBeGreaterThan(0);
+      expect(item!.intentDescription.length).toBeGreaterThan(20);
+    }
+
+    // Specific content sanity for the new triggers
+    const handover = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "handover_method"
+    );
+    expect(handover!.allowedAnswer).toContain("二週間");
+    expect(handover!.allowedAnswer).toContain("OJT");
+    expect(handover!.asrVariantTriggers).toEqual(
+      expect.arrayContaining(["引継ぎ", "OJT", "独り立ち"])
+    );
+
+    const ranking = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "selection_priority_ranking"
+    );
+    expect(ranking!.allowedAnswer).toContain("優先順位");
+    expect(ranking!.allowedAnswer).toContain("受発注");
+    expect(ranking!.asrVariantTriggers).toEqual(
+      expect.arrayContaining(["優先順位", "最優先", "must と want"])
+    );
+
+    const culture = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "culture_fit_question"
+    );
+    expect(culture!.allowedAnswer).toContain("十二名");
+    expect(culture!.allowedAnswer).toContain("協調型");
+    expect(culture!.asrVariantTriggers).toEqual(
+      expect.arrayContaining(["雰囲気", "指揮命令者", "合わない"])
+    );
+  });
+
+  it("Manual orb v6 (Excel design coverage): job_detail_tasks.allowedAnswer mentions データ入力 (Excel SAP→データ入力 置換)", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "job_detail_tasks"
+    );
+    expect(item).toBeDefined();
+    expect(item!.allowedAnswer).toContain("データ入力");
+    // SAP must remain absent
+    expect(item!.allowedAnswer).not.toMatch(/SAP|エスエーピー/);
   });
 
   it("DoD 3.1: headcount_only is independent and forbids leaking other facts", () => {
