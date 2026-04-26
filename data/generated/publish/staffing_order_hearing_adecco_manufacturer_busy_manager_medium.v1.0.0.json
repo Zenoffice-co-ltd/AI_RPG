@@ -3,17 +3,17 @@
   "elevenAgentId": "agent_2801kpj49tj1f43sr840cvy17zcc",
   "voiceId": "g6xIsTj2HwM6VR4iXFCw",
   "ttsModel": "eleven_v3",
-  "testRunId": "suite_6601kq4ccamxefnv7x7jhsa014hc",
+  "testRunId": "suite_6301kq4pxcyeeqm81bg4w1hsjx7p",
   "dashboard": {
     "agentUrl": "https://elevenlabs.io/app/conversational-ai/agents/agent_2801kpj49tj1f43sr840cvy17zcc",
     "orbPreviewUrl": "https://elevenlabs.io/app/talk-to?agent_id=agent_2801kpj49tj1f43sr840cvy17zcc"
   },
   "passed": true,
   "testRun": {
-    "id": "suite_6601kq4ccamxefnv7x7jhsa014hc",
+    "id": "suite_6301kq4pxcyeeqm81bg4w1hsjx7p",
     "test_runs": [
       {
-        "test_run_id": "trun_0201kq4ccan3f4y92n1qbytf2wx7",
+        "test_run_id": "trun_7401kq4pxcynfkr9s2q7agd9ap7m",
         "test_id": "test_8101kq43ysxhemnvjappzys9yetj",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::opening-line",
@@ -22,25 +22,7 @@
         }
       },
       {
-        "test_run_id": "trun_1801kq4ccan4fv69szvgazdkp0ag",
-        "test_id": "test_7301kq43yth9fs4bnq372ns2hk7y",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::headcount-only",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_7601kq4ccan8es9b1y0zxpfe9751",
-        "test_id": "test_7001kq43ywg2e4aamgf4pw2ndfrz",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::sap-absence-safe",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_6201kq4ccan6fqzryrbn788dd2z5",
+        "test_run_id": "trun_4401kq4pxcyrf9ftrnn3edh1r8qx",
         "test_id": "test_2001kq43yvmxf64b819206gvwwq3",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::background-deep-followup",
@@ -49,16 +31,7 @@
         }
       },
       {
-        "test_run_id": "trun_2801kq4ccan7e7b9aqr9gqxzzw28",
-        "test_id": "test_5101kq43yw38ezqvzrwe9tpjd7km",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::next-step-close-safe",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_7701kq4ccan5e849v506928wkh3e",
+        "test_run_id": "trun_4201kq4pxcyqf4htsnftbwrgp6v7",
         "test_id": "test_7201kq43yv4pe30b35w773g5616k",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::shallow-overview",
@@ -67,7 +40,34 @@
         }
       },
       {
-        "test_run_id": "trun_6701kq4ccanaem493kb2ffhmcthe",
+        "test_run_id": "trun_7701kq4pxcysewarpx9dk1hakk05",
+        "test_id": "test_5101kq43yw38ezqvzrwe9tpjd7km",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::next-step-close-safe",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_6701kq4pxcypehj8k103m50j3rk5",
+        "test_id": "test_7301kq43yth9fs4bnq372ns2hk7y",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::headcount-only",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_0301kq4pxcyvetxbrqwj1tsy1se1",
+        "test_id": "test_8701kq43yx9dfdy8144ncfrmk1jf",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::no-coaching-safe",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_8401kq4pxcywf69tn40s7bjm3yd2",
         "test_id": "test_5501kq43yxsnftgtqaf7v1v7q2n7",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::closing-summary-simple",
@@ -76,10 +76,10 @@
         }
       },
       {
-        "test_run_id": "trun_2401kq4ccan9ectsn8chk2kkr0v6",
-        "test_id": "test_8701kq43yx9dfdy8144ncfrmk1jf",
+        "test_run_id": "trun_6601kq4pxcytfzat2trbxrzzexe9",
+        "test_id": "test_7001kq43ywg2e4aamgf4pw2ndfrz",
         "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::no-coaching-safe",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::sap-absence-safe",
         "condition_result": {
           "result": "success"
         }
@@ -92,14 +92,14 @@
     "scenarioId": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
     "elevenAgentId": "agent_2801kpj49tj1f43sr840cvy17zcc",
     "elevenBranchId": "agtbrch_8001kpj49xpsermt0fy3xrr5ph8z",
-    "elevenVersionId": "agtvrsn_1301kq4cc4yfee5rrafw5yp34mdm",
+    "elevenVersionId": "agtvrsn_1101kq4px7b6f0j9xamvkf40984x",
     "voiceProfileId": "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1",
     "voiceId": "g6xIsTj2HwM6VR4iXFCw",
-    "publishedAt": "2026-04-26T07:52:21.255Z"
+    "publishedAt": "2026-04-26T10:56:22.107Z"
   },
   "testPolicy": {
     "vendorSmokeCount": 8,
-    "localRegressionCount": 24,
+    "localRegressionCount": 29,
     "vendorSmokeRationale": "ElevenLabs ConvAI LLM judge is non-deterministic for long multi-turn cascade tests; rich regression remains enforced locally via priorOrbFailure.regression.test.ts and gradeStaffingSession.ts."
   },
   "scenarioVersion": "v1.0.0",

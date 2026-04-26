@@ -150,6 +150,28 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     expect(decision!.allowedAnswer).not.toContain("現場適合判断");
   });
 
+  it("Manual orb v5 live smoke fix: job_detail_tasks forbids partial answer and still-speaking check phrase", () => {
+    const jobDetail = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "job_detail_tasks"
+    );
+    const closing = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "closing_summary"
+    );
+    expect(jobDetail).toBeDefined();
+    expect(closing).toBeDefined();
+
+    expect(jobDetail!.allowedAnswer).toContain("受発注入力と納期調整が中心");
+    expect(jobDetail!.allowedAnswer).toContain("在庫確認");
+    expect(jobDetail!.allowedAnswer).toContain("対外対応");
+    expect(jobDetail!.negativeExamples.join("|")).toContain("受発注、在庫確認");
+    expect(jobDetail!.negativeExamples.join("|")).toContain(
+      "まだお話しになられていますでしょうか"
+    );
+    expect(closing!.negativeExamples.join("|")).toContain(
+      "まだお話しになられていますでしょうか"
+    );
+  });
+
   it("Manual orb v4 DoD: closing_summary allowedAnswer uses the TTS-friendly katakana アデコ form", () => {
     const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
       (i) => i.triggerIntent === "closing_summary"
@@ -158,6 +180,77 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     // The runtime utterance example must use アデコ (katakana) so TTS reads it as アデコ, not アデッコ
     expect(item!.allowedAnswer).toContain("アデコさんの派遣の特徴や");
     expect(item!.allowedAnswer).not.toContain("Adeccoさんの派遣の特徴や");
+  });
+
+  it("Manual orb v5 DoD: closing_summary intentDescription embeds canonical truth table for value verification", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "closing_summary"
+    );
+    expect(item).toBeDefined();
+    // Verification rule must be present
+    expect(item!.intentDescription).toContain("値検証ルール");
+    expect(item!.intentDescription).toContain("Canonical truth table");
+    expect(item!.intentDescription).toContain("シナリオ真値");
+    // Each canonical value must be enumerated so the LLM can cross-check
+    expect(item!.intentDescription).toContain("一名");
+    expect(item!.intentDescription).toContain("六月一日");
+    expect(item!.intentDescription).toContain("八時四十五分から十七時三十分");
+    expect(item!.intentDescription).toContain("十から十五時間");
+    expect(item!.intentDescription).toContain("千七百五十円から千九百円");
+    expect(item!.intentDescription).toContain("受発注");
+    expect(item!.intentDescription).toContain("対外調整");
+    // Wrong-unit billing rate guard must be enumerated
+    expect(item!.intentDescription).toContain("5万円から10万円");
+    expect(item!.intentDescription).toContain("時給5万円");
+    // Correction protocol must be specified
+    expect(item!.intentDescription).toContain("違います");
+    expect(item!.intentDescription).toContain("訂正と同時にアデコ逆質問を出さない");
+    // Hedging language must be forbidden
+    expect(item!.intentDescription).toContain("だいたい合っていますが");
+  });
+
+  it("Manual orb v5 DoD: closing_summary allowedAnswer carries BOTH agreement (Case 1) and correction (Case 2) examples", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "closing_summary"
+    );
+    expect(item).toBeDefined();
+    // Case 1 (agreement) example
+    expect(item!.allowedAnswer).toContain("Case 1");
+    expect(item!.allowedAnswer).toContain("はい、大きくはその整理で合っています");
+    // Case 2 (correction) examples for major numeric/unit errors
+    expect(item!.allowedAnswer).toContain("Case 2");
+    expect(item!.allowedAnswer).toContain("違います");
+    expect(item!.allowedAnswer).toContain("5万円から10万円ではなく");
+    expect(item!.allowedAnswer).toContain("1,750から1,900円");
+    // Headcount / start-date / overtime / working-hours correction examples
+    expect(item!.allowedAnswer).toContain("2名ではなく");
+    expect(item!.allowedAnswer).toContain("7月1日ではなく");
+    expect(item!.allowedAnswer).toContain("月30時間ではなく");
+    expect(item!.allowedAnswer).toContain("9時から18時ではなく");
+  });
+
+  it("Manual orb v5 DoD: closing_summary negativeExamples include wrong-amount-agreed smoking gun (both Adecco/アデコ forms) and hedging failures", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "closing_summary"
+    );
+    expect(item).toBeDefined();
+    const joined = item!.negativeExamples.join("|");
+    // The exact smoking-gun: agreeing to the wrong billing rate then asking
+    // the Adecco reverse question. Both Adecco and アデコ forms must be present
+    // so the LLM judge cannot bypass detection by switching brand spelling.
+    expect(joined).toContain(
+      "はい、大きくはその整理で合っています。来週水曜日までに初回候補をメールでいただけると助かります。ちなみに、アデコさんの派遣の特徴"
+    );
+    expect(joined).toContain(
+      "はい、大きくはその整理で合っています。来週水曜日までに初回候補をメールでいただけると助かります。ちなみに、Adeccoさんの派遣の特徴"
+    );
+    // Hedging language failures
+    expect(joined).toContain("だいたい合っていますが、単価だけ少し違うかもしれません");
+    expect(joined).toContain("おおむね合っていますが、請求単価だけご確認ください");
+    // Correction-then-immediate-reverse-question failures (manual orb v5 spec:
+    // major correction must end the turn so the learner can absorb it).
+    expect(joined).toContain("違います。請求単価は1,750から1,900円です。ちなみに、アデコさん");
+    expect(joined).toContain("違います。請求は経験により1,750から1,900円程度です。Adeccoさんの強み");
   });
 
   it("Manual orb v3 DoD: shallowGuards include anti-leak entries for deep intents (decision_structure / next_step_close / competition / commercial_terms / volume_cycle / first_proposal_window)", () => {
