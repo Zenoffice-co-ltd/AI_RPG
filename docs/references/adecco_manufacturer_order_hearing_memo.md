@@ -22,6 +22,7 @@ Runtime SoT は [adecco_manufacturer_order_hearing_reference.json](/C:/AI_RPG/do
 - Difficulty: medium
 - Voice path: staffing legacy fallback, `dictionaryRequired=false`
 - First message: reference artifact `phase4.scenarioPack.openingLine`
+- Voice normalization: answers spell out amounts, times, ranges, counts, and abbreviations in spoken Japanese for ElevenLabs Orb.
 
 ## Design Notes
 
@@ -30,6 +31,7 @@ Runtime SoT は [adecco_manufacturer_order_hearing_reference.json](/C:/AI_RPG/do
 - Shallow questions receive shallow answers. Deep, well-structured questions reveal hidden facts in stages.
 - Hidden facts include current-vendor dissatisfaction, task decomposition, volume and peak cycle, price flexibility, competition, decision process, and the closing Adecco differentiation question.
 - Enterprise ERP/AP scenario の共通ヒアリング設計を住宅設備メーカー向けに移植し、職種名で止めずに、入力作業と納期調整・在庫不足・品番不一致などの例外対応の線引き、社員側に残す最終判断を確認する設計にしています。
+- Amount and range answers must avoid raw symbols. For example, say `時給は千五百円からです`, `千七百五十円から千九百円`, `八時四十五分から十七時三十分`, and `月十から十五時間`.
 - Near the end, the client asks: `Adecco の派遣の特徴や強みは？ 他社と何が違うの？`
 
 ## Compile And Publish
@@ -71,3 +73,7 @@ After publish, inspect `data/generated/publish/staffing_order_hearing_adecco_man
 ### DoD 6 - Adecco strength reverse question
 
 - AI 終盤逆質問: `<blocked: human orb utterance not captured>`
+
+### DoD 7 - speech normalization
+
+- 金額・時刻・範囲表現: `<blocked: human orb utterance not captured>`

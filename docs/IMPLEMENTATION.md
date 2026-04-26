@@ -20,6 +20,7 @@
    - `family=staffing_order_hearing` かつ `referenceArtifactPath` 指定時は、playbook ではなく reference artifact から単一 scenario を compile
    - Adecco manufacturer reference scenario は `docs/references/adecco_manufacturer_order_hearing_reference.json` を読み、`staffing_order_hearing_adecco_manufacturer_busy_manager_medium` を生成
    - この reference path は既存 3 variants を置換せず、publish も legacy fallback voice / `dictionaryRequired=false` を使う
+   - Adecco manufacturer の live prompt と hidden facts は、ElevenLabs Orb 向けに金額、時刻、範囲、件数、英字略語を読み上げ形へ寄せる
 
 ### `accounting_clerk_enterprise_ap` Phase 3/4 v2
 
