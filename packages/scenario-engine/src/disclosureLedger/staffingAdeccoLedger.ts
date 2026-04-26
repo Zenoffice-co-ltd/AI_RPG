@@ -186,9 +186,9 @@ export const STAFFING_ADECCO_DISCLOSURE_LEDGER: DisclosureItem[] = [
   {
     triggerIntent: "job_detail_tasks",
     intentDescription:
-      "学習者が業務を分解質問した時。『主業務はどれ』『受発注/納期調整/在庫確認/対外対応のどこが中心』『業務割合』。",
+      "学習者が業務を分解質問した時。『主業務はどれ』『受発注/納期調整/データ入力/在庫確認/対外対応のどこが中心』『業務割合』。Excel 設計の業務リスト (受発注 / 納期調整 / 見積補助 / データ入力 / 営業サポート / 電話・メール対応) に沿って答える。",
     allowedAnswer:
-      "「受発注入力と納期調整が中心です。在庫確認、電話・メールでの対外対応、資料更新も付随します。」",
+      "「受発注入力と納期調整が中心です。データ入力、在庫確認、見積補助、電話・メールでの対外対応、資料更新も付随します。」",
     forbiddenUntilAsked: [
       "volume_cycle",
       "competition",
@@ -231,6 +231,38 @@ export const STAFFING_ADECCO_DISCLOSURE_LEDGER: DisclosureItem[] = [
       "ベンダー選定は人事主導ですが、現場課長の意見も強く反映されます。",
     ],
     asrVariantTriggers: ["件数", "月何件", "繁忙", "忙しい時期", "波形", "サイクル", "ピーク"],
+    doNotAdvanceLedgerAutomatically: true,
+  },
+  {
+    // Excel 設計 Sheet 03 ステージ#4 後半 / Sheet 04 hidden fact #4 後半 / Sheet 05 必須#3 (引継ぎ)。
+    // v6 で独立 trigger 化。volume_cycle と分離して、引継ぎ単独の質問に応答できるようにする。
+    triggerIntent: "handover_method",
+    intentDescription:
+      "学習者が引継ぎの方法・期間・OJT 体制・独り立ちまでの期間・マニュアル有無を確認した時。例：『引継ぎはどう進めますか』『OJT は何週間ですか』『独り立ちまでの期間は』『マニュアルはありますか』『誰が教えますか』。引継ぎ詳細だけ答え、競合・決定構造・先行提案期間には触れない。",
+    allowedAnswer:
+      "「引継ぎは現任派遣スタッフとの二週間程度の重なり OJT を想定しています。マニュアルはありますが、製品コードや社内略語に慣れていただく必要があります。独り立ちは概ね一か月を目安に考えています。」",
+    forbiddenUntilAsked: [
+      "competition",
+      "first_proposal_window",
+      "decision_structure",
+    ],
+    negativeExamples: [
+      "現行ベンダーに加えて、もう一社の大手にも相談中です。",
+      "ベンダー選定は人事主導ですが、現場課長の意見も強く反映されます。",
+      // OJT を聞かれただけで採用条件・優先順位まで一気に開示する先回り
+      "二週間程度の引継ぎを想定しています。優先順位は受発注経験、Excel、対外調整、それから人柄です。",
+    ],
+    asrVariantTriggers: [
+      "引継ぎ",
+      "ひきつぎ",
+      "OJT",
+      "オージェーティー",
+      "独り立ち",
+      "マニュアル",
+      "誰が教え",
+      "立ち上がり",
+      "オンボーディング",
+    ],
     doNotAdvanceLedgerAutomatically: true,
   },
   {
@@ -369,6 +401,78 @@ export const STAFFING_ADECCO_DISCLOSURE_LEDGER: DisclosureItem[] = [
       "在宅",
       "リモート",
       "勤務時間",
+    ],
+    doNotAdvanceLedgerAutomatically: true,
+  },
+  {
+    // Excel 設計 Sheet 03 ステージ#6「見極め」+ Sheet 04 hidden fact #6/#7 + Sheet 05 必須#7/#8。
+    // v6 で独立 trigger 化。must / want / 緩和可 を forced ranking で引き出す質問に
+    // 本音の優先順位で答える。
+    triggerIntent: "selection_priority_ranking",
+    intentDescription:
+      "学習者が must / want / 緩和可を forced ranking で引き出した時。例：『受発注経験・データ入力・業界経験・人柄・開始日のうち何を最優先で見ますか』『must と want を分けるとどうですか』『全部満たす方が難しい場合は何を優先しますか』『年齢はどこまで緩和できますか』。本音の優先順位を返し、年齢は目安で絶対条件ではない旨を伝える。",
+    allowedAnswer:
+      "「優先順位は、受発注や対外調整経験を最優先にしています。次に正確性と協調性、その次に開始時期や条件の柔軟さです。年齢は目安で、経験と人柄が合えば絶対条件ではありません。一番大事なのは受発注経験です。」",
+    forbiddenUntilAsked: [
+      "closing_summary",
+    ],
+    negativeExamples: [
+      // 単発質問で全条件を一気に列挙する先回り
+      "営業事務一名、六月一日開始、平日八時四十五分から十七時三十分、残業は月十から十五時間程度、請求は経験により千七百五十円から千九百円、優先は受発注経験、年齢は四十代まで。",
+      // 「全部同じくらい大事」のような優先順位を出さない曖昧回答
+      "全部同じくらい大事です。",
+      "特に優先順位はありません。",
+    ],
+    asrVariantTriggers: [
+      "優先順位",
+      "最優先",
+      "must と want",
+      "マストとウォント",
+      "全部満たす",
+      "緩和",
+      "ベスト",
+      "ベター",
+      "何を優先",
+      "どこを譲れ",
+      "forced ranking",
+    ],
+    doNotAdvanceLedgerAutomatically: true,
+  },
+  {
+    // Excel 設計 Sheet 03 ステージ#7「カルチャーフィット」+ Sheet 04 hidden fact #8 + Sheet 05 必須#9/#10。
+    // v6 で独立 trigger 化。職場環境・指揮命令者の人柄・合う/合わない人物像に答える。
+    triggerIntent: "culture_fit_question",
+    intentDescription:
+      "学習者が職場環境・部署構成・指揮命令者の人柄・合う人物像/合わない人物像・服装/休憩室を確認した時。例：『部署の雰囲気はどうですか』『男女比は』『平均年齢は』『指揮命令者はどんな方ですか』『合わないタイプはありますか』『どんな人が馴染みますか』『服装は』。職場環境と人物面を答えるが、競合・決定構造・先行提案期間には触れない。",
+    allowedAnswer:
+      "「営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。派遣スタッフは他に三名います。指揮命令者の課長は落ち着いていますが正確性に厳しい方です。協調型が合いやすく、自己流が強すぎる方は合いにくいです。服装はオフィスカジュアル、休憩室もあります。」",
+    forbiddenUntilAsked: [
+      "competition",
+      "first_proposal_window",
+      "decision_structure",
+    ],
+    negativeExamples: [
+      "現行ベンダーに加えて、もう一社の大手にも相談中です。",
+      "ベンダー選定は人事主導ですが、現場課長の意見も強く反映されます。",
+      // 浅い質問で全部一気に列挙する先回り
+      "営業業務課は十二名、女性八名、三十代から四十代、課長は落ち着いて正確性に厳しい、合うのは協調型、合わないのは自己流、服装オフィスカジュアル、休憩室あり、派遣三名、優先順位は受発注経験、年齢目安は四十代まで、開始は六月一日希望です。",
+    ],
+    asrVariantTriggers: [
+      "雰囲気",
+      "男女比",
+      "部署",
+      "人柄",
+      "指揮命令者",
+      "合わない",
+      "馴染み",
+      "メンバー",
+      "平均年齢",
+      "服装",
+      "休憩室",
+      "課長",
+      "上司",
+      "NG",
+      "エヌジー",
     ],
     doNotAdvanceLedgerAutomatically: true,
   },
@@ -567,6 +671,13 @@ export function renderDisclosureLedgerForPrompt(
           "件数・繁忙サイクルだけで止める。要約合意文や Adecco / アデコ 強み逆質問を続けて出さない。",
         first_proposal_window:
           "先行提案期間 (3 営業日 等) だけで止める。要約合意文や Adecco / アデコ 強み逆質問を続けて出さない。",
+        // manual orb v6 (Excel design coverage): 新 trigger 用の anti-leak ガード
+        handover_method:
+          "引継ぎ方法・OJT 期間・独り立ちまでだけで止める。優先順位・採用条件・競合・決定構造・要約合意文や Adecco / アデコ 強み逆質問を続けて出さない。",
+        selection_priority_ranking:
+          "優先順位 (受発注経験 → 正確性・協調性 → 開始時期、年齢は目安) だけで止める。職場環境・競合・決定構造・要約合意文や Adecco / アデコ 強み逆質問を続けて出さない。",
+        culture_fit_question:
+          "職場環境 (12 名 / 女性 8 名 / 30〜40 代 / 課長は正確性に厳しい / 協調型が合う / 自己流は合わない / オフィスカジュアル / 休憩室あり) だけで止める。優先順位・採用条件・競合・決定構造・要約合意文や Adecco / アデコ 強み逆質問を続けて出さない。",
       };
       const shallowGuard = shallowGuards[item.triggerIntent];
       if (shallowGuard) {

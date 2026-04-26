@@ -22,6 +22,22 @@ export interface MustCaptureDefinition {
   required: boolean;
   /** Critical items must reach 100% required coverage to release. */
   critical: boolean;
+  /**
+   * Excel design weight (Sheet 05 必須ヒアリング). Sums to 100 across the
+   * 12 Excel-design groups. Currently a metadata field used by reporting /
+   * analytics; the binary `critical` flag still drives release-gate logic.
+   * Future: scorer can promote to weighted aggregation.
+   *
+   * Source: アデコ_オーダーヒアリング_分析・シナリオ設計.xlsx Sheet 05.
+   */
+  excelDesignWeight?: number;
+  /**
+   * Excel design group label that maps multiple canonicalIds to one Excel
+   * required-hearing item. Multiple canonicalIds may share a single
+   * `excelDesignGroup` when Excel collapses them into one item (e.g. 業務量・
+   * 繁忙・引継ぎ groups volume + handover under one weight=7 item).
+   */
+  excelDesignGroup?: string;
   /** Patterns the learner (user) is expected to ask. */
   regexPatterns: RegExp[];
   /** Patterns that, when matched, indicate a false-positive (do NOT count as hit). */
@@ -44,6 +60,31 @@ export interface MustCaptureDefinition {
    */
   expectedAvatarPatterns?: RegExp[];
 }
+
+/**
+ * Excel design (Sheet 05 必須ヒアリング) weight table. Sums to 100.
+ * Multiple canonicalIds may map to the same Excel group; the group's weight
+ * is divided across them.
+ *
+ * Source: アデコ_オーダーヒアリング_分析・シナリオ設計.xlsx, Sheet 05.
+ */
+export const STAFFING_EXCEL_DESIGN_GROUPS = {
+  hiring_background: { label: "募集背景", weight: 8 },
+  business_tasks_and_daily_flow: { label: "業務内容・1日の流れ", weight: 9 },
+  volume_peak_handover: { label: "業務量・繁忙・引継ぎ", weight: 7 },
+  start_date_and_term: { label: "就業開始日・期間", weight: 6 },
+  work_hours_overtime_remote: { label: "曜日・時間・残業・リモート", weight: 6 },
+  billing_transportation_direct_hire: { label: "料金・交通費・直接雇用", weight: 4 },
+  must_best_priority_oa: { label: "必須要件・ベター要件", weight: 10 },
+  priority_clarity: { label: "優先順位の明確化", weight: 10 },
+  workplace_environment: { label: "職場環境", weight: 7 },
+  atmosphere_ng_persona: { label: "雰囲気・NG人物像", weight: 7 },
+  competition_visit_decision: { label: "競合・見学・決定プロセス", weight: 12 },
+  contact_schedule_next_action: {
+    label: "連絡方法・スケジュール・ネクストステップ",
+    weight: 14,
+  },
+} as const;
 
 export interface StaffingCoverageResult {
   totalCoverage: number;
@@ -71,6 +112,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "募集背景",
     required: true,
     critical: true,
+    excelDesignGroup: "hiring_background",
+    excelDesignWeight: 8,
     regexPatterns: [/募集.{0,2}背景/, /なぜ.{0,4}募集/, /なぜ.{0,4}相談/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["募集背景を教えてください", "なぜ今回ご相談に至ったのでしょうか"],
@@ -82,6 +125,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "増員・交代と理由",
     required: true,
     critical: false,
+    excelDesignGroup: "hiring_background",
+    excelDesignWeight: 0,
     regexPatterns: [/増員|交代|欠員|退職|補充/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["増員ですか、それとも交代の補充でしょうか"],
@@ -92,6 +137,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "職種・業務の大枠",
     required: true,
     critical: true,
+    excelDesignGroup: "business_tasks_and_daily_flow",
+    excelDesignWeight: 5,
     regexPatterns: [/営業事務|職種|どんな業務|お仕事の内容/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["職種としては営業事務とのことですが、業務の大枠を教えてください"],
@@ -102,6 +149,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "業務内容・一日の流れ",
     required: true,
     critical: false,
+    excelDesignGroup: "business_tasks_and_daily_flow",
+    excelDesignWeight: 4,
     regexPatterns: [/具体的に|主業務|内訳|どれが中心|一日の流れ|1日の流れ/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["具体的に、受発注、納期調整、在庫確認、対外対応のどれが主業務になりますか"],
@@ -113,6 +162,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "業務量・繁忙サイクル",
     required: true,
     critical: true,
+    excelDesignGroup: "volume_peak_handover",
+    excelDesignWeight: 4,
     regexPatterns: [/件数|月.{0,4}件|繁忙|波形|サイクル|ピーク|忙しい時期/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["件数や繁忙サイクルはどんな感じですか"],
@@ -124,6 +175,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "引継ぎ方法・期間",
     required: true,
     critical: false,
+    excelDesignGroup: "volume_peak_handover",
+    excelDesignWeight: 3,
     regexPatterns: [/引継ぎ|引き継ぎ|オージェーティー|OJT|立ち上がり|オン.?ボーディング/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["引継ぎはどのように進めますか"],
@@ -134,6 +187,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "就業開始日・期間",
     required: true,
     critical: true,
+    excelDesignGroup: "start_date_and_term",
+    excelDesignWeight: 6,
     regexPatterns: [/開始日|いつから|スタート|開始時期|期間/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["開始日はいつ頃を想定されていますか"],
@@ -145,6 +200,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "就業曜日・時間・休憩",
     required: true,
     critical: true,
+    excelDesignGroup: "work_hours_overtime_remote",
+    excelDesignWeight: 3,
     regexPatterns: [/就業時間|勤務時間|何時から|曜日|休憩/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["勤務時間と休憩時間を教えてください"],
@@ -156,6 +213,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "残業",
     required: true,
     critical: true,
+    excelDesignGroup: "work_hours_overtime_remote",
+    excelDesignWeight: 2,
     regexPatterns: [/残業|時間外|超過勤務/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["残業はどの程度発生しますか"],
@@ -167,6 +226,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "リモート有無・頻度",
     required: true,
     critical: false,
+    excelDesignGroup: "work_hours_overtime_remote",
+    excelDesignWeight: 1,
     regexPatterns: [/在宅|リモート|テレワーク|出社頻度/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["在宅勤務の頻度はありますか"],
@@ -177,6 +238,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "請求金額・交通費",
     required: true,
     critical: true,
+    excelDesignGroup: "billing_transportation_direct_hire",
+    excelDesignWeight: 3,
     regexPatterns: [/請求|時給|単価|予算|交通費/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["請求単価のレンジと交通費の扱いを教えてください"],
@@ -188,6 +251,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "直接雇用の可能性",
     required: false,
     critical: false,
+    excelDesignGroup: "billing_transportation_direct_hire",
+    excelDesignWeight: 1,
     regexPatterns: [/直接雇用|社員化|正社員登用/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["将来的に直接雇用の可能性はありますか"],
@@ -198,6 +263,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "必須条件・ベスト要件・優先順位",
     required: true,
     critical: true,
+    excelDesignGroup: "must_best_priority_oa",
+    excelDesignWeight: 8,
     regexPatterns: [/必須条件|ベスト|優先順位|優先度|どちらを優先|何を優先/],
     negativePatterns: [/.*しかない/],
     acceptableEvidenceExamples: ["必須条件と歓迎条件、優先順位はどうなりますか"],
@@ -209,6 +276,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "資格・OAスキル",
     required: true,
     critical: false,
+    excelDesignGroup: "must_best_priority_oa",
+    excelDesignWeight: 2,
     regexPatterns: [/資格|オーエー|OA|エクセル|Excel|Word|スキル/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["求める資格やOAスキルはありますか"],
@@ -219,6 +288,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "部署人数・男女比・派遣社員有無",
     required: true,
     critical: false,
+    excelDesignGroup: "workplace_environment",
+    excelDesignWeight: 3,
     regexPatterns: [/部署.{0,2}人数|男女比|派遣.{0,2}有無|チーム構成/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["部署の人数や男女比を教えてください"],
@@ -229,6 +300,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "平均年齢層",
     required: false,
     critical: false,
+    excelDesignGroup: "workplace_environment",
+    excelDesignWeight: 1,
     regexPatterns: [/年齢層|平均年齢|何代/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["年齢層はどのあたりですか"],
@@ -239,6 +312,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "服装",
     required: false,
     critical: false,
+    excelDesignGroup: "workplace_environment",
+    excelDesignWeight: 1,
     regexPatterns: [/服装|ドレスコード|オフィスカジュアル/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["服装の決まりはありますか"],
@@ -249,6 +324,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "昼食・休憩室・施設",
     required: false,
     critical: false,
+    excelDesignGroup: "workplace_environment",
+    excelDesignWeight: 2,
     regexPatterns: [/昼食|休憩室|社食|食堂|施設/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["昼食や休憩室はどう運用されていますか"],
@@ -259,6 +336,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "指揮命令者の人柄",
     required: true,
     critical: false,
+    excelDesignGroup: "atmosphere_ng_persona",
+    excelDesignWeight: 4,
     regexPatterns: [/指揮命令者|上司|マネジャー|リーダー|人柄|どんな方/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["指揮命令者はどんなお人柄ですか"],
@@ -269,6 +348,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "部署の雰囲気",
     required: true,
     critical: false,
+    excelDesignGroup: "atmosphere_ng_persona",
+    excelDesignWeight: 3,
     regexPatterns: [/雰囲気|カルチャー|文化|空気/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["部署の雰囲気はいかがですか"],
@@ -279,6 +360,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "競合他社依頼状況",
     required: true,
     critical: true,
+    excelDesignGroup: "competition_visit_decision",
+    excelDesignWeight: 4,
     regexPatterns: [/他社|並行|相見積|比較|他の派遣会社|あいこう/],
     negativePatterns: [/^人事(?!主導)/],
     acceptableEvidenceExamples: ["他の派遣会社さんにも並行で相談されていますか"],
@@ -290,6 +373,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "独占期間の設定交渉",
     required: true,
     critical: false,
+    excelDesignGroup: "competition_visit_decision",
+    excelDesignWeight: 2,
     regexPatterns: [/先行.{0,4}提案|独占期間|提案期間|先に候補/],
     negativePatterns: [],
     acceptableEvidenceExamples: [
@@ -303,6 +388,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "職場見学日時",
     required: true,
     critical: false,
+    excelDesignGroup: "competition_visit_decision",
+    excelDesignWeight: 2,
     regexPatterns: [/職場見学|見学|オフィス見学|現場.{0,2}見/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["職場見学はいつ頃可能でしょうか"],
@@ -313,6 +400,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "見学後の決定プロセス",
     required: true,
     critical: true,
+    excelDesignGroup: "competition_visit_decision",
+    excelDesignWeight: 4,
     regexPatterns: [/決定|決裁|誰が決める|最終判断|選定プロセス|派遣会社.{0,2}決定/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["最終的に派遣会社の決定はどなたが持っていますか"],
@@ -329,6 +418,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "ベターな連絡方法",
     required: true,
     critical: false,
+    excelDesignGroup: "contact_schedule_next_action",
+    excelDesignWeight: 4,
     regexPatterns: [/連絡方法|ご連絡は|やり取り|メールがいい/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["ご連絡はメールとお電話のどちらが良いでしょうか"],
@@ -339,6 +430,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "今後のスケジュール",
     required: true,
     critical: false,
+    excelDesignGroup: "contact_schedule_next_action",
+    excelDesignWeight: 3,
     regexPatterns: [/今後のスケジュール|今後の進め方|スケジュール感/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["今後のスケジュール感を教えてください"],
@@ -349,6 +442,8 @@ export const STAFFING_MUST_CAPTURE_ITEMS: MustCaptureDefinition[] = [
     labelJa: "具体的なネクストアクションと期日",
     required: true,
     critical: true,
+    excelDesignGroup: "contact_schedule_next_action",
+    excelDesignWeight: 7,
     regexPatterns: [/ネクストアクション|次の.{0,2}アクション|期日|までに|提出期限/],
     negativePatterns: [],
     acceptableEvidenceExamples: ["来週水曜までに候補者をメールでご提案する流れでよろしいですか"],
