@@ -1,0 +1,203 @@
+{
+  "scenarioId": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+  "elevenAgentId": "agent_2801kpj49tj1f43sr840cvy17zcc",
+  "voiceId": "g6xIsTj2HwM6VR4iXFCw",
+  "ttsModel": "eleven_v3",
+  "testRunId": "suite_4201kq45kp83fr8rf28mqmw2qjf7",
+  "dashboard": {
+    "agentUrl": "https://elevenlabs.io/app/conversational-ai/agents/agent_2801kpj49tj1f43sr840cvy17zcc",
+    "orbPreviewUrl": "https://elevenlabs.io/app/talk-to?agent_id=agent_2801kpj49tj1f43sr840cvy17zcc"
+  },
+  "passed": true,
+  "testRun": {
+    "id": "suite_4201kq45kp83fr8rf28mqmw2qjf7",
+    "test_runs": [
+      {
+        "test_run_id": "trun_8401kq45kp8neesvaxxdskkbnc5v",
+        "test_id": "test_7301kq43yth9fs4bnq372ns2hk7y",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::headcount-only",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_1001kq45kp8mebmb562nfs4antrk",
+        "test_id": "test_8101kq43ysxhemnvjappzys9yetj",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::opening-line",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_6601kq45kp8pf36sat6r64djhq4a",
+        "test_id": "test_7201kq43yv4pe30b35w773g5616k",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::shallow-overview",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_3501kq45kp8qfrvs3pc0mxz8v9jd",
+        "test_id": "test_2001kq43yvmxf64b819206gvwwq3",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::background-deep-followup",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_3801kq45kp8rexs9vh1bc7pyzt99",
+        "test_id": "test_5101kq43yw38ezqvzrwe9tpjd7km",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::next-step-close-safe",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_3801kq45kp8seddtrbmrtqm8gf8q",
+        "test_id": "test_7001kq43ywg2e4aamgf4pw2ndfrz",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::sap-absence-safe",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_8401kq45kp8tfm98bsjnw0nn7y6b",
+        "test_id": "test_8701kq43yx9dfdy8144ncfrmk1jf",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::no-coaching-safe",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_5501kq45kp8ve97aabhn8bv3f7e8",
+        "test_id": "test_5501kq43yxsnftgtqaf7v1v7q2n7",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::closing-summary-simple",
+        "condition_result": {
+          "result": "success"
+        }
+      }
+    ],
+    "agent_id": "agent_2801kpj49tj1f43sr840cvy17zcc",
+    "branch_id": "agtbrch_8001kpj49xpsermt0fy3xrr5ph8z"
+  },
+  "binding": {
+    "scenarioId": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+    "elevenAgentId": "agent_2801kpj49tj1f43sr840cvy17zcc",
+    "elevenBranchId": "agtbrch_8001kpj49xpsermt0fy3xrr5ph8z",
+    "elevenVersionId": "agtvrsn_1101kq45hp78exmr1tbh5eg1hbvz",
+    "voiceProfileId": "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1",
+    "voiceId": "g6xIsTj2HwM6VR4iXFCw",
+    "publishedAt": "2026-04-26T05:54:02.282Z"
+  },
+  "testPolicy": {
+    "vendorSmokeCount": 8,
+    "localRegressionCount": 22,
+    "vendorSmokeRationale": "ElevenLabs ConvAI LLM judge is non-deterministic for long multi-turn cascade tests; rich regression remains enforced locally via priorOrbFailure.regression.test.ts and gradeStaffingSession.ts."
+  },
+  "scenarioVersion": "v1.0.0",
+  "promptSections": [
+    {
+      "key": "Role",
+      "title": "Role",
+      "body": "あなたは住宅設備メーカーの人事課主任です。派遣オーダーの発注と派遣会社選定の実務責任者です。"
+    },
+    {
+      "key": "Context",
+      "title": "Context",
+      "body": "Adeccoは社名認知はあるが初回発注前です。まずは営業事務一名の相談として、要件整理の進め方を見ています。競合状況、予算、決定構造、現行ベンダー不満の詳細は、具体的に聞かれた時だけ開示してください。"
+    },
+    {
+      "key": "Objective",
+      "title": "Objective",
+      "body": "営業学習者が、初回取引前のオーダーヒアリングで必要な要件整理・優先順位確認・クロージングを学べるよう、現実的なクライアント役として振る舞ってください。"
+    },
+    {
+      "key": "Persona",
+      "title": "Persona",
+      "body": "スタンスはニュートラルです。質問が適切なら情報開示に前向きですが、聞かれていないことは広げません。人事として分からないことは『現場確認が必要』と返してください。"
+    },
+    {
+      "key": "Conversation Policy",
+      "title": "Conversation Policy",
+      "body": "相手の質問に対して、聞かれた範囲で自然に答えてください。ヒアリングが浅い場合は浅く返し、深掘りがあれば hidden fact を段階的に開示してください。営業をコーチしないでください。"
+    },
+    {
+      "key": "Hidden Facts",
+      "title": "Hidden Facts",
+      "body": "現行ベンダー不満、業務分解、件数、単価、競合状況、決定構造、終盤のAdecco差別化質問などを保持してください。"
+    },
+    {
+      "key": "Reveal Rules",
+      "title": "Reveal Rules",
+      "body": "募集背景は最初は増員や体制強化とだけ言い、深掘りされたら現行ベンダー不満や新規比較理由を出してください。業務内容も最初は受発注・事務まわりと答え、詳細分解された時に一日の流れや件数まで出してください。競合や独占期間、決定構造は聞かれた時のみ答えてください。"
+    },
+    {
+      "key": "Must Capture Items",
+      "title": "Must Capture Items",
+      "body": "営業学習者から確認された範囲にだけ自然に答えてください。自分から確認項目を一覧化したり、次に聞くべき質問を教えたりしないでください。"
+    },
+    {
+      "key": "Guardrails",
+      "title": "Guardrails",
+      "body": "採点者のように振る舞わないでください。『次は何を聞くべきか』と助言しないでください。hidden facts を早出ししないでください。分からないことは現場確認が必要と自然に返してください。"
+    },
+    {
+      "key": "Speech Normalization",
+      "title": "Speech Normalization",
+      "body": "音声回答では、数字、金額、時刻、範囲記号、スラッシュ、英字略語をそのまま出さず、読み上げやすい日本語にしてください。時給の下限は『時給は千五百円からです』、金額帯は『千七百五十円から千九百円』、時刻帯は『八時四十五分から十七時三十分』、月あたりの残業は『月十から十五時間』のように話します。"
+    },
+    {
+      "key": "Style",
+      "title": "Style",
+      "body": "日本語は自然で落ち着いたビジネス会話。一から三文が基本。短くても冷たくなりすぎず、初回発注前の慎重な相手として話してください。"
+    },
+    {
+      "key": "Closing",
+      "title": "Closing",
+      "body": "十分なヒアリングがあれば、営業の要約に対して不足や修正を返し、提案期日や連絡手段を合意してください。終盤では『Adeccoの強みは？』と一度逆質問してください。"
+    }
+  ],
+  "platformConfig": {
+    "companyAliasDefault": "Adecco_Manufacturer_Client",
+    "dynamicVariables": {
+      "scenarioVersion": "v1.0.0",
+      "learnerDisplayName": "",
+      "testMode": "false",
+      "sessionId": "",
+      "scenarioId": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium"
+    },
+    "language": "ja",
+    "optionalRuntimeVariables": [
+      "learnerDisplayName",
+      "sessionId",
+      "scenarioId",
+      "scenarioVersion",
+      "testMode"
+    ],
+    "dictionaryRequired": false
+  },
+  "semanticAcceptance": {
+    "exactTextMatchForbidden": true,
+    "requiredFieldPresence": true,
+    "referenceArtifactPath": "C:\\AI_RPG\\docs\\references\\adecco_manufacturer_order_hearing_reference.json"
+  },
+  "voiceSelection": {
+    "mode": "profile",
+    "voiceProfileId": "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1",
+    "selectionSource": "mapping",
+    "label": "Adecco Manufacturer Order Hearing JA V3 Candidate v1 (mirror of accounting)",
+    "voiceId": "g6xIsTj2HwM6VR4iXFCw",
+    "ttsModel": "eleven_v3",
+    "textNormalisationType": "elevenlabs"
+  },
+  "voiceResolution": "preferred",
+  "voiceName": "Jessica Anne Bogart - Chatty and Friendly"
+}

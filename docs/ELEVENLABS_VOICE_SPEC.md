@@ -52,7 +52,9 @@ accounting candidate profile の実値:
 | `language` | `ja` |
 | `model` | `eleven_v3` |
 | `voiceId` | `g6xIsTj2HwM6VR4iXFCw` |
+| `firstMessageJa` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の求人のご相談させていただけましたらと思い、どうぞよろしくお願いいたします。` |
 | `textNormalisationType` | `elevenlabs` |
+| `voiceSettings.speed` | `1.2` |
 | `pronunciationDictionaryLocators[0]` | `0GxlLMOqlBr3dvEhX6Ji:GGzWcurA2ogrgciNu7u5` |
 | `metadata.benchmarkStatus` | `candidate` |
 
@@ -66,7 +68,9 @@ live 比較用の explicit candidate profile:
 | `language` | `ja` |
 | `model` | `eleven_v3` |
 | `voiceId` | `g6xIsTj2HwM6VR4iXFCw` |
+| `firstMessageJa` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の求人のご相談させていただけましたらと思い、どうぞよろしくお願いいたします。` |
 | `textNormalisationType` | `system_prompt` |
+| `voiceSettings.speed` | `1.2` |
 | `metadata.benchmarkStatus` | `candidate` |
 
 この profile は `activeProfiles` にも `previewProfiles` / `benchmarkProfiles` にも載せません。`pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` のように explicit override したときだけ、dictionary-first lane との live 比較に使います。
@@ -82,8 +86,8 @@ live 比較用の explicit candidate profile:
 | `busy_manager_ja_v3_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` | `elevenlabs` | `speed=0.97`, `style=0` |
 | `busy_manager_ja_primary_v3_f06` | `eleven_v3` | `4lOQ7A2l7HPuG7UIHiKA` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` | `elevenlabs` | `speed=0.96`, `style=0` |
 | `busy_manager_ja_fallback_v3_m03` | `eleven_v3` | `umjlutQo1p1XQpWffYUI` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` | `elevenlabs` | `speed=0.96`, `style=0` |
-| `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の体制から確認させてください。` | `elevenlabs` | `speed=0.97`, `style=0` |
-| `accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の体制から確認させてください。` | `system_prompt` | `speed=0.97`, `style=0` |
+| `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の求人のご相談させていただけましたらと思い、どうぞよろしくお願いいたします。` | `elevenlabs` | `speed=1.2`, `style=0` |
+| `accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の求人のご相談させていただけましたらと思い、どうぞよろしくお願いいたします。` | `system_prompt` | `speed=1.2`, `style=0` |
 
 最新の v3 shortlist run は `data/generated/voice-benchmark/ja-voice15-round2-v3-2026-04-07/` にあります。
 
@@ -165,6 +169,13 @@ accounting scenario は fail-closed です。
 - `publish` / live は `activeProfiles` 必須
 - candidate profile が `previewProfiles` / `benchmarkProfiles` にあるだけでは active 化されたことにはならない
 
+Adecco 住宅設備メーカー staffing scenario も 2026-04-26 以降は legacy fallback を使わず、profile-based 解決のみ:
+
+- `staffing_order_hearing_adecco_manufacturer_busy_manager_medium` は accounting 現行 Publish の voice 設定 (`voiceId=g6xIsTj2HwM6VR4iXFCw`, `model=eleven_v3`, `voiceSettings.speed=1.2`, `textNormalisationType=elevenlabs`, dictionary locator `0GxlLMOqlBr3dvEhX6Ji@GGzWcurA2ogrgciNu7u5`) を staffing 専用 profile `staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1` に mirror する
+- `metadata.sourceVoiceProfileId` と `metadata.voiceReuseReason` で再利用根拠を保持し、`scenarioIds` 制約で accounting profile の override を防ぐ
+- `activeProfiles` / `previewProfiles` / `benchmarkProfiles` 全てに staffing 専用 profile を登録し、legacy fallback を使わない
+- 新規 voice 選定はせず、accounting current Publish と完全同一を保つ。差分が発生する場合は `metadata.notes` に追記する
+
 legacy fallback:
 
 - `DEFAULT_ELEVEN_VOICE_ID`: legacy voice fallback
@@ -199,6 +210,7 @@ agent 作成 / 更新では `packages/vendors/src/elevenlabs.ts` の `buildConve
 - repo 側では camelCase を維持する
 - repo SoT の `voiceProfile.model` は v3 profile でも `eleven_v3` のまま維持する
 - ただし Agents / ConvAI transport では `eleven_v3` を `eleven_v3_conversational` に正規化して送る
+- accounting live で stage direction が本文に漏れないよう、Agents v3 transport では `expressive_mode=false` を明示して送る
 - raw TTS benchmark / preview の `/v1/text-to-speech` では `eleven_v3` をそのまま送る
 - `ScenarioPack` 自体に voice 設定は埋め込まない
 - publish 結果の追跡は `AgentBinding.voiceProfileId` と `data/generated/publish/*.json` で行う
@@ -233,6 +245,12 @@ benchmark 出力先:
 - `system_prompt`: system / prompt 側で読み方を寄せ、TTS 側の normalization を切る
 
 live/publish では default を `elevenlabs` に置きます。`system_prompt` を明示した profile だけ、local PLS から抽出した発音ガイドを system prompt 末尾に追加して比較できます。assistant 本文や scenario source は書き換えません。
+
+accounting live publish では、canonical source を書き換えずに transport 直前で square-bracket markup を外します。これは `[体制強化]` のような表示向けラベルを live 音声で「かっこ体制強化」と読ませないための配信時整形です。
+
+Agents live path の `tts.speed` は current workspace では `1.2` が実運用上の上限です。`1.2` を超える値は `invalid_parameters` (`param: tts.speed`) で reject されます。
+
+accounting live publish では応答開始を早めるため、Agents transport で `turn_eagerness=eager`, `turn_timeout=5`, `initial_wait_time=1` を送ります。これは accounting の live lane に限定し、staffing の既存 pacing は変えません。
 
 raw TTS benchmark では model ごとに送信方法を分けます。
 

@@ -1,0 +1,57 @@
+{
+  "capturedAt": "2026-04-26",
+  "totalErrors": 162,
+  "totalFiles": 5,
+  "perFile": [
+    {
+      "file": "packages/scenario-engine/src/accountingArtifacts.ts",
+      "errors": 1,
+      "ruleCounts": {
+        "@typescript-eslint/require-await": 1
+      }
+    },
+    {
+      "file": "packages/scenario-engine/src/benchmarkRenderer.ts",
+      "errors": 1,
+      "ruleCounts": {
+        "@typescript-eslint/no-unused-vars": 1
+      }
+    },
+    {
+      "file": "packages/scenario-engine/src/compileAccountingScenario.ts",
+      "errors": 156,
+      "ruleCounts": {
+        "@typescript-eslint/no-unsafe-assignment": 23,
+        "@typescript-eslint/no-explicit-any": 11,
+        "@typescript-eslint/no-unsafe-member-access": 97,
+        "@typescript-eslint/no-unsafe-call": 11,
+        "@typescript-eslint/no-base-to-string": 6,
+        "@typescript-eslint/no-unnecessary-type-assertion": 5,
+        "??": 1,
+        "@typescript-eslint/no-unsafe-argument": 2
+      }
+    },
+    {
+      "file": "packages/scenario-engine/src/phase34.ts",
+      "errors": 2,
+      "ruleCounts": {
+        "@typescript-eslint/no-base-to-string": 1,
+        "@typescript-eslint/no-unnecessary-type-assertion": 1
+      }
+    },
+    {
+      "file": "packages/scenario-engine/src/voiceProfiles.ts",
+      "errors": 2,
+      "ruleCounts": {
+        "@typescript-eslint/no-unused-vars": 1,
+        "`\"\"`.": 1
+      }
+    }
+  ],
+  "notes": [
+    "Pre-existing baseline state captured before the 2026-04-26 Adecco DoD 1-5 fix bundle landed.",
+    "DoD lint-baseline rule: changed/new files MUST NOT add new lint errors. On every PR, run 'pnpm lint' and confirm the per-file counts above are unchanged.",
+    "Files NOT listed below have zero lint errors and must remain at zero. Adding a new file that triggers any error blocks release until fixed.",
+    "If a refactor reduces the count, lower the number here in the same PR. Do not silently grow this baseline."
+  ]
+}

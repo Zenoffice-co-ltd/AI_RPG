@@ -39,6 +39,9 @@ Current repo rule:
 - Agents / ConvAI payload normalizes `eleven_v3 -> eleven_v3_conversational`
 - raw TTS `/v1/text-to-speech` keeps `eleven_v3`
 - Adecco manufacturer Orb answers must spell out amounts, times, ranges, counts, and business abbreviations in spoken Japanese; avoid raw values like yen ranges, clock separators, slashes, and hour-per-month notation in live response text
+- accounting live publish strips square-bracket markup such as `[体制強化]` only at transport time so the agent does not speak the brackets
+- accounting live publish can also tune turn-taking at transport time: use `turn_eagerness=eager` with a short `turn_timeout` only for the accounting lane when the goal is to reduce perceived dead air without changing staffing defaults
+- when latency is still too high on accounting live, prefer tightening turn-taking and prompt brevity before swapping the publish LLM
 
 Only change `packages/vendors/src/elevenlabs.ts` `buildConversationConfig()` for this fix. Do not change raw render model handling or v3 normalization payloads.
 
@@ -82,6 +85,24 @@ pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_
 pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1
 ```
 
+## Voice Reuse Across Scenarios (Mirror Pattern)
+
+When a scenario needs to use the SAME voice that another scenario already uses in production (e.g. Adecco staffing reusing the accounting profile's voice), do NOT add the new scenario's id to the existing profile's `metadata.scenarioIds`. The voice profile resolver enforces a 1:1 binding between profile and scenario via `scenarioIds`, and overriding it from another scenario will be rejected.
+
+Correct pattern (added 2026-04-26 with `staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1`):
+
+1. Create a NEW profile JSON under `config/voice-profiles/` with the target scenario id in `metadata.scenarioIds`.
+2. Copy the source profile's runtime fields **byte-for-byte**: `voiceId`, `model`, `voiceSettings.speed`, `voiceSettings.style`, `textNormalisationType`, `pronunciationDictionaryLocators[].pronunciationDictionaryId`, `pronunciationDictionaryLocators[].versionId`.
+3. Override only `firstMessageJa` to the target scenario's opening line.
+4. Add provenance metadata so future agents can reason about the mirror:
+   - `metadata.sourceVoiceProfileId`: the source profile id (e.g. `accounting_clerk_enterprise_ap_ja_v3_candidate_v1`)
+   - `metadata.voiceReuseReason`: a short explanation (e.g. `Use the same published accounting roleplay voice per product requirement.`)
+   - `metadata.notes`: optional; helpful for divergence audits.
+5. Register the new profile in all three pools of `config/voice-profiles/scenario-map.json`: `activeProfiles`, `previewProfiles`, `benchmarkProfiles`.
+6. Add a unit test in `voiceProfiles.test.ts` that asserts byte-equality of voiceId/model/voiceSettings/textNormalisationType/dictionary locator between source and mirror profile.
+
+The schema for `voiceProfile.ts` already accepts `sourceVoiceProfileId` and `voiceReuseReason` under `metadata` (added 2026-04-26).
+
 ## Guardrails
 
 - Approved does not automatically mean publish-ready.
@@ -90,3 +111,4 @@ pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_
 - Do not change `renderSpeech()` model handling when fixing Agents publish.
 - Do not add automatic retry for `expressive_tts_not_allowed`.
 - Prefer generated benchmark artifacts and review sheets over ad hoc notes.
+- Do NOT extend `metadata.scenarioIds` of an existing profile to share voice across scenarios. Always mirror via a new profile (see Voice Reuse Across Scenarios above).

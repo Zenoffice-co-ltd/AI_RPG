@@ -1,0 +1,29 @@
+{
+  "id": "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1",
+  "label": "Adecco Manufacturer Order Hearing JA V3 Candidate v1 (mirror of accounting)",
+  "language": "ja",
+  "model": "eleven_v3",
+  "voiceId": "g6xIsTj2HwM6VR4iXFCw",
+  "firstMessageJa": "お時間ありがとうございます。今回は新しい派遣会社さんとして一度お話を伺いたいと思っています。まずは、御社の進め方も含めて要件を整理できるか見せていただけますか。",
+  "textNormalisationType": "elevenlabs",
+  "voiceSettings": {
+    "speed": 0.97,
+    "style": 0
+  },
+  "pronunciationDictionaryLocators": [
+    {
+      "pronunciationDictionaryId": "0GxlLMOqlBr3dvEhX6Ji",
+      "versionId": "GGzWcurA2ogrgciNu7u5"
+    }
+  ],
+  "metadata": {
+    "personaKey": "busy_manager_medium",
+    "scenarioIds": [
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium"
+    ],
+    "benchmarkStatus": "candidate",
+    "sourceVoiceProfileId": "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
+    "voiceReuseReason": "Use the same published accounting roleplay voice per product requirement.",
+    "notes": "Mirrors voiceId, model, voiceSettings, textNormalisationType, and pronunciation dictionary locator from accounting_clerk_enterprise_ap_ja_v3_candidate_v1. Do not diverge from the accounting profile without product approval."
+  }
+}
