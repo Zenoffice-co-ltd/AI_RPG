@@ -24,11 +24,13 @@
 本番テスト対象GCPプロジェクト: `adecco-mendan`
 
 Status: Non-operator DOD達成、Full DOD未達。実装、Cloud Run deploy、
-access gate、session-token API、Secret Manager adecco-mendan完結化、
-WebRTC path selection、full web test、targeted lint、E2E、visual、build は
-検証済み。Local / Production とも、実ブラウザ + 実マイクでの Agent
-音声、Agent transcript、User voice transcript、mute ON/OFF、New
-Conversation はまだ未検証のため、顧客デモ可否は条件付き可能に留まる。
+access gate、session-token API、Secret Manager adecco-mendan参照、
+WebRTC path selection、vendor smoke、full web test、targeted lint、E2E、
+visual、build は検証済み。Production real-mic smoke は operator が実施
+済みだが、2026-04-27 08:00 JST 時点で互換 `roleplay-ui` service が古い
+Web imageを配信していたため Agent transcript が全行二重表示されていた。
+`roleplay-ui` も最新 image / latest branch に揃えたので、Full DOD は
+`mendan-00018-ltt` / `roleplay-ui-00018-mc2` での再テスト待ち。
 
 2026-04-27 05:05 JST update: production operator smoke on the customer URL
 confirmed live speech and transcript display, but surfaced UI transcript
@@ -72,16 +74,34 @@ against verbalizing internal rules, classifications, JSON, section names, or
 prompt instructions. `selection_priority_ranking` was also rewritten to answer
 must/want directly instead of repeating the same generic priority paragraph.
 
-Latest scenario publish attempt updated the ElevenLabs staging branch
-`agtbrch_8001kpj49xpsermt0fy3xrr5ph8z`, but vendor smoke did **not** evaluate
-quality because the raw test invocation returned upstream `quota_exceeded`
-for every vendor smoke test. Snapshot: `suite_5301kq5x98sgftet0x0cr6cgp54j`,
-`passed=false`, `binding=null`. This is recorded as a vendor/account quota
-blocker, not a prompt-quality pass. The customer Cloud Run service `mendan` was
-updated to `mendan-00016-zb6` and now points at
-`ELEVENLABS_BRANCH_ID=agtbrch_8001kpj49xpsermt0fy3xrr5ph8z`; `/api/healthz`
-returned 200 and session-token POST returned 200 with only
-`conversationToken` in the response after access-cookie setup.
+2026-04-27 08:10 JST quota recovery: after account quota was restored,
+`pnpm publish:scenario -- --scenario staffing_order_hearing_adecco_manufacturer_busy_manager_medium`
+completed successfully. Vendor smoke is PASS 8/8 (`suite_2101kq60y5d8e259mxd41nk1pvgw`),
+`passed=true`, and the publish binding is
+`ELEVENLABS_BRANCH_ID=agtbrch_9701kpj49vbdepjr8szvwc6w7e6b`. The primary
+customer service `mendan` was updated to `mendan-00018-ltt`. The compatibility
+service `roleplay-ui` was also updated to the same latest web image and branch
+as `roleplay-ui-00018-mc2`; this fixes the old-URL symptom where
+`roleplay-ui-mvk3ouxwza-an.a.run.app` still showed the old header and repeated
+every Agent transcript row twice. Both services returned `/api/healthz` 200 and
+session-token POST 200 with only `conversationToken` in the response after
+access-cookie setup.
+
+Automated evidence for the quota-recovery deployment:
+
+| Command / check | Result |
+| --- | --- |
+| `pnpm publish:scenario -- --scenario staffing_order_hearing_adecco_manufacturer_busy_manager_medium` | PASS: vendor smoke 8/8, `suite_2101kq60y5d8e259mxd41nk1pvgw` |
+| Generated prompt forbidden-term grep | PASS: no internal prompt terms such as `triggerIntent`, `team_atmosphere_question`, `allowedAnswer`, `応答ルール`, or `判定条件` |
+| `pnpm --filter @top-performer/web test` | PASS: 41 files / 211 tests |
+| `pnpm --filter @top-performer/scenario-engine test -- src/disclosureLedger/staffingAdeccoLedger.test.ts src/compileStaffingReferenceScenario.test.ts src/priorOrbFailure.regression.test.ts src/publishAgent.test.ts` | PASS: 4 files / 58 tests |
+| `pnpm --filter @top-performer/web typecheck` | PASS |
+| `pnpm --filter @top-performer/web test:e2e` | PASS: 3 tests |
+| `pnpm --filter @top-performer/web test:visual` | PASS: 1 test |
+| `pnpm --filter @top-performer/web build` | PASS: existing Turbopack NFT trace warning only |
+| `pnpm --filter @top-performer/web exec eslint components/roleplay lib/roleplay app/api/voice --ext .ts,.tsx --ignore-pattern '**/*.test.ts' --ignore-pattern '**/*.test.tsx' --no-error-on-unmatched-pattern` | PASS |
+| `pnpm --filter @top-performer/scenario-engine typecheck` | PASS |
+| Production access + token recheck | PASS: `mendan` and `roleplay-ui` both returned `conversationToken` only |
 
 Canonical route: `/demo/adecco-roleplay`. Legacy `/demo/adecco-orb`
 redirects to the canonical route with query parameters preserved. Requested
@@ -392,10 +412,11 @@ a generic server configuration error.
 | Required APIs in `adecco-mendan` | Enabled: Artifact Registry, Cloud Build, Cloud Run, Secret Manager |
 | Artifact Registry | `projects/adecco-mendan/locations/asia-northeast1/repositories/roleplay-ui` |
 | Cloud Build | PASS: `fd48b6cc-e27e-401d-99be-f1a8ca295f93` built `session-cleanup-fix-20260426` |
-| Cloud Run deploy | PASS: `roleplay-ui-00013-pkk`, 100% traffic |
-| Latest customer service update | PASS: `mendan-00016-zb6`, 100% traffic, `ELEVENLABS_BRANCH_ID=agtbrch_...ph8z`, healthz 200 |
+| Cloud Run deploy | PASS: primary `mendan-00018-ltt`, compatibility `roleplay-ui-00018-mc2`, both 100% traffic |
+| Latest customer service update | PASS: `mendan-00018-ltt`, 100% traffic, `ELEVENLABS_BRANCH_ID=agtbrch_...w7e6b`, healthz 200, session-token 200 |
+| Latest compatibility service update | PASS: `roleplay-ui-00018-mc2`, latest web image, `ELEVENLABS_BRANCH_ID=agtbrch_...w7e6b`, healthz 200, session-token 200 |
 | Wrong project safety | No deploy performed to `rhc-analytics-prod`; production commands used `--project adecco-mendan` |
-| Production secret closure | PARTIAL: `ELEVENLABS_API_KEY` and `DEMO_ACCESS_TOKEN` are secret refs in `adecco-mendan`; `/api/voice/session-token` uses injected `ELEVENLABS_API_KEY` in production. `mendan-00016-zb6` still has `SECRET_SOURCE_PROJECT_ID=zapier-transfer` for broader non-voice server env compatibility, so full service-wide fallback removal is not complete. |
+| Production secret closure | PARTIAL: `ELEVENLABS_API_KEY` and `DEMO_ACCESS_TOKEN` are secret refs in `adecco-mendan`; `/api/voice/session-token` uses injected `ELEVENLABS_API_KEY` in production. `mendan-00018-ltt` still has `SECRET_SOURCE_PROJECT_ID=zapier-transfer` for broader non-voice server env compatibility, while `roleplay-ui-00018-mc2` does not define that fallback. Full service-wide fallback removal for non-voice routes remains separate. |
 | Cloud Run log secret scan | PASS: recent logs had no matches for API key env name, upstream token, upstream URL, agent id, or branch id patterns checked |
 | HTML source map/provider scan | PASS: production `/demo/adecco-roleplay` HTML had no `.map`/`sourceMappingURL` and no provider/internal id strings checked |
 | Production API recheck | PASS: `/api/healthz` `200`; session-token `200`; GET `405`; invalid scenario `400`; disallowed origin `403`; missing access `401`; no API key/provider/internal id in response |
