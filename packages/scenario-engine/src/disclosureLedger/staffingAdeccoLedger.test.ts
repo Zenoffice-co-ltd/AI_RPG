@@ -129,6 +129,47 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     expect(item!.intentDescription).toContain("stage direction");
   });
 
+  it("Manual orb v9 P1: supervisor_personality_question + team_atmosphere_question negativeExamples lock 承知しました prefix smoking-gun", () => {
+    const supervisor = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "supervisor_personality_question"
+    );
+    const atmosphere = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "team_atmosphere_question"
+    );
+    expect(supervisor).toBeDefined();
+    expect(atmosphere).toBeDefined();
+
+    // supervisor_personality_question: 4 filler-prefix smoking guns
+    const supervisorJoined = supervisor!.negativeExamples.join("|");
+    expect(supervisorJoined).toContain(
+      "承知しました。少し整理しますね。指揮命令者の課長は落ち着いていますが正確性に厳しい方です。"
+    );
+    expect(supervisorJoined).toContain(
+      "承知しました。指揮命令者の課長は落ち着いていますが正確性に厳しい方です。"
+    );
+    expect(supervisorJoined).toContain(
+      "少し整理しますね。指揮命令者の課長は落ち着いていますが正確性に厳しい方です。"
+    );
+    expect(supervisorJoined).toContain(
+      "お待ちください。指揮命令者の課長は落ち着いていますが正確性に厳しい方です。"
+    );
+
+    // team_atmosphere_question: same filler-prefix smoking guns
+    const atmosphereJoined = atmosphere!.negativeExamples.join("|");
+    expect(atmosphereJoined).toContain(
+      "承知しました。少し整理しますね。営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。"
+    );
+    expect(atmosphereJoined).toContain(
+      "承知しました。営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。"
+    );
+    expect(atmosphereJoined).toContain(
+      "少し整理しますね。営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。"
+    );
+    expect(atmosphereJoined).toContain(
+      "お待ちください。営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。"
+    );
+  });
+
   it("Manual orb v6 (Excel design coverage): job_detail_tasks.allowedAnswer mentions データ入力 (Excel SAP→データ入力 置換)", () => {
     const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
       (i) => i.triggerIntent === "job_detail_tasks"
