@@ -80,6 +80,14 @@ const runTestsResponseSchema = z.object({
   branch_id: z.string().nullable().optional(),
 });
 
+const conversationDetailsSchema = z
+  .object({
+    conversation_id: z.string().min(1).optional(),
+    agent_id: z.string().min(1).optional(),
+    transcript: z.array(z.record(z.string(), z.unknown())).optional(),
+  })
+  .passthrough();
+
 const knowledgeBaseListSchema = z.object({
   documents: z.array(
     z.object({
@@ -1093,6 +1101,21 @@ export class ElevenLabsClient {
     });
 
     return response;
+  }
+
+  async getConversationDetails(conversationId: string) {
+    const apiKey = await this.resolveApiKey();
+    return requestJson({
+      scope: "elevenlabs.getConversationDetails",
+      url: `${this.baseUrl}/v1/convai/conversations/${conversationId}`,
+      headers: {
+        "xi-api-key": apiKey,
+        accept: "application/json",
+      },
+      schema: conversationDetailsSchema,
+      timeoutMs: 30_000,
+      retries: 2,
+    });
   }
 
   async updateAgent(

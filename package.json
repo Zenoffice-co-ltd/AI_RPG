@@ -20,6 +20,7 @@
     "build:playbooks": "tsx scripts/build-playbooks.ts",
     "compile:scenarios": "tsx scripts/compile-scenarios.ts",
     "eval:accounting": "tsx scripts/evaluate-accounting-scenario.ts",
+    "eval:adecco-order-hearing:mvp": "node scripts/adecco_order_hearing_eval/run_mvp.js",
     "publish:scenario": "tsx scripts/publish-scenario.ts",
     "voices:list": "tsx scripts/elevenlabs/list-voices.ts",
     "voices:collect:ja": "tsx scripts/elevenlabs/collect-ja-voices.ts",
