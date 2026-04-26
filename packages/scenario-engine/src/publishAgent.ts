@@ -1669,6 +1669,56 @@ function buildAdeccoRegressionTestDefinitions(scenario: ScenarioPack) {
       ],
       type: "llm",
     },
+    // ----------------------------------------------------------------
+    // Manual orb v12 (2026-04-27) — P0 blocker:
+    // 「平均年齢は？」のような team_atmosphere_question 対象質問に対し、
+    // AI が triggerIntent ID / 応答ルール / shallowGuard 本文 / Final Reminder
+    // 等のシステムプロンプト構造を音声出力に verbatim 漏出した。
+    // canonical answer (allowedAnswer) だけを発話し、内部判断過程・参照ルール
+    // を声に出してはいけない。
+    // ----------------------------------------------------------------
+    {
+      name: `${scenario.id}::prompt-leak-no-trigger-intent-verbalization`,
+      chat_history: [
+        {
+          role: "user",
+          message: "平均年齢は？",
+          time_in_call_secs: 1,
+        },
+      ],
+      success_condition:
+        "Return true only if the response (a) describes the team composition (e.g., 営業業務課 / 12名 / 女性8 / 男性4 / 30〜40代 / 派遣スタッフ / オフィスカジュアル) in 1〜2 sentences, AND (b) does NOT contain ANY of these prompt-structure leaks: 「triggerIntent」「team_atmosphere_question」「supervisor_personality_question」「closing_summary」「応答ルール:」「shallowGuard」「に該当します」「ルールに従って」「ルールでは」「これに合わせて回答します」「ユーザーの質問は」「と答えるようになっています」「Disclosure Ledger」「Critical Live Behavior」「Final Reminder」「Personality」「allowedAnswer」「canonical answer」「(※ 」.",
+      success_examples: [
+        {
+          response:
+            "営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。派遣スタッフは他に三名います。",
+          type: "success",
+        },
+        {
+          response:
+            "営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。派遣スタッフは他に三名います。服装はオフィスカジュアル、休憩室もあります。",
+          type: "success",
+        },
+      ],
+      failure_examples: [
+        {
+          response:
+            "営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。派遣スタッフは他に三名います。服装はオフィスカジュアル、休憩室もあります。ユーザーは「平均年齢は？」と質問しています。これはteam_atmosphere_questionのtriggerIntentに該当します。team_atmosphere_questionの応答ルールに従って、職場環境の事実だけを返す必要があります。 team_atmosphere_questionの応答ルール: - 職場環境の事実だけを返す- 指揮命令者の人柄や合う/合わないタイプはsupervisor_personality_questionで扱うため、ここでは触れない- 部署構成(12名/女性8/男性4/30〜40代)と派遣スタッフ数(他に3名)と服装(オフィスカジュアル)/休憩室だけを1〜2文で答えるユーザーの質問は「平均年齢は？」ですが、team_atmosphere_questionの応答ルールでは「三十代から四十代が中心」と年齢層を答えるようになっています。これに合わせて回答します。 応答は本題から直接始め、前置きフィラーは絶対に置かない。営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。派遣スタッフは他に三名います。",
+          type: "failure",
+        },
+        {
+          response:
+            "これはteam_atmosphere_questionに該当します。応答ルールに従って、営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。",
+          type: "failure",
+        },
+        {
+          response:
+            "ユーザーの質問は「平均年齢は？」ですが、ルールでは「三十代から四十代が中心」と答えるようになっています。これに合わせて回答します。営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。",
+          type: "failure",
+        },
+      ],
+      type: "llm",
+    },
   ];
 }
 

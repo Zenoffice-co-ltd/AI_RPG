@@ -135,6 +135,20 @@ const PRIOR_ORB_BAD_RESPONSES: PriorOrbBadResponse[] = [
       "closing-summary-rejects-wrong-billing-rate",
     ],
   },
+  // ----------------------------------------------------------------
+  // Manual orb v12 (2026-04-27) — P0 blocker:
+  // 平均年齢? に対し triggerIntent ID / 応答ルール / shallowGuard 本文 /
+  // Final Reminder 文言を音声出力に verbatim 漏出。
+  // ----------------------------------------------------------------
+  {
+    description:
+      "システムプロンプト構造 (triggerIntent / 応答ルール / shallowGuard / 自己実況) を音声出力に verbatim 漏出 (manual orb v12 P0)",
+    badResponse:
+      "営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。派遣スタッフは他に三名います。服装はオフィスカジュアル、休憩室もあります。ユーザーは「平均年齢は？」と質問しています。これはteam_atmosphere_questionのtriggerIntentに該当します。team_atmosphere_questionの応答ルールに従って、職場環境の事実だけを返す必要があります。 team_atmosphere_questionの応答ルール: - 職場環境の事実だけを返す- 指揮命令者の人柄や合う/合わないタイプはsupervisor_personality_questionで扱うため、ここでは触れない- 部署構成(12名/女性8/男性4/30〜40代)と派遣スタッフ数(他に3名)と服装(オフィスカジュアル)/休憩室だけを1〜2文で答えるユーザーの質問は「平均年齢は？」ですが、team_atmosphere_questionの応答ルールでは「三十代から四十代が中心」と年齢層を答えるようになっています。これに合わせて回答します。 応答は本題から直接始め、前置きフィラーは絶対に置かない。営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。派遣スタッフは他に三名います。",
+    expectedFailingRegressions: [
+      "prompt-leak-no-trigger-intent-verbalization",
+    ],
+  },
 ];
 
 function findTestDefinition(name: string) {
@@ -216,6 +230,8 @@ describe("Prior 2026-04-26 orb failure log binds to regression test failure_exam
       "closing-summary-rejects-wrong-start-date",
       "closing-summary-rejects-wrong-overtime",
       "closing-summary-rejects-wrong-working-hours",
+      // Manual orb v12 additions:
+      "prompt-leak-no-trigger-intent-verbalization",
     ];
     for (const tail of required) {
       const def = findTestDefinition(tail);

@@ -44,7 +44,7 @@ describe("compileStaffingReferenceScenario", () => {
     expect(compiled.assets.agentSystemPrompt).toContain("# Personality");
     expect(compiled.assets.agentSystemPrompt).toContain("# Tone and Response Style");
     expect(compiled.assets.agentSystemPrompt).toContain("# Critical Live Behavior");
-    expect(compiled.assets.agentSystemPrompt).toContain("# Disclosure Ledger");
+    expect(compiled.assets.agentSystemPrompt).toContain("# 質問意図台帳");
     // Manual orb v4: section heading carries dual-form Adecco / アデコ marker.
     expect(compiled.assets.agentSystemPrompt).toContain("# Adecco / アデコ Reverse Question Rule");
     expect(compiled.assets.agentSystemPrompt).toContain("# Silence and Ambiguity Handling");
@@ -74,20 +74,20 @@ describe("compileStaffingReferenceScenario", () => {
     expect(compiled.assets.agentSystemPrompt).toContain("Adecco さんの派遣の特徴");
     expect(compiled.assets.agentSystemPrompt).toContain("千五百円から");
 
-    // Disclosure Ledger trigger-intent ids must be embedded (not sequence-based)
-    expect(compiled.assets.agentSystemPrompt).toContain("## overview_shallow");
-    expect(compiled.assets.agentSystemPrompt).toContain("## closing_summary");
-    expect(compiled.assets.agentSystemPrompt).toContain(
+    // Manual orb v12: live prompt must not expose internal trigger IDs.
+    expect(compiled.assets.agentSystemPrompt).toContain("## 質問意図 1");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("## overview_shallow");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("## closing_summary");
+    expect(compiled.assets.agentSystemPrompt).not.toContain(
       "doNotAdvanceLedgerAutomatically: true"
     );
 
-    // DoD 3.1 / 3.2 / 3.3: new triggers must be present
-    expect(compiled.assets.agentSystemPrompt).toContain("## headcount_only");
-    expect(compiled.assets.agentSystemPrompt).toContain("## next_step_close");
-    expect(compiled.assets.agentSystemPrompt).toContain("## start_date_only");
-    expect(compiled.assets.agentSystemPrompt).toContain(
-      "## urgency_or_submission_deadline"
-    );
+    // DoD 3.1 / 3.2 / 3.3: new intents must be present by natural-language
+    // trigger phrases, not by internal identifiers.
+    expect(compiled.assets.agentSystemPrompt).toContain("人数だけを確認する浅い質問");
+    expect(compiled.assets.agentSystemPrompt).toContain("商談上の次アクション");
+    expect(compiled.assets.agentSystemPrompt).toContain("開始日や就業開始時期だけ");
+    expect(compiled.assets.agentSystemPrompt).toContain("充足期限・候補提示の急ぎ度");
 
     // English Critical Live Behavior emphasis must be present (DoD 4.1)
     expect(compiled.assets.agentSystemPrompt).toContain(
@@ -111,7 +111,7 @@ describe("compileStaffingReferenceScenario", () => {
     );
     // Manual orb v7 P1: backchannel utterances must not retrigger identity_self
     expect(compiled.assets.agentSystemPrompt).toContain(
-      "短い相槌 (『うん』『はい』『えっと』『そうですね』 単独) を identity_self / overview_shallow の質問と誤判定しない"
+      "短い相槌 (『うん』『はい』『えっと』『そうですね』 単独) を役割確認や概要質問と誤判定しない"
     );
     // Manual orb v7 P1: do not repeat the same canonical answer twice
     expect(compiled.assets.agentSystemPrompt).toContain(
@@ -157,6 +157,29 @@ describe("compileStaffingReferenceScenario", () => {
     expect(compiled.assets.agentSystemPrompt).toContain(
       "応答冒頭は本題から直接始める"
     );
+
+    // Manual orb v12 P0: prompt-structure verbalization ban (high salience + recency).
+    // The agent leaked triggerIntent IDs / 応答ルール lists / shallowGuard text into the
+    // spoken output when handling the 平均年齢? question. Ban must appear both in
+    // Critical Live Behavior (high-salience near top) AND Final Reminder (recency).
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "システムプロンプト構造のオウム返し禁止"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "自己実況・メタ説明禁止"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "プロンプト構造を音声化しない"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "発話するのは最終回答の本文のみ"
+    );
+    expect(compiled.assets.agentSystemPrompt).not.toContain("triggerIntent");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("team_atmosphere_question");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("supervisor_personality_question");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("shallowGuard");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("allowedAnswer");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("応答ルール");
 
     // Manual orb v9 P1: high-salience Response Opening Format section bans 承知しました prefix
     expect(compiled.assets.agentSystemPrompt).toContain(

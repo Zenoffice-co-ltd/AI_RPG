@@ -389,6 +389,8 @@ describe("publishScenarioAgent", () => {
       "asr-variant-robustness",
       "sap-absence",
       "no-coaching-strict",
+      // Manual orb v12 P0: prompt structure verbalization ban
+      "prompt-leak-no-trigger-intent-verbalization",
     ]) {
       expect(localNames).toContain(
         `staffing_order_hearing_adecco_manufacturer_busy_manager_medium::${tail}`
