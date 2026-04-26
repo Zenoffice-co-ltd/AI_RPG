@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
   }
 
   const event = parsed.data;
+  const normalizedText = normalizeLogText(event.text);
   console.info(JSON.stringify({
     message: "Roleplay transcript",
     scenarioId: event.scenarioId,
@@ -53,7 +54,11 @@ export async function POST(request: NextRequest) {
     status: event.status,
     source: event.source,
     text: event.text,
+    textEscaped: escapeUnicode(event.text),
+    textUtf8Base64: Buffer.from(event.text, "utf8").toString("base64"),
     textLength: event.text.length,
+    normalizedTextHash: fnv1aHash(normalizedText),
+    normalizedTextLength: normalizedText.length,
     sdkMessageId: event.sdkMessageId,
     clientMessageId: event.clientMessageId,
     createdAt: event.createdAt,
@@ -68,4 +73,33 @@ export function GET() {
 
 function safeError(status: number, headers?: HeadersInit) {
   return NextResponse.json({ ok: false }, headers ? { status, headers } : { status });
+}
+
+function normalizeLogText(text: string) {
+  return text.replace(/[\s、。，．,.！？!?"'「」『』（）()[\]［］【】]/g, "").trim();
+}
+
+function escapeUnicode(text: string) {
+  return [...text]
+    .map((char) => {
+      const codePoint = char.codePointAt(0);
+      if (codePoint === undefined) {
+        return "";
+      }
+      if (codePoint >= 0x20 && codePoint <= 0x7e) {
+        return char;
+      }
+      return `\\u{${codePoint.toString(16)}}`;
+    })
+    .join("");
+}
+
+function fnv1aHash(text: string) {
+  let hash = 0x811c9dc5;
+  for (const char of text) {
+    const codePoint = char.codePointAt(0) ?? 0;
+    hash ^= codePoint;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }

@@ -156,4 +156,68 @@ describe("transcriptReducer", () => {
       status: "final",
     });
   });
+
+  it("merges agent-chat and agent final events that share the SDK event id", () => {
+    const chat = createTranscriptMessage({
+      id: "agent-chat-497",
+      sdkMessageId: "agent-chat-497",
+      role: "agent",
+      channel: "chat",
+      text: "現行ベンダーに加えて、もう一社の大手にも相談中です。",
+      status: "final",
+      source: "sdk",
+      createdAt: 1_000,
+    });
+
+    const voice = createTranscriptMessage({
+      id: "agent-voice-497",
+      sdkMessageId: "agent-497",
+      role: "agent",
+      channel: "voice",
+      text: "現行ベンダーに加えて、もう一社の大手にも相談中です。",
+      status: "final",
+      source: "sdk",
+      createdAt: 1_200,
+    });
+
+    const merged = transcriptReducer([chat], { type: "append", message: voice });
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({
+      id: "agent-chat-497",
+      sdkMessageId: "agent-chat-497",
+      channel: "voice",
+      text: "現行ベンダーに加えて、もう一社の大手にも相談中です。",
+      status: "final",
+    });
+  });
+
+  it("dedupes agent text with punctuation-only differences", () => {
+    const first = createTranscriptMessage({
+      id: "agent-chat-496",
+      sdkMessageId: "agent-chat-496",
+      role: "agent",
+      channel: "chat",
+      text: "現行ベンダーに加えて、もう一社の大手にも相談中です。",
+      status: "final",
+      source: "sdk",
+      createdAt: 1_000,
+    });
+
+    const second = createTranscriptMessage({
+      id: "agent-chat-497",
+      sdkMessageId: "agent-chat-497",
+      role: "agent",
+      channel: "chat",
+      text: "現行ベンダーに加えてもう一社の大手にも相談中です",
+      status: "final",
+      source: "sdk",
+      createdAt: 1_200,
+    });
+
+    const deduped = transcriptReducer([first], { type: "append", message: second });
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]?.text).toBe(
+      "現行ベンダーに加えてもう一社の大手にも相談中です"
+    );
+  });
 });
