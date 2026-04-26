@@ -57,6 +57,32 @@ operator smoke. The reusable investigation process is now captured in
 `.agents/skills/ai-rpg-orb-live-ui/SKILL.md` under "Duplicate Transcript
 Investigation".
 
+2026-04-27 07:20 JST investigation/update: operator reported remaining
+similar-looking repetition and a prompt-structure leak in the pasted transcript
+(`team_atmosphere_question`, `triggerIntent`, `応答ルール`). Cloud Run transcript
+logs from 2026-04-27 03:00 JST onward were rechecked: 2,950 transcript rows
+across `mendan-00011-knx` and `mendan-00012-4bs`; 20 duplicate display groups
+were found only on old `mendan-00011-knx`; `mendan-00012-4bs` had no displayed
+Agent duplicate groups and no prompt-structure leak terms in logged displayed
+rows. Root cause for the leak risk was scenario-side: the generated live Agent
+prompt still exposed internal ledger structure and internal IDs. The prompt
+renderer now sanitizes ledger headings to `## 質問意図 N`, removes internal
+field names/IDs from the live prompt, and adds high-salience/recency bans
+against verbalizing internal rules, classifications, JSON, section names, or
+prompt instructions. `selection_priority_ranking` was also rewritten to answer
+must/want directly instead of repeating the same generic priority paragraph.
+
+Latest scenario publish attempt updated the ElevenLabs staging branch
+`agtbrch_8001kpj49xpsermt0fy3xrr5ph8z`, but vendor smoke did **not** evaluate
+quality because the raw test invocation returned upstream `quota_exceeded`
+for every vendor smoke test. Snapshot: `suite_5301kq5x98sgftet0x0cr6cgp54j`,
+`passed=false`, `binding=null`. This is recorded as a vendor/account quota
+blocker, not a prompt-quality pass. The customer Cloud Run service `mendan` was
+updated to `mendan-00016-zb6` and now points at
+`ELEVENLABS_BRANCH_ID=agtbrch_8001kpj49xpsermt0fy3xrr5ph8z`; `/api/healthz`
+returned 200 and session-token POST returned 200 with only
+`conversationToken` in the response after access-cookie setup.
+
 Canonical route: `/demo/adecco-roleplay`. Legacy `/demo/adecco-orb`
 redirects to the canonical route with query parameters preserved. Requested
 customer URL `https://mendan-mvk3ouxwza-an.a.run.app/demo/adecco-roleplay` is blocked until
@@ -292,12 +318,21 @@ Run the following on both Local and Production before marking Full DOD complete.
 
 ### Secret Manager Fallback Review
 
-Production DOD now requires Cloud Run `roleplay-ui` to use only
-`adecco-mendan` Secret Manager. `projects/zapier-transfer/secrets/ELEVENLABS_API_KEY`
+Production DOD requires the voice session path to use `adecco-mendan` Secret
+Manager for `ELEVENLABS_API_KEY`. `projects/zapier-transfer/secrets/ELEVENLABS_API_KEY`
 was used once as a migration source to create
 `projects/adecco-mendan/secrets/ELEVENLABS_API_KEY/versions/1`; the secret value
-was piped directly and not printed. Production runtime no longer sets
-`SECRET_SOURCE_PROJECT_ID` and does not use the local/dev fallback path.
+was piped directly and not printed. The voice token route runs in production
+mode and fails closed unless `ELEVENLABS_API_KEY` is injected by Cloud Run
+Secret Manager.
+
+Current correction as of `mendan-00016-zb6`: the broader `mendan` Cloud Run
+service still contains `SECRET_SOURCE_PROJECT_ID=zapier-transfer` for
+non-voice admin/vendor routes whose server env currently requires a source
+project. This does not affect `/api/voice/session-token`, which uses the
+injected `ELEVENLABS_API_KEY` secret env in production. Full production secret
+closure for all non-voice routes remains a separate follow-up if those routes
+must also avoid zapier-transfer fallback.
 
 The code retains ADC fallback only for local/development when
 `NODE_ENV !== "production"`. In production, `ELEVENLABS_API_KEY` must be
@@ -334,6 +369,12 @@ a generic server configuration error.
 | --- | --- |
 | `pnpm --filter @top-performer/web typecheck` | PASS |
 | `pnpm --filter @top-performer/web test` | PASS: 40 files, 180 tests. Previous staffing disclosure ledger failures were stale and did not reproduce after rerun. |
+| `pnpm --filter @top-performer/web test` (2026-04-27 v12 rerun) | PASS: 41 files, 211 tests |
+| `pnpm --filter @top-performer/scenario-engine test` (2026-04-27 v12 rerun) | PASS: 41 files, 211 tests |
+| `pnpm --filter @top-performer/scenario-engine typecheck` (2026-04-27 v12 rerun) | PASS |
+| `pnpm --filter @top-performer/scenario-engine test -- src/disclosureLedger/staffingAdeccoLedger.test.ts src/compileStaffingReferenceScenario.test.ts src/priorOrbFailure.regression.test.ts src/publishAgent.test.ts` | PASS: 4 files, 58 tests |
+| `pnpm exec eslint packages/scenario-engine/src/disclosureLedger/staffingAdeccoLedger.ts packages/scenario-engine/src/compileStaffingReferenceScenario.ts packages/scenario-engine/src/publishAgent.ts --ext .ts --ignore-pattern "**/*.test.ts" --no-error-on-unmatched-pattern` | PASS |
+| `pnpm --filter @top-performer/scenario-engine lint` | FAIL: existing unrelated lint debt in accounting/phase34/voice profile files, plus broad scenario-engine baseline issues outside this v12 prompt-leak fix. Targeted touched-file lint passed. |
 | `pnpm --filter @top-performer/web test -- --run` | PASS: 40 files, 180 tests |
 | `pnpm --filter @top-performer/web test apps/web/tests/unit/server-env.test.ts apps/web/tests/unit/session-token-route.test.ts` | PASS: 2 files, 8 tests |
 | `pnpm --filter @top-performer/web test:e2e` | PASS: 3 tests |
@@ -352,8 +393,9 @@ a generic server configuration error.
 | Artifact Registry | `projects/adecco-mendan/locations/asia-northeast1/repositories/roleplay-ui` |
 | Cloud Build | PASS: `fd48b6cc-e27e-401d-99be-f1a8ca295f93` built `session-cleanup-fix-20260426` |
 | Cloud Run deploy | PASS: `roleplay-ui-00013-pkk`, 100% traffic |
+| Latest customer service update | PASS: `mendan-00016-zb6`, 100% traffic, `ELEVENLABS_BRANCH_ID=agtbrch_...ph8z`, healthz 200 |
 | Wrong project safety | No deploy performed to `rhc-analytics-prod`; production commands used `--project adecco-mendan` |
-| Production secret closure | PASS: `ELEVENLABS_API_KEY` and `DEMO_ACCESS_TOKEN` are secret refs in `adecco-mendan`; no `SECRET_SOURCE_PROJECT_ID` env remains on Cloud Run |
+| Production secret closure | PARTIAL: `ELEVENLABS_API_KEY` and `DEMO_ACCESS_TOKEN` are secret refs in `adecco-mendan`; `/api/voice/session-token` uses injected `ELEVENLABS_API_KEY` in production. `mendan-00016-zb6` still has `SECRET_SOURCE_PROJECT_ID=zapier-transfer` for broader non-voice server env compatibility, so full service-wide fallback removal is not complete. |
 | Cloud Run log secret scan | PASS: recent logs had no matches for API key env name, upstream token, upstream URL, agent id, or branch id patterns checked |
 | HTML source map/provider scan | PASS: production `/demo/adecco-roleplay` HTML had no `.map`/`sourceMappingURL` and no provider/internal id strings checked |
 | Production API recheck | PASS: `/api/healthz` `200`; session-token `200`; GET `405`; invalid scenario `400`; disallowed origin `403`; missing access `401`; no API key/provider/internal id in response |

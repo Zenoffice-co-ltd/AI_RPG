@@ -122,6 +122,15 @@ before changing the scenario prompt.
 7. If a new duplicate appears on the current revision, record the revision,
    conversationLocalId, generation, sdkMessageId list, normalizedTextHash, and
    timestamps in `docs/qa.md` before patching.
+8. If the operator reports repeated **business facts** but Cloud Run displayed
+   rows are not duplicated, treat it as a scenario prompt/intent issue rather
+   than a React rendering bug. Escalate to `ai-rpg-staffing-reference-scenario`
+   and inspect the relevant `allowedAnswer` / trigger split.
+9. If the transcript contains prompt internals such as `triggerIntent`,
+   `応答ルール`, internal intent names, JSON, or self-commentary, first confirm
+   whether those terms appear in Cloud Run displayed rows. Then inspect the
+   generated Agent prompt; internal prompt leakage is scenario-side even when
+   the web transcript renderer is behaving correctly.
 
 ## Verification
 
