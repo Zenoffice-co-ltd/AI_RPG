@@ -129,6 +129,40 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     expect(item!.intentDescription).toContain("stage direction");
   });
 
+  it("Manual orb v10 P1: identity_self.negativeExamples lock SSML/TTS markup hallucination ([slow] / [pause] / [laugh] / [break] / <break/>)", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "identity_self"
+    );
+    expect(item).toBeDefined();
+    const joined = item!.negativeExamples.join("|");
+    // Manual orb v10: AI hallucinated [slow] markup despite it not being in the prompt.
+    expect(joined).toContain("[slow]");
+    expect(joined).toContain("[pause]");
+    expect(joined).toContain("[laugh]");
+    expect(joined).toContain("[/slow]");
+    expect(joined).toContain("[break]");
+    expect(joined).toContain("<break/>");
+    // Smoking-gun observed in manual orb v10:
+    expect(joined).toContain(
+      "[slow] 指揮命令者の課長は落ち着いていますが正確性に厳しい方です。"
+    );
+  });
+
+  it("Manual orb v10 P0: identity_self.negativeExamples lock 「すみません、少し音声が途切れたかもしれません」silence prefix smoking-gun (# 沈黙時の扱い conflict resolution)", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "identity_self"
+    );
+    expect(item).toBeDefined();
+    const joined = item!.negativeExamples.join("|");
+    // The literal phrase that was allowed by the now-removed # 沈黙時の扱い section.
+    expect(joined).toContain(
+      "すみません、少し音声が途切れたかもしれません。続きがあれば伺います。"
+    );
+    expect(joined).toContain(
+      "[slow] すみません、少し音声が途切れたかもしれません。続きがあれば伺います。"
+    );
+  });
+
   it("Manual orb v9 P1: supervisor_personality_question + team_atmosphere_question negativeExamples lock 承知しました prefix smoking-gun", () => {
     const supervisor = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
       (i) => i.triggerIntent === "supervisor_personality_question"

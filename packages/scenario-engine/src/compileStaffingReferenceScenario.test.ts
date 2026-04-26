@@ -55,8 +55,12 @@ describe("compileStaffingReferenceScenario", () => {
     expect(compiled.assets.agentSystemPrompt).toContain(
       "短い回答や列挙の直後に、沈黙確認の定型文を出さない"
     );
+    // Manual orb v10 P0: literal アシスタント template was abstracted to guideline form.
+    // Old test assertion 「受発注の調整と在庫確認が中心ですね」 removed because the
+    // literal example was a Pattern 1 conflict source (it started with 「ありがとうございます。」
+    // which Response Opening Format bans). Guideline now says "短く復唱 + 具体的な次質問を 1 つ".
     expect(compiled.assets.agentSystemPrompt).toContain(
-      "受発注の調整と在庫確認が中心ですね"
+      "聞き取れた内容を短く復唱し"
     );
     expect(compiled.assets.agentSystemPrompt).toContain("# Guardrails");
     // Reference Sections were removed in DoD recovery to avoid duplication
@@ -115,6 +119,31 @@ describe("compileStaffingReferenceScenario", () => {
     );
     // Manual orb v7 P2: filler ban
     expect(compiled.assets.agentSystemPrompt).toContain("取りつくろいフィラー禁止");
+    // Manual orb v10 P0: # 沈黙時の扱い section was removed (Pattern 1 conflict with v5 silence ban).
+    // The deleted section had allowed 「すみません、少し音声が途切れたかもしれません」 which conflicted
+    // with the v5 silence-ban rule. After v10 removal, only # Silence and Ambiguity Handling remains.
+    expect(compiled.assets.agentSystemPrompt).not.toContain("# 沈黙時の扱い");
+    expect(compiled.assets.agentSystemPrompt).not.toContain(
+      "使う場合は次の文言にしてください: 「すみません、少し音声が途切れたかもしれません。続きがあれば伺います。」"
+    );
+
+    // Manual orb v10 P1: SSML/TTS markup hallucination ban (extends v8 stage direction ban).
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "SSML / TTS markup タグも禁止"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain("『[slow]』");
+    expect(compiled.assets.agentSystemPrompt).toContain("『[pause]』");
+    expect(compiled.assets.agentSystemPrompt).toContain("『<break/>』");
+
+    // Manual orb v10 P0: # ユーザーの途中回答への対応 example was abstracted (no literal アシスタント
+    // template starting with 「ありがとうございます。」).
+    expect(compiled.assets.agentSystemPrompt).not.toContain(
+      "アシスタント: 「ありがとうございます。受発注の調整と在庫確認が中心ですね。"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "manual orb v10 P0 fix"
+    );
+
     // Manual orb v9 P1: high-salience Response Opening Format section bans 承知しました prefix
     expect(compiled.assets.agentSystemPrompt).toContain(
       "# Response Opening Format"
