@@ -33,6 +33,10 @@ Do not implement `fakeLive` as another static mock. Its purpose is to prove even
   `SDK/fake event -> normalizeConversationEvent -> transcriptReducer -> MessageList`.
 - Use only callback names present in `node_modules/@elevenlabs/react` type definitions.
 - Keep user-visible errors generic and Japanese; do not expose provider names, IDs, tokens, or upstream URLs.
+- The root `pnpm` override pins `livekit-client` to `2.16.1` for the ElevenLabs
+  React SDK. Versions `2.17.3+` use the newer `/rtc/v1` signaling path, which
+  has failed against this voice endpoint. Do not remove or loosen the pin unless
+  a real live smoke confirms the upstream endpoint supports `/rtc/v1`.
 
 ## Lifecycle Guardrails
 
@@ -113,18 +117,19 @@ URL: `https://elevenlabs.io/app/talk-to?agent_id=agent_2801kpj49tj1f43sr840cvy17
 
 Environment: Chrome, quiet room, microphone permission granted, transcript recorder ready.
 
-1. **Test 1 — Opening line**: just open the URL; the agent should self-initiate with the natural opening (`新しい派遣会社` + `要件整理` cues), no AI/採点 self-naming.
+1. **Test 1 — Opening line** (FROZEN, user-approved 2026-04-26): just open the URL; the agent should self-initiate with the natural opening (`新しい派遣会社` + `要件整理` cues), no AI/採点 self-naming. **Do NOT modify the opening line / `identity_self` trigger / `openingLine` field as part of any prompt-fix work** — this text is user-approved as of Manual Orb v3. If a future fix appears to require changing it, surface that as a separate decision to the operator first.
 2. **Test 2 — Shallow overview**: ask `今回の募集について概要を教えてください。` Agent must stay at `営業事務一名 / 要件整理` level only; no leak of competition / 単価 / decision / 月600〜700件.
 3. **Test 3 — Background staged disclosure**: Q1 `募集背景を教えてください。` → expect 増員 / 比較したい only. Q2 `なぜ新しい派遣会社にも声かけたんですか？` → expect 供給/レスポンス課題 reveal.
 4. **Test 4 — Business task staged disclosure**: Q1 `営業事務ですよね？` → 受発注/納期調整 program. Q2 `主業務はどれ？` → 受発注入力+納期調整中心. Q3 `件数や繁忙サイクルは？` → 月600〜700件 + ピーク.
-5. **Test 5 — Competition/decision staged**: Q1 `他社にも並行で？` → もう一社の大手. Q2 `先行提案期間は？` → 三営業日. Q3 `決定者は？` → 人事+現場課長 二段.
-6. **Test 6 — Closing summary + Adecco reverse question**: read learner's full numeric summary turn (1名/6/1/8:45-17:30/月10-15h/1750-1900円/受発注経験/水曜まで). Agent must (a) acknowledge/correct, (b) ask ONE Adecco strength/違い question.
-7. **Test 7 — No coaching**: ask `何を聞けば良いですか？` Agent must give short deflection (`ご確認したい点からで大丈夫です。`); no item enumeration.
-8. **Test 8 — Natural Japanese (whole-conversation observation)**: 1〜3 sentences per reply; no bullet points; `どの点についてですか` ≤ 2 in session, never 2 turns consecutive; `まだご検討中でしょうか` zero in regular replies.
+5. **Test 5 — Competition/decision staged**: Q1 `他社にも並行で？` → もう一社の大手. Q2 `先行提案期間は？` → 三営業日. Q3 `決定者は？` → 人事+現場課長 二段. **Critical**: after Q3, the agent must STOP — it must NOT append `はい、大きくはその整理で合っています` / `補足すると` / `Adeccoさんの派遣の特徴` / `他社さんとの違い`. Closing_summary content fired here = P0.
+6. **Test 5.5 — Conditions before summary** (NEW, Manual Orb v3 — REQUIRED before Test 6, do NOT skip): Q1 `開始時期は？` → `開始は6月1日`. Q2 `就業時間や残業は？` → `8:45-17:30 / 月10-15h`. Q3 `請求単価のレンジは？` → `1,750-1,900円`. Q4 `優先したい経験や人物面は？` → `受発注経験 + 対外調整 + 正確性 + 協調性`. Each Q must end with its own intent's answer only — no closing_summary leak.
+7. **Test 6 — Closing summary + Adecco reverse question**: read learner's full numeric summary turn that bundles ALL conditions gathered in Tests 1〜5.5 (1名/6/1/8:45-17:30/月10-15h/1750-1900円/受発注経験+対外調整+正確性+協調性/水曜まで) **with an explicit summary signal** (`整理させてください` / `という進め方でよろしいでしょうか`). Agent must (a) acknowledge/correct, (b) ask ONE Adecco strength/違い question. Skipping Test 5.5 makes this turn artificially short and tests an unrealistic scenario.
+8. **Test 7 — No coaching**: ask `何を聞けば良いですか？` Agent must give short deflection (`ご確認したい点からで大丈夫です。`); no item enumeration.
+9. **Test 8 — Natural Japanese (whole-conversation observation)**: 1〜3 sentences per reply; no bullet points; `どの点についてですか` ≤ 2 in session, never 2 turns consecutive; `まだご検討中でしょうか` zero in regular replies.
 
 ### P0 blockers (immediate release stop)
 
-If ANY of these occur during Test 1〜8, release is blocked and the agent must NOT go to production:
+If ANY of these occur during Test 1〜5.5 / 6〜8, release is blocked and the agent must NOT go to production:
 
 1. Hidden facts leaked at overview level
 2. Reply lags one turn ahead
@@ -135,6 +140,10 @@ If ANY of these occur during Test 1〜8, release is blocked and the agent must N
 7. `どの点についてですか` loops (2 turns consecutive, or 3+ in session)
 8. SAP / Oracle / ERP / AP / 経費精算 / 支払 appears in any reply
 9. Voice does not match accounting current Publish (sound check)
+10. **closing_summary content (`はい、大きくはその整理で合っています` / `補足すると` / `Adeccoさんの派遣の特徴` / `アデコさんの派遣の特徴` / `他社さんとの違い`) is appended to a non-summary intent answer** — e.g., the agent answers a `decision_structure` / `next_step_close` / `competition` / `commercial_terms` / `volume_cycle` / `first_proposal_window` question and then concatenates a closing_summary acknowledgement + Adecco/アデコ reverse question without the user having issued an explicit summary signal AND ≥3 conditions in the same turn. (Manual Orb v3, 2026-04-26 — fixed by strict A∧B trigger; if it recurs, escalate to `ai-rpg-staffing-reference-scenario` § "Disclosure Ledger 3-Layer Edit Rule".)
+11. Test 5.5 was skipped — Test 6 results are not diagnostic if conditions were not actually hearable beforehand.
+12. **TTS reads English `Adecco` as 'アデッコ' instead of 'アデコ'** (Manual Orb v4, 2026-04-26). The agent is supposed to use カタカナ `アデコ` in runtime utterances; if you hear 'アデッコさん', the prompt source has English `Adecco` leaking into an `allowedAnswer` or rendered prompt example. Fix path: edit prompt source per `ai-rpg-staffing-reference-scenario` § "Brand-name TTS rewrite categorization" (5-bucket categorization). The remote pronunciation dictionary is a defense-in-depth backstop — Phase 2C handoff at `data/handoff/manual-orb-v4-phase2-handoff.md` covers the upload steps to make `Adecco → アデコ` work even when source text leaks the English form.
+13. **Compressed Japanese (月末月初 / 月曜午前 / 商材切替時 / 現場適合判断) sounds harsh / business-jargony in TTS** (Manual Orb v4, 2026-04-26). Agent should say `月末と月の初め` / `月曜日の午前中` / `取り扱い商品が切り替わる時期` / `候補者が現場に合うかどうかの最終判断`. If you hear the compressed form, prompt source needs naturalization in `volume_cycle.allowedAnswer` or `decision_structure.allowedAnswer`. Both forms are accepted by tests for backwards compat, but the natural form is preferred for live orb.
 
 ### Recording rule
 

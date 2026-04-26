@@ -102,6 +102,58 @@ Latest execution:
   - **`manual_orb_script`** (Tests 1〜8): human verification gated behind both `vendor_smoke` and `repo_local_regression` green.
   Implementation: `buildAdeccoVendorSmokeDefinitions()` and `buildAdeccoLocalRegressionDefinitions()` in `packages/scenario-engine/src/publishAgent.ts`. `publish:scenario` only sends vendor smoke for Adecco. publish snapshot now carries `testPolicy: { vendorSmokeCount: 8, localRegressionCount: 22, vendorSmokeRationale: ... }`.
 - 2026-04-26: Auto Gate v2 publish results: `pnpm typecheck` PASS, `pnpm test` (157/157 in scenario-engine, all packages green), `pnpm compile:scenarios` PASS, `pnpm publish:scenario` **8/8 PASS, `passed=true`, binding=`{elevenAgentId:agent_2801kpj49tj1f43sr840cvy17zcc, voiceProfileId:staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1}`, testRunId=`suite_6701kq43zvq4emz89x7m04r15xd0`**. `pnpm smoke:eleven` PASSED on third invocation (vendor judge flake on first two — same documented baseline). `pnpm verify:acceptance --preflight` PASS. `pnpm verify:acceptance` full FAILED only on legacy `staffing_order_hearing_busy_manager_medium::no-coaching` (DoD G §6.2 exception applied — Adecco out of scope of that legacy failure). Snapshot 16-item check: 16/16 PASS. Post-publish SAP grep: 0 matches. Manual orb Test 1〜8 is now **READY** to execute pending operator action.
+- 2026-04-26: **Manual Orb v4: 日本語読み上げ正規化 + Adecco→アデコ + 自然文化を実装。** Manual orb v3 fix 後の手動 orb で 4 件の発話品質問題を確認: (1) 英字 `Adecco` が TTS で『アデッコさん』と読まれた、(2) `月末月初` / `月曜午前` が硬く不自然、(3) `商材切替時` が業界用語的で意味が伝わりにくい、(4) `現場適合判断` が硬い。修正方針: **prompt source を直接書き換え** (TTS rule で逃げない、3-Layer Edit Rule 適用)。`volume_cycle.allowedAnswer` を「月末と月の初め、月曜日の午前中、取り扱い商品が切り替わる時期」に。`decision_structure.allowedAnswer` を「候補者が現場に合うかどうかの最終判断」に。closing_summary の Adecco 言及を全て **アデコ** に。Guardrails / Adecco Reverse Question Rule / 全 negativeExamples / vendor smoke + local regression fixtures で **両形式 (Adecco・アデコ) の wrong-fire を禁止**。LLM judge の success_condition は両形式を accept (`Return true only if ... mentions Adecco OR アデコ ...`)。識別子 (scenario id, agent name, voice profile id, function names) は `Adecco` 維持。`normalizeJaTextForTts` を Adecco scenario にも開放 + Adecco 専用 rewrite rules 13 件追加 (Phase 2A — オフライン benchmark/audio preview 用)。`.pls` 辞書を local 更新 (Phase 2B)。remote dictionary upload + DoD 3 voice mirror test 緩和は次の operator session に持ち越し (Phase 2C+2D handoff、本 PR の `data/handoff/manual-orb-v4-phase2-handoff.md` 参照)。
+- 2026-04-26: **Manual Orb v3 P0 fix landed.** First manual orb run (Auto Gate v2 baseline) found one P0 blocker at Test 6: AI answered the decision_structure question correctly then **spontaneously appended** `「はい、大きくはその整理で合っています。補足すると、受発注経験と対外調整の経験を特に重視したいです。ちなみに、Adeccoさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。」` even though the user never made a summary statement. Root cause: `closing_summary` triggerIntent listed four OR-joined trigger conditions allowing condition (a) "3+ items mentioned anywhere" and (d) "candidate + deadline pairing" to leak into firing. Fix: (1) tightened `closing_summary` to require strict A∧B (explicit summary signal AND 3+ items in the SAME current user turn), (2) rewrote the rendered prompt's Guardrails / Critical Live Behavior / Adecco Reverse Question Rule sections to forbid appending closing_summary content to other intent answers, (3) added anti-leak `shallowGuards` for `decision_structure`, `next_step_close`, `competition`, `commercial_terms`, `volume_cycle`, `first_proposal_window`, (4) dropped loose ASR triggers (`候補をメール`, `候補者像`, `ご確認事項はありますか`), (5) added 2 new local regression tests (`closing-summary-not-triggered-after-decision-structure`, `closing-summary-requires-explicit-summary-signal`) and 1 doc-level Vitest (`manual-test-5-5-before-test-6`), (6) bound the smoking-gun concatenation to `priorOrbFailure.regression.test.ts`, (7) added Test 5.5 "Conditions before summary" to the manual orb procedure (開始時期 / 就業時間 / 残業 / 請求単価 / 優先したい経験 / 人物面). Test 1 opening line is **unchanged per user instruction** (user-approved). Vendor smoke remains 8/8 — count NOT modified. Local regression count moved 22 → 24.
+
+### Manual Orb Test Plan v3 (Test 1 〜 8 with Test 5.5)
+
+`Test 1` の開幕文はユーザー承認済み。修正対象外。`Test 5.5` は Test 6 (closing summary + Adecco 逆質問) を実施する前の必須ステップとして 2026-04-26 に追加された。
+
+#### Test 1: Opening
+- 現状の開幕文でPASS。修正不要。
+- PASS 条件: 自然に会話開始 / 新しい派遣会社として話を聞くニュアンス / 営業事務募集の相談 / AI / 採点者 / コーチを名乗らない / hidden facts をいきなり出さない。
+
+#### Test 2: Shallow overview
+- ユーザー: `今回の募集について概要を教えてください。`
+- 期待応答: `営業事務1名の相談です。まずは要件を整理したいと考えています。`
+- PASS 条件: 営業事務1名 / 要件整理。現行ベンダー不満・競合・単価・決定構造・月600〜700件 を出さない。
+
+#### Test 3: Background staged disclosure
+- Q1: `募集背景を教えていただけますか？` → `増員です。新しい派遣会社さんも比較しながら、要件整理を進めたいと考えています。`
+- Q2: `なぜ新しい派遣会社にも声をかけたのですか？` → `現行ベンダーの供給が安定せず、稼働確保やレスポンス面で課題が出ています。そのため、新しい派遣会社さんも比較したいと考えています。`
+- Q1 で現行ベンダー不満の詳細を出さない。Q2 で初めて出す。
+
+#### Test 4: Business task staged disclosure
+- Q1: `営業事務ですよね？` → `受発注や納期調整まわりの営業事務です。`
+- Q2: `具体的に、受発注・納期調整・在庫確認・対外対応のどれが主業務になりますか？` → `受発注入力と納期調整が中心です。在庫確認、電話・メールでの対外対応、資料更新も付随します。`
+- Q3: `件数や繁忙サイクルはどんな感じですか？` → `受注は月に600から700件程度です。月末と月の初め、月曜日の午前中、取り扱い商品が切り替わる時期に負荷が上がります。` (manual orb v4 自然化: 旧『月末月初・月曜午前・商材切替時』も legacy として acceptable)
+
+#### Test 5: Competitor / proposal window / decision structure
+- Q1: `他の派遣会社にも並行で相談されていますか？` → `現行ベンダーに加えて、もう1社の大手にも相談中です。供給力、レスポンス、要件理解の深さを見ています。`
+- Q2: `もし要件整理が御社のニーズに合っていたら、初回は当社に少し先行して提案させていただく機会をいただけますか？` → `要件整理がこちらのニーズに合っていれば、初回は3営業日程度の先行提案期間を検討できます。`
+- Q3: `最終的に派遣会社の決定はどなたが持っていますか？` → `ベンダー選定は人事が主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。` (manual orb v4 自然化: 旧『現場適合判断』も legacy として acceptable)
+- **重要**: Q3 の後に Adecco 逆質問を出してはいけない / closing_summary を出してはいけない / Q3 応答だけで止まること。
+
+#### Test 5.5: Conditions before summary (NEW — 2026-04-26)
+Test 6 の前に必ず実施する。Test 5.5 を飛ばして Test 6 に進むことは禁止。
+- Q1 (開始時期): `開始時期はいつ頃を想定されていますか？` → `開始は6月1日を希望しています。`
+- Q2 (就業時間 + 残業): `就業時間や残業はどのくらいを想定されていますか？` → `平日8時45分から17時30分で、残業は月10から15時間程度を想定しています。`
+- Q3 (請求単価): `請求単価の想定レンジはありますか？` → `経験により1,750から1,900円程度を想定しています。`
+- Q4 (優先したい経験 + 人物面): `候補者で特に優先したい経験や人物面はありますか？` → `受発注経験と対外調整の経験を重視しています。人物面では正確性と協調性を見たいです。`
+- 各 Q の応答に Adecco 強み逆質問 / 要約合意文を続けて出さない (各 intent の allowedAnswer のみで止まる)。
+
+#### Test 6: Closing summary and Adecco / アデコ reverse question
+- ユーザー: `ありがとうございます。整理させてください。営業事務1名、6月1日開始、平日8時45分から17時30分、残業は月10から15時間程度、請求は経験により1,750から1,900円のレンジで、受発注経験と対外調整経験、正確性と協調性を優先。来週水曜日までに初回候補をメールでお持ちする、という進め方でよろしいでしょうか？`
+- 期待応答 (manual orb v4: TTS-friendly katakana): `はい、大きくはその整理で合っています。来週水曜日までに初回候補をメールでいただけると助かります。ちなみに、アデコさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。`
+- PASS 条件: 要約に合意または修正コメントを返す / その後に Adecco/アデコ の強み・特徴・他社との違いを聞く / 逆質問は1回だけ / **音声では『アデコさん』と聞こえる** (英字 `Adecco` は TTS で『アデッコ』と読まれる失敗パターン)。
+- FAIL 条件: 要約前に逆質問が出る / 要約に反応しない / 逆質問が出ない / 2回以上繰り返す / `どの点についてですか` / `まだご検討中でしょうか` / **TTS で『アデッコさん』と聞こえる** (manual orb v4 P0)。
+
+#### Test 7: No coaching
+- ユーザー: `何を聞けばいいですか？` → 期待: `ご確認したい点からで大丈夫です。`
+- PASS: 短く受け流す / 確認項目を列挙しない / AI・採点者・コーチを名乗らない。
+
+#### Test 8: Natural Japanese / tone
+- 全会話で確認: 1応答原則1〜3文 / 箇条書きでない / 人事課主任らしい落ち着き / `どの点についてですか` 連呼なし / `まだご検討中でしょうか` 頻発なし / SAP・ERP・AP・経費精算・支払が出ない / 回答が1ターン先にズレない。
 
 ## Final Release DoD v2 — Adecco Manufacturer Order Hearing
 
@@ -112,13 +164,13 @@ Latest execution:
 1. `pnpm typecheck` PASS
 2. `pnpm test` PASS (with localRegressionCount ≥ 22)
 3. `pnpm compile:scenarios -- --family staffing_order_hearing --reference ./docs/references/adecco_manufacturer_order_hearing_reference.json` PASS — prompt has `# Disclosure Ledger`, 17 trigger entries, English Critical Live Behavior, no SAP
-4. `pnpm publish:scenario -- --scenario staffing_order_hearing_adecco_manufacturer_busy_manager_medium` — **vendor smoke 8/8 PASS**, snapshot `passed=true`, snapshot `binding != null`, snapshot has `testPolicy.vendorSmokeCount=8` and `testPolicy.localRegressionCount=22`
+4. `pnpm publish:scenario -- --scenario staffing_order_hearing_adecco_manufacturer_busy_manager_medium` — **vendor smoke 8/8 PASS**, snapshot `passed=true`, snapshot `binding != null`, snapshot has `testPolicy.vendorSmokeCount=8` and `testPolicy.localRegressionCount≥22` (manual orb v3 added 2 new local regressions: 22 → 24)
 5. publish snapshot voice fields: `voiceId=g6xIsTj2HwM6VR4iXFCw`, `voiceName=Jessica Anne Bogart - Chatty and Friendly`, `ttsModel=eleven_v3`, `voiceSelection.mode=profile`, `voiceSelection.voiceProfileId=staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1`, `voiceSelection.textNormalisationType=elevenlabs`
 6. `pnpm smoke:eleven` PASS (vendor flake retries permitted; do not exceed 3 within a single operator session)
 7. `pnpm verify:acceptance --preflight` PASS
 8. `pnpm verify:acceptance` PASS, OR fail only on documented legacy `staffing_order_hearing_busy_manager_medium::no-coaching` (DoD G §6.2 exception). When applying the exception, all of (i) Adecco vendor smoke 8/8, (ii) Adecco snapshot `passed=true`, (iii) Adecco binding non-null, (iv) Adecco voice mirror PASS, (v) Adecco SAP grep PASS, (vi) failure scoped to legacy scenario name, (vii) docs updated — must hold.
 9. post-publish grep: `SAP|エスエーピー|Oracle|オラクル|ERP|イーアールピー|経費精算|支払` returns 0 matches in Adecco staffing artifacts (accounting family excluded)
-10. orb preview manual Test 1〜8: Test 1〜6 全 PASS, Test 7〜8 重大違和感なし
+10. orb preview manual Test 1〜5, 5.5, 6〜8: Test 1〜6 全 PASS (Test 5.5 含む), Test 7〜8 重大違和感なし
 11. memo updated with actual orb utterances (no `<blocked>` left)
 
 ### P0 blockers

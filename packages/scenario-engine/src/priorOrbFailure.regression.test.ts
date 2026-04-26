@@ -107,6 +107,20 @@ const PRIOR_ORB_BAD_RESPONSES: PriorOrbBadResponse[] = [
     badResponse: "メーカー受発注やエスエーピー経験者だと特に助かります。",
     expectedFailingRegressions: ["sap-absence"],
   },
+  // ----------------------------------------------------------------
+  // Manual orb v3 (2026-04-26) — P0 blocker:
+  // 決定構造の答えに closing_summary 合意文 + Adecco 強み逆質問を勝手に追記。
+  // Lock the smoking-gun concatenation to the new strict-trigger regression.
+  // ----------------------------------------------------------------
+  {
+    description:
+      "決定構造回答後に closing_summary 合意文 + Adecco 強み逆質問を勝手に追記 (manual orb v3 P0)",
+    badResponse:
+      "ベンダー選定は人事が主導しますが、候補者の最終的な現場適合判断は現場課長の意見が強く反映されます。はい、大きくはその整理で合っています。補足すると、受発注経験と対外調整の経験を特に重視したいです。ちなみに、Adeccoさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+    expectedFailingRegressions: [
+      "closing-summary-not-triggered-after-decision-structure",
+    ],
+  },
 ];
 
 function findTestDefinition(name: string) {
@@ -179,6 +193,9 @@ describe("Prior 2026-04-26 orb failure log binds to regression test failure_exam
       "asr-variant-robustness",
       "sap-absence",
       "manual-test-script-fixture",
+      // Manual orb v3 additions:
+      "closing-summary-not-triggered-after-decision-structure",
+      "closing-summary-requires-explicit-summary-signal",
     ];
     for (const tail of required) {
       const def = findTestDefinition(tail);

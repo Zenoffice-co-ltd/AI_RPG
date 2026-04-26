@@ -295,7 +295,7 @@ describe("voice profile resolver against repo config", () => {
     });
   });
 
-  it("DoD 3: Adecco staffing voice profile mirrors the accounting v3 profile exactly", async () => {
+  it("DoD 3 (manual orb v4): Adecco staffing voice profile mirrors accounting voiceId/model/settings; pronunciation dictionary may diverge per Phase 2C", async () => {
     const accountingProfile = await loadVoiceProfile(
       "accounting_clerk_enterprise_ap_ja_v3_candidate_v1"
     );
@@ -303,16 +303,48 @@ describe("voice profile resolver against repo config", () => {
       "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1"
     );
 
-    // Voice settings must match the source profile exactly.
+    // Voice settings must still match the source profile exactly.
     expect(staffingProfile.voiceId).toBe(accountingProfile.voiceId);
     expect(staffingProfile.model).toBe(accountingProfile.model);
     expect(staffingProfile.textNormalisationType).toBe(
       accountingProfile.textNormalisationType
     );
     expect(staffingProfile.voiceSettings).toEqual(accountingProfile.voiceSettings);
-    expect(staffingProfile.pronunciationDictionaryLocators).toEqual(
-      accountingProfile.pronunciationDictionaryLocators
-    );
+
+    // Manual orb v4 (Phase 2C+D): pronunciation dictionary locators MAY diverge.
+    // Accounting and Adecco scenarios have different brand-pronunciation needs
+    // (Adecco needs アデコ for the company name; accounting does not).
+    // The locator structure must still be valid on both profiles, but the
+    // identifiers themselves may differ once Phase 2C operator-action lands.
+    //
+    // Until Phase 2C operator action: locators happen to be identical (both
+    // point to the original accounting dictionary). After Phase 2C: Adecco
+    // points to its own dictionary version with the アデコ rule.
+    expect(
+      Array.isArray(accountingProfile.pronunciationDictionaryLocators) &&
+        accountingProfile.pronunciationDictionaryLocators.length > 0,
+      "accounting profile must have at least one dictionary locator"
+    ).toBe(true);
+    expect(
+      Array.isArray(staffingProfile.pronunciationDictionaryLocators) &&
+        staffingProfile.pronunciationDictionaryLocators.length > 0,
+      "Adecco staffing profile must have at least one dictionary locator"
+    ).toBe(true);
+    for (const locator of staffingProfile.pronunciationDictionaryLocators ?? []) {
+      expect(locator.pronunciationDictionaryId).toMatch(/^[A-Za-z0-9]+$/);
+      expect(locator.versionId).toMatch(/^[A-Za-z0-9]+$/);
+    }
+    // If the Adecco locator differs from accounting, metadata.notes must
+    // explicitly call out that divergence so future operators understand why.
+    const sameLocator =
+      JSON.stringify(staffingProfile.pronunciationDictionaryLocators) ===
+      JSON.stringify(accountingProfile.pronunciationDictionaryLocators);
+    if (!sameLocator) {
+      expect(
+        staffingProfile.metadata?.notes,
+        "if Adecco locator diverges from accounting, metadata.notes must explain why (manual orb v4 Phase 2C divergence rationale)"
+      ).toMatch(/Adecco|アデコ/);
+    }
 
     // Provenance must point back to the accounting profile.
     expect(staffingProfile.metadata?.sourceVoiceProfileId).toBe(

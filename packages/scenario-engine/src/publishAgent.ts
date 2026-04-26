@@ -240,16 +240,16 @@ function buildAdeccoEndingReverseQuestionTestDefinition(scenario: ScenarioPack) 
       },
     ],
     success_condition:
-      "Return true only if the agent stays in the client persona and asks one reverse question about Adecco's staffing strengths, characteristics, or differences from other agencies. The response must mention Adecco and at least one of 強み, 特徴, 違い, strength, characteristic, or difference.",
+      "Return true only if the agent stays in the client persona and asks one reverse question about Adecco's (アデコ in Japanese, may appear as either 'Adecco' or 'アデコ') staffing strengths, characteristics, or differences from other agencies. The response must mention Adecco OR アデコ and at least one of 強み, 特徴, 違い, strength, characteristic, or difference. The katakana form 'アデコ' is preferred for spoken Japanese (TTS reads 'Adecco' as 'アデッコ' incorrectly), but either form passes.",
     success_examples: [
       {
         response:
-          "その進め方でお願いします。ちなみに、Adeccoさんの派遣の強みや特徴、他社さんとの違いはどのあたりでしょうか。",
+          "その進め方でお願いします。ちなみに、アデコさんの派遣の強みや特徴、他社さんとの違いはどのあたりでしょうか。",
         type: "success",
       },
       {
         response:
-          "候補者のご提案をお願いします。最後に、Adeccoさんは他社と比べてどんな違いや強みがありますか。",
+          "候補者のご提案をお願いします。最後に、アデコさんは他社と比べてどんな違いや強みがありますか。",
         type: "success",
       },
     ],
@@ -656,16 +656,16 @@ export function buildAdeccoVendorSmokeDefinitions(
         },
       ],
       success_condition:
-        "Return true only if the response (a) acknowledges or corrects the learner's summary (e.g. 「はい、大きくはその整理で合っています」 or similar agreement / correction), AND (b) asks ONE reverse question that mentions Adecco AND at least one of 強み / 特徴 / 違い. The reply MUST NOT contain 「まだご検討中でしょうか」 or 「どの点についてですか」, and MUST NOT repeat the Adecco strength question more than once.",
+        "Return true only if the response (a) acknowledges or corrects the learner's summary (e.g. 「はい、大きくはその整理で合っています」 or similar agreement / correction), AND (b) asks ONE reverse question that mentions Adecco OR アデコ AND at least one of 強み / 特徴 / 違い. The katakana form 'アデコ' is preferred for spoken Japanese; either form passes. The reply MUST NOT contain 「まだご検討中でしょうか」 or 「どの点についてですか」, and MUST NOT repeat the Adecco/アデコ strength question more than once.",
       success_examples: [
         {
           response:
-            "はい、大きくはその整理で合っています。ちなみに、Adeccoさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+            "はい、大きくはその整理で合っています。ちなみに、アデコさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
           type: "success",
         },
         {
           response:
-            "はい、その理解で合っています。ちなみに、Adeccoさんの派遣の強みや他社さんとの違いはどのあたりでしょうか。",
+            "はい、その理解で合っています。ちなみに、アデコさんの派遣の強みや他社さんとの違いはどのあたりでしょうか。",
           type: "success",
         },
       ],
@@ -681,6 +681,11 @@ export function buildAdeccoVendorSmokeDefinitions(
         {
           response:
             "Adeccoさんの強みは何ですか。Adeccoさんの強みは何ですか。",
+          type: "failure",
+        },
+        {
+          response:
+            "アデコさんの強みは何ですか。アデコさんの強みは何ですか。",
           type: "failure",
         },
         {
@@ -802,21 +807,27 @@ function buildAdeccoRegressionTestDefinitions(scenario: ScenarioPack) {
         },
       ],
       success_condition:
-        "Return true only if the FINAL agent response (to the third user turn about volume) includes a numeric volume figure (月に六百, 六百から七百, 月六〜七百, 月600〜700, or any equivalent that conveys 600-700/month) AND mentions at least one peak signal (月末, 月初, 月曜午前, or 商材切替). The agent must NOT pre-leak volume figures in the earlier turns about job-shallow / job-detail.",
+        "Return true only if the FINAL agent response (to the third user turn about volume) includes a numeric volume figure (月に六百, 六百から七百, 月六〜七百, 月600〜700, or any equivalent that conveys 600-700/month) AND mentions at least one peak signal in either the OLD compressed form (月末, 月初, 月曜午前, 商材切替) OR the NEW natural form (月末と月の初め, 月の初め, 月曜日の午前中, 取り扱い商品が切り替わる時期). Both forms are acceptable. The agent must NOT pre-leak volume figures in the earlier turns about job-shallow / job-detail.",
       success_examples: [
         {
           response:
+            "受注は月に六百から七百件程度です。月末と月の初め、月曜日の午前中、取り扱い商品が切り替わる時期に負荷が上がります。",
+          type: "success",
+        },
+        {
+          response:
+            "月の件数は六百から七百件くらいです。特に月末や月曜日の午前中、取り扱い商品が切り替わる時期に山が来ます。",
+          type: "success",
+        },
+        {
+          response:
+            "おおよそ月六百〜七百件のレンジです。月末と月の初めの山が大きく、月曜日の午前中も負荷が高めです。",
+          type: "success",
+        },
+        {
+          // Legacy compressed form is still acceptable (manual orb v4 backwards compat).
+          response:
             "受注は月に六百から七百件程度です。月末月初、月曜午前、商材切替時に負荷が上がります。",
-          type: "success",
-        },
-        {
-          response:
-            "月の件数は六百から七百件くらいです。特に月末や月曜午前、商材の切替時期に山が来ます。",
-          type: "success",
-        },
-        {
-          response:
-            "おおよそ月六百〜七百件のレンジです。月末月初の山が大きく、月曜午前も負荷が高めです。",
           type: "success",
         },
       ],
@@ -857,6 +868,12 @@ function buildAdeccoRegressionTestDefinitions(scenario: ScenarioPack) {
         "Return true only if (a) the first reply mentions competition (もう一社/比較中/大手) without leaking 三営業日 or 人事/現場課長; AND (b) the second reply mentions 三営業日 先行 without leaking 人事/現場課長; AND (c) the third reply mentions BOTH 人事 AND 現場課長.",
       success_examples: [
         {
+          response:
+            "ベンダー選定は人事が主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。",
+          type: "success",
+        },
+        {
+          // Legacy compressed form (現場適合判断) is still acceptable.
           response:
             "ベンダー選定は人事が主導しますが、候補者の最終的な現場適合判断は現場課長の意見が強く反映されます。",
           type: "success",
@@ -907,21 +924,27 @@ function buildAdeccoRegressionTestDefinitions(scenario: ScenarioPack) {
         },
       ],
       success_condition:
-        "Return true only if the agent answered each question with content matching THAT question's intent (not the next question's). Specifically the FINAL reply (to the volume question) must mention a 600-700/month figure and at least one peak signal (月末, 月初, 月曜午前, 商材切替), and MUST NOT instead answer competition/decision/exclusive-window.",
+        "Return true only if the agent answered each question with content matching THAT question's intent (not the next question's). Specifically the FINAL reply (to the volume question) must mention a 600-700/month figure and at least one peak signal in either the OLD compressed form (月末, 月初, 月曜午前, 商材切替) OR the NEW natural form (月末と月の初め, 月の初め, 月曜日の午前中, 取り扱い商品が切り替わる時期), and MUST NOT instead answer competition/decision/exclusive-window.",
       success_examples: [
         {
           response:
+            "受注は月に六百から七百件程度です。月末と月の初め、月曜日の午前中、取り扱い商品が切り替わる時期に負荷が上がります。",
+          type: "success",
+        },
+        {
+          response:
+            "件数は月に六百〜七百件で、月末と月の初め、取り扱い商品が切り替わる時期にピークが来ます。",
+          type: "success",
+        },
+        {
+          response:
+            "おおよそ月六百から七百件で、月曜日の午前中と月末と月の初めに山があります。",
+          type: "success",
+        },
+        {
+          // Legacy compressed form (manual orb v4 backwards compat).
+          response:
             "受注は月に六百から七百件程度です。月末月初、月曜午前、商材切替時に負荷が上がります。",
-          type: "success",
-        },
-        {
-          response:
-            "件数は月に六百〜七百件で、月末月初と商材切替時にピークが来ます。",
-          type: "success",
-        },
-        {
-          response:
-            "おおよそ月六百から七百件で、月曜午前と月末月初に山があります。",
           type: "success",
         },
       ],
@@ -955,11 +978,11 @@ function buildAdeccoRegressionTestDefinitions(scenario: ScenarioPack) {
         },
       ],
       success_condition:
-        "Return true only if the response (a) acknowledges or corrects the learner's summary, (b) then asks ONE reverse question that mentions Adecco AND at least one of 強み/特徴/違い, AND (c) does NOT include 「まだご検討中でしょうか」 or repeated 「どの点についてですか」.",
+        "Return true only if the response (a) acknowledges or corrects the learner's summary, (b) then asks ONE reverse question that mentions Adecco OR アデコ AND at least one of 強み/特徴/違い (katakana 'アデコ' preferred for TTS but either passes), AND (c) does NOT include 「まだご検討中でしょうか」 or repeated 「どの点についてですか」.",
       success_examples: [
         {
           response:
-            "はい、大きくはその整理で合っています。ちなみに、Adeccoさんの派遣の特徴や強み、他社さんとの違いはどのあたりでしょうか。",
+            "はい、大きくはその整理で合っています。ちなみに、アデコさんの派遣の特徴や強み、他社さんとの違いはどのあたりでしょうか。",
           type: "success",
         },
       ],
@@ -975,6 +998,11 @@ function buildAdeccoRegressionTestDefinitions(scenario: ScenarioPack) {
         {
           response:
             "Adeccoさんの強みは何ですか。Adeccoさんの強みは何ですか。",
+          type: "failure",
+        },
+        {
+          response:
+            "アデコさんの強みは何ですか。アデコさんの強みは何ですか。",
           type: "failure",
         },
       ],
@@ -998,6 +1026,12 @@ function buildAdeccoRegressionTestDefinitions(scenario: ScenarioPack) {
           type: "success",
         },
         {
+          response:
+            "派遣会社選定は人事主導で進めますが、候補者が現場に合うかどうかの判断は現場課長の意見を重視します。",
+          type: "success",
+        },
+        {
+          // Legacy compressed form (現場適合判断) is still acceptable.
           response:
             "派遣会社選定は人事主導で進めますが、候補者の現場適合判断は現場課長の意見を重視します。",
           type: "success",
@@ -1150,21 +1184,21 @@ function buildAdeccoRegressionTestDefinitions(scenario: ScenarioPack) {
         },
       ],
       success_condition:
-        "Return true only if the FINAL response (to the closing-summary turn) (a) acknowledges or corrects the learner's summary in some form, AND (b) asks ONE reverse question that mentions Adecco AND at least one of 強み/特徴/違い. Optional but allowed: a brief 補足 such as 受発注経験 or 対外調整 emphasis. The reply must NOT contain 「まだご検討中でしょうか」 or repeated 「どの点についてですか」.",
+        "Return true only if the FINAL response (to the closing-summary turn) (a) acknowledges or corrects the learner's summary in some form, AND (b) asks ONE reverse question that mentions Adecco OR アデコ AND at least one of 強み/特徴/違い (katakana 'アデコ' preferred for TTS but either passes). Optional but allowed: a brief 補足 such as 受発注経験 or 対外調整 emphasis. The reply must NOT contain 「まだご検討中でしょうか」 or repeated 「どの点についてですか」.",
       success_examples: [
         {
           response:
-            "はい、大きくはその整理で合っています。補足すると、受発注経験と対外調整の経験を特に重視したいです。ちなみに、Adeccoさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+            "はい、大きくはその整理で合っています。補足すると、受発注経験と対外調整の経験を特に重視したいです。ちなみに、アデコさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
           type: "success",
         },
         {
           response:
-            "はい、その理解で合っています。ちなみに、Adeccoさんの派遣の強みや他社さんとの違いはどのあたりでしょうか。",
+            "はい、その理解で合っています。ちなみに、アデコさんの派遣の強みや他社さんとの違いはどのあたりでしょうか。",
           type: "success",
         },
         {
           response:
-            "ありがとうございます。整理いただいた内容で大きくは合っています。Adeccoさんの派遣の強みや、他社さんとの違いはどのあたりにありますか。",
+            "ありがとうございます。整理いただいた内容で大きくは合っています。アデコさんの派遣の強みや、他社さんとの違いはどのあたりにありますか。",
           type: "success",
         },
       ],
@@ -1180,6 +1214,162 @@ function buildAdeccoRegressionTestDefinitions(scenario: ScenarioPack) {
         {
           response:
             "Adeccoさんの強みは何ですか。Adeccoさんの強みは何ですか。",
+          type: "failure",
+        },
+        {
+          response:
+            "アデコさんの強みは何ですか。アデコさんの強みは何ですか。",
+          type: "failure",
+        },
+      ],
+      type: "llm",
+    },
+    // ----------------------------------------------------------------
+    // Manual orb v3 P0 fix (2026-04-26): closing_summary must NOT fire
+    // after a decision_structure question. The orb session showed the
+    // model concatenating the decision_structure answer with the
+    // Adecco strength reverse question. The two regressions below
+    // lock the strict A∧B trigger rule.
+    // ----------------------------------------------------------------
+    {
+      name: `${scenario.id}::closing-summary-not-triggered-after-decision-structure`,
+      chat_history: [
+        {
+          role: "user",
+          message: "他の派遣会社にも並行で相談されてますか？",
+          time_in_call_secs: 1,
+        },
+        {
+          role: "user",
+          message:
+            "もし要件整理が御社のニーズに合ってたら、初回は当社に少し先行して提案させていただく機会いただけますか？",
+          time_in_call_secs: 8,
+        },
+        {
+          role: "user",
+          message: "最終的な派遣会社の決定はどなたが、になっていますか？",
+          time_in_call_secs: 16,
+        },
+      ],
+      success_condition:
+        "Return true only if the FINAL reply (to the decision-structure question) (a) mentions BOTH 人事 AND 現場課長, AND (b) does NOT contain ANY of: 整理で合っています, 補足すると, Adeccoさんの派遣の特徴, アデコさんの派遣の特徴, 他社さんとの違い, Adeccoさんの強み, アデコさんの強み, ちなみに、Adecco, ちなみに、アデコ. The agent must answer the decision-structure question only and stop — it must NOT append a closing-summary acknowledgement or an Adecco/アデコ strength reverse question, because the user has not provided an explicit summary signal nor listed 3+ conditions in this turn.",
+      success_examples: [
+        {
+          response:
+            "ベンダー選定は人事が主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。",
+          type: "success",
+        },
+        {
+          response:
+            "派遣会社選定は人事主導で進めますが、候補者が現場に合うかどうかの判断は現場課長の意見を重視します。",
+          type: "success",
+        },
+      ],
+      failure_examples: [
+        {
+          // The exact manual orb v3 P0 smoking-gun concatenation (Adecco form, original).
+          response:
+            "ベンダー選定は人事が主導しますが、候補者の最終的な現場適合判断は現場課長の意見が強く反映されます。はい、大きくはその整理で合っています。補足すると、受発注経験と対外調整の経験を特に重視したいです。ちなみに、Adeccoさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+          type: "failure",
+        },
+        {
+          // Same concatenation in アデコ form (manual orb v4 prevention).
+          response:
+            "ベンダー選定は人事が主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。はい、大きくはその整理で合っています。補足すると、受発注経験と対外調整の経験を特に重視したいです。ちなみに、アデコさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+          type: "failure",
+        },
+        {
+          response:
+            "ベンダー選定は人事が主導しますが、現場課長の意見が強く反映されます。ちなみに、Adeccoさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+          type: "failure",
+        },
+        {
+          response:
+            "ベンダー選定は人事が主導しますが、現場課長の意見が強く反映されます。ちなみに、アデコさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+          type: "failure",
+        },
+        {
+          response:
+            "ベンダー選定は人事主導です。Adeccoさんの強みは何ですか。",
+          type: "failure",
+        },
+        {
+          response:
+            "ベンダー選定は人事主導です。アデコさんの強みは何ですか。",
+          type: "failure",
+        },
+      ],
+      type: "llm",
+    },
+    {
+      name: `${scenario.id}::closing-summary-requires-explicit-summary-signal`,
+      chat_history: [
+        {
+          role: "user",
+          message: "今回の募集について概要を教えてください。",
+          time_in_call_secs: 1,
+        },
+        {
+          role: "user",
+          message: "募集背景を教えてください。",
+          time_in_call_secs: 6,
+        },
+        {
+          role: "user",
+          message:
+            "具体的に、受発注、納期調整、在庫確認、対外対応のどれが主業務になりますか？",
+          time_in_call_secs: 12,
+        },
+        {
+          role: "user",
+          message: "件数や繁忙サイクルはどんな感じですか？",
+          time_in_call_secs: 18,
+        },
+        {
+          role: "user",
+          message: "他の派遣会社にも並行で相談されていますか？",
+          time_in_call_secs: 24,
+        },
+      ],
+      success_condition:
+        "Return true only if the FINAL reply (to the competition question) (a) mentions competition (もう一社 / 大手 / 比較中 / 観点) appropriate to the question's intent, AND (b) does NOT contain ANY of: 整理で合っています, 補足すると, Adeccoさんの派遣の特徴, アデコさんの派遣の特徴, 他社さんとの違い, Adeccoさんの強み, アデコさんの強み, ちなみに、Adecco, ちなみに、アデコ. The user has NOT issued an explicit summary signal (no 整理させてください / まとめると / 進め方でよろしいでしょうか / この理解で合っていますか) — therefore closing_summary must NOT fire even though hidden facts have accumulated across prior turns.",
+      success_examples: [
+        {
+          response:
+            "現行ベンダーに加えて、もう一社の大手にも相談中です。供給力、レスポンス、要件理解の深さを見ています。",
+          type: "success",
+        },
+        {
+          response:
+            "もう一社の大手に並行で相談しています。供給力と要件理解を比較したいと考えています。",
+          type: "success",
+        },
+      ],
+      failure_examples: [
+        {
+          response:
+            "現行ベンダーに加えて、もう一社の大手にも相談中です。はい、大きくはその整理で合っています。ちなみに、Adeccoさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+          type: "failure",
+        },
+        {
+          // Same wrong-fire pattern in アデコ form (manual orb v4 prevention).
+          response:
+            "現行ベンダーに加えて、もう一社の大手にも相談中です。はい、大きくはその整理で合っています。ちなみに、アデコさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+          type: "failure",
+        },
+        {
+          response:
+            "もう一社にも相談中です。Adeccoさんの強みや他社さんとの違いはどのあたりでしょうか。",
+          type: "failure",
+        },
+        {
+          response:
+            "もう一社にも相談中です。アデコさんの強みや他社さんとの違いはどのあたりでしょうか。",
+          type: "failure",
+        },
+        {
+          response:
+            "現行ベンダーに加えてもう一社の大手にも相談中です。補足すると、受発注経験と対外調整の経験を重視しています。Adeccoさんの派遣の特徴は何ですか。",
           type: "failure",
         },
       ],

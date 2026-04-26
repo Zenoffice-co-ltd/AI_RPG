@@ -85,6 +85,47 @@ pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_
 pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_medium --profile accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1
 ```
 
+## `normalizeJaTextForTts` is NOT in the live orb path (manual orb v4 lesson, 2026-04-26)
+
+**Critical fact**: `packages/scenario-engine/src/tts/jaTextNormalization.ts` is invoked ONLY from offline rendering paths (`packages/scenario-engine/src/benchmarkRenderer.ts` and `apps/web/server/use-cases/audioPreview.ts`). The live ElevenLabs ConvAI orb does NOT call it — that path relies on server-side `apply_text_normalization: "auto"` (`packages/vendors/src/elevenlabs.ts:393`).
+
+**Implication**: extending `normalizeJaTextForTts` rules to fix what you heard in the live orb has **zero effect on the live orb**. It only changes benchmark CSVs and the in-app voice preview. To change what the live orb actually says, you MUST edit the prompt source itself (Disclosure Ledger `allowedAnswer` + rendered prompt sections in `compileStaffingReferenceScenario.ts`). Apply the 3-Layer Edit Rule from `ai-rpg-staffing-reference-scenario`.
+
+When in doubt, search for callers of `normalizeJaTextForTts` before assuming any change you make there will affect live behavior.
+
+## TTS pronunciation pitfalls (eleven_v3 + textNormalisationType=elevenlabs)
+
+Vendor TTS (eleven_v3 with `textNormalisationType: "elevenlabs"`) misreads several patterns when written in source-text form. Prefer source-side rewrite over relying on dictionary lexemes alone:
+
+- English brand/product names get phonetic-mangled: `Adecco` → 'アデッコ' (manual orb v4 P0). **Always use katakana in runtime utterances** (`アデコさん`); keep English form only in identifiers (scenario id, agent name, voice profile id, function names) where it never gets spoken.
+- Compressed Japanese phrases read harshly: `月末月初` / `月曜午前` / `商材切替時` / `現場適合判断`. **Rewrite to natural Japanese in `allowedAnswer`** rather than fighting it at the dictionary layer (`月末と月の初め` / `月曜日の午前中` / `取り扱い商品が切り替わる時期` / `候補者が現場に合うかどうかの最終判断`).
+- Number/time/amount ranges: server-side `apply_text_normalization: "auto"` handles most cases; but for deterministic offline rendering, add explicit rewrites to `normalizeJaTextForTts` (e.g. `8:45〜17:30` → `八時四十五分から十七時三十分`).
+
+When you fix a TTS misread by editing the prompt source, also update the **LLM judge `success_condition` in `publishAgent.ts`** to accept BOTH the old and new forms (e.g., `"mentions Adecco OR アデコ"`), and **add a backwards-compat `success_examples` entry with the old form** so existing fixtures don't suddenly fail.
+
+## Voice profile divergence pattern (manual orb v4 evolution of mirror rule)
+
+The "mirror byte-for-byte" rule below was loosened on 2026-04-26 for `pronunciationDictionaryLocators`. Mirrored profiles MAY diverge on this single field when the secondary scenario has scenario-specific pronunciation needs (e.g. Adecco needs `Adecco → アデコ` lexemes that don't belong in the accounting dictionary). The DoD 3 mirror test (`packages/scenario-engine/src/voiceProfiles.test.ts`) now permits divergence and asserts that `metadata.notes` mentions the divergence rationale (must contain `Adecco|アデコ` if the locator differs).
+
+When evolving a mirror profile to diverge:
+1. Create a new dictionary on ElevenLabs via `pnpm tsx scripts/elevenlabs/upload-pronunciation-dictionary.ts --file <pls> --name <new-unique-name>`.
+2. Update the mirror profile's `pronunciationDictionaryLocators` to the new `{pronunciationDictionaryId, versionId}`.
+3. Update `metadata.notes` to include the rationale and mention `Adecco`/`アデコ` so the DoD 3 test passes.
+4. The original (source) profile is unchanged.
+
+All other fields (`voiceId`, `model`, `voiceSettings`, `textNormalisationType`, `firstMessageJa` per scenario) MUST still mirror per the byte-for-byte rule.
+
+## Phase 2 handoff pattern for irreversible external actions
+
+Creating an ElevenLabs pronunciation dictionary version is an **irreversible side effect** on the ElevenLabs workspace (the dictionary persists in the account, consumes a slot, and may be referenced by other agents). When an autonomous coding session reaches such an action:
+
+1. Update local code/tests to be future-ready (e.g. loosen DoD 3 mirror test to permit the divergence the upload will introduce — safe because current locators still match).
+2. Update local artifacts (`.pls` file, etc.) to reflect what the upload should contain.
+3. Write a precise operator runbook with exact commands, expected output, and rollback path. Place it under `data/handoff/<topic>-handoff.md`.
+4. Skip the actual external action; document the deferral in commit message and OPERATIONS.md log.
+
+Reference: [data/handoff/manual-orb-v4-phase2-handoff.md](../../data/handoff/manual-orb-v4-phase2-handoff.md) is the canonical example for dictionary upload + voice profile locator update.
+
 ## Voice Reuse Across Scenarios (Mirror Pattern)
 
 When a scenario needs to use the SAME voice that another scenario already uses in production (e.g. Adecco staffing reusing the accounting profile's voice), do NOT add the new scenario's id to the existing profile's `metadata.scenarioIds`. The voice profile resolver enforces a 1:1 binding between profile and scenario via `scenarioIds`, and overriding it from another scenario will be rejected.
