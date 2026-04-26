@@ -49,6 +49,22 @@
     <alias>サンメイ</alias>
   </lexeme>
   <lexeme>
+    <grapheme>SAP</grapheme>
+    <alias>エスエーピー</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>OJT</grapheme>
+    <alias>オージェーティー</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>OA</grapheme>
+    <alias>オーエー</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>NG</grapheme>
+    <alias>エヌジー</alias>
+  </lexeme>
+  <lexeme>
     <grapheme>夜勤</grapheme>
     <alias>ヤキン</alias>
   </lexeme>

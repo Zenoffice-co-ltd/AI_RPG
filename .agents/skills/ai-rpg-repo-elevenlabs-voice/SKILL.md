@@ -38,6 +38,7 @@ Current repo rule:
 - repo SoT profile model stays `eleven_v3`
 - Agents / ConvAI payload normalizes `eleven_v3 -> eleven_v3_conversational`
 - raw TTS `/v1/text-to-speech` keeps `eleven_v3`
+- Adecco manufacturer Orb answers must spell out amounts, times, ranges, counts, and business abbreviations in spoken Japanese; avoid raw values like yen ranges, clock separators, slashes, and hour-per-month notation in live response text
 
 Only change `packages/vendors/src/elevenlabs.ts` `buildConversationConfig()` for this fix. Do not change raw render model handling or v3 normalization payloads.
 

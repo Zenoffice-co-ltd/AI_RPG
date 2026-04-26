@@ -28,7 +28,7 @@ const ADECCO_MUST_CAPTURE_ITEMS: Array<{
   { key: "hiring_background", label: "募集背景", priority: "required" },
   {
     key: "increase_or_replacement_reason",
-    label: "増員/交代と理由",
+    label: "増員・交代と理由",
     priority: "required",
   },
   {
@@ -38,12 +38,12 @@ const ADECCO_MUST_CAPTURE_ITEMS: Array<{
   },
   {
     key: "task_details_and_daily_flow",
-    label: "業務内容・1日の流れ",
+    label: "業務内容・一日の流れ",
     priority: "required",
   },
   {
     key: "judgement_and_exception_level",
-    label: "入力/調整/例外判断の線引き",
+    label: "入力・調整・例外判断の線引き",
     priority: "required",
   },
   {
@@ -89,12 +89,12 @@ const ADECCO_MUST_CAPTURE_ITEMS: Array<{
   },
   {
     key: "must_best_priority",
-    label: "必須条件 / ベスト要件 / 優先順位",
+    label: "必須条件・ベスト要件・優先順位",
     priority: "required",
   },
   {
     key: "certification_and_oa_skills",
-    label: "資格・OAスキル",
+    label: "資格・オーエースキル",
     priority: "required",
   },
   {
@@ -197,7 +197,7 @@ function mapHiddenFacts(input: unknown) {
         condition ? `開示条件: ${condition}` : "",
       ]
         .filter(Boolean)
-        .join(" / ");
+        .join("。");
     })
     .filter((item) => item.length > 0);
 }
@@ -258,7 +258,7 @@ function mapPromptSections(input: unknown) {
 
 function rewritePromptSection(title: string, body: string) {
   if (title === "Context") {
-    return "Adeccoは社名認知はあるが初回発注前です。まずは営業事務1名の相談として、要件整理の進め方を見ています。競合状況、予算、決定構造、現行ベンダー不満の詳細は、具体的に聞かれた時だけ開示してください。";
+    return "Adeccoは社名認知はあるが初回発注前です。まずは営業事務一名の相談として、要件整理の進め方を見ています。競合状況、予算、決定構造、現行ベンダー不満の詳細は、具体的に聞かれた時だけ開示してください。";
   }
   if (title === "Must Capture Items") {
     return "営業学習者から確認された範囲にだけ自然に答えてください。背景、業務分解、入力だけか調整・例外判断まで含むか、社員が持つ業務と派遣に任せる業務の線引き、繁忙、条件、優先順位、競合、見学・決定フローを段階的に返してください。自分から確認項目を一覧化したり、次に聞くべき質問を教えたりしないでください。";
@@ -289,7 +289,7 @@ function buildKnowledgeBaseText(input: {
     "",
     "## Reveal Rules",
     ...input.scenario.revealRules.map(
-      (rule) => `- ${rule.trigger}: ${rule.reveals.join(" / ")}`
+      (rule) => `- ${rule.trigger}: ${rule.reveals.join("、")}`
     ),
     "",
     "## Must Capture Items",
@@ -317,11 +317,12 @@ function buildAgentPrompt(input: {
     "# Critical Live Behavior",
     "あなたは営業学習者を助けるコーチではなく、住宅設備メーカーの人事課主任です。",
     "『何を聞けばよいですか？』と聞かれても、確認項目を列挙せず『気になる点から順番にご確認ください』または『どの点についてですか』と短く返してください。",
-    "『今回の募集について概要を教えてください』と聞かれたら『営業事務を1名お願いする相談です。まずは要件を整理したいです。』程度に留め、競合、予算、決定構造、ベンダー不満は出さないでください。",
+    "『今回の募集について概要を教えてください』と聞かれたら『営業事務を一名お願いする相談です。まずは要件を整理したいです。』程度に留め、競合、予算、決定構造、ベンダー不満は出さないでください。",
     "業務を深掘りされたら、enterprise ERP案件と同じく、職種名で止めずに、入力作業と納期調整・在庫不足・品番不一致などの例外対応の線引き、社員側に残す判断業務を段階的に開示してください。",
     "『次はどのように進めましょうか？』と聞かれたら、顧客側として『条件に近い方を何名かご提案ください。こちらでも確認するので、まずはメールで候補者を見せていただけると助かります。』のように自然な次アクションだけを返してください。",
     "営業学習者が要件要約とネクストアクションを提示したら、営業の要約後に必ず一度だけ『Adeccoさんの派遣の特徴や強み、他社との違いはどこですか』と顧客側から逆質問してください。",
-    "人数だけを聞かれたら『まずは1名です。』程度で止め、業務内容、競合、予算、決定構造を続けて説明しないでください。",
+    "人数だけを聞かれたら『まずは一名です。』程度で止め、業務内容、競合、予算、決定構造を続けて説明しないでください。",
+    "音声回答では、数字、金額、時刻、範囲記号、スラッシュ、英字略語をそのまま出さず、読み上げやすい日本語にしてください。時給の下限は『時給は千五百円からです』、金額帯は『千七百五十円から千九百円』、時刻帯は『八時四十五分から十七時三十分』、月あたりの残業は『月十から十五時間』のように話してください。",
     "",
     sectionText,
     "",
@@ -329,11 +330,11 @@ function buildAgentPrompt(input: {
     "あなたは派遣オーダーヒアリングに登場する住宅設備メーカーの人事課主任です。",
     "営業学習者を採点したり、営業をコーチしないでください。",
     "浅い質問には浅く返し、聞かれていない hidden facts を早出ししないでください。",
-    "概要だけを聞かれたら、営業事務1名の相談であることと初回取引前に要件整理したいことだけを短く返し、競合、予算、決定構造、ベンダー不満の詳細は出さないでください。",
+    "概要だけを聞かれたら、営業事務一名の相談であることと初回取引前に要件整理したいことだけを短く返し、競合、予算、決定構造、ベンダー不満の詳細は出さないでください。",
     "深掘りされた時だけ、reference の reveal rules に従って制約や本音を段階開示してください。",
     "人事窓口として即答できない現場詳細は、現場確認が必要と自然に返してください。",
     "営業学習者の要約後、終盤で要件整理とネクストアクションが進んだら、Adecco の派遣の特徴や強み、他社との違いを必ず一度逆質問してください。",
-    "一問一答の箇条書きではなく、自然な日本語のビジネス会話で1〜3文を基本に返してください。",
+    "一問一答の箇条書きではなく、自然な日本語のビジネス会話で一から三文を基本に返してください。",
     "",
     "# Opening Line",
     input.scenario.openingLine,
@@ -376,7 +377,7 @@ export async function compileStaffingReferenceScenario(input: {
       ].join(""),
     },
     publicBrief:
-      "住宅設備メーカーの人事課主任として、営業事務1名の派遣オーダーについて初回発注前に要件整理をしたい。",
+      "住宅設備メーカーの人事課主任として、営業事務一名の派遣オーダーについて初回発注前に要件整理をしたい。",
     hiddenFacts: mapHiddenFacts(referenceScenarioPack["hiddenFacts"]),
     revealRules: mapRevealRules(referenceScenarioPack["revealRules"]),
     mustCaptureItems: ADECCO_MUST_CAPTURE_ITEMS.map((item, index) => ({

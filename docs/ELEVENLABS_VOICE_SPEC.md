@@ -307,6 +307,7 @@ approved profile に関する運用ルール:
 - `packages/scenario-engine/src/voiceProfiles.ts` の readiness check が publish / smoke 側で block する
 - blocker は `pnpm smoke:eleven -- --preflight` と `pnpm verify:acceptance -- --preflight` にも出す
 - local PLS (`data/pronunciation/*.pls`) を repo の正本とする
+- `data/pronunciation/adecco-ja-business-v1.pls` は Adecco manufacturer Orb の business terms も含む。2026-04-26 に `SAP`, `OJT`, `OA`, `NG` を追加したため、remote dictionary を使う publish lane では再アップロードして locator を確認する
 - profile に入れてよいのは ElevenLabs upload 後に得た real `pronunciationDictionaryId` / `versionId` のみ
 - locator 未確定 profile は `previewProfiles` / `benchmarkProfiles` のみで扱い、`activeProfiles` へは昇格しない
 - current accounting locator: `0GxlLMOqlBr3dvEhX6Ji:GGzWcurA2ogrgciNu7u5`
