@@ -68,16 +68,16 @@ function buildLiveTurnConfig(scenarioId: string) {
     }
 
     return {
-      turnTimeoutSeconds: 7,
+      turnTimeoutSeconds: 14,
       initialWaitTimeSeconds: 1,
+      // Manual orb v5 P1 / v7 P0: silence_end_call_timeout=-1 で sense 終了を無効化。
+      // 学習者の沈黙でセッションが自動終了しないようにする。
       silenceEndCallTimeoutSeconds: -1,
-      softTimeout: {
-        timeoutSeconds: -1,
-        message: "ご確認したい点からで大丈夫です。",
-      },
+      // Manual orb v7 P2 fix (2026-04-27): softTimeout の filler message
+      // 「承知しました。少し整理しますね。」が orb で本文の前に毎回出る不具合があり
+      // 削除。intermediate silence では何も話さず学習者発話を待つ。
       turnEagerness: "patient" as const,
       spellingPatience: "auto" as const,
-      speculativeTurn: false,
       retranscribeOnTurnTimeout: true,
       mode: "turn" as const,
     };
@@ -88,6 +88,54 @@ function buildLiveTurnConfig(scenarioId: string) {
     initialWaitTimeSeconds: 1,
     turnEagerness: "eager" as const,
   };
+}
+
+const ADECCO_ASR_KEYWORDS = [
+  "アデコ",
+  "Adecco",
+  "派遣",
+  "人材派遣",
+  "受発注",
+  "在庫確認",
+  "対外対応",
+  "製造ライン",
+  "品質管理",
+  "フォークリフト",
+  "ピッキング",
+  "検品",
+  "シフト",
+  "勤怠",
+];
+
+function buildLiveConversationConfig(scenarioId: string) {
+  if (!isAdeccoManufacturerScenario(scenarioId)) {
+    return undefined;
+  }
+
+  return {
+    clientEvents: ["audio", "interruption"],
+  };
+}
+
+function buildLiveAsrConfig(scenarioId: string) {
+  if (!isAdeccoManufacturerScenario(scenarioId)) {
+    return undefined;
+  }
+
+  return {
+    keywords: ADECCO_ASR_KEYWORDS,
+  };
+}
+
+function readMaxDurationSeconds(
+  conversationConfig: Record<string, unknown> | undefined
+) {
+  const conversation = conversationConfig?.["conversation"];
+  if (!conversation || typeof conversation !== "object") {
+    return undefined;
+  }
+  const value = (conversation as Record<string, unknown>)["max_duration_seconds"];
+  return typeof value === "number" ? value : undefined;
 }
 
 async function waitForTestInvocation(
@@ -1692,6 +1740,8 @@ export async function publishScenarioAgent(input: {
     ],
   });
   const liveTurnConfig = buildLiveTurnConfig(input.scenario.id);
+  const liveConversationConfig = buildLiveConversationConfig(input.scenario.id);
+  const liveAsrConfig = buildLiveAsrConfig(input.scenario.id);
 
   const agentPayload = {
     name: input.scenario.title,
@@ -1710,6 +1760,8 @@ export async function publishScenarioAgent(input: {
     ],
     llmModel: input.llmModel,
     language: input.voiceSelection.language,
+    ...(liveAsrConfig ? { asr: liveAsrConfig } : {}),
+    ...(liveConversationConfig ? { conversation: liveConversationConfig } : {}),
     ...(liveTurnConfig ? { turn: liveTurnConfig } : {}),
     tts: {
       modelId: input.voiceSelection.ttsModel,
@@ -1731,6 +1783,9 @@ export async function publishScenarioAgent(input: {
     (await input.elevenLabs.createAgent(agentPayload)).agent_id;
 
   const currentAgent = await input.elevenLabs.getAgent(agentId);
+  const currentMaxDurationSeconds = readMaxDurationSeconds(
+    currentAgent.conversation_config
+  );
   const branches = await input.elevenLabs.listBranches(agentId);
   const mainBranch =
     branches.find((branch) => branch.name.toLowerCase() === "main") ?? branches[0];
@@ -1750,10 +1805,20 @@ export async function publishScenarioAgent(input: {
 
   const stagingBranchId =
     "created_branch_id" in stagingBranch ? stagingBranch.created_branch_id : stagingBranch.id;
+  const updateAgentPayload =
+    currentMaxDurationSeconds !== undefined && liveConversationConfig
+      ? {
+          ...agentPayload,
+          conversation: {
+            ...liveConversationConfig,
+            maxDurationSeconds: currentMaxDurationSeconds,
+          },
+        }
+      : agentPayload;
 
   let updatedAgent: Awaited<ReturnType<ElevenLabsClient["updateAgent"]>>;
   try {
-    updatedAgent = await input.elevenLabs.updateAgent(agentId, agentPayload, {
+    updatedAgent = await input.elevenLabs.updateAgent(agentId, updateAgentPayload, {
       branchId: stagingBranchId,
     });
   } catch (error) {
@@ -1841,6 +1906,7 @@ export async function publishScenarioAgent(input: {
       passed: false,
       testRun: finalTestRun,
       binding: null,
+      testedBranchId: stagingBranchId,
       ...(testPolicy ? { testPolicy } : {}),
     };
   }
@@ -1855,7 +1921,7 @@ export async function publishScenarioAgent(input: {
     binding: {
       scenarioId: input.scenario.id,
       elevenAgentId: agentId,
-      elevenBranchId: stagingBranchId,
+      elevenBranchId: mainBranch.id,
       elevenVersionId: updatedAgent.version_id ?? undefined,
       ...(input.voiceSelection.mode === "profile"
         ? { voiceProfileId: input.voiceSelection.voiceProfileId }
@@ -1863,6 +1929,7 @@ export async function publishScenarioAgent(input: {
       voiceId: input.voiceSelection.voiceId,
       publishedAt: new Date().toISOString(),
     } satisfies AgentBinding,
+    testedBranchId: stagingBranchId,
     ...(testPolicy ? { testPolicy } : {}),
   };
 }

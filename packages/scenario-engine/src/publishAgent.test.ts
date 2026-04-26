@@ -216,18 +216,22 @@ describe("publishScenarioAgent", () => {
       "agent_123",
       expect.objectContaining({
         turn: {
-          turnTimeoutSeconds: 7,
+          turnTimeoutSeconds: 14,
           initialWaitTimeSeconds: 1,
           silenceEndCallTimeoutSeconds: -1,
-          softTimeout: {
-            timeoutSeconds: -1,
-            message: "ご確認したい点からで大丈夫です。",
-          },
+          // Manual orb v7 P2 fix (2026-04-27): softTimeout removed because the
+          // filler message ("承知しました。少し整理しますね。") was firing on
+          // intermediate silence in production. Test must NOT include softTimeout.
           turnEagerness: "patient",
           spellingPatience: "auto",
-          speculativeTurn: false,
           retranscribeOnTurnTimeout: true,
           mode: "turn",
+        },
+        conversation: {
+          clientEvents: ["audio", "interruption"],
+        },
+        asr: {
+          keywords: expect.arrayContaining(["アデコ", "受発注", "在庫確認"]),
         },
       }),
       expect.any(Object)
@@ -304,6 +308,49 @@ describe("publishScenarioAgent", () => {
       ]),
       "branch_staging"
     );
+  });
+
+  it("records canonical main branch separately from the tested staging branch", async () => {
+    const elevenLabs = createElevenLabsStub();
+
+    const result = await publishScenarioAgent({
+      elevenLabs,
+      scenario: {
+        id: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+        title: "Adecco Manufacturer",
+        version: "v1.0.0",
+      } as never,
+      assets: {
+        knowledgeBaseText: "営業事務1名の初回派遣オーダーです。",
+        agentSystemPrompt: "prompt",
+        promptVersion: "v1",
+        scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+        generatedAt: new Date().toISOString(),
+      },
+      llmModel: "gpt-5-mini",
+      voiceSelection: {
+        mode: "profile",
+        scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+        voiceProfileId: "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2",
+        label: "Adecco v2",
+        language: "ja",
+        ttsModel: "eleven_v3",
+        voiceId: "voice_123",
+        firstMessage: "よろしくお願いします。",
+        textNormalisationType: "elevenlabs",
+        voiceSettings: {},
+      },
+    });
+
+    expect(elevenLabs.mergeBranch).toHaveBeenCalledWith(
+      "agent_123",
+      "branch_staging",
+      "branch_main"
+    );
+    expect(result.binding?.elevenBranchId).toBe("branch_main");
+    expect(result).toMatchObject({
+      testedBranchId: "branch_staging",
+    });
   });
 
   it("DoD v2 §4: local regression bundle keeps the 22+ rich tests for offline assertion", async () => {

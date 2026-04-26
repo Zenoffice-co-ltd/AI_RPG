@@ -24,6 +24,9 @@ describe("compileStaffingReferenceScenario", () => {
 
     expect(compiled.scenario.id).toBe(ADECCO_MANUFACTURER_SCENARIO_ID);
     expect(compiled.scenario.family).toBe("staffing_order_hearing");
+    expect(compiled.scenario.openingLine).toBe(
+      "お時間ありがとうございます。今回は新しい派遣会社さんということで、まず弊社の状況をお伝えしながら、要件を整理いただければと思っています。進め方も含めて、確認いただいてもよろしいでしょうか。"
+    );
     expect(compiled.scenario.publishContract?.dictionaryRequired).toBe(false);
     expect(compiled.scenario.rubric.map((item) => item.weight)).toEqual([
       30, 20, 20, 10, 10, 10,
@@ -45,6 +48,16 @@ describe("compileStaffingReferenceScenario", () => {
     // Manual orb v4: section heading carries dual-form Adecco / アデコ marker.
     expect(compiled.assets.agentSystemPrompt).toContain("# Adecco / アデコ Reverse Question Rule");
     expect(compiled.assets.agentSystemPrompt).toContain("# Silence and Ambiguity Handling");
+    expect(compiled.assets.agentSystemPrompt).toContain("# 日本語の話し方");
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "1回に聞く質問は1つだけ"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "短い回答や列挙の直後に、沈黙確認の定型文を出さない"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "受発注の調整と在庫確認が中心ですね"
+    );
     expect(compiled.assets.agentSystemPrompt).toContain("# Guardrails");
     // Reference Sections were removed in DoD recovery to avoid duplication
     expect(compiled.assets.agentSystemPrompt).not.toContain("# Reference Sections");
@@ -82,6 +95,26 @@ describe("compileStaffingReferenceScenario", () => {
     expect(compiled.assets.agentSystemPrompt).toContain(
       "通常応答でも沈黙時でも一切使いません"
     );
+    // Manual orb v7 P0: semantic equivalence rule must be embedded in rendered prompt
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "意味的に同じ表記揺れは『違います』訂正しない"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain("十七時半");
+    expect(compiled.assets.agentSystemPrompt).toContain("半は 30 分の同義");
+    // Manual orb v7 P1: AI must not initiate next_step_close on its own
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "AI から自発的に『次はどう進めますか』『どう進めましょうか』と質問しない"
+    );
+    // Manual orb v7 P1: backchannel utterances must not retrigger identity_self
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "短い相槌 (『うん』『はい』『えっと』『そうですね』 単独) を identity_self / overview_shallow の質問と誤判定しない"
+    );
+    // Manual orb v7 P1: do not repeat the same canonical answer twice
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "同じ応答を 2 回以上繰り返さない"
+    );
+    // Manual orb v7 P2: filler ban
+    expect(compiled.assets.agentSystemPrompt).toContain("取りつくろいフィラー禁止");
     expect(compiled.assets.agentSystemPrompt).toContain(
       "毎ターンの定型句として使わない"
     );
