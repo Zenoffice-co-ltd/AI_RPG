@@ -49,6 +49,22 @@ export const STAFFING_ADECCO_DISCLOSURE_LEDGER: DisclosureItem[] = [
       "（応答なし）",
       "（次の発話を待つ）",
       "（保留）",
+      // manual orb v10 P1 (2026-04-27): SSML / TTS markup タグの hallucination 失敗例。
+      // Adecco prompt には [slow] [pause] [laugh] は存在しないが、LLM が training data の
+      // SSML 知識から spontaneous に emit するパターンが orb で観測された。
+      "[slow] 指揮命令者の課長は落ち着いていますが正確性に厳しい方です。",
+      "[slow]",
+      "[pause]",
+      "[laugh]",
+      "[/slow]",
+      "[break]",
+      "<break/>",
+      "<break time=\"500ms\"/>",
+      // manual orb v10 P0 (2026-04-27): 「すみません、少し音声が途切れたかもしれません」
+      // smoking-gun。# 沈黙時の扱い セクションの allow phrase が v5 silence ban を override
+      // していた事例。# 沈黙時の扱い セクションを v10 で削除済み + literal smoking-gun lock。
+      "すみません、少し音声が途切れたかもしれません。続きがあれば伺います。",
+      "[slow] すみません、少し音声が途切れたかもしれません。続きがあれば伺います。",
     ],
     asrVariantTriggers: [
       "あなたは誰",
