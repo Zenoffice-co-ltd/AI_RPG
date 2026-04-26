@@ -630,13 +630,20 @@ describe("renderDisclosureLedgerForPrompt", () => {
     expect(md).not.toContain("forbiddenUntilAsked");
   });
 
-  it("renders every item as a sanitized H2 block", () => {
+  it("renders every item as a sanitized H2 block with Japanese semantic label (manual orb v13)", () => {
     const md = renderDisclosureLedgerForPrompt();
-    const blockCount = (md.match(/^## 質問意図 \d+/gm) ?? []).length;
+    // Each H2 must now have the form `## 質問意図 N: <Japanese label>` to give
+    // the LLM a semantic anchor for intent matching while keeping the English
+    // triggerIntent ID hidden (defense-in-depth from v12 maintained).
+    const blockCount = (md.match(/^## 質問意図 \d+: [^\n]+/gm) ?? []).length;
     expect(blockCount).toBe(STAFFING_ADECCO_DISCLOSURE_LEDGER.length);
     for (const item of STAFFING_ADECCO_DISCLOSURE_LEDGER) {
       expect(md).not.toContain(`## ${item.triggerIntent}`);
     }
+    // Spot-check a few representative semantic labels are present.
+    expect(md).toContain("## 質問意図 1: 役割確認");
+    expect(md).toContain("## 質問意図 18: 部署環境 (人数・男女比・年齢層・服装)");
+    expect(md).toContain("## 質問意図 21: コーチング要求");
   });
 
   it("does not render implementation field names in the live prompt", () => {

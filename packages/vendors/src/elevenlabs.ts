@@ -467,6 +467,24 @@ export function buildConversationConfig(payload: AgentConfigPayload) {
                     payload.turn.silenceEndCallTimeoutSeconds,
                 }
               : {}),
+            // Manual orb v13 P1 attempt (2026-04-27): tried sending
+            // `soft_timeout_config: null` to force-clear the dashboard
+            // filler, but ElevenLabs API rejected with `Input should be a
+            // valid dictionary or instance of SoftTimeoutConfig`. The API
+            // does not accept null; only either a SoftTimeoutConfig dict or
+            // omission. Reverted to omit-when-undefined.
+            //
+            // Implication: the dashboard filler 「承知しました。少し整理し
+            // ますね。」 (set in dashboard before v7) is NOT auto-cleared by
+            // publish. Operators must clear it manually:
+            //   ElevenLabs dashboard → agent → 拡張設定 → ソフトタイムアウト
+            //   → メッセージ欄を空にして保存
+            // See `.agents/skills/ai-rpg-staffing-reference-scenario/SKILL.md`
+            // section "omit-vs-clear in vendor PATCH semantics" for context.
+            // Future workaround candidates: (a) send `{ timeout_seconds:
+            // 86400, message: "" }` to functionally disable, (b) call
+            // ElevenLabs admin API to PUT the field with explicit clearing
+            // semantics. Both deferred until verified safe in dashboard.
             ...(payload.turn.softTimeout
               ? {
                   soft_timeout_config: {

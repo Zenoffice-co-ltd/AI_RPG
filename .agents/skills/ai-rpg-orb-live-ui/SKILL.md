@@ -122,15 +122,27 @@ before changing the scenario prompt.
 7. If a new duplicate appears on the current revision, record the revision,
    conversationLocalId, generation, sdkMessageId list, normalizedTextHash, and
    timestamps in `docs/qa.md` before patching.
-8. If the operator reports repeated **business facts** but Cloud Run displayed
+8. If logs show many `displayed / agent / interim` rows with the same
+   `sdkMessageId` (for example one character at a time from
+   `agent_chat_response_part`), do not treat that as a scenario duplicate. It
+   is a UI rendering bug: interim chat parts must update a buffer/current row
+   and must not be appended as visible transcript rows. The customer transcript
+   should show one stable Agent row for the turn, normally at final/stop or a
+   deliberate single in-place update.
+9. If the operator reports repeated **business facts** but Cloud Run displayed
    rows are not duplicated, treat it as a scenario prompt/intent issue rather
    than a React rendering bug. Escalate to `ai-rpg-staffing-reference-scenario`
    and inspect the relevant `allowedAnswer` / trigger split.
-9. If the transcript contains prompt internals such as `triggerIntent`,
+10. If the transcript contains prompt internals such as `triggerIntent`,
    `応答ルール`, internal intent names, JSON, or self-commentary, first confirm
    whether those terms appear in Cloud Run displayed rows. Then inspect the
    generated Agent prompt; internal prompt leakage is scenario-side even when
    the web transcript renderer is behaving correctly.
+11. If `(沈黙)`, `（応答なし）`, or similar stage directions appear in the
+   transcript, classify it as a scenario prompt issue unless the raw SDK event
+   is being manufactured by the UI. The UI may log/display what the Agent
+   actually emitted, but the scenario prompt must be fixed so the Agent
+   produces no response for silence/empty turns.
 
 ## Verification
 
@@ -157,6 +169,23 @@ When root `pnpm lint` or `pnpm typecheck` fails because of unrelated repo-wide b
 - Use Browser Use for localhost checks when the user references the in-app browser.
 - Verify visible removals by checking both the DOM count and the screenshot-visible behavior.
 - For `fakeLive=1`, confirm initial transcript rows are `0` before exercising call/chat/mute/new-conversation.
+- If the operator screenshot shows old header text, hidden controls that should
+  be gone, or `詳細を表示`, suspect a stale browser session, cache, or a
+  compatibility Cloud Run service running an old image before debugging the
+  React state. Verify the active URL, force reload, then compare `mendan` and
+  `roleplay-ui` service revisions/images/env with `gcloud run services describe
+  ... --project adecco-mendan`.
+
+## Latency Boundaries
+
+- Voice latency itself is mostly controlled by the upstream Agent/LLM/TTS,
+  WebRTC/LiveKit path, network, browser, and microphone environment.
+- UI transcript latency is in this app's scope. The current Orb UI intentionally
+  buffers Agent text until an audio signal or a short fallback to avoid text
+  racing ahead of speech. If operators report "chat text is late but voice is
+  normal", tune the UI buffer/fallback. If operators report "voice itself is
+  late", check prompt length, model/voice choice, turn detection, and upstream
+  logs before changing transcript rendering.
 
 ## Live Smoke
 

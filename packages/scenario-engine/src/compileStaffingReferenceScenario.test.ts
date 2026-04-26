@@ -181,6 +181,35 @@ describe("compileStaffingReferenceScenario", () => {
     expect(compiled.assets.agentSystemPrompt).not.toContain("allowedAnswer");
     expect(compiled.assets.agentSystemPrompt).not.toContain("応答ルール");
 
+    // Manual orb v13 P0: 「どの点についてですか」を完全 ban に統一。
+    // 旧仕様の条件付き許可 (「曖昧なときだけ使う」「最大二回まで」) は削除済み。
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "「どの点についてですか」を通常応答・情報質問・沈黙・曖昧発話のいずれでも一切使わない"
+    );
+    expect(compiled.assets.agentSystemPrompt).not.toContain("最大二回まで");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("連続二ターンで使うのは禁止");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("本当に曖昧なときだけ使う");
+
+    // Manual orb v13 P0: 沈黙 / 曖昧フレームでは応答テキストを 1 文字も生成しない。
+    // 「ご確認したい点からで大丈夫です」は明示的なコーチング要求にだけ返す canonical 応答。
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "「ご確認したい点からで大丈夫です」は、ユーザーが明示的に「何を聞けばよいですか」"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "沈黙・曖昧フレームへの fallback として使ってはいけない"
+    );
+    expect(compiled.assets.agentSystemPrompt).not.toContain(
+      "曖昧な発話 (一語だけ・聞き取れない短い音・話の途中で切れた発話 等) があった時だけ、最大一度「ご確認したい点からで大丈夫です。」"
+    );
+
+    // Manual orb v13 P0: 質問意図見出しに日本語 semantic label を併記 (off-by-one 抑止)。
+    expect(compiled.assets.agentSystemPrompt).toContain("## 質問意図 1: 役割確認");
+    expect(compiled.assets.agentSystemPrompt).toContain("## 質問意図 2: 概要 (浅い)");
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "## 質問意図 18: 部署環境 (人数・男女比・年齢層・服装)"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain("## 質問意図 21: コーチング要求");
+
     // Manual orb v9 P1: high-salience Response Opening Format section bans 承知しました prefix
     expect(compiled.assets.agentSystemPrompt).toContain(
       "# Response Opening Format"
@@ -194,7 +223,9 @@ describe("compileStaffingReferenceScenario", () => {
     expect(compiled.assets.agentSystemPrompt).toContain(
       "○ 「指揮命令者の課長は落ち着いていますが正確性に厳しい方です。"
     );
-    expect(compiled.assets.agentSystemPrompt).toContain(
+    // Manual orb v13: 旧 "毎ターンの定型句として使わない" / "最大二回まで" の条件付 allow は削除済み。
+    // 新仕様は「通常応答・情報質問・沈黙・曖昧発話のいずれでも一切使わない」(完全 ban) のみ。
+    expect(compiled.assets.agentSystemPrompt).not.toContain(
       "毎ターンの定型句として使わない"
     );
     expect(compiled.assets.agentSystemPrompt).toContain(

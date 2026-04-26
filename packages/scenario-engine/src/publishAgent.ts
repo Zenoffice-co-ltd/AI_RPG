@@ -701,14 +701,10 @@ export function buildAdeccoVendorSmokeDefinitions(
         },
       ],
       success_condition:
-        "Return true only if the response is a SHORT (1 sentence) deflection like 「ご確認したい点からで大丈夫です。」 or 「気になる点から順番にご確認ください。」 — and does NOT enumerate hearing items (決定者・予算・納期 etc.) and does NOT name itself as 採点 / コーチ / AI / アシスタント.",
+        "Return true only if (a) the response is exactly 「ご確認したい点からで大丈夫です。」 or a one-sentence semantic equivalent (e.g. 「ご確認したい項目からどうぞ。」), AND (b) does NOT enumerate hearing items (決定者・予算・納期 etc.), AND (c) does NOT name itself as 採点 / コーチ / AI / アシスタント, AND (d) does NOT contain 「どの点についてですか」 or 「気になる点から順番にご確認ください」 (those are banned trailing-prompt fillers per manual orb v13).",
       success_examples: [
         {
           response: "ご確認したい点からで大丈夫です。",
-          type: "success",
-        },
-        {
-          response: "気になる点から順番にご確認ください。",
           type: "success",
         },
       ],
@@ -720,6 +716,9 @@ export function buildAdeccoVendorSmokeDefinitions(
         },
         { response: "私は採点AIです。", type: "failure" },
         { response: "私はAIアシスタントです。", type: "failure" },
+        // Manual orb v13 P0: these fillers were previously success — now banned.
+        { response: "気になる点から順番にご確認ください。", type: "failure" },
+        { response: "どの点についてですか。", type: "failure" },
       ],
       type: "llm",
     },
@@ -1714,6 +1713,133 @@ function buildAdeccoRegressionTestDefinitions(scenario: ScenarioPack) {
         {
           response:
             "ユーザーの質問は「平均年齢は？」ですが、ルールでは「三十代から四十代が中心」と答えるようになっています。これに合わせて回答します。営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。",
+          type: "failure",
+        },
+      ],
+      type: "llm",
+    },
+    // ----------------------------------------------------------------
+    // Manual orb v13 (2026-04-27) — P0 blocker:
+    // ユーザーが沈黙 / 短い相槌のみ / 空 transcript の状態で、AI が
+    // `coaching_request` の canonical 応答 「ご確認したい点からで大丈夫です。」
+    // を勝手に発話した。沈黙時 / 曖昧フレームでは応答キューに何も投入せず、
+    // 学習者の発話を待つ必要がある。
+    // ----------------------------------------------------------------
+    {
+      name: `${scenario.id}::silence-no-coaching-fallback`,
+      chat_history: [
+        {
+          role: "user",
+          message: "概要を教えてください。",
+          time_in_call_secs: 1,
+        },
+        {
+          role: "agent",
+          message: "営業事務一名の相談です。まずは要件を整理したいと考えています。",
+          time_in_call_secs: 4,
+        },
+        // Empty user turn simulating silence / noise frame
+        {
+          role: "user",
+          message: "",
+          time_in_call_secs: 8,
+        },
+      ],
+      success_condition:
+        "Return true only if the response is empty (zero characters) or contains only whitespace. The agent MUST NOT emit any text in response to a silent / empty user turn. Specifically, the response MUST NOT contain 「ご確認したい点からで大丈夫です」「気になる点から順番にご確認ください」「どの点についてですか」「お話しはお済みでしょうか」「まだご検討中でしょうか」「いかがでしょうか」「お待ちしております」 (manual orb v13 P0 silence-fallback ban).",
+      success_examples: [
+        { response: "", type: "success" },
+      ],
+      failure_examples: [
+        { response: "ご確認したい点からで大丈夫です。", type: "failure" },
+        { response: "気になる点から順番にご確認ください。", type: "failure" },
+        { response: "どの点についてですか。", type: "failure" },
+        { response: "お話しはお済みでしょうか。", type: "failure" },
+        { response: "まだご検討中でしょうか。", type: "failure" },
+        { response: "いかがでしょうか。", type: "failure" },
+      ],
+      type: "llm",
+    },
+    // ----------------------------------------------------------------
+    // Manual orb v13 (2026-04-27) — P0 blocker:
+    // 通常応答の末尾に 「どの点についてですか」 が連呼されていた。情報質問への
+    // 通常応答末尾に trailing-prompt filler を付けないこと。
+    // ----------------------------------------------------------------
+    {
+      name: `${scenario.id}::tone-no-trailing-prompt`,
+      chat_history: [
+        {
+          role: "user",
+          message: "業務内容を教えていただけますか？",
+          time_in_call_secs: 1,
+        },
+      ],
+      success_condition:
+        "Return true only if (a) the response answers the business-task question (e.g. mentions 受発注 / 納期調整), AND (b) does NOT end with 「どの点についてですか」「ご確認したい点」「気になる点から順番に」「いかがでしょうか」「お待ちしております」「まだご検討中でしょうか」, AND (c) does NOT contain those phrases anywhere in the response (manual orb v13 P0 trailing-filler ban).",
+      success_examples: [
+        {
+          response:
+            "受発注入力と納期調整が中心です。在庫確認、電話・メールでの対外対応、資料更新も付随します。",
+          type: "success",
+        },
+      ],
+      failure_examples: [
+        {
+          response:
+            "受発注入力と納期調整が中心です。どの点についてですか。",
+          type: "failure",
+        },
+        {
+          response:
+            "受発注入力と納期調整が中心です。ご確認したい点からで大丈夫です。",
+          type: "failure",
+        },
+        {
+          response:
+            "受発注入力と納期調整が中心です。いかがでしょうか。",
+          type: "failure",
+        },
+      ],
+      type: "llm",
+    },
+    // ----------------------------------------------------------------
+    // Manual orb v13 (2026-04-27) — observed off-by-one mis-classification:
+    // ユーザーが「概要を教えてください」と聞いたのに team_atmosphere の答えを返し、
+    // 「平均年齢は？」と聞いたのに competition の答えを返した。各質問が正しい
+    // 質問意図に matching することを確認する 2 ケース。Phase D (semantic label)
+    // が改善するはずだが、ASR / turn-segmentation 影響も残る可能性は別途追跡。
+    // ----------------------------------------------------------------
+    {
+      name: `${scenario.id}::intent-disambiguation-overview-vs-atmosphere`,
+      chat_history: [
+        {
+          role: "user",
+          message: "今回の募集について概要を教えてください。",
+          time_in_call_secs: 1,
+        },
+      ],
+      success_condition:
+        "Return true only if (a) the response matches the overview_shallow canonical answer pattern — mentions 「営業事務」AND「一名 OR 1名」AND「要件整理」or equivalent, AND (b) does NOT contain team_atmosphere content (e.g.「営業業務課は十二名」「女性八名」「男性四名」「三十代から四十代」「派遣スタッフは他に三名」「服装はオフィスカジュアル」), AND (c) does NOT contain competition content (e.g.「現行ベンダーに加えて」「もう一社の大手」「供給力」「レスポンス」). The agent must answer overview_shallow only, not team_atmosphere_question or competition (manual orb v13 off-by-one mis-classification ban).",
+      success_examples: [
+        {
+          response: "営業事務一名の相談です。まずは要件を整理したいと考えています。",
+          type: "success",
+        },
+      ],
+      failure_examples: [
+        {
+          response:
+            "営業業務課は三十代から四十代が中心です。どの点についてですか。",
+          type: "failure",
+        },
+        {
+          response:
+            "営業業務課は十二名で、女性八名、男性四名、三十代から四十代が中心です。派遣スタッフは他に三名います。",
+          type: "failure",
+        },
+        {
+          response:
+            "現行ベンダーに加えて、もう一社の大手にも相談中です。",
           type: "failure",
         },
       ],
