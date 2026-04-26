@@ -722,7 +722,12 @@ export function renderDisclosureLedgerForPrompt(
       const lines: string[] = [
         `## ${item.triggerIntent}`,
         `判定条件: ${item.intentDescription}`,
-        `応答: ${item.allowedAnswer}`,
+        // Manual orb v11 P0 (2026-04-27): inline filler ban directly at the
+        // 応答 line. The previous Response Opening Format section (placed
+        // BEFORE the Disclosure Ledger) was being pushed out of LLM attention
+        // by the long Ledger that follows it. Inline placement here gives
+        // maximum proximity to the canonical answer the LLM will generate.
+        `応答 (※ **本題から直接始める**。「承知しました。」「少し整理しますね。」「ありがとうございます。」「お待ちください。」「整理させてください。」「えっと、整理しますと」「ご質問の件、」等の前置きフィラーを **絶対に** 置かない): ${item.allowedAnswer}`,
       ];
       // For shallow / first-turn triggers, render an explicit "今の応答に含めない"
       // hint so the agent knows what to hold back. These are the triggers

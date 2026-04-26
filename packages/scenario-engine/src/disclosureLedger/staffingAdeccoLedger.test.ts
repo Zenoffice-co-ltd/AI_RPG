@@ -498,6 +498,21 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     expect(joined).toContain("違います。請求は経験により1,750から1,900円程度です。Adeccoさんの強み");
   });
 
+  it("Manual orb v11 P0: rendered prompt inlines filler ban directly at each 応答 line (so LLM sees it in maximum proximity to canonical answer)", () => {
+    const md = renderDisclosureLedgerForPrompt();
+    // Every triggerIntent's 応答 line should carry the inline filler ban.
+    // Spot-check by counting occurrences of the inline-ban marker.
+    const inlineBanMarker = "本題から直接始める";
+    const occurrences = (md.match(new RegExp(inlineBanMarker, "g")) ?? []).length;
+    // 21 triggers should each carry the inline ban.
+    expect(occurrences, "inline filler ban must appear at each 応答 line").toBeGreaterThanOrEqual(20);
+    // Spot-check the verbatim ban content
+    expect(md).toContain("「承知しました。」");
+    expect(md).toContain("「少し整理しますね。」");
+    expect(md).toContain("「ありがとうございます。」");
+    expect(md).toContain("前置きフィラーを **絶対に** 置かない");
+  });
+
   it("Manual orb v3 DoD: shallowGuards include anti-leak entries for deep intents (decision_structure / next_step_close / competition / commercial_terms / volume_cycle / first_proposal_window)", () => {
     const md = renderDisclosureLedgerForPrompt();
     // For each at-risk deep intent, the rendered Markdown must contain a 今の応答に含めない line
@@ -644,10 +659,12 @@ describe("renderDisclosureLedgerForPrompt", () => {
     expect(md).toContain("doNotAdvanceLedgerAutomatically: true");
   });
 
-  it("renders allowedAnswer as the directive '応答' line for every trigger", () => {
+  it("renders allowedAnswer as the directive '応答' line for every trigger (with manual orb v11 inline filler ban)", () => {
     const md = renderDisclosureLedgerForPrompt();
     for (const item of STAFFING_ADECCO_DISCLOSURE_LEDGER) {
-      expect(md).toContain(`応答: ${item.allowedAnswer}`);
+      // Manual orb v11 P0: 応答 line now carries the inline filler ban suffix.
+      // The exact rendered form is: "応答 (※ **本題から直接始める**…置かない): ${allowedAnswer}"
+      expect(md).toContain(`置かない): ${item.allowedAnswer}`);
     }
   });
 });

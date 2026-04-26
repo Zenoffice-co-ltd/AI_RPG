@@ -144,6 +144,20 @@ describe("compileStaffingReferenceScenario", () => {
       "manual orb v10 P0 fix"
     );
 
+    // Manual orb v11 P0: trailing reminder section "Final Reminder Before You Speak"
+    // placed AFTER Disclosure Ledger / Guardrails to leverage recency bias.
+    // The earlier Response Opening Format (above Disclosure Ledger) was being
+    // pushed out of LLM attention by the long Ledger that follows.
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "# Final Reminder Before You Speak"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "This is the LAST instruction before you generate your response"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "応答冒頭は本題から直接始める"
+    );
+
     // Manual orb v9 P1: high-salience Response Opening Format section bans 承知しました prefix
     expect(compiled.assets.agentSystemPrompt).toContain(
       "# Response Opening Format"
