@@ -1,0 +1,669 @@
+:root {
+  --app-header-height: 80px;
+  --left-pane-ratio: 60.1%;
+  --right-pane-ratio: 39.9%;
+  --border-subtle: #eceef1;
+  --text-primary: #0b0b0b;
+  --text-muted: #9a9da5;
+  --bubble-user-bg: #f4f4f5;
+  --surface-main: #ffffff;
+  --surface-panel: #fbfbfb;
+  --orb-cyan: #7ce5df;
+  --orb-blue: #003fbb;
+  --orb-deep-blue: #002a83;
+  --agent-avatar-green: #7dde16;
+  --header-bg: #fafafa;
+  --roleplay-font: -apple-system, BlinkMacSystemFont, "Inter", "Noto Sans JP",
+    "Hiragino Sans", "Yu Gothic", "Segoe UI", sans-serif;
+}
+
+.roleplay-root {
+  height: 100svh;
+  width: 100%;
+  overflow: hidden;
+  background: var(--surface-main);
+  color: var(--text-primary);
+  font-family: var(--roleplay-font);
+  font-weight: 700;
+}
+
+.roleplay-topbar {
+  display: grid;
+  grid-template-columns: 318px minmax(260px, 1fr) 238px 430px;
+  align-items: center;
+  height: var(--app-header-height);
+  padding: 0 32px;
+  border-bottom: 1px solid #eeeeef;
+  background: var(--header-bg);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.roleplay-topbar__left,
+.roleplay-topbar__right,
+.roleplay-topbar__branch,
+.roleplay-branch-button,
+.roleplay-topbar__button {
+  display: flex;
+  align-items: center;
+}
+
+.roleplay-topbar__left {
+  gap: 24px;
+}
+
+.roleplay-topbar__right {
+  justify-content: flex-end;
+  gap: 27px;
+}
+
+.roleplay-topbar__button,
+.roleplay-branch-button,
+.roleplay-mock-pill {
+  border: 0;
+  background: transparent;
+  color: #090909;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.roleplay-topbar__button {
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.roleplay-topbar__separator {
+  height: 28px;
+  width: 1px;
+  background: #e8e8ea;
+}
+
+.roleplay-topbar__title {
+  overflow: hidden;
+  padding: 0 24px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.roleplay-topbar__branch {
+  justify-content: center;
+  border-left: 1px solid #ececef;
+}
+
+.roleplay-branch-button {
+  gap: 11px;
+}
+
+.roleplay-live-badge {
+  border-radius: 999px;
+  background: #d9fae4;
+  padding: 8px 14px;
+  font-size: 14px;
+  color: #071a0c;
+}
+
+.roleplay-mock-pill {
+  margin-left: -17px;
+  border-radius: 999px;
+  background: #f0f1f3;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.roleplay-grid {
+  display: grid;
+  grid-template-columns: var(--left-pane-ratio) var(--right-pane-ratio);
+  height: calc(100svh - var(--app-header-height));
+}
+
+.orb-stage {
+  position: relative;
+  overflow: hidden;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(250, 251, 252, 0.84) 0,
+      rgba(250, 251, 252, 0.84) 11px,
+      rgba(244, 245, 247, 0.62) 11px,
+      rgba(244, 245, 247, 0.62) 22px
+    ),
+    #ffffff;
+}
+
+.orb-stage__center {
+  position: absolute;
+  left: 50%;
+  top: 49.1%;
+  transform: translate(-50%, -50%);
+}
+
+.orb-stage__orb-wrap {
+  position: relative;
+  width: 390px;
+  height: 390px;
+}
+
+.orb {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 50%;
+  filter: blur(0.15px);
+  transform: rotate(var(--orb-rotate));
+}
+
+.orb__layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.orb__layer--base {
+  background:
+    radial-gradient(circle at 50% 52%, rgba(255, 255, 255, 0.55) 0 2%, transparent 4%),
+    conic-gradient(
+      from 16deg at 50% 50%,
+      #61d5d0 0deg,
+      #00399f 26deg,
+      #59e0d9 62deg,
+      #f8ffff 96deg,
+      #31bac8 124deg,
+      #0b52bd 176deg,
+      #00358d 204deg,
+      #73e7e1 246deg,
+      #ffffff 281deg,
+      #4ecbd4 319deg,
+      #003a9f 360deg
+    );
+}
+
+.orb__layer--fan-a {
+  opacity: calc(0.58 + var(--orb-output) * 0.28);
+  background: conic-gradient(
+    from 90deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.9) 34deg,
+    transparent 72deg,
+    rgba(0, 36, 140, 0.7) 132deg,
+    transparent 192deg,
+    rgba(133, 249, 242, 0.72) 250deg,
+    transparent 360deg
+  );
+  filter: blur(10px);
+}
+
+.orb__layer--fan-b {
+  opacity: 0.78;
+  background: radial-gradient(circle at 50% 50%, transparent 0 8%, rgba(255,255,255,.28) 11%, transparent 17%),
+    conic-gradient(from 210deg, transparent 0 42deg, rgba(0, 27, 112, 0.82) 58deg, transparent 88deg, rgba(255,255,255,.9) 142deg, transparent 178deg, rgba(0, 64, 184, .74) 230deg, transparent 302deg);
+  filter: blur(8px);
+}
+
+.orb__layer--fan-c {
+  inset: 13px;
+  opacity: calc(0.55 + var(--orb-input) * 0.35);
+  background: conic-gradient(
+    from 278deg,
+    rgba(255, 255, 255, 0.94) 0 28deg,
+    transparent 32deg 96deg,
+    rgba(0, 45, 164, 0.92) 112deg 145deg,
+    transparent 160deg 232deg,
+    rgba(116, 232, 225, 0.82) 250deg 308deg,
+    transparent 320deg
+  );
+  filter: blur(5px);
+}
+
+.orb__layer--shine {
+  background:
+    radial-gradient(circle at 32% 39%, rgba(255, 255, 255, 0.92), transparent 15%),
+    radial-gradient(circle at 74% 64%, rgba(255, 255, 255, 0.62), transparent 24%),
+    radial-gradient(circle at 50% 50%, transparent 0 22%, rgba(125, 233, 228, 0.22) 58%, rgba(125, 233, 228, 0.45) 100%);
+  filter: blur(5px);
+}
+
+.orb__core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 0 32px rgba(255, 255, 255, 0.72);
+  transform: translate(-50%, -50%);
+}
+
+.orb:not(.orb--still) .orb__layer--fan-a {
+  animation: orb-spin 5.2s linear infinite;
+}
+
+.orb:not(.orb--still) .orb__layer--fan-b {
+  animation: orb-spin 7.6s linear reverse infinite;
+}
+
+@keyframes orb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.orb-call-button {
+  position: absolute;
+  left: 50%;
+  bottom: -18px;
+  display: grid;
+  width: 68px;
+  height: 68px;
+  place-items: center;
+  border: 7px solid #ffffff;
+  border-radius: 50%;
+  background: #050505;
+  color: #ffffff;
+  cursor: pointer;
+  transform: translateX(-50%);
+  box-shadow: 0 12px 22px rgba(0, 0, 0, 0.08);
+}
+
+.orb-call-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.orb-control-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 41px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  height: 62px;
+  border: 1px solid #eceef1;
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 0 26px;
+  color: #101114;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+  transform: translateX(-50%);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.04);
+}
+
+.transcript-panel {
+  position: relative;
+  overflow: hidden;
+  border-left: 1px solid #e5e7eb;
+  border-top-left-radius: 20px;
+  background: #ffffff;
+}
+
+.transcript-status {
+  position: absolute;
+  top: 50px;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  text-align: center;
+  color: #a3a7af;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.transcript-scroll {
+  height: calc(100% - 141px);
+  overflow-y: auto;
+  padding: 88px 38px 40px 29px;
+}
+
+.message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-top: 13px;
+}
+
+.message-row {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+.message-row--agent {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  column-gap: 13px;
+  max-width: 680px;
+}
+
+.message-row--agent p {
+  margin: -3px 0 0;
+}
+
+.agent-avatar {
+  width: 23px;
+  height: 23px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 29% 22%, rgba(255,255,255,.9), transparent 21%),
+    linear-gradient(120deg, #d9ff38, #1caf00 48%, #72e718 100%);
+  box-shadow: inset -4px 0 7px rgba(0, 84, 0, 0.35);
+}
+
+.message-row--user {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-end;
+  max-width: 635px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: var(--bubble-user-bg);
+  padding: 10px 25px;
+  text-align: center;
+}
+
+.message-row--system {
+  align-self: center;
+  max-width: 560px;
+  color: #8f9299;
+  text-align: center;
+  font-size: 14px;
+}
+
+.message-status {
+  margin-left: 10px;
+  color: #8f9299;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.message-retry {
+  border: 1px solid #dadde3;
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 3px 9px;
+  color: #111111;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.message-slow {
+  margin-left: 12px;
+  color: #c13bd7;
+}
+
+.transcript-down {
+  position: absolute;
+  right: 37px;
+  top: 462px;
+  display: grid;
+  width: 54px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: #f4f4f5;
+  color: #111111;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.transcript-down--static {
+  cursor: default;
+}
+
+.transcript-ended {
+  margin-top: 28px;
+  text-align: center;
+  color: #a4a8b0;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.transcript-ended__actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 13px;
+}
+
+.transcript-ended__actions button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 45px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 0 17px;
+  color: #0b0b0b;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.transcript-ended__actions button:first-child {
+  border-color: #050505;
+  background: #050505;
+  color: #ffffff;
+}
+
+.transcript-indicator {
+  margin: 18px 0 0 37px;
+  color: #a3a7af;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.transcript-warning,
+.transcript-error {
+  margin: 18px auto 0;
+  max-width: 560px;
+  color: #b42318;
+  text-align: center;
+  font-size: 14px;
+}
+
+.composer {
+  position: absolute;
+  left: 28px;
+  right: 34px;
+  bottom: 27px;
+  height: 123px;
+  border: 2px solid #101010;
+  border-radius: 31px;
+  background: #ffffff;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
+}
+
+.composer textarea {
+  width: calc(100% - 112px);
+  height: 64px;
+  margin: 20px 72px 0 22px;
+  resize: none;
+  border: 0;
+  outline: 0;
+  color: #111111;
+  font: inherit;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.composer textarea::placeholder {
+  color: #8d929c;
+  opacity: 1;
+}
+
+.composer__send {
+  position: absolute;
+  right: 12px;
+  bottom: 16px;
+  display: grid;
+  width: 47px;
+  height: 47px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #050505;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.composer__send:disabled {
+  background: #aaaab3;
+}
+
+.roleplay-modal,
+.history-drawer {
+  position: fixed;
+  z-index: 50;
+  background: #ffffff;
+  color: #0b0b0b;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
+  font-family: var(--roleplay-font);
+}
+
+.roleplay-modal {
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.roleplay-modal__panel {
+  position: relative;
+  width: min(520px, calc(100vw - 40px));
+  border: 1px solid #eceef1;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 28px;
+}
+
+.roleplay-modal__panel h2,
+.history-drawer h2 {
+  margin: 0 0 22px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.roleplay-modal__panel label {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.roleplay-modal__panel select,
+.roleplay-modal__panel input[type="range"],
+.roleplay-access input {
+  min-height: 42px;
+}
+
+.roleplay-modal__toggle {
+  display: flex !important;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.roleplay-modal__close,
+.history-drawer__close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.history-drawer {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 92vw);
+  padding: 28px;
+}
+
+.history-drawer ul {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-drawer li {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #eceef1;
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.history-drawer span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.roleplay-access {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  background: #ffffff;
+  color: #0b0b0b;
+  font-family: var(--roleplay-font);
+}
+
+.roleplay-access__panel {
+  display: grid;
+  width: min(420px, calc(100vw - 40px));
+  gap: 16px;
+  border: 1px solid #eceef1;
+  border-radius: 8px;
+  padding: 28px;
+}
+
+.roleplay-access button {
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: #050505;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+@media (max-width: 1199px) {
+  .roleplay-root {
+    overflow: auto;
+  }
+
+  .roleplay-topbar {
+    grid-template-columns: 1fr;
+    height: auto;
+    gap: 16px;
+    padding: 18px;
+  }
+
+  .roleplay-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .orb-stage,
+  .transcript-panel {
+    min-height: 720px;
+  }
+}

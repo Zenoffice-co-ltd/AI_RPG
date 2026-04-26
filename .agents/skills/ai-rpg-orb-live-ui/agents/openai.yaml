@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI RPG Orb Live UI"
+  short_description: "Implement and verify Orb live conversation UI."
+  default_prompt: "Use this skill when changing the Adecco Orb roleplay UI, live/mock/fakeLive conversation flow, visual snapshots, or live smoke evidence."
