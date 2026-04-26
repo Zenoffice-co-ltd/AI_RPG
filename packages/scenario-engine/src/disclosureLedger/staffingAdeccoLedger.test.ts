@@ -84,18 +84,106 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     expect(urgency!.allowedAnswer).toContain("来週水曜");
   });
 
-  it("DoD 3.4: closing_summary detection matches multiple criteria, not only full numeric summary", () => {
+  it("Manual orb v3 DoD: closing_summary requires BOTH explicit summary signal AND 3+ items in the SAME user turn", () => {
     const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
       (i) => i.triggerIntent === "closing_summary"
     );
     expect(item).toBeDefined();
-    // Description must enumerate multiple detection criteria so the LLM
-    // judge does not require a single rigid pattern.
+    // (A) explicit summary signal phrases must be enumerated
     expect(item!.intentDescription).toContain("整理させてください");
     expect(item!.intentDescription).toContain("まとめると");
-    expect(item!.intentDescription).toContain("よろしいでしょうか");
+    expect(item!.intentDescription).toContain("進め方でよろしいでしょうか");
+    expect(item!.intentDescription).toContain("この理解で合っていますか");
+    // (B) 3+ items requirement must be locked into the SAME user turn (strict A∧B mode)
     expect(item!.intentDescription).toContain("三項目以上");
-    expect(item!.allowedAnswer).toContain("Adeccoさんの派遣の特徴や");
+    expect(item!.intentDescription).toContain("同一ユーザーターン");
+    expect(item!.intentDescription).toContain("両方");
+    // anti-leak: AI must not initiate a summary on its own
+    expect(item!.intentDescription).toContain("AI 自身が要約を始めない");
+    // anti-leak: must not append closing_summary content to other intents
+    expect(item!.intentDescription).toContain("decision_structure");
+    expect(item!.intentDescription).toContain("当該 intent の allowedAnswer だけで応答を終え");
+    // chat_history accumulation must NOT be a basis for firing
+    expect(item!.intentDescription).toContain("chat_history");
+    expect(item!.intentDescription).toContain("AI 過去発話");
+    // allowedAnswer embeds the Adecco/アデコ reverse question (manual orb v4: TTS-friendly katakana form)
+    expect(item!.allowedAnswer).toContain("アデコさんの派遣の特徴や");
+    // negativeExamples must include the manual orb v3 P0 smoking-gun concatenation (Adecco form)
+    const orbV3SmokingGun = "ベンダー選定は人事が主導しますが、候補者の最終的な現場適合判断は現場課長の意見が強く反映されます。はい、大きくはその整理で合っています。";
+    expect(item!.negativeExamples.join("|")).toContain(orbV3SmokingGun);
+    // negativeExamples must also include the manual orb v4 アデコ form smoking-gun
+    expect(item!.negativeExamples.join("|")).toContain("アデコさんの派遣の特徴や");
+  });
+
+  it("Manual orb v3 DoD: closing_summary asrVariantTriggers drop the loose hooks (候補をメール / 候補者像 / ご確認事項はありますか)", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "closing_summary"
+    );
+    expect(item).toBeDefined();
+    expect(item!.asrVariantTriggers).not.toContain("候補をメール");
+    expect(item!.asrVariantTriggers).not.toContain("候補者像");
+    expect(item!.asrVariantTriggers).not.toContain("ご確認事項はありますか");
+    // explicit signals must remain
+    expect(item!.asrVariantTriggers).toContain("整理させてください");
+    expect(item!.asrVariantTriggers).toContain("まとめると");
+    expect(item!.asrVariantTriggers).toContain("進め方でよろしいでしょうか");
+  });
+
+  it("Manual orb v4 DoD: volume_cycle and decision_structure use TTS-natural Japanese (not the compressed orb-fail forms)", () => {
+    const volume = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "volume_cycle"
+    );
+    const decision = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "decision_structure"
+    );
+    expect(volume).toBeDefined();
+    expect(decision).toBeDefined();
+    // volume_cycle.allowedAnswer must use the natural form for TTS readability
+    expect(volume!.allowedAnswer).toContain("月末と月の初め");
+    expect(volume!.allowedAnswer).toContain("月曜日の午前中");
+    expect(volume!.allowedAnswer).toContain("取り扱い商品が切り替わる時期");
+    // The compressed forms must NOT appear in the live allowedAnswer (TTS reads them harshly)
+    expect(volume!.allowedAnswer).not.toContain("月末月初");
+    expect(volume!.allowedAnswer).not.toContain("月曜午前、商材切替時");
+    // decision_structure.allowedAnswer must use the natural 現場 phrasing
+    expect(decision!.allowedAnswer).toContain("候補者が現場に合うかどうかの最終判断");
+    expect(decision!.allowedAnswer).not.toContain("現場適合判断");
+  });
+
+  it("Manual orb v4 DoD: closing_summary allowedAnswer uses the TTS-friendly katakana アデコ form", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "closing_summary"
+    );
+    expect(item).toBeDefined();
+    // The runtime utterance example must use アデコ (katakana) so TTS reads it as アデコ, not アデッコ
+    expect(item!.allowedAnswer).toContain("アデコさんの派遣の特徴や");
+    expect(item!.allowedAnswer).not.toContain("Adeccoさんの派遣の特徴や");
+  });
+
+  it("Manual orb v3 DoD: shallowGuards include anti-leak entries for deep intents (decision_structure / next_step_close / competition / commercial_terms / volume_cycle / first_proposal_window)", () => {
+    const md = renderDisclosureLedgerForPrompt();
+    // For each at-risk deep intent, the rendered Markdown must contain a 今の応答に含めない line
+    // that explicitly forbids appending closing_summary content.
+    const deepIntents = [
+      "decision_structure",
+      "next_step_close",
+      "competition",
+      "commercial_terms",
+      "volume_cycle",
+      "first_proposal_window",
+    ];
+    for (const intent of deepIntents) {
+      // Each intent's H2 block must contain an anti-leak guard.
+      // We assert the guard text mentions at least one of: 要約合意文 / Adecco 強み逆質問 / 続けて出さない.
+      const blockStart = md.indexOf(`## ${intent}`);
+      expect(blockStart, `## ${intent} block must exist`).toBeGreaterThan(-1);
+      const nextBlockStart = md.indexOf("\n## ", blockStart + 1);
+      const block = nextBlockStart === -1 ? md.slice(blockStart) : md.slice(blockStart, nextBlockStart);
+      expect(block, `${intent} block must include 今の応答に含めない anti-leak line`).toContain("今の応答に含めない");
+      expect(block, `${intent} guard must forbid Adecco reverse question or summary agreement leak`).toMatch(
+        /(要約合意文|Adecco 強み逆質問|続けて出さない)/
+      );
+    }
   });
 
   it("requires every item to set doNotAdvanceLedgerAutomatically=true (no sequential reveal)", () => {
@@ -147,17 +235,23 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     );
   });
 
-  it("only allows closing_summary to trigger the Adecco reverse question", () => {
+  it("only allows closing_summary to trigger the Adecco/アデコ reverse question", () => {
     const closing = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
       (item) => item.triggerIntent === "closing_summary"
     );
     expect(closing).toBeDefined();
-    expect(closing!.allowedAnswer).toContain("Adeccoさんの派遣の特徴や");
+    // Manual orb v4: katakana form is the runtime-preferred phrasing.
+    expect(closing!.allowedAnswer).toContain("アデコさんの派遣の特徴や");
 
+    // No other trigger's allowedAnswer may contain the reverse-question phrase
+    // in EITHER the Adecco (英字) or アデコ (カタカナ) form.
     for (const item of STAFFING_ADECCO_DISCLOSURE_LEDGER) {
       if (item.triggerIntent === "closing_summary") continue;
       expect(item.allowedAnswer, item.triggerIntent).not.toContain(
         "Adeccoさんの派遣の特徴"
+      );
+      expect(item.allowedAnswer, item.triggerIntent).not.toContain(
+        "アデコさんの派遣の特徴"
       );
     }
   });

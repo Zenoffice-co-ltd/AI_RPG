@@ -42,7 +42,8 @@ describe("compileStaffingReferenceScenario", () => {
     expect(compiled.assets.agentSystemPrompt).toContain("# Tone and Response Style");
     expect(compiled.assets.agentSystemPrompt).toContain("# Critical Live Behavior");
     expect(compiled.assets.agentSystemPrompt).toContain("# Disclosure Ledger");
-    expect(compiled.assets.agentSystemPrompt).toContain("# Adecco Reverse Question Rule");
+    // Manual orb v4: section heading carries dual-form Adecco / アデコ marker.
+    expect(compiled.assets.agentSystemPrompt).toContain("# Adecco / アデコ Reverse Question Rule");
     expect(compiled.assets.agentSystemPrompt).toContain("# Silence and Ambiguity Handling");
     expect(compiled.assets.agentSystemPrompt).toContain("# Guardrails");
     // Reference Sections were removed in DoD recovery to avoid duplication
@@ -50,7 +51,10 @@ describe("compileStaffingReferenceScenario", () => {
 
     // Persona / coaching prohibition retained (rephrased into new sections)
     expect(compiled.assets.agentSystemPrompt).toContain("ロープレコーチ");
-    expect(compiled.assets.agentSystemPrompt).toContain("Adeccoさんの派遣の特徴や");
+    // Manual orb v4: katakana アデコ form is the runtime-preferred phrasing.
+    // Adecco form is also retained in forbidden-utterance examples (rendered prompt forbids both forms).
+    expect(compiled.assets.agentSystemPrompt).toContain("アデコさんの派遣の特徴");
+    expect(compiled.assets.agentSystemPrompt).toContain("Adecco さんの派遣の特徴");
     expect(compiled.assets.agentSystemPrompt).toContain("千五百円から");
 
     // Disclosure Ledger trigger-intent ids must be embedded (not sequence-based)

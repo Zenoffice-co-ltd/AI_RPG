@@ -1,7 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <lexicon version="1.0" xmlns="http://www.w3.org/2005/01/pronunciation-lexicon">
+  <!-- Manual orb v4 (2026-04-26): Adecco brand name variants. TTS reads
+       English "Adecco" as 'アデッコ'; force all casings to カナ アデコ. -->
   <lexeme>
     <grapheme>Adecco</grapheme>
+    <alias>アデコ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>ADECCO</grapheme>
+    <alias>アデコ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>adecco</grapheme>
     <alias>アデコ</alias>
   </lexeme>
   <lexeme>
