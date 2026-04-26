@@ -6,7 +6,7 @@ import {
 } from "./staffingAdeccoLedger";
 
 describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
-  it("contains the 20 trigger intents required by DoD 1 + Auto-Gate Recovery + manual orb v6 Excel-design coverage", () => {
+  it("contains the 21 trigger intents required by DoD 1 + Auto-Gate Recovery + manual orb v6 Excel-design coverage + manual orb v8 culture_fit split", () => {
     const expectedTriggers = [
       "identity_self",
       "overview_shallow",
@@ -24,9 +24,11 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
       "start_date_only",
       "urgency_or_submission_deadline",
       "commercial_terms",
-      // v6 (Excel design Sheet 03 §6 + §7): forced ranking + culture fit の独立 trigger
+      // v6 (Excel design Sheet 03 §6): forced ranking 独立 trigger
       "selection_priority_ranking",
-      "culture_fit_question",
+      // v8 (manual orb v7 で culture_fit_question 1 trigger だと repetition が発生したため分離):
+      "supervisor_personality_question",
+      "team_atmosphere_question",
       "next_step_close",
       "closing_summary",
       "coaching_request",
@@ -36,11 +38,12 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     );
   });
 
-  it("Manual orb v6 (Excel design coverage): handover_method / selection_priority_ranking / culture_fit_question triggers exist with substantive allowedAnswer", () => {
+  it("Manual orb v6+v8 (Excel design coverage): handover_method / selection_priority_ranking / supervisor_personality_question / team_atmosphere_question triggers exist with substantive allowedAnswer", () => {
     const newTriggers = [
       "handover_method",
       "selection_priority_ranking",
-      "culture_fit_question",
+      "supervisor_personality_question",
+      "team_atmosphere_question",
     ];
     for (const triggerIntent of newTriggers) {
       const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
@@ -71,14 +74,59 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
       expect.arrayContaining(["優先順位", "最優先", "must と want"])
     );
 
-    const culture = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
-      (i) => i.triggerIntent === "culture_fit_question"
+    // v8 split: supervisor_personality_question handles 指揮命令者の人柄 + 合う/合わないタイプ ONLY
+    const supervisor = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "supervisor_personality_question"
     );
-    expect(culture!.allowedAnswer).toContain("十二名");
-    expect(culture!.allowedAnswer).toContain("協調型");
-    expect(culture!.asrVariantTriggers).toEqual(
-      expect.arrayContaining(["雰囲気", "指揮命令者", "合わない"])
+    expect(supervisor!.allowedAnswer).toContain("課長");
+    expect(supervisor!.allowedAnswer).toContain("協調型");
+    // 指揮命令者の人柄 trigger なので部署人数・服装は含めない
+    expect(supervisor!.allowedAnswer).not.toContain("十二名");
+    expect(supervisor!.allowedAnswer).not.toContain("オフィスカジュアル");
+    expect(supervisor!.asrVariantTriggers).toEqual(
+      expect.arrayContaining(["指揮命令者", "課長", "合わない"])
     );
+
+    // v8 split: team_atmosphere_question handles 部署構成 + 服装 + 休憩室 ONLY
+    const atmosphere = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "team_atmosphere_question"
+    );
+    expect(atmosphere!.allowedAnswer).toContain("十二名");
+    expect(atmosphere!.allowedAnswer).toContain("オフィスカジュアル");
+    expect(atmosphere!.allowedAnswer).toContain("休憩室");
+    // 職場環境 trigger なので 課長の人柄・合う/合わないタイプは含めない
+    expect(atmosphere!.allowedAnswer).not.toContain("協調型");
+    expect(atmosphere!.allowedAnswer).not.toContain("正確性に厳しい");
+    expect(atmosphere!.asrVariantTriggers).toEqual(
+      expect.arrayContaining(["雰囲気", "男女比", "服装"])
+    );
+  });
+
+  it("Manual orb v8 P0: identity_self.negativeExamples include the literal stage-direction smoking guns", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "identity_self"
+    );
+    expect(item).toBeDefined();
+    const joined = item!.negativeExamples.join("|");
+    // Manual orb v7→v8: AI emitted the literal stage direction "（何も返さず...）"
+    // — must be locked into negativeExamples as a forbidden output.
+    expect(joined).toContain("（何も返さず、ユーザーの次の発話を待ちます）");
+    expect(joined).toContain("（沈黙）");
+    expect(joined).toContain("（応答なし）");
+    expect(joined).toContain("（次の発話を待つ）");
+    expect(joined).toContain("（保留）");
+  });
+
+  it("Manual orb v8 P0: identity_self.intentDescription forbids stage direction output and references manual orb v8", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "identity_self"
+    );
+    expect(item).toBeDefined();
+    expect(item!.intentDescription).toContain("manual orb v8");
+    expect(item!.intentDescription).toContain(
+      "応答テキストを 1 文字も生成しない"
+    );
+    expect(item!.intentDescription).toContain("stage direction");
   });
 
   it("Manual orb v6 (Excel design coverage): job_detail_tasks.allowedAnswer mentions データ入力 (Excel SAP→データ入力 置換)", () => {
@@ -386,6 +434,9 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
       "commercial_terms",
       "volume_cycle",
       "first_proposal_window",
+      // v8 split (manual orb v7→v8): culture_fit_question を 2 trigger 化
+      "supervisor_personality_question",
+      "team_atmosphere_question",
     ];
     for (const intent of deepIntents) {
       // Each intent's H2 block must contain an anti-leak guard.
