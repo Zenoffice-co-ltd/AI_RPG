@@ -5,22 +5,25 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev --turbopack",
-    "lint": "eslint app components lib server --ext .ts,.tsx --no-error-on-unmatched-pattern",
+    "lint": "eslint app components lib server --ext .ts,.tsx --ignore-pattern '**/*.test.ts' --ignore-pattern '**/*.test.tsx' --no-error-on-unmatched-pattern",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config ../../vitest.config.ts --passWithNoTests",
-    "test:e2e": "playwright test --config ../../playwright.config.ts"
+    "test:e2e": "playwright test --config ../../playwright.config.ts",
+    "test:visual": "playwright test --config ../../playwright.visual.config.ts"
   },
   "dependencies": {
+    "@elevenlabs/react": "^1.2.1",
     "@google-cloud/secret-manager": "^6.1.0",
+    "@google-cloud/tasks": "^6.2.1",
     "@top-performer/domain": "workspace:*",
     "@top-performer/firestore": "workspace:*",
     "@top-performer/scenario-engine": "workspace:*",
     "@top-performer/scoring": "workspace:*",
     "@top-performer/vendors": "workspace:*",
-    "@google-cloud/tasks": "^6.2.1",
     "clsx": "^2.1.1",
     "firebase-admin": "^13.7.0",
     "livekit-client": "^2.18.0",
+    "lucide-react": "^1.11.0",
     "next": "16.2.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -28,6 +31,13 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.13",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
+    "jsdom": "^29.0.2",
+    "pixelmatch": "^7.1.0",
+    "pngjs": "^7.0.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.2.2"
   }

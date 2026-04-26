@@ -1,7 +1,9 @@
 @import "tailwindcss";
+@import "../styles/design-tokens.css";
 
 :root {
-  --font-sans: var(--font-mplus), sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Noto Sans JP",
+    "Hiragino Sans", "Yu Gothic", "Segoe UI", sans-serif;
   --app-bg: #edf4fb;
   --panel-bg: rgba(255, 255, 255, 0.72);
   --panel-border: rgba(255, 255, 255, 0.72);
@@ -20,11 +22,8 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.9), transparent 30%),
-    radial-gradient(circle at 86% 18%, rgba(96, 165, 250, 0.28), transparent 18%),
-    radial-gradient(circle at 78% 78%, rgba(15, 23, 42, 0.08), transparent 24%),
-    linear-gradient(180deg, #f6fbff 0%, #ebf3fa 46%, #e4edf7 100%);
+  margin: 0;
+  background: #ffffff;
   color: var(--ink);
   font-family: var(--font-sans);
 }
