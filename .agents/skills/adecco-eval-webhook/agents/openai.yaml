@@ -1,0 +1,4 @@
+interface:
+  display_name: "Adecco Eval Webhook"
+  short_description: "Deploy ElevenLabs post-call evaluation email workflows."
+  default_prompt: "Set up or update the Adecco ElevenLabs post-call evaluation webhook and email report workflow."
