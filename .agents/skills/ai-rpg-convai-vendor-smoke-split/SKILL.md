@@ -87,6 +87,26 @@ When applying the split to a new scenario:
 - [ ] Update `docs/OPERATIONS.md` with the rationale and the testPolicy contract.
 - [ ] Update the scenario-specific skill (e.g. `ai-rpg-staffing-reference-scenario`) to reflect new vendor count.
 
+## Publish HTTP 400 retry pattern (manual orb v5 lesson, 2026-04-26)
+
+`pnpm publish:scenario` may fail with HTTP 400 from ElevenLabs and an error message like:
+
+```
+errorCode: "invalid_parameters"
+errorMessage: "Invalid conversation config: String should have at least 1 character"
+```
+
+This **looks** like the request payload is malformed, but it can also be **vendor-side flake**. Manual orb v5 publish observed: 1st attempt → HTTP 400 with the above message; immediate 2nd attempt with **identical code and identical payload** → 8/8 PASS.
+
+Retry-once-before-debugging protocol:
+
+1. If HTTP 400 with `String should have at least 1 character` (or similar non-specific Pydantic-style validation error) appears, **re-run `pnpm publish:scenario` once** before investigating payload structure.
+2. If the retry succeeds, log the flake to `docs/OPERATIONS.md` (`Latest execution` section) and continue. No code change needed.
+3. If the retry also fails with the **same** error, then start payload investigation: search for empty string fields in `compileStaffingReferenceScenario.ts` output, check `agentSystemPrompt` length, check whether any `allowedAnswer` rendered as whitespace-only.
+4. Distinguish from genuine retryable errors (`429`, `5xx`, network timeouts) which have their own retry policy in the vendor client.
+
+This is **separate from** the documented multi-turn judge variance (13/22 〜 18/22 PASS variance). The HTTP 400 flake is a **request-acceptance** flake at the API layer, not a judge-evaluation flake.
+
 ## Guardrails
 
 - This is **NOT a test weakening**. The 22+ rich observations are still asserted — just in a deterministic rule-based environment instead of a non-deterministic vendor judge.

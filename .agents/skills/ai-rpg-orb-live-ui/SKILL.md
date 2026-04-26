@@ -9,12 +9,17 @@ Use this skill for the customer-facing Orb roleplay UI under `apps/web`.
 
 ## Canonical Files
 
+- `apps/web/app/demo/adecco-roleplay/page.tsx`
+- `apps/web/app/demo/adecco-roleplay/access/route.ts`
 - `apps/web/app/demo/adecco-orb/page.tsx`
 - `apps/web/components/roleplay/*`
 - `apps/web/lib/roleplay/*`
 - `apps/web/tests/e2e/app.spec.ts`
 - `apps/web/tests/visual/adecco-orb.visual.spec.ts`
 - `docs/qa.md`
+
+Canonical customer route is `/demo/adecco-roleplay`. Keep `/demo/adecco-orb`
+as a backwards-compatible redirect that preserves query parameters.
 
 ## Mode Contract
 
@@ -95,6 +100,25 @@ Do not mark live complete from fakeLive, mock, or visual tests alone. `docs/qa.m
 
 If this was not run, state `実装済み・live未検証`.
 
+## Production Branch Alignment
+
+After every Adecco Agent publish, verify the web runtime points at the published
+branch:
+
+```bash
+gcloud run services describe mendan --region asia-northeast1 --project adecco-mendan --format=json
+gcloud run services describe roleplay-ui --region asia-northeast1 --project adecco-mendan --format=json
+```
+
+- Primary customer service: `mendan`.
+- Compatibility/legacy service: `roleplay-ui`.
+- Both services must use the publish artifact's latest `binding.elevenBranchId`
+  as `ELEVENLABS_BRANCH_ID`.
+- If the UI connects but old Agent behavior persists, suspect Cloud Run env
+  branch mismatch before debugging React.
+- Do not deploy or inspect production state in `rhc-analytics-prod`; use
+  `--project adecco-mendan` on every production gcloud command.
+
 ## Manual Orb Test 1〜8 Protocol (Adecco Manufacturer Order Hearing)
 
 For the Adecco staffing roleplay scenario, manual orb verification follows a standardized 8-test script tied to Final Release DoD v2 §10. Use this script every time the prompt or voice profile changes.
@@ -123,7 +147,9 @@ Environment: Chrome, quiet room, microphone permission granted, transcript recor
 4. **Test 4 — Business task staged disclosure**: Q1 `営業事務ですよね？` → 受発注/納期調整 program. Q2 `主業務はどれ？` → 受発注入力+納期調整中心. Q3 `件数や繁忙サイクルは？` → 月600〜700件 + ピーク.
 5. **Test 5 — Competition/decision staged**: Q1 `他社にも並行で？` → もう一社の大手. Q2 `先行提案期間は？` → 三営業日. Q3 `決定者は？` → 人事+現場課長 二段. **Critical**: after Q3, the agent must STOP — it must NOT append `はい、大きくはその整理で合っています` / `補足すると` / `Adeccoさんの派遣の特徴` / `他社さんとの違い`. Closing_summary content fired here = P0.
 6. **Test 5.5 — Conditions before summary** (NEW, Manual Orb v3 — REQUIRED before Test 6, do NOT skip): Q1 `開始時期は？` → `開始は6月1日`. Q2 `就業時間や残業は？` → `8:45-17:30 / 月10-15h`. Q3 `請求単価のレンジは？` → `1,750-1,900円`. Q4 `優先したい経験や人物面は？` → `受発注経験 + 対外調整 + 正確性 + 協調性`. Each Q must end with its own intent's answer only — no closing_summary leak.
-7. **Test 6 — Closing summary + Adecco reverse question**: read learner's full numeric summary turn that bundles ALL conditions gathered in Tests 1〜5.5 (1名/6/1/8:45-17:30/月10-15h/1750-1900円/受発注経験+対外調整+正確性+協調性/水曜まで) **with an explicit summary signal** (`整理させてください` / `という進め方でよろしいでしょうか`). Agent must (a) acknowledge/correct, (b) ask ONE Adecco strength/違い question. Skipping Test 5.5 makes this turn artificially short and tests an unrealistic scenario.
+7. **Test 6A — Closing summary 正常系 + アデコ逆質問**: read learner's full numeric summary turn that bundles ALL conditions gathered in Tests 1〜5.5 (1名/6/1/8:45-17:30/月10-15h/**1,750-1,900円**/受発注経験+対外調整+正確性+協調性/水曜まで) **with an explicit summary signal** (`整理させてください` / `という進め方でよろしいでしょうか`). Agent must (a) acknowledge/correct, (b) ask ONE アデコ strength/違い question. Skipping Test 5.5 makes this turn artificially short and tests an unrealistic scenario.
+7.1. **Test 6B — Closing summary 数値誤認ガード** (NEW, Manual Orb v5): summarize with one major value INTENTIONALLY WRONG. Recommended variant: 請求単価を `5万円から10万円` と誤要約 (真値 1,750-1,900円). Agent must (a) start with or clearly contain `違います`, (b) provide the correct value (1,750-1,900円), (c) NOT contain `はい、大きくはその整理で合っています` or hedging (`だいたい合っています` / `少し違うかもしれません`), AND (d) **NOT proceed to the アデコ reverse question in the same response** (correction must end the turn so the learner can absorb it). FAIL if any of these are violated — this is a P0 (see #14 below).
+7.2. **Test 6C — 沈黙時の催促禁止** (NEW, Manual Orb v5): say nothing for 30+ seconds after Test 6A completes. Agent must remain SILENT — no `お話しはお済みでしょうか` / `ご連絡いただければと思います` / `まだご検討中でしょうか` / `いかがでしょうか` / `お待ちしております` / `まだお話しになられていますでしょうか`. P1 (see #15 below).
 8. **Test 7 — No coaching**: ask `何を聞けば良いですか？` Agent must give short deflection (`ご確認したい点からで大丈夫です。`); no item enumeration.
 9. **Test 8 — Natural Japanese (whole-conversation observation)**: 1〜3 sentences per reply; no bullet points; `どの点についてですか` ≤ 2 in session, never 2 turns consecutive; `まだご検討中でしょうか` zero in regular replies.
 
@@ -144,6 +170,8 @@ If ANY of these occur during Test 1〜5.5 / 6〜8, release is blocked and the ag
 11. Test 5.5 was skipped — Test 6 results are not diagnostic if conditions were not actually hearable beforehand.
 12. **TTS reads English `Adecco` as 'アデッコ' instead of 'アデコ'** (Manual Orb v4, 2026-04-26). The agent is supposed to use カタカナ `アデコ` in runtime utterances; if you hear 'アデッコさん', the prompt source has English `Adecco` leaking into an `allowedAnswer` or rendered prompt example. Fix path: edit prompt source per `ai-rpg-staffing-reference-scenario` § "Brand-name TTS rewrite categorization" (5-bucket categorization). The remote pronunciation dictionary is a defense-in-depth backstop — Phase 2C handoff at `data/handoff/manual-orb-v4-phase2-handoff.md` covers the upload steps to make `Adecco → アデコ` work even when source text leaks the English form.
 13. **Compressed Japanese (月末月初 / 月曜午前 / 商材切替時 / 現場適合判断) sounds harsh / business-jargony in TTS** (Manual Orb v4, 2026-04-26). Agent should say `月末と月の初め` / `月曜日の午前中` / `取り扱い商品が切り替わる時期` / `候補者が現場に合うかどうかの最終判断`. If you hear the compressed form, prompt source needs naturalization in `volume_cycle.allowedAnswer` or `decision_structure.allowedAnswer`. Both forms are accepted by tests for backwards compat, but the natural form is preferred for live orb.
+14. **誤数値要約に AI が同意してしまう** (Manual Orb v5 P0, 2026-04-26). Test 6B で意図的に誤った請求単価 (5万円〜10万円) を要約しても AI が「はい、大きくはその整理で合っています」と返したり、「だいたい合っていますが」と曖昧に流したり、訂正と同時にアデコ逆質問へ進んだ場合は P0。Fix path: `ai-rpg-staffing-reference-scenario` § "Manual Orb v5 lesson: トリガ条件と応答内容検証は別レイヤー" (canonical truth table + Case 1/2 allowedAnswer + hedging negativeExamples + ConvAI 回帰テスト追加)。
+15. **沈黙時に AI が勝手に催促文を発話する** (Manual Orb v5 P1, 2026-04-26). Test 6C で 30 秒沈黙したら AI が「お話しはお済みでしょうか」「ご連絡いただければと思います」「まだご検討中でしょうか」「まだお話しになられていますでしょうか」等を発話した場合は P1。原因は `compileStaffingReferenceScenario.ts` の Silence and Ambiguity Handling 節が「短く一度だけ促します」と勝手に許可していること (ElevenLabs プラットフォームの default 挙動ではない)。Fix: 該当文を削除 + 禁止フレーズ列挙。
 
 ### Recording rule
 
