@@ -117,6 +117,16 @@ pnpm publish:scenario -- --scenario accounting_clerk_enterprise_ap_busy_manager_
 
 When in doubt, search for callers of `normalizeJaTextForTts` before assuming any change you make there will affect live behavior.
 
+### `buildLiveTurnConfig.softTimeout` も live orb 発話を生成する (manual orb v7 lesson, 2026-04-27)
+
+`packages/scenario-engine/src/publishAgent.ts` の `buildLiveTurnConfig()` が返す `softTimeout` は ElevenLabs ConvAI に **live orb 発話を生成させる** 設定: intermediate silence (turn 完了未満の途中沈黙) で `softTimeout.message` の literal 文字列を agent が発話する。
+
+**過去事例**: Adecco lane に `softTimeout: { timeoutSeconds: 3, message: "承知しました。少し整理しますね。" }` を入れた結果、orb の AI 応答 **本文の前に毎回「承知しました。少し整理しますね。」** が出る不具合 (manual orb v7)。prompt source には何も書いていなかったため、prompt 側の修正では解消できなかった。
+
+**判別法**: orb で意図しないフィラー / 定型句 / 前置き文が出た場合、まず publish snapshot (`data/generated/publish/<scenario>.json`) の `conversation_config.turn.soft_timeout_config.message` を確認する。literal 一致した場合は vendor turn config 由来 (prompt 由来ではない)。詳細は `ai-rpg-convai-vendor-smoke-split` § softTimeout filler 落とし穴 を参照。
+
+**Adecco lane の現状**: v7 fix 以降は `softTimeout` 完全削除済。intermediate silence ではフィラーなし。新規 scenario で turn-taking config を入れる際は、`softTimeout.message` を意図しない literal 発話源として扱うこと。
+
 ## TTS pronunciation pitfalls (eleven_v3 + textNormalisationType=elevenlabs)
 
 Vendor TTS (eleven_v3 with `textNormalisationType: "elevenlabs"`) misreads several patterns when written in source-text form. Prefer source-side rewrite over relying on dictionary lexemes alone:

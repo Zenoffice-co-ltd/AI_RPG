@@ -153,6 +153,14 @@ Environment: Chrome, quiet room, microphone permission granted, transcript recor
 8. **Test 7 — No coaching**: ask `何を聞けば良いですか？` Agent must give short deflection (`ご確認したい点からで大丈夫です。`); no item enumeration.
 9. **Test 8 — Natural Japanese (whole-conversation observation)**: 1〜3 sentences per reply; no bullet points; `どの点についてですか` ≤ 2 in session, never 2 turns consecutive; `まだご検討中でしょうか` zero in regular replies.
 
+### v6 / v8 で追加された Test variants
+
+- **Test 4.5 — 引継ぎ (handover_method, NEW v6)**: ask `引継ぎはどのように進めますか？` / `OJT は何週間ですか？` / `独り立ちまでの期間は？`. Agent answers ONLY 引継ぎ情報 (二週間の重なり OJT + マニュアル + だいたい一か月) — does NOT leak competition / decision / first_proposal_window.
+- **Test 5.7 — forced ranking (selection_priority_ranking, NEW v6)**: ask `受発注経験・データ入力・業界経験・人柄・開始日のうち何を最優先で見ますか？` / `must と want を分けるとどうですか？` / `年齢はどこまで緩和できますか？`. Agent must (a) put 受発注経験 as 最優先, (b) state 年齢は目安, (c) NOT give vague "全部同じくらい大事です" answer.
+- **Test 5.8a — 指揮命令者の人柄 (supervisor_personality_question, NEW v8 split)**: ask `指揮命令者はどんな方ですか？` / `合わないタイプは？`. Agent answers ONLY 課長の人柄 (落ち着いて正確性に厳しい) + 合う/合わないタイプ (協調型 OK / 自己流 NG) in 1〜2 sentences. Does NOT mention 部署人数・男女比・服装・休憩室 (those belong to Test 5.8b). NEW v9: Response opening must NOT have filler prefix (「承知しました。少し整理しますね。」「お待ちください。」).
+- **Test 5.8b — 部署の雰囲気 (team_atmosphere_question, NEW v8 split)**: ask `部署の雰囲気は？` / `男女比は？` / `服装は？` / `休憩室はありますか？`. Agent answers ONLY 部署構成 (12 名 / 女性 8 / 男性 4 / 30〜40 代) + 派遣スタッフ数 + 服装 + 休憩室 in 1〜2 sentences. Does NOT mention 課長の人柄 / 合う/合わないタイプ (those belong to Test 5.8a). NEW v9: Response opening must NOT have filler prefix.
+- **Test 6 v7 variant — 「半」⇔「三十分」semantic equivalence**: in Test 6A summary, intentionally say `平日八時四十五分から十七時半` instead of `十七時三十分`. Agent MUST acknowledge as equivalent (not say "違います" — manual orb v7 P0 fix). The same goes for 一名 ⇔ 1名, 六月一日 ⇔ 6月1日, 千七百五十円 ⇔ 1,750円.
+
 ### P0 blockers (immediate release stop)
 
 If ANY of these occur during Test 1〜5.5 / 6〜8, release is blocked and the agent must NOT go to production:
@@ -172,6 +180,15 @@ If ANY of these occur during Test 1〜5.5 / 6〜8, release is blocked and the ag
 13. **Compressed Japanese (月末月初 / 月曜午前 / 商材切替時 / 現場適合判断) sounds harsh / business-jargony in TTS** (Manual Orb v4, 2026-04-26). Agent should say `月末と月の初め` / `月曜日の午前中` / `取り扱い商品が切り替わる時期` / `候補者が現場に合うかどうかの最終判断`. If you hear the compressed form, prompt source needs naturalization in `volume_cycle.allowedAnswer` or `decision_structure.allowedAnswer`. Both forms are accepted by tests for backwards compat, but the natural form is preferred for live orb.
 14. **誤数値要約に AI が同意してしまう** (Manual Orb v5 P0, 2026-04-26). Test 6B で意図的に誤った請求単価 (5万円〜10万円) を要約しても AI が「はい、大きくはその整理で合っています」と返したり、「だいたい合っていますが」と曖昧に流したり、訂正と同時にアデコ逆質問へ進んだ場合は P0。Fix path: `ai-rpg-staffing-reference-scenario` § "Manual Orb v5 lesson: トリガ条件と応答内容検証は別レイヤー" (canonical truth table + Case 1/2 allowedAnswer + hedging negativeExamples + ConvAI 回帰テスト追加)。
 15. **沈黙時に AI が勝手に催促文を発話する** (Manual Orb v5 P1, 2026-04-26). Test 6C で 30 秒沈黙したら AI が「お話しはお済みでしょうか」「ご連絡いただければと思います」「まだご検討中でしょうか」「まだお話しになられていますでしょうか」等を発話した場合は P1。原因は `compileStaffingReferenceScenario.ts` の Silence and Ambiguity Handling 節が「短く一度だけ促します」と勝手に許可していること (ElevenLabs プラットフォームの default 挙動ではない)。Fix: 該当文を削除 + 禁止フレーズ列挙。
+16. **「データ入力」が業務分解質問への回答に含まれない** (Manual Orb v6 P0, 2026-04-26). Test 4 Q2 で AI が「受発注入力と納期調整が中心です」だけで止まり「データ入力」が含まれない場合は P0。Excel 設計書 (Sheet 02 業務リスト + Sheet 05 必須#2) は「データ入力」を明示している。Fix: `job_detail_tasks.allowedAnswer` + `core_tasks` hidden fact に「データ入力」追加。
+17. **引継ぎ質問に答えられない / 競合に話を逸らす** (Manual Orb v6 P0). Test 4.5 で「引継ぎはどう進めますか？」と聞いたのに AI が独立した引継ぎ情報を返さない / 競合状況を返してしまう場合は P0。Fix: `handover_method` 独立 trigger を追加 (volume_cycle と分離)。
+18. **forced ranking に「全部同じくらい大事」と曖昧回答** (Manual Orb v6 P0). Test 5.7 で must / want forced ranking を引き出した際 AI が優先順位を出さない場合は P0。Fix: `selection_priority_ranking` 独立 trigger を追加し canonical answer に「受発注経験 最優先」「年齢は目安」を明示。
+19. **「年齢は目安」が出ない** (Manual Orb v6 P0). Test 5.7 forced ranking で AI が年齢を絶対条件として扱った場合は P0。Fix: 同上 (`selection_priority_ranking.allowedAnswer` に「年齢は目安で絶対条件ではありません」明示)。
+20. **職場環境 / 指揮命令者 / 合う・合わない人物像 を答えられない** (Manual Orb v6 P0). Test 5.8 で AI がカルチャーフィット情報を返さない場合は P0。Fix: v8 で `supervisor_personality_question` + `team_atmosphere_question` の 2 trigger に分離 (詳細は #24 参照)。
+21. **「十七時半」⇔「十七時三十分」の同義表記を「違います」訂正してしまう** (Manual Orb v7 P0, 2026-04-27). Test 6 で学習者が「平日八時四十五分から**十七時半**」と要約した時、AI が「違います。就業時間は十七時半ではなく、十七時三十分です」と返した場合は P0。半 = 三十分、漢数字 ⇔ 算用数字、千円 ⇔ 1,000円 はすべて意味的同義。Fix: `closing_summary.intentDescription` に「表記揺れの同義扱い」セクション追加 + smoking-gun を `negativeExamples` に lock。
+22. **AI が prompt 指示文「（何も返さず…）」を literal 発話してしまう** (Manual Orb v8 P0, 2026-04-26). 「うん」「はい」短い相槌に対して AI が「（何も返さず、ユーザーの次の発話を待ちます）」「（沈黙）」「（応答なし）」のような括弧付き stage direction を読み上げた場合は P0。LLM が prompt 内の instructional text を template と誤解する class の問題 (v5 の 5万円〜10万円 hallucination と同型)。Fix path: `ai-rpg-staffing-reference-scenario` § "Manual Orb v8/v9 lesson" Pattern 3 (Stage direction smoking-gun lock)。
+23. **culture_fit_question が連続質問で同じ canonical を repeat する** (Manual Orb v8 P1, 2026-04-26). Test 5.8 で「指揮命令者は？」 → full canonical → 「部署の雰囲気は？」 → **同じ canonical を再度フル emit + truncate** された場合は P1。Fix: v8 で `supervisor_personality_question` + `team_atmosphere_question` の 2 trigger に分離 (Test 5.8a + 5.8b)。詳細は `ai-rpg-staffing-reference-scenario` § Pattern 2 (Trigger split)。
+24. **AI 応答冒頭に取りつくろいフィラー** (Manual Orb v9 P1, 2026-04-27). 「承知しました。少し整理しますね。<canonical>」「承知しました。<canonical>」「少し整理しますね。<canonical>」「お待ちください。<canonical>」のような filler prefix が応答の最初の文に置かれた場合は P1。原因は prompt 内の「allow vs ban conflict」(承知しました 一般 allow + compound ban の coexistence)。Fix: `ai-rpg-staffing-reference-scenario` § Pattern 1 (Allow vs ban conflict resolution) — allow を **位置で制限** された stricter form に変換 + smoking-gun lock + 高 salience `# Response Opening Format` 独立セクション昇格。
 
 ### Recording rule
 
