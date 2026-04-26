@@ -54,6 +54,13 @@ type ValidationResult = {
   parsed: unknown;
 };
 
+type ReportMetadata = {
+  sessionId: string;
+  conversationId: string | null;
+  startedAt: string;
+  endedAt: string;
+};
+
 type GmailServiceAccount = {
   client_email: string;
   private_key: string;
@@ -257,6 +264,355 @@ async function loadPromptBundle() {
 
 async function loadEmailHtmlTemplate() {
   return readFile(join(getEmailTemplatesRoot(), "adecco_report_v2.html"), "utf8");
+}
+
+function htmlEscape(value: unknown) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function asReportObject(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asReportArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function asReportNumber(value: unknown, fallback = 0) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function asReportString(value: unknown, fallback = "") {
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
+function asStringList(value: unknown) {
+  return asReportArray(value)
+    .map((item) => String(item ?? "").trim())
+    .filter(Boolean);
+}
+
+function formatPoint(value: unknown, digits = 1) {
+  return asReportNumber(value).toFixed(digits);
+}
+
+function formatPercent(value: unknown) {
+  return Math.round(asReportNumber(value) * 100);
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: string) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get(
+    "minute"
+  )}`;
+}
+
+function formatSessionTime(startedAt: string, endedAt: string) {
+  const start = new Date(startedAt);
+  const end = new Date(endedAt);
+  const startLabel = formatDateTime(startedAt);
+  const endLabel = formatDateTime(endedAt);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return `${startLabel} - ${endLabel}`;
+  }
+
+  const minutes = Math.max(0, Math.round((end.getTime() - start.getTime()) / 60000));
+  const endTime = endLabel.split(" ").at(-1) ?? endLabel;
+  return `${startLabel} - ${endTime}（${minutes}分）`;
+}
+
+function progressColor(points: number, maxPoints: number) {
+  const ratio = maxPoints > 0 ? points / maxPoints : 0;
+  if (ratio >= 0.8) {
+    return {
+      text: "#1f7a4f",
+      gradient: "linear-gradient(90deg,#1f7a4f,#3a9d6e)",
+      badgeBg: "#e8f5ee",
+      badgeText: "#1f7a4f",
+    };
+  }
+  if (ratio < 0.6) {
+    return {
+      text: "#b8761f",
+      gradient: "linear-gradient(90deg,#b8761f,#d49a4a)",
+      badgeBg: "#fef4e8",
+      badgeText: "#b8761f",
+    };
+  }
+  return {
+    text: "#0f2649",
+    gradient: "linear-gradient(90deg,#1a3a6b,#3d6bb3)",
+    badgeBg: "#eef4fd",
+    badgeText: "#0f2649",
+  };
+}
+
+function captureBadge(item: Record<string, unknown>) {
+  const judgement = asReportString(item["judgement"]);
+  const level = asReportNumber(item["capture_level"], -1);
+  if (judgement === "captured" || level === 1) {
+    return {
+      label: "取得",
+      bg: "#e8f5ee",
+      color: "#1f7a4f",
+    };
+  }
+  if (judgement === "partial" || level === 0.5) {
+    return {
+      label: "部分",
+      bg: "#fef4e8",
+      color: "#b8761f",
+    };
+  }
+  return {
+    label: "未取得",
+    bg: "#fdecec",
+    color: "#b8312f",
+  };
+}
+
+function replaceBetween(
+  html: string,
+  startMarker: string,
+  endMarker: string,
+  replacement: string
+) {
+  const start = html.indexOf(startMarker);
+  const end = html.indexOf(endMarker, start + startMarker.length);
+  if (start === -1 || end === -1) {
+    return html;
+  }
+  return (
+    html.slice(0, start + startMarker.length) +
+    replacement +
+    html.slice(end)
+  );
+}
+
+function replaceFirst(html: string, search: string | RegExp, replacement: string) {
+  return html.replace(search, replacement);
+}
+
+const RUBRIC_ORDER = [
+  ["coverage", "ヒアリング項目の網羅性"],
+  ["hearing_skill", "ヒアリングスキル"],
+  ["priority_clarity", "優先順位の明確化"],
+  ["deal_structure", "商談の全体構成力"],
+  ["business_behavior", "商談時の振る舞い"],
+  ["closing", "クロージング"],
+] as const;
+
+function renderRubricCards(report: Record<string, unknown>) {
+  const scores = asReportObject(report["rubric_scores"]);
+  return RUBRIC_ORDER.map(([key, fallbackLabel]) => {
+    const item = asReportObject(scores[key]);
+    const label = asReportString(item["label"], fallbackLabel);
+    const points = asReportNumber(item["points"]);
+    const maxPoints = asReportNumber(item["max_points"], key === "coverage" ? 30 : 10);
+    const reason = asReportString(item["reason"], "評価理由が取得できませんでした。");
+    const percent = maxPoints > 0 ? Math.min(100, Math.max(0, (points / maxPoints) * 100)) : 0;
+    const color = progressColor(points, maxPoints);
+    const badge =
+      points / Math.max(maxPoints, 1) >= 0.8
+        ? ' <span style="background-color:#e8f5ee;color:#1f7a4f;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;margin-left:6px;">高評価</span>'
+        : points / Math.max(maxPoints, 1) < 0.6
+          ? ' <span style="background-color:#fef4e8;padding:1px 6px;border-radius:3px;font-size:11px;color:#b8761f;font-weight:600;">要改善</span>'
+          : "";
+
+    return `
+
+<!-- ${key} -->
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom:14px;border:1px solid #e6eaf0;border-radius:6px;">
+<tr><td style="padding:16px 20px;">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+<tr>
+<td style="font-size:14px;font-weight:700;color:#1a2332;">${htmlEscape(label)}${badge}</td>
+<td align="right" style="font-size:13px;font-weight:700;color:${color.text};white-space:nowrap;"><span style="font-size:20px;">${formatPoint(points)}</span> <span style="color:#8898ad;font-size:12px;font-weight:500;">/ ${htmlEscape(maxPoints)}</span></td>
+</tr>
+</table>
+<div style="margin-top:8px;background-color:#eef0f4;height:6px;border-radius:3px;overflow:hidden;">
+<div style="background:${color.gradient};width:${percent.toFixed(0)}%;height:100%;"></div>
+</div>
+<div style="margin-top:10px;font-size:13px;color:#3a4756;line-height:1.65;">${badge.trim().startsWith("<span") && points / Math.max(maxPoints, 1) < 0.6 ? `${badge} ` : ""}${htmlEscape(reason)}</div>
+</td></tr>
+</table>`;
+  }).join("\n");
+}
+
+function renderMustCaptureRows(report: Record<string, unknown>) {
+  const items = asReportArray(report["must_capture_items"]);
+  return items.map((rawItem, index) => {
+    const item = asReportObject(rawItem);
+    const badge = captureBadge(item);
+    const id = asReportNumber(item["id"], index + 1);
+    const label = asReportString(item["label"], `項目${id}`);
+    const weight = item["weight_points"] === null ? "—" : String(item["weight_points"] ?? "—");
+    const background = index % 2 === 1 ? ' style="background-color:#fafbfc;"' : "";
+    const bottom = index === items.length - 1 ? "" : "border-bottom:1px solid #f0f2f5;";
+    const important =
+      id === 11
+        ? ' <span style="color:#b8312f;font-size:10px;font-weight:600;">★最重要</span>'
+        : "";
+
+    return `<tr${background}><td style="padding:11px 14px;color:#8898ad;${bottom}">${String(id).padStart(2, "0")}</td><td style="padding:11px 8px;color:#1a2332;${bottom}">${htmlEscape(label)}${important}</td><td align="center" style="padding:11px 8px;color:#5a6779;${bottom}">${htmlEscape(weight)}</td><td align="center" style="padding:11px 14px;${bottom}"><span style="background-color:${badge.bg};color:${badge.color};font-size:11px;padding:3px 10px;border-radius:10px;font-weight:600;">${badge.label}</span></td></tr>`;
+  }).join("\n\n");
+}
+
+function renderStrengths(report: Record<string, unknown>) {
+  const strengths = asStringList(report["strengths"]);
+  return `
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+${strengths.slice(0, 5).map((strength, index) => `
+<tr><td style="padding:10px 0;${index > 0 ? "border-top:1px dashed #e6eaf0;" : ""}">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
+<td width="32" valign="top" style="padding:2px 12px 0 0;"><div style="width:24px;height:24px;background-color:#1f7a4f;color:#ffffff;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:700;">${index + 1}</div></td>
+<td style="font-size:13px;color:#1a2332;line-height:1.7;">${htmlEscape(strength)}</td>
+</tr></table>
+</td></tr>`).join("\n")}
+</table>
+`;
+}
+
+function renderImprovements(report: Record<string, unknown>) {
+  const improvements = asStringList(report["improvement_points"]);
+  return improvements.slice(0, 5).map((point) => `
+<div style="background-color:#fdf6f6;border-left:3px solid #b8312f;padding:14px 18px;margin-bottom:10px;border-radius:0 4px 4px 0;">
+<div style="font-size:13px;font-weight:700;color:#1a2332;margin-bottom:4px;">${htmlEscape(point)}</div>
+</div>`).join("\n");
+}
+
+function renderFeedback(report: Record<string, unknown>) {
+  const feedback = asReportString(report["learner_feedback"], "フィードバックを取得できませんでした。");
+  const paragraphs = feedback.split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean);
+  return `
+<div style="background:linear-gradient(135deg,#f7faff,#eef4fd);padding:24px 26px;border-radius:8px;border:1px solid #d8e3f5;">
+<div style="font-size:14px;color:#1a2332;line-height:1.85;">
+${paragraphs.map((paragraph, index) => `<p style="margin:${index === paragraphs.length - 1 ? "0" : "0 0 14px 0"};">${htmlEscape(paragraph)}</p>`).join("\n")}
+</div>
+</div>
+`;
+}
+
+function renderTrainingActions(report: Record<string, unknown>) {
+  const actions = asStringList(report["next_training_actions"]);
+  return `
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+${actions.slice(0, 5).map((action, index, all) => `
+<tr><td valign="top" style="padding:12px 0;${index === all.length - 1 ? "" : "border-bottom:1px solid #eef0f4;"}">
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%"><tr>
+<td width="44" valign="top" style="padding:0 14px 0 0;"><div style="width:32px;height:32px;background:linear-gradient(135deg,#1a3a6b,#3d6bb3);color:#ffffff;border-radius:6px;text-align:center;line-height:32px;font-size:13px;font-weight:700;">${String(index + 1).padStart(2, "0")}</div></td>
+<td style="font-size:13px;color:#1a2332;line-height:1.7;">${htmlEscape(action)}</td>
+</tr></table>
+</td></tr>`).join("\n")}
+</table>
+`;
+}
+
+export function renderDynamicReportHtml(input: {
+  template: string;
+  report: Record<string, unknown>;
+  metadata: ReportMetadata;
+}) {
+  const summary = asReportObject(input.report["must_capture_summary"]);
+  const totalScore = formatPoint(input.report["total_score"]);
+  const gradeLabel = asReportString(input.report["grade_label"], "");
+  const grade = gradeLabel ? `Grade ${gradeLabel}` : "Grade -";
+  const weightedRatio = formatPercent(summary["weighted_capture_ratio"]);
+  const countRatio = formatPercent(summary["count_capture_ratio"]);
+  const capturedCount = asReportNumber(summary["captured_count"]);
+  const partialCount = asReportNumber(summary["partial_count"]);
+  const missedCount = asReportNumber(summary["missed_count"]);
+  const totalItems = capturedCount + partialCount + missedCount || asReportArray(input.report["must_capture_items"]).length || 18;
+  const sessionTime = formatSessionTime(input.metadata.startedAt, input.metadata.endedAt);
+  let html = input.template;
+
+  html = replaceFirst(html, "2026-04-27 09:00 - 09:18（18分）", htmlEscape(sessionTime));
+  html = replaceFirst(html, "住宅設備メーカー人事課主任", htmlEscape(CLIENT_ROLE));
+  html = replaceFirst(html, /<div style="font-size:64px;font-weight:700;color:#0f2649;line-height:1;letter-spacing:-2px;">.*?<span style="font-size:24px;color:#8898ad;font-weight:500;">\/100<\/span><\/div>/s, `<div style="font-size:64px;font-weight:700;color:#0f2649;line-height:1;letter-spacing:-2px;">${totalScore}<span style="font-size:24px;color:#8898ad;font-weight:500;">/100</span></div>`);
+  html = replaceFirst(html, /<div style="margin-top:14px;display:inline-block;background-color:#1a3a6b;color:#ffffff;padding:6px 18px;border-radius:20px;font-size:14px;font-weight:600;letter-spacing:1px;">.*?<\/div>/s, `<div style="margin-top:14px;display:inline-block;background-color:#1a3a6b;color:#ffffff;padding:6px 18px;border-radius:20px;font-size:14px;font-weight:600;letter-spacing:1px;">${htmlEscape(grade)}</div>`);
+  html = replaceFirst(html, /<span style="color:#0f2649;font-weight:700;">58%<\/span>/, `<span style="color:#0f2649;font-weight:700;">${weightedRatio}%</span>`);
+  html = replaceFirst(html, /<div style="background:linear-gradient\(90deg,#1a3a6b,#3d6bb3\);width:58%;height:100%;"><\/div>/, `<div style="background:linear-gradient(90deg,#1a3a6b,#3d6bb3);width:${weightedRatio}%;height:100%;"></div>`);
+  html = replaceFirst(html, /<span style="color:#0f2649;font-weight:700;">50%（9\/18）<\/span>/, `<span style="color:#0f2649;font-weight:700;">${countRatio}%（${capturedCount}/${totalItems}）</span>`);
+  html = replaceFirst(html, /<div style="background:linear-gradient\(90deg,#1a3a6b,#3d6bb3\);width:50%;height:100%;"><\/div>/, `<div style="background:linear-gradient(90deg,#1a3a6b,#3d6bb3);width:${countRatio}%;height:100%;"></div>`);
+  html = replaceFirst(html, /<div style="font-size:18px;font-weight:700;color:#1f7a4f;">9<\/div>/, `<div style="font-size:18px;font-weight:700;color:#1f7a4f;">${capturedCount}</div>`);
+  html = replaceFirst(html, /<div style="font-size:18px;font-weight:700;color:#b8761f;">0<\/div>/, `<div style="font-size:18px;font-weight:700;color:#b8761f;">${partialCount}</div>`);
+  html = replaceFirst(html, /<div style="font-size:18px;font-weight:700;color:#b8312f;">9<\/div>/, `<div style="font-size:18px;font-weight:700;color:#b8312f;">${missedCount}</div>`);
+  html = replaceBetween(
+    html,
+    '<tr><td style="padding:0 40px;">',
+    '<!-- ===== Must Capture 18項目 ===== -->',
+    `\n${renderRubricCards(input.report)}\n\n</td></tr>\n\n`
+  );
+  html = replaceBetween(
+    html,
+    "<tbody>",
+    "</tbody>",
+    `\n\n${renderMustCaptureRows(input.report)}\n\n`
+  );
+  html = html.replace(
+    /<!-- ===== 強み ===== -->[\s\S]*?<!-- ===== 改善点 ===== -->/,
+    `<!-- ===== 強み ===== -->
+<tr><td style="padding:32px 40px 8px 40px;">
+<h2 style="margin:0 0 6px 0;font-size:18px;color:#0f2649;font-weight:700;border-left:4px solid #1f7a4f;padding-left:12px;">評価できた点（強み）</h2>
+</td></tr>
+
+<tr><td style="padding:8px 40px 0 40px;">
+${renderStrengths(input.report)}
+</td></tr>
+
+<!-- ===== 改善点 ===== -->`
+  );
+  html = html.replace(
+    /<tr><td style="padding:8px 40px 0 40px;">\s*<div style="background-color:#fdf6f6[\s\S]*?<\/td><\/tr>\s*<!-- ===== 学習者へのフィードバック ===== -->/,
+    `<tr><td style="padding:8px 40px 0 40px;">
+
+${renderImprovements(input.report)}
+
+</td></tr>
+
+<!-- ===== 学習者へのフィードバック ===== -->`
+  );
+  html = html.replace(
+    /<tr><td style="padding:8px 40px 0 40px;">\s*<div style="background:linear-gradient\(135deg,#f7faff,#eef4fd\);[\s\S]*?<\/td><\/tr>\s*<!-- ===== 次のトレーニングアクション ===== -->/,
+    `<tr><td style="padding:8px 40px 0 40px;">
+${renderFeedback(input.report)}
+</td></tr>
+
+<!-- ===== 次のトレーニングアクション ===== -->`
+  );
+  html = html.replace(
+    /<tr><td style="padding:8px 40px 36px 40px;">\s*<table role="presentation"[\s\S]*?<\/table>\s*<\/td><\/tr>\s*<\/table>/,
+    `<tr><td style="padding:8px 40px 36px 40px;">
+${renderTrainingActions(input.report)}
+</td></tr>
+
+</table>`
+  );
+
+  return html;
 }
 
 async function callClaude(input: {
@@ -599,7 +955,16 @@ export async function runAdeccoOrderHearingEvaluation(
     retryNote,
     rawResult: claude.result,
   });
-  const bodyHtml = await loadEmailHtmlTemplate();
+  const bodyHtml = renderDynamicReportHtml({
+    template: await loadEmailHtmlTemplate(),
+    report: asReportObject(validation.parsed),
+    metadata: {
+      sessionId,
+      conversationId: input.conversationId,
+      startedAt,
+      endedAt,
+    },
+  });
   const messageId = await sendGmail({
     serviceAccountJson: gmailServiceAccountJson,
     to: ORIGINAL_TO_ADDRESS,
