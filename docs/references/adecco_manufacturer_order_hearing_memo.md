@@ -381,9 +381,15 @@ In addition, `compileStaffingReferenceScenario.ts` used high-salience guardrail 
 
 ### Publish status
 
-The fixed prompt was published to the ElevenLabs staging branch `agtbrch_8001kpj49xpsermt0fy3xrr5ph8z`, and the customer Cloud Run service `mendan` was updated to `mendan-00016-zb6` with that branch id.
+After quota recovery, the fixed prompt was republished and vendor smoke passed 8/8.
 
-Vendor smoke is currently blocked by upstream account quota, not by a judged prompt failure. Raw test invocation for `suite_5301kq5x98sgftet0x0cr6cgp54j` returned `quota_exceeded` for every vendor smoke test, so `passed=false` and `binding=null` remain expected until quota is restored.
+- Test run: `suite_2101kq60y5d8e259mxd41nk1pvgw`
+- Published branch: `agtbrch_9701kpj49vbdepjr8szvwc6w7e6b`
+- Agent version: `agtvrsn_8801kq60y0vre77bajm8a1hb1v4h`
+- Primary customer service: `mendan-00018-ltt`
+- Compatibility service: `roleplay-ui-00018-mc2`
+
+Important deployment note: the operator's "all rows are duplicated twice" screenshot was taken against the compatibility `roleplay-ui` service while it was still serving an older web image. `roleplay-ui-00018-mc2` now uses the same latest web image and branch as `mendan`, so the next manual check should use either `https://mendan-mvk3ouxwza-an.a.run.app/demo/adecco-roleplay` or the updated compatibility URL after cache refresh.
 
 ### Manual retest required
 
