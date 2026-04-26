@@ -48,6 +48,15 @@ describe("session token route", () => {
     expect(response.status).toBe(200);
     expect(body).toEqual({ conversationToken: "conversation-token" });
     expect(JSON.stringify(body)).not.toContain("server-key");
+    expect(mocks.issueConversationToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scenarioId: "adecco-orb",
+        env: expect.objectContaining({
+          ELEVENLABS_BRANCH_ID: "branch",
+          ELEVENLABS_ENVIRONMENT: "production",
+        }),
+      })
+    );
   });
 
   it("rejects invalid scenario and missing access", async () => {

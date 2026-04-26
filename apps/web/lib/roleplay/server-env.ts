@@ -12,6 +12,7 @@ const serverEnvSchema = z.object({
   ELEVENLABS_AGENT_ID: z.string().min(1),
   ELEVENLABS_BRANCH_ID: z.string().min(1),
   ELEVENLABS_ENVIRONMENT: z.string().min(1).default("production"),
+  ELEVENLABS_VOICE_PROFILE_ID: z.string().min(1).optional(),
   DEMO_ACCESS_TOKEN: z.string().min(1).optional(),
 });
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { logStructured } from "@top-performer/vendors";
 import { ADECCO_SCENARIO_ID } from "./scenario";
 import type { VoiceServerEnv } from "./server-env";
 
@@ -18,6 +19,7 @@ const tokenResponseSchema = z.object({
 
 export async function issueConversationToken(input: {
   env: VoiceServerEnv;
+  scenarioId: typeof ADECCO_SCENARIO_ID;
   participantName?: string;
   fetchImpl?: typeof fetch;
 }) {
@@ -30,6 +32,19 @@ export async function issueConversationToken(input: {
   if (input.participantName) {
     query.set("participant_name", input.participantName);
   }
+
+  logStructured({
+    level: "info",
+    scope: "web.voice-session.issueConversationToken",
+    message: "Issuing ElevenLabs conversation token",
+    scenarioId: input.scenarioId,
+    elevenAgentId: input.env.ELEVENLABS_AGENT_ID,
+    details: {
+      branchId: input.env.ELEVENLABS_BRANCH_ID,
+      environment: input.env.ELEVENLABS_ENVIRONMENT,
+      voiceProfileId: input.env.ELEVENLABS_VOICE_PROFILE_ID ?? "unknown",
+    },
+  });
 
   const url = `https://api.elevenlabs.io/v1/convai/conversation/token?${query.toString()}`;
   const attempts = 2;

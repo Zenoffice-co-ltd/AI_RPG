@@ -1,0 +1,71 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
+import {
+  hasDemoApiAccess,
+  validateSameOrigin,
+} from "@/lib/roleplay/auth";
+
+const transcriptLogSchema = z.object({
+  scenarioId: z.literal("adecco-orb"),
+  conversationLocalId: z.string().min(1).max(160),
+  generation: z.number().int().safe(),
+  phase: z.enum(["sdk-received", "displayed", "local-user-message"]),
+  role: z.enum(["agent", "user", "system"]),
+  channel: z.enum(["voice", "chat", "system"]),
+  status: z.enum(["interim", "final", "sending", "sent", "failed"]).optional(),
+  source: z.enum(["sdk", "local", "mock", "system"]).optional(),
+  text: z.string().max(8_000),
+  sdkMessageId: z.string().max(240).optional(),
+  clientMessageId: z.string().max(240).optional(),
+  createdAt: z.number().safe().optional(),
+});
+
+export async function POST(request: NextRequest) {
+  if (!validateSameOrigin(request)) {
+    return safeError(403);
+  }
+
+  if (!hasDemoApiAccess(request)) {
+    return safeError(401);
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return safeError(400);
+  }
+
+  const parsed = transcriptLogSchema.safeParse(body);
+  if (!parsed.success) {
+    return safeError(400);
+  }
+
+  const event = parsed.data;
+  console.info(JSON.stringify({
+    message: "Roleplay transcript",
+    scenarioId: event.scenarioId,
+    conversationLocalId: event.conversationLocalId,
+    generation: event.generation,
+    phase: event.phase,
+    role: event.role,
+    channel: event.channel,
+    status: event.status,
+    source: event.source,
+    text: event.text,
+    textLength: event.text.length,
+    sdkMessageId: event.sdkMessageId,
+    clientMessageId: event.clientMessageId,
+    createdAt: event.createdAt,
+  }));
+
+  return NextResponse.json({ ok: true });
+}
+
+export function GET() {
+  return safeError(405, { Allow: "POST" });
+}
+
+function safeError(status: number, headers?: HeadersInit) {
+  return NextResponse.json({ ok: false }, headers ? { status, headers } : { status });
+}

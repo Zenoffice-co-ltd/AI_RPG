@@ -56,7 +56,7 @@ function AccessGate({
   return (
     <main className="roleplay-access">
       <form action={accessAction} method="post" className="roleplay-access__panel">
-        <h1>AI Roleplay</h1>
+        <h1>MENDAN AIロープレ</h1>
         <p>デモを開始するにはアクセスコードを入力してください。</p>
         <input
           className="roleplay-access__input"
@@ -77,7 +77,7 @@ function ServiceUnavailable() {
   return (
     <main className="roleplay-access">
       <section className="roleplay-access__panel">
-        <h1>AI Roleplay</h1>
+        <h1>MENDAN AIロープレ</h1>
         <p>ただいまデモを利用できません。時間をおいて再試行してください。</p>
       </section>
     </main>

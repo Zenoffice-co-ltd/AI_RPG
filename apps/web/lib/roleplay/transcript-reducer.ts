@@ -3,6 +3,7 @@
 import type { TranscriptMessage } from "./conversation-types";
 
 const LOCAL_ECHO_DEDUPE_MS = 5_000;
+const AGENT_DEDUPE_MS = 180_000;
 
 export type TranscriptAction =
   | { type: "reset"; messages?: TranscriptMessage[] }
@@ -88,10 +89,56 @@ export function mergeMessages(
       continue;
     }
 
+    const agentFallbackIndex = findAgentDuplicateIndex(merged, nextMessage);
+    if (agentFallbackIndex >= 0) {
+      const currentMessage = merged[agentFallbackIndex];
+      if (!currentMessage) {
+        continue;
+      }
+      merged[agentFallbackIndex] = mergeMessage(currentMessage, nextMessage);
+      continue;
+    }
+
     merged.push(nextMessage);
   }
 
   return orderMessages(merged);
+}
+
+function findAgentDuplicateIndex(
+  messages: TranscriptMessage[],
+  incoming: TranscriptMessage
+) {
+  if (incoming.role !== "agent" || incoming.source !== "sdk") {
+    return -1;
+  }
+
+  return messages.findIndex((message) => {
+    if (message.role !== "agent" || message.source !== "sdk") {
+      return false;
+    }
+    if (Math.abs(incoming.createdAt - message.createdAt) > AGENT_DEDUPE_MS) {
+      return false;
+    }
+    const currentText = normalizeComparableText(message.text);
+    const incomingText = normalizeComparableText(incoming.text);
+    if (!currentText || !incomingText) {
+      return false;
+    }
+
+    if (currentText === incomingText) {
+      return true;
+    }
+
+    return (
+      message.status === "interim" &&
+      (incomingText.includes(currentText) || currentText.includes(incomingText))
+    );
+  });
+}
+
+function normalizeComparableText(text: string) {
+  return text.replace(/\s+/g, "").trim();
 }
 
 export function orderMessages(messages: TranscriptMessage[]) {

@@ -230,6 +230,13 @@ type AgentConfigPayload = {
   knowledgeBase: Array<{ id: string; name: string; type: "text" }>;
   llmModel: string;
   language: string;
+  asr?: {
+    keywords?: string[];
+  };
+  conversation?: {
+    clientEvents?: string[];
+    maxDurationSeconds?: number;
+  };
   turn?: {
     turnTimeoutSeconds: number;
     initialWaitTimeSeconds?: number;
@@ -433,7 +440,20 @@ export function buildConversationConfig(payload: AgentConfigPayload) {
     },
     conversation: {
       text_only: false,
+      ...(payload.conversation?.clientEvents
+        ? { client_events: payload.conversation.clientEvents }
+        : {}),
+      ...(payload.conversation?.maxDurationSeconds !== undefined
+        ? { max_duration_seconds: payload.conversation.maxDurationSeconds }
+        : {}),
     },
+    ...(payload.asr?.keywords
+      ? {
+          asr: {
+            keywords: payload.asr.keywords,
+          },
+        }
+      : {}),
     ...(payload.turn
       ? {
           turn: {
