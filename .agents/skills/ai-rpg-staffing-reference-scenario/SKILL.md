@@ -73,6 +73,22 @@ Conditions (A) only or (B) only must NOT fire `closing_summary`. `chat_history` 
 
 When fixing an LLM behavior caught during manual orb, paste the **exact concatenation** the agent produced into the relevant trigger's `negativeExamples` array AND into a new local regression's `failure_examples` AND bind it in `priorOrbFailure.regression.test.ts`. The smoking-gun string is the strongest negative-shot prompt signal available — substring/paraphrase examples alone are not enough. Reference: the manual orb v3 P0 string is preserved in `closing_summary.negativeExamples` and `closing-summary-not-triggered-after-decision-structure.failure_examples`.
 
+Manual orb v5 live-smoke additions:
+
+- `まだお話しになられていますでしょうか` and
+  `まだお話しされていますでしょうか` are forbidden in normal replies,
+  silence handling, and turn-detection waits. Add the exact phrase to the
+  relevant ledger negative examples and rendered prompt forbidden list if it
+  recurs.
+- Fragment answers such as `受発注、在庫確認` for `job_detail_tasks` are
+  smoking-gun failures. The answer must complete the main/attached task split
+  in one or two sentences, e.g. 受発注入力と納期調整が中心, with 在庫確認 /
+  電話・メールでの対外対応 / 資料更新 as attached work.
+- When the symptom is "the agent stops while the user is still speaking",
+  combine prompt negative examples with the Adecco turn-taking publish guardrail
+  in `ai-rpg-repo-elevenlabs-voice`; prompt edits alone may not fix premature
+  turn finalization.
+
 ## Brand-name TTS rewrite categorization (manual orb v4 lesson, 2026-04-26)
 
 When a brand or product name in runtime utterances is mispronounced by TTS (e.g. `Adecco` read as 'アデッコ'), the fix touches multiple call sites. Categorize each occurrence into ONE of five buckets and apply the matching rule:
@@ -95,3 +111,89 @@ The pattern is: **one runtime form, two judge forms, two failure forms, two forb
 2. For each, either keep the entry as the original form (and ensure failure_examples contain the original form too) OR add a new entry for the rewritten form alongside.
 
 For `Adecco → アデコ` specifically, the smoking-gun bad response starts with `「ベンダー選定は人...」` (8-char prefix unaffected by Adecco/アデコ swap), so the binding still works. But this is luck, not design — verify first.
+
+## Manual Orb v5 lesson: トリガ条件と応答内容検証は別レイヤー (2026-04-26)
+
+v3 で `closing_summary` の発火条件を strict A∧B に厳密化したが、**発火後の応答内容を検証する仕組み** は別途必要だった。manual orb v5 で発覚した P0 (請求単価 5万円〜10万円 という誤要約に AI が「はい、大きくはその整理で合っています」と同意) は、トリガが正しく発火した上で **LLM が値検証を skip して合意 shape に寄せた** 結果。
+
+教訓: 「Trigger 条件が厳しい = 応答内容も妥当」ではない。発火後の content validation を別仕様として ledger + rendered prompt + tests に書く必要がある。
+
+### Canonical truth table 埋め込みパターン
+
+`closing_summary` のような "学習者の主張を AI が検証する" intent では、`intentDescription` 内に scenario 真値リスト (canonical truth table) を明示的に埋め込む。例 ([staffingAdeccoLedger.ts](../../../packages/scenario-engine/src/disclosureLedger/staffingAdeccoLedger.ts) 参照):
+
+```
+## 値検証ルール
+**(A)+(B) を満たして closing_summary が発火しても、合意する前に必ず学習者要約に
+含まれる重要条件をシナリオ真値と照合する。**
+
+### Canonical truth table (closing_summary 発火後の照合専用 / 浅い質問への先出し禁止)
+- 人数: 一名 (1名)
+- 開始日: 六月一日 (6月1日)
+- 就業時間: 平日 八時四十五分から十七時三十分 (8:45-17:30)
+- 残業: 月 十から十五時間 (10-15h) 程度
+- 請求単価: 経験により 千七百五十円から千九百円 (1,750-1,900円) 程度
+- ... (15 項目)
+```
+
+**重要な scope 制約**: truth table は **発火後の照合専用** であり、浅い質問 (overview_shallow / headcount_only 等) への先出し禁止であることを明記する。これがないと LLM は概要質問で 15 項目を一気に列挙する事故を起こす。
+
+### Dual-example allowedAnswer (Case 1 / Case 2)
+
+ある intent に **2 つの正解パス** (合意 vs 訂正) がある場合、`allowedAnswer` を `Case 1: ...` `Case 2: ...` 形式で **両方 example を併記** する。LLM は example の shape に強く影響されるため、片方しか見せないと寄ってしまう。closing_summary の例:
+
+```
+**Case 1: 要約が真値と一致する場合** — 自然に合意し、その後にアデコ逆質問を一度だけ行う。
+例：「はい、大きくはその整理で合っています。...ちなみに、アデコさんの派遣の特徴や...」
+
+**Case 2: 要約に重大な誤りがある場合** — まず『違います』と明確に言い、誤っている項目だけを真値で訂正する。
+例 (請求単価誤り)：「違います。請求単価は5万円から10万円ではなく、経験により1,750から1,900円程度を想定しています。」
+例 (人数誤り)：「違います。募集人数は2名ではなく、営業事務1名で考えています。」
+... (5 種の代表訂正例)
+```
+
+### Hedging 言語の明示禁止
+
+LLM は「大筋合っていますが…」「少し違うかもしれません」のような softening で逃げる。これらは smoking-gun (誤同意の完全文) とは **別カテゴリ** として `negativeExamples` に列挙する必要がある。例:
+
+```ts
+negativeExamples: [
+  // 完全な誤同意 smoking-gun
+  "はい、大きくはその整理で合っています。...ちなみに、アデコさんの派遣の特徴...",
+  // Hedging (これも禁止 — 別エントリで列挙)
+  "だいたい合っていますが、単価だけ少し違うかもしれません。",
+  "おおむね合っていますが、請求単価だけご確認ください。",
+],
+```
+
+### 「訂正後はターンを終える」ルール
+
+ロープレ学習効果のため、訂正と同時に逆質問へ進むのは禁止。訂正は学習者が受け止めるターンで止める。`allowedAnswer` の Case 2 例文に逆質問を含めない + `negativeExamples` に「訂正直後にアデコ逆質問へ進む」失敗例を併記する:
+
+```ts
+negativeExamples: [
+  // 訂正直後にアデコ逆質問へ進む失敗 (manual orb v5 仕様: ターンを終える)
+  "違います。請求単価は1,750から1,900円です。ちなみに、アデコさんの派遣の特徴...",
+],
+```
+
+### 4 層編集 (manual orb v5 で 3-Layer Edit Rule を拡張)
+
+manual orb v3 の 3-Layer Edit Rule (Ledger / rendered prompt / locked-in tests) に加え、内容検証 intent では **新規 ConvAI 回帰テストの追加** が必須:
+
+| 層 | 何を更新 |
+|---|---|
+| 1. Ledger | intentDescription に truth table + 検証ルール、allowedAnswer に Case 1/2、negativeExamples に smoking-gun + hedging + correction-then-reverse-question |
+| 2. Rendered prompt | Critical Live Behavior + Guardrails に truth table + 検証ルール再掲 |
+| 3. Locked-in tests | truth table 文言 + Case 1/2 例文 + smoking-gun の存在を assert |
+| 4. **新規 ConvAI 回帰** | wrong-value 種別ごとに 1 テスト (例: closing-summary-rejects-wrong-{billing-rate, headcount, start-date, overtime, working-hours})。各テストの success_condition で「`違います` を含む AND 真値を含む AND 誤値を silently 受け入れない」を assert。priorOrbFailure binding に v5 smoking-gun も追加 |
+
+### 内容検証 intent の見分け方
+
+「学習者が何かを主張した時に AI が検証して合意 or 訂正する」性質の intent はすべて値検証ルールが必要:
+
+- `closing_summary` (学習者要約 → 真値と照合)
+- (将来) `cost_negotiation` (学習者が単価交渉 → 上限/下限と照合)
+- (将来) `schedule_check` (学習者が日程提案 → 真値と照合)
+
+新しい "検証型" intent を追加するときは、最初から canonical truth table + Case 1/2 + hedging negativeExamples + ConvAI 回帰テストをセットで設計する。トリガだけ厳密にして発火後を例文 1 つで済ませると、必ず v5 と同じ罠を踏む。
