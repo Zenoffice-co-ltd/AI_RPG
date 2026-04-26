@@ -27,6 +27,9 @@ export function normalizeConversationEvent(
   if (rawType === "agent_response") {
     return normalizeAgentResponse(record);
   }
+  if (rawType === "agent_response_correction") {
+    return normalizeAgentResponseCorrection(record);
+  }
   if (rawType === "user_transcript" || rawType === "tentative_user_transcript") {
     return normalizeUserTranscript(record, rawType === "user_transcript");
   }
@@ -62,6 +65,33 @@ export function normalizeAgentChatResponsePart(
   };
 }
 
+export function normalizeAudioAlignmentEvent(
+  alignment: unknown
+): NormalizedConversationEvent | null {
+  if (!alignment || typeof alignment !== "object") {
+    return null;
+  }
+
+  const record = alignment as Record<string, unknown>;
+  const chars = record["chars"];
+  if (!Array.isArray(chars)) {
+    return null;
+  }
+
+  const text = chars.filter((char): char is string => typeof char === "string").join("");
+  if (!text.trim()) {
+    return null;
+  }
+
+  return {
+    role: "agent",
+    text,
+    isFinal: false,
+    channel: "voice",
+    sdkMessageId: "agent-audio-alignment-latest",
+  };
+}
+
 function normalizeMessagePayload(
   record: Record<string, unknown>
 ): NormalizedConversationEvent | null {
@@ -93,6 +123,24 @@ function normalizeAgentResponse(
 ): NormalizedConversationEvent | null {
   const payload = nestedRecord(record["agent_response_event"]);
   const text = stringValue(payload?.["agent_response"]);
+  if (!text.trim()) {
+    return null;
+  }
+  const eventId = numberOrString(payload?.["event_id"]);
+  return {
+    role: "agent",
+    text,
+    isFinal: true,
+    channel: "voice",
+    sdkMessageId: eventId ? `agent-${eventId}` : undefined,
+  };
+}
+
+function normalizeAgentResponseCorrection(
+  record: Record<string, unknown>
+): NormalizedConversationEvent | null {
+  const payload = nestedRecord(record["agent_response_correction_event"]);
+  const text = stringValue(payload?.["corrected_agent_response"]);
   if (!text.trim()) {
     return null;
   }

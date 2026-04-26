@@ -42,7 +42,6 @@ export function MessageBubble({
       <span className="agent-avatar" aria-hidden="true" />
       <p>
         {text}
-        {message.status === "interim" ? <span className="message-status">入力中</span> : null}
         {slow ? <span className="message-slow">[slow]</span> : null}
       </p>
     </div>

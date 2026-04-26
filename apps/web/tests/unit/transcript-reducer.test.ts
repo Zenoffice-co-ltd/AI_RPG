@@ -91,4 +91,69 @@ describe("transcriptReducer", () => {
       status: "sending",
     });
   });
+
+  it("merges final agent text into an audio-alignment fallback bubble", () => {
+    const fallback = createTranscriptMessage({
+      id: "agent-audio-1",
+      sdkMessageId: "agent-audio-1",
+      role: "agent",
+      channel: "voice",
+      text: "受発注、在庫確認",
+      status: "interim",
+      source: "sdk",
+      createdAt: 1_000,
+    });
+
+    const final = createTranscriptMessage({
+      id: "agent-final-1",
+      sdkMessageId: "agent-77",
+      role: "agent",
+      channel: "chat",
+      text: "受発注、在庫確認が中心です。",
+      status: "final",
+      source: "sdk",
+      createdAt: 2_000,
+    });
+
+    const merged = transcriptReducer([fallback], { type: "append", message: final });
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({
+      id: "agent-audio-1",
+      sdkMessageId: "agent-audio-1",
+      text: "受発注、在庫確認が中心です。",
+      status: "final",
+    });
+  });
+
+  it("dedupes exact agent text arriving through separate SDK event channels", () => {
+    const voice = createTranscriptMessage({
+      id: "agent-voice-1",
+      sdkMessageId: "agent-voice-1",
+      role: "agent",
+      channel: "voice",
+      text: "承知しました。少し整理しますね。",
+      status: "final",
+      source: "sdk",
+      createdAt: 1_000,
+    });
+
+    const chat = createTranscriptMessage({
+      id: "agent-chat-1",
+      sdkMessageId: "agent-chat-1",
+      role: "agent",
+      channel: "chat",
+      text: "承知しました。少し整理しますね。",
+      status: "final",
+      source: "sdk",
+      createdAt: 1_200,
+    });
+
+    const deduped = transcriptReducer([voice], { type: "append", message: chat });
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]).toMatchObject({
+      id: "agent-voice-1",
+      text: "承知しました。少し整理しますね。",
+      status: "final",
+    });
+  });
 });

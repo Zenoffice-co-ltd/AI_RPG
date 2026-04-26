@@ -12,6 +12,7 @@ import {
 } from "./conversation-types";
 import { createFakeLiveAdapter, type FakeLiveAdapter } from "./fake-live-adapter";
 import {
+  normalizeAudioAlignmentEvent,
   normalizeAgentChatResponsePart,
   normalizeConversationEvent,
   type NormalizedConversationEvent,
@@ -27,6 +28,8 @@ import { buildMockAgentResponse, canSendMessage, MOCK_INITIAL_TRANSCRIPT } from 
 const HISTORY_KEY = "roleplay:adecco-orb:history";
 const CONNECT_TIMEOUT_MS = 20_000;
 const AGENT_RESPONSE_TIMEOUT_MS = 15_000;
+const AGENT_TEXT_AUDIO_SYNC_FALLBACK_MS = 1_800;
+const AGENT_AUDIO_SIGNAL_RECENT_MS = 2_500;
 const DEBUG_QUERY_PARAM = "debugEvents";
 
 type StartTrigger = "call" | "text" | "new-conversation";
@@ -38,6 +41,12 @@ type DeferredStart = {
   resolve: () => void;
   reject: (error: Error) => void;
   timeoutId: number;
+};
+
+type PendingAgentEvent = {
+  event: NormalizedConversationEvent;
+  generation: number;
+  conversationLocalId: string;
 };
 
 export type RoleplayConversation = UseRoleplayConversationReturn & {
@@ -77,9 +86,23 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
   const agentResponseTimerRef = useRef<number | null>(null);
   const fakeAdapterRef = useRef<FakeLiveAdapter | null>(null);
   const agentChatPartBuffersRef = useRef(new Map<string, string>());
+  const audioAlignmentTextRef = useRef("");
+  const audioAlignmentMessageIdRef = useRef<string | null>(null);
+  const audioAlignmentResetTimerRef = useRef<number | null>(null);
+  const pendingAgentEventsRef = useRef<PendingAgentEvent[]>([]);
+  const pendingAgentFlushTimerRef = useRef<number | null>(null);
+  const lastAgentAudioSignalAtRef = useRef(0);
+  const lastAgentTextDispatchAtRef = useRef(0);
   const debugEventsEnabledRef = useRef(false);
 
-  const conversation = useConversation();
+  const conversation = useConversation({
+    onMessage: (event) => handleSdkMessage(event, "hook-on-message"),
+    onAgentChatResponsePart: (event) =>
+      handleSdkAgentChatPart(event, "hook-on-agent-part"),
+    onAudio: () => handleSdkAudioSignal("hook-on-audio"),
+    onAudioAlignment: (event) => handleSdkAudioAlignment(event),
+    onDebug: (event) => handleSdkDebug(event),
+  });
   const conversationRef = useRef(conversation);
 
   useEffect(() => {
@@ -103,6 +126,8 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     setLimitWarning(false);
     setIsMuted(false);
     agentChatPartBuffersRef.current.clear();
+    clearPendingAgentEvents();
+    clearAudioAlignmentBuffer();
     sessionGenerationRef.current += 1;
     localConversationIdRef.current = createLocalConversationId();
   }, [mode]);
@@ -127,6 +152,8 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
   useEffect(() => {
     return () => {
       cleanupTimers();
+      clearAudioAlignmentBuffer();
+      clearPendingAgentEvents();
       clearStartGate();
       if (isActiveStatus(statusRef.current) || statusRef.current === "connecting") {
         conversationRef.current.endSession();
@@ -176,6 +203,9 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
       if (event.role === "agent") {
         clearAgentResponseTimer();
         setIsAwaitingAgentResponse(false);
+        if (!event.sdkMessageId?.startsWith("agent-audio-")) {
+          lastAgentTextDispatchAtRef.current = now;
+        }
       }
 
       const mergedEvent = mergeAgentChatPart(event);
@@ -189,18 +219,20 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
         return;
       }
 
+      const message = createTranscriptMessage({
+        role: mergedEvent.role,
+        channel: mergedEvent.channel,
+        text: mergedEvent.text,
+        status: mergedEvent.isFinal ? "final" : "interim",
+        source: "sdk",
+        sdkMessageId: mergedEvent.sdkMessageId,
+        createdAt: now,
+      });
       dispatchMessages({
         type: "append",
-        message: createTranscriptMessage({
-          role: mergedEvent.role,
-          channel: mergedEvent.channel,
-          text: mergedEvent.text,
-          status: mergedEvent.isFinal ? "final" : "interim",
-          source: "sdk",
-          sdkMessageId: mergedEvent.sdkMessageId,
-          createdAt: now,
-        }),
+        message,
       });
+      logTranscriptMessage("displayed", message, generation, conversationLocalId);
       recordDebugEvent(debugEventsEnabledRef.current, "message-dispatched", {
         role: mergedEvent.role,
         channel: mergedEvent.channel,
@@ -208,6 +240,9 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
         textLength: mergedEvent.text.length,
         sdkMessageId: mergedEvent.sdkMessageId,
       });
+      if (mergedEvent.role === "agent" && mergedEvent.isFinal) {
+        clearAudioAlignmentBuffer();
+      }
     },
     []
   );
@@ -227,6 +262,7 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     }
     cleanupTimers();
     clearAgentResponseTimer();
+    flushPendingAgentEvents("end-conversation");
     clearStartGate();
     setIsAwaitingAgentResponse(false);
 
@@ -269,6 +305,8 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     clearAgentResponseTimer();
     clearStartGate();
     agentChatPartBuffersRef.current.clear();
+    clearPendingAgentEvents();
+    clearAudioAlignmentBuffer();
     persistHistory();
 
     if (modeRef.current === "fakeLive") {
@@ -307,18 +345,25 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
           status: "sending",
         });
       } else {
+        const message = createTranscriptMessage({
+          id: clientMessageId,
+          role: "user",
+          channel: "chat",
+          text: trimmed,
+          status: "sending",
+          source: modeRef.current === "mock" ? "mock" : "local",
+          clientMessageId,
+        });
         dispatchMessages({
           type: "append",
-          message: createTranscriptMessage({
-            id: clientMessageId,
-            role: "user",
-            channel: "chat",
-            text: trimmed,
-            status: "sending",
-            source: modeRef.current === "mock" ? "mock" : "local",
-            clientMessageId,
-          }),
+          message,
         });
+        logTranscriptMessage(
+          "local-user-message",
+          message,
+          sessionGenerationRef.current,
+          localConversationIdRef.current
+        );
       }
 
       try {
@@ -543,37 +588,15 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
           ) {
             return;
           }
+          if (sdkMode === "speaking") {
+            handleSdkAudioSignal("hook-on-mode-speaking");
+          }
           setStatus((current) => {
             if (current === "muted") {
               return current;
             }
             return sdkMode === "speaking" ? "speaking" : "listening";
           });
-        },
-        onMessage: (event) => {
-          recordDebugEvent(debugEventsEnabledRef.current, "sdk-on-message", {
-            summary: summarizeUnknownEvent(event),
-            generation,
-          });
-          const normalized = normalizeConversationEvent(event);
-          if (normalized) {
-            handleNormalizedEvent(normalized, generation, conversationLocalId);
-          } else {
-            recordDebugEvent(debugEventsEnabledRef.current, "sdk-on-message-unhandled", {
-              summary: summarizeUnknownEvent(event),
-              generation,
-            });
-          }
-        },
-        onAgentChatResponsePart: (event) => {
-          recordDebugEvent(debugEventsEnabledRef.current, "sdk-on-agent-part", {
-            summary: summarizeUnknownEvent(event),
-            generation,
-          });
-          const normalized = normalizeAgentChatResponsePart(event);
-          if (normalized) {
-            handleNormalizedEvent(normalized, generation, conversationLocalId);
-          }
         },
       });
 
@@ -639,6 +662,8 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     cleanupTimers();
     clearAgentResponseTimer();
     agentChatPartBuffersRef.current.clear();
+    flushPendingAgentEvents("disconnect");
+    clearAudioAlignmentBuffer();
     setIsAwaitingAgentResponse(false);
     setStatus((current) => (current === "error" ? current : "ended"));
     clearStartGate();
@@ -662,6 +687,8 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     cleanupTimers();
     clearAgentResponseTimer();
     agentChatPartBuffersRef.current.clear();
+    flushPendingAgentEvents("session-error");
+    clearAudioAlignmentBuffer();
     setIsAwaitingAgentResponse(false);
     setStatus("error");
     setErrorMessage(SAFE_SESSION_ERROR);
@@ -670,6 +697,117 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
       generation,
       mode: modeRef.current,
     });
+  }
+
+  function handleSdkMessage(event: unknown, eventName: string) {
+    recordDebugEvent(debugEventsEnabledRef.current, eventName, {
+      summary: summarizeUnknownEvent(event),
+      generation: sessionGenerationRef.current,
+    });
+    const normalized = normalizeConversationEvent(event);
+    if (normalized) {
+      logTranscriptEvent(
+        "sdk-received",
+        normalized,
+        sessionGenerationRef.current,
+        localConversationIdRef.current
+      );
+      handleSdkNormalizedEvent(
+        normalized,
+        sessionGenerationRef.current,
+        localConversationIdRef.current
+      );
+    } else {
+      recordDebugEvent(debugEventsEnabledRef.current, `${eventName}-unhandled`, {
+        summary: summarizeUnknownEvent(event),
+        generation: sessionGenerationRef.current,
+      });
+    }
+  }
+
+  function handleSdkAgentChatPart(event: unknown, eventName: string) {
+    recordDebugEvent(debugEventsEnabledRef.current, eventName, {
+      summary: summarizeUnknownEvent(event),
+      generation: sessionGenerationRef.current,
+    });
+    const normalized = normalizeAgentChatResponsePart(event);
+    if (normalized) {
+      logTranscriptEvent(
+        "sdk-received",
+        normalized,
+        sessionGenerationRef.current,
+        localConversationIdRef.current
+      );
+      handleSdkNormalizedEvent(
+        normalized,
+        sessionGenerationRef.current,
+        localConversationIdRef.current
+      );
+    }
+  }
+
+  function handleSdkAudioAlignment(event: unknown) {
+    recordDebugEvent(debugEventsEnabledRef.current, "hook-on-audio-alignment", {
+      summary: summarizeUnknownEvent(event),
+      generation: sessionGenerationRef.current,
+    });
+    const normalized = normalizeAudioAlignmentEvent(event);
+    if (!normalized) {
+      recordDebugEvent(debugEventsEnabledRef.current, "hook-on-audio-alignment-unhandled", {
+        summary: summarizeUnknownEvent(event),
+        generation: sessionGenerationRef.current,
+      });
+      return;
+    }
+
+    const hadPendingAgentText = pendingAgentEventsRef.current.length > 0;
+    logTranscriptEvent(
+      "sdk-received",
+      normalized,
+      sessionGenerationRef.current,
+      localConversationIdRef.current
+    );
+    handleSdkAudioSignal("hook-on-audio-alignment");
+    if (hadPendingAgentText || hasRecentAgentTextDispatch()) {
+      return;
+    }
+
+    const sdkMessageId =
+      audioAlignmentMessageIdRef.current ?? `agent-audio-${Date.now()}`;
+    audioAlignmentMessageIdRef.current = sdkMessageId;
+    audioAlignmentTextRef.current = `${audioAlignmentTextRef.current}${normalized.text}`;
+    armAudioAlignmentReset();
+
+    handleNormalizedEvent(
+      {
+        ...normalized,
+        text: audioAlignmentTextRef.current,
+        sdkMessageId,
+      },
+      sessionGenerationRef.current,
+      localConversationIdRef.current
+    );
+  }
+
+  function handleSdkDebug(event: unknown) {
+    recordDebugEvent(debugEventsEnabledRef.current, "hook-on-debug", {
+      summary: summarizeUnknownEvent(event),
+      generation: sessionGenerationRef.current,
+    });
+    const normalized = normalizeConversationEvent(event);
+    if (normalized) {
+      logTranscriptEvent(
+        "sdk-received",
+        normalized,
+        sessionGenerationRef.current,
+        localConversationIdRef.current
+      );
+      handleSdkNormalizedEvent(
+        normalized,
+        sessionGenerationRef.current,
+        localConversationIdRef.current
+      );
+    }
   }
 
   function createStartDeferred(
@@ -793,11 +931,154 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     }, AGENT_RESPONSE_TIMEOUT_MS);
   }
 
+  function handleSdkNormalizedEvent(
+    event: NormalizedConversationEvent,
+    generation: number,
+    conversationLocalId: string
+  ) {
+    if (event.role !== "agent") {
+      handleNormalizedEvent(event, generation, conversationLocalId);
+      return;
+    }
+
+    if (isDuplicateDisplayedAgentEvent(event) || isDuplicatePendingAgentEvent(event)) {
+      recordDebugEvent(debugEventsEnabledRef.current, "agent-event-dropped-duplicate", {
+        channel: event.channel,
+        isFinal: event.isFinal,
+        textLength: event.text.length,
+        sdkMessageId: event.sdkMessageId,
+        generation,
+      });
+      return;
+    }
+
+    if (hasRecentAgentAudioSignal()) {
+      handleNormalizedEvent(event, generation, conversationLocalId);
+      return;
+    }
+
+    pendingAgentEventsRef.current.push({
+      event,
+      generation,
+      conversationLocalId,
+    });
+    recordDebugEvent(debugEventsEnabledRef.current, "agent-event-buffered", {
+      channel: event.channel,
+      isFinal: event.isFinal,
+      partType: event.partType,
+      textLength: event.text.length,
+      sdkMessageId: event.sdkMessageId,
+      generation,
+      pendingCount: pendingAgentEventsRef.current.length,
+    });
+    armPendingAgentFlush();
+  }
+
+  function handleSdkAudioSignal(reason: string) {
+    lastAgentAudioSignalAtRef.current = Date.now();
+    recordDebugEvent(debugEventsEnabledRef.current, "agent-audio-signal", {
+      reason,
+      pendingCount: pendingAgentEventsRef.current.length,
+    });
+    flushPendingAgentEvents(reason);
+  }
+
+  function hasRecentAgentAudioSignal() {
+    return Date.now() - lastAgentAudioSignalAtRef.current <= AGENT_AUDIO_SIGNAL_RECENT_MS;
+  }
+
+  function hasRecentAgentTextDispatch() {
+    return Date.now() - lastAgentTextDispatchAtRef.current <= AGENT_AUDIO_SIGNAL_RECENT_MS;
+  }
+
+  function isDuplicateDisplayedAgentEvent(event: NormalizedConversationEvent) {
+    const incomingText = normalizeComparableAgentText(event.text);
+    if (incomingText.length < 8) {
+      return false;
+    }
+    return messagesRef.current.some((message) => {
+      if (message.role !== "agent" || message.source !== "sdk") {
+        return false;
+      }
+      return normalizeComparableAgentText(message.text) === incomingText;
+    });
+  }
+
+  function isDuplicatePendingAgentEvent(event: NormalizedConversationEvent) {
+    const incomingText = normalizeComparableAgentText(event.text);
+    if (incomingText.length < 8) {
+      return false;
+    }
+    return pendingAgentEventsRef.current.some(
+      (pending) => normalizeComparableAgentText(pending.event.text) === incomingText
+    );
+  }
+
+  function armPendingAgentFlush() {
+    if (pendingAgentFlushTimerRef.current) {
+      return;
+    }
+    pendingAgentFlushTimerRef.current = window.setTimeout(() => {
+      flushPendingAgentEvents("fallback-timeout");
+    }, AGENT_TEXT_AUDIO_SYNC_FALLBACK_MS);
+  }
+
+  function flushPendingAgentEvents(reason: string) {
+    const pending = pendingAgentEventsRef.current;
+    if (pending.length === 0) {
+      clearPendingAgentTimer();
+      return;
+    }
+    pendingAgentEventsRef.current = [];
+    clearPendingAgentTimer();
+    recordDebugEvent(debugEventsEnabledRef.current, "agent-events-flushed", {
+      reason,
+      count: pending.length,
+    });
+    for (const item of pending) {
+      handleNormalizedEvent(item.event, item.generation, item.conversationLocalId);
+    }
+  }
+
+  function clearPendingAgentEvents() {
+    pendingAgentEventsRef.current = [];
+    lastAgentAudioSignalAtRef.current = 0;
+    lastAgentTextDispatchAtRef.current = 0;
+    clearPendingAgentTimer();
+  }
+
+  function clearPendingAgentTimer() {
+    if (pendingAgentFlushTimerRef.current) {
+      window.clearTimeout(pendingAgentFlushTimerRef.current);
+      pendingAgentFlushTimerRef.current = null;
+    }
+  }
+
   function clearAgentResponseTimer() {
     if (agentResponseTimerRef.current) {
       window.clearTimeout(agentResponseTimerRef.current);
       agentResponseTimerRef.current = null;
     }
+  }
+
+  function armAudioAlignmentReset() {
+    if (audioAlignmentResetTimerRef.current) {
+      window.clearTimeout(audioAlignmentResetTimerRef.current);
+    }
+    audioAlignmentResetTimerRef.current = window.setTimeout(() => {
+      audioAlignmentTextRef.current = "";
+      audioAlignmentMessageIdRef.current = null;
+      audioAlignmentResetTimerRef.current = null;
+    }, 1_500);
+  }
+
+  function clearAudioAlignmentBuffer() {
+    if (audioAlignmentResetTimerRef.current) {
+      window.clearTimeout(audioAlignmentResetTimerRef.current);
+      audioAlignmentResetTimerRef.current = null;
+    }
+    audioAlignmentTextRef.current = "";
+    audioAlignmentMessageIdRef.current = null;
   }
 
   function persistHistory() {
@@ -905,7 +1186,80 @@ function createClientMessageId() {
   return `client-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function normalizeComparableAgentText(text: string) {
+  return text.replace(/\s+/g, "").trim();
+}
+
+type TranscriptLogPhase = "sdk-received" | "displayed" | "local-user-message";
 type RoleplayDebugDetail = Record<string, boolean | number | string | undefined>;
+
+function logTranscriptEvent(
+  phase: TranscriptLogPhase,
+  event: NormalizedConversationEvent,
+  generation: number,
+  conversationLocalId: string
+) {
+  postTranscriptLog({
+    phase,
+    role: event.role,
+    channel: event.channel,
+    status: event.isFinal ? "final" : "interim",
+    source: "sdk",
+    text: event.text,
+    sdkMessageId: event.sdkMessageId,
+    generation,
+    conversationLocalId,
+  });
+}
+
+function logTranscriptMessage(
+  phase: TranscriptLogPhase,
+  message: TranscriptMessage,
+  generation: number,
+  conversationLocalId: string
+) {
+  postTranscriptLog({
+    phase,
+    role: message.role,
+    channel: message.channel,
+    status: message.status,
+    source: message.source,
+    text: message.text,
+    sdkMessageId: message.sdkMessageId,
+    clientMessageId: message.clientMessageId,
+    createdAt: message.createdAt,
+    generation,
+    conversationLocalId,
+  });
+}
+
+function postTranscriptLog(payload: {
+  phase: TranscriptLogPhase;
+  role: TranscriptMessage["role"];
+  channel: TranscriptMessage["channel"];
+  status?: TranscriptMessage["status"] | undefined;
+  source?: TranscriptMessage["source"] | undefined;
+  text: string;
+  sdkMessageId?: string | undefined;
+  clientMessageId?: string | undefined;
+  createdAt?: number | undefined;
+  generation: number;
+  conversationLocalId: string;
+}) {
+  if (typeof window === "undefined" || !payload.text.trim()) {
+    return;
+  }
+  void fetch("/api/voice/transcript-log", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    keepalive: true,
+    body: JSON.stringify({
+      scenarioId: ADECCO_SCENARIO_ID,
+      ...payload,
+    }),
+  }).catch(() => undefined);
+}
 
 function recordDebugEvent(
   enabled: boolean,

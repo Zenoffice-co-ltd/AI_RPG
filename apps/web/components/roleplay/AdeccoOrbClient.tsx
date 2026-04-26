@@ -65,7 +65,6 @@ export function AdeccoOrbClient({
           messages={roleplay.messages}
           error={roleplay.errorMessage}
           limitWarning={roleplay.limitWarning}
-          isAwaitingAgentResponse={roleplay.isAwaitingAgentResponse}
           onSend={roleplay.sendTextMessage}
           onRetry={(message) => {
             void roleplay.sendTextMessage(message.text, message.clientMessageId);

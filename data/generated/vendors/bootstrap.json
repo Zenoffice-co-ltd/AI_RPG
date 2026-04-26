@@ -7,11 +7,6 @@
   "voiceName": "Jessica Anne Bogart - Chatty and Friendly",
   "shortlist": [
     {
-      "avatar_id": "1c690fe7-23e0-49f9-bfba-14344450285b",
-      "name": "Santa Fireplace Front",
-      "preview_image_url": "https://files2.heygen.ai/avatar/v3/3b4e464bf15f4194b082be0e631354c6_46860/preview_target.webp"
-    },
-    {
       "avatar_id": "513fd1b7-7ef9-466d-9af2-344e51eeb833",
       "name": "Ann Therapist",
       "preview_image_url": "https://files2.heygen.ai/avatar/v3/75e0a87b7fd94f0981ff398b593dd47f_45570/preview_talk_4.webp"
@@ -30,6 +25,11 @@
       "avatar_id": "7b888024-f8c9-4205-95e1-78ce01497bda",
       "name": "Shawn Therapist",
       "preview_image_url": "https://files2.heygen.ai/avatar/v3/db2fb7fd0d044b908395a011166ab22d_45680/preview_target.webp"
+    },
+    {
+      "avatar_id": "0930fd59-c8ad-434d-ad53-b391a1768720",
+      "name": "Dexter Lawyer",
+      "preview_image_url": "https://files2.heygen.ai/avatar/v3/e20ac0c902184ff793e75ae4e139b7dc_45600/preview_target.webp"
     }
   ]
 }

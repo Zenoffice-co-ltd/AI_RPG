@@ -465,6 +465,77 @@ describe("publishScenarioJob", () => {
     expect(result.voiceSelection.selectionSource).toBe("override");
   });
 
+  it("publishes an A/B test agent without updating the existing scenario binding or default snapshot", async () => {
+    resolveMappedVoiceProfile.mockResolvedValue(null);
+    loadVoiceProfile.mockResolvedValue({
+      id: "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2",
+      label: "Adecco Manufacturer Order Hearing JA V3 Candidate v2",
+      language: "ja",
+      model: "eleven_v3",
+      voiceId: "profile_voice",
+      firstMessageJa: "よろしくお願いします。",
+      textNormalisationType: "elevenlabs",
+      voiceSettings: {
+        speed: 0.98,
+      },
+      metadata: {
+        scenarioIds: [
+          "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+        ],
+        benchmarkStatus: "candidate",
+      },
+    });
+    scenariosGet.mockResolvedValue(
+      createScenario({
+        id: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+      })
+    );
+    scenariosGetAssets.mockResolvedValue(
+      createAssets({
+        scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+      })
+    );
+    resolveVoiceId.mockResolvedValue({
+      voiceId: "voice_resolved",
+      voiceName: "Resolved Voice",
+      resolution: "preferred",
+    });
+
+    const result = await publishScenarioJob({
+      scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+      voiceProfileId: "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2",
+      abTest: true,
+    });
+
+    expect(bindingGet).not.toHaveBeenCalled();
+    expect(bindingUpsert).not.toHaveBeenCalled();
+    expect(scenariosUpsert).not.toHaveBeenCalled();
+    expect(publishScenarioAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        existingBinding: null,
+        voiceSelection: expect.objectContaining({
+          voiceProfileId:
+            "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2",
+        }),
+      })
+    );
+    expect(writeGeneratedJson).toHaveBeenCalledWith(
+      "publish/staffing_order_hearing_adecco_manufacturer_busy_manager_medium.ab-test.json",
+      expect.objectContaining({
+        abTest: true,
+        voiceSelection: expect.objectContaining({
+          voiceProfileId:
+            "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2",
+        }),
+      })
+    );
+    expect(writeGeneratedJson).not.toHaveBeenCalledWith(
+      "publish/staffing_order_hearing_adecco_manufacturer_busy_manager_medium.json",
+      expect.anything()
+    );
+    expect(result.abTest).toBe(true);
+  });
+
   it("rejects an explicit voice profile override that targets another scenario", async () => {
     loadVoiceProfile.mockResolvedValue({
       id: "busy_manager_ja_baseline_v1",

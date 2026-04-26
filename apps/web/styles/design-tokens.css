@@ -42,8 +42,7 @@
 .roleplay-topbar__left,
 .roleplay-topbar__right,
 .roleplay-topbar__branch,
-.roleplay-branch-button,
-.roleplay-topbar__button {
+.roleplay-branch-button {
   display: flex;
   align-items: center;
 }
@@ -57,7 +56,6 @@
   gap: 27px;
 }
 
-.roleplay-topbar__button,
 .roleplay-branch-button,
 .roleplay-mock-pill {
   border: 0;
@@ -69,8 +67,13 @@
   text-decoration: none;
 }
 
-.roleplay-topbar__button {
-  gap: 8px;
+.roleplay-topbar__logo {
+  color: #3f4247;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-decoration: none;
   white-space: nowrap;
 }
 
@@ -97,6 +100,7 @@
 
 .roleplay-branch-button {
   gap: 11px;
+  cursor: default;
 }
 
 .roleplay-live-badge {

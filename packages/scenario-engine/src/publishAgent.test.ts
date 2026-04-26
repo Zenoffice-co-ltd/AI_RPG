@@ -228,7 +228,16 @@ describe("publishScenarioAgent", () => {
           mode: "turn",
         },
         conversation: {
-          clientEvents: ["audio", "interruption"],
+          clientEvents: [
+            "audio",
+            "agent_response",
+            "agent_response_correction",
+            "agent_chat_response_part",
+            "interruption",
+            "user_transcript",
+            "tentative_user_transcript",
+            "internal_tentative_agent_response",
+          ],
         },
         asr: {
           keywords: expect.arrayContaining(["アデコ", "受発注", "在庫確認"]),

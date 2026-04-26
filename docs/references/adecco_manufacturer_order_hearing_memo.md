@@ -20,7 +20,7 @@ Runtime SoT は [adecco_manufacturer_order_hearing_reference.json](/C:/AI_RPG/do
 - Title: `住宅設備メーカー 人事課主任 初回派遣オーダーヒアリング`
 - Client role: 中堅住宅設備メーカーの人事課主任
 - Difficulty: medium
-- Voice path: `staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1` (mirrors `accounting_clerk_enterprise_ap_ja_v3_candidate_v1`), `dictionaryRequired=false`
+- Voice path: `staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2` for current A/B config. v1 remains available for rollback. `dictionaryRequired=false`
 - First message: reference artifact `phase4.scenarioPack.openingLine`
 - Voice normalization: answers spell out amounts, times, ranges, counts, and abbreviations in spoken Japanese for ElevenLabs Orb.
 - Disclosure Ledger: 13 trigger-intent items in `packages/scenario-engine/src/disclosureLedger/staffingAdeccoLedger.ts`, all with `doNotAdvanceLedgerAutomatically: true`. Sequential reveal is forbidden; the agent only opens up the next layer when the user actually asks for it.
@@ -130,7 +130,7 @@ P0 release blockers (any one of these on re-run keeps release on hold, plus the 
 |---|---|---|
 | voiceId | `g6xIsTj2HwM6VR4iXFCw` | `g6xIsTj2HwM6VR4iXFCw` (同一) |
 | model | `eleven_v3` | `eleven_v3` (同一) |
-| voiceSettings.speed | 1.2 | 1.2 (同一) |
+| voiceSettings.speed | 0.97 | 0.97 (v1 mirror) / 0.98 (v2 A/B tuning) |
 | voiceSettings.style | 0 | 0 (同一) |
 | textNormalisationType | `elevenlabs` | `elevenlabs` (同一) |
 | pronunciationDictionaryId | `0GxlLMOqlBr3dvEhX6Ji` | `0GxlLMOqlBr3dvEhX6Ji` (同一) |
@@ -139,7 +139,7 @@ P0 release blockers (any one of these on re-run keeps release on hold, plus the 
 | sourceVoiceProfileId | n/a | `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` |
 | voiceReuseReason | n/a | `Use the same published accounting roleplay voice per product requirement.` |
 
-Diff equality is enforced by `voiceProfiles.test.ts` "DoD 3: Adecco staffing voice profile mirrors the accounting v3 profile exactly" test.
+v2 keeps the accounting voiceId / model / textNormalisationType / dictionary locator, while intentionally tuning Adecco-specific voice settings and first message for A/B testing. v1 rollback parity and v2 tuning are enforced by `voiceProfiles.test.ts`.
 
 ## Manual Orb v3 (2026-04-26) — closing_summary 早期発火 (early-fire) 修正
 

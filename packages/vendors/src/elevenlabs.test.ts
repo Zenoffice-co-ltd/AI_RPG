@@ -216,7 +216,10 @@ describe("buildConversationConfig", () => {
     expect(config.tts.model_id).toBe("eleven_multilingual_v2");
     expect(config.tts.voice_id).toBe("voice_123");
     expect(config.tts.text_normalisation_type).toBe("elevenlabs");
+    expect(config.tts.stability).toBe(0.7);
     expect(config.tts.similarity_boost).toBe(0.82);
+    expect(config.tts.speed).toBe(0.97);
+    expect(config.tts.use_speaker_boost).toBe(true);
     expect(config.tts.pronunciation_dictionary_locators).toEqual([
       {
         pronunciation_dictionary_id: "dict_123",
@@ -284,17 +287,23 @@ describe("buildConversationConfig", () => {
       knowledgeBase: [],
       llmModel: "gpt-5-mini",
       language: "ja",
+      asr: {
+        keywords: ["受発注", "在庫確認"],
+      },
+      conversation: {
+        clientEvents: ["audio", "interruption"],
+        maxDurationSeconds: 600,
+      },
       turn: {
-        turnTimeoutSeconds: 7,
+        turnTimeoutSeconds: 14,
         initialWaitTimeSeconds: 1,
         silenceEndCallTimeoutSeconds: -1,
         softTimeout: {
-          timeoutSeconds: -1,
-          message: "ご確認したい点からで大丈夫です。",
+          timeoutSeconds: 3,
+          message: "承知しました。少し整理しますね。",
         },
         turnEagerness: "patient",
         spellingPatience: "auto",
-        speculativeTurn: false,
         retranscribeOnTurnTimeout: true,
         mode: "turn",
       },
@@ -305,19 +314,27 @@ describe("buildConversationConfig", () => {
     });
 
     expect(config.turn).toEqual({
-      turn_timeout: 7,
+      turn_timeout: 14,
       initial_wait_time: 1,
       silence_end_call_timeout: -1,
       soft_timeout_config: {
-        timeout_seconds: -1,
-        message: "ご確認したい点からで大丈夫です。",
+        timeout_seconds: 3,
+        message: "承知しました。少し整理しますね。",
       },
       turn_eagerness: "patient",
       spelling_patience: "auto",
-      speculative_turn: false,
       retranscribe_on_turn_timeout: true,
       mode: "turn",
     });
+    expect(config.conversation).toEqual({
+      text_only: false,
+      client_events: ["audio", "interruption"],
+      max_duration_seconds: 600,
+    });
+    expect(config.asr).toEqual({
+      keywords: ["受発注", "在庫確認"],
+    });
+    expect(config.tts.stability).toBeUndefined();
   });
 });
 

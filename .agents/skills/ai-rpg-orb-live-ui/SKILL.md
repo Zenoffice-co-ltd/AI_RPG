@@ -38,6 +38,16 @@ Do not implement `fakeLive` as another static mock. Its purpose is to prove even
   `SDK/fake event -> normalizeConversationEvent -> transcriptReducer -> MessageList`.
 - Use only callback names present in `node_modules/@elevenlabs/react` type definitions.
 - Keep user-visible errors generic and Japanese; do not expose provider names, IDs, tokens, or upstream URLs.
+- Agent text can arrive from multiple SDK paths (`agent_response`,
+  `agent_chat_response_part`, `agent_response_correction`, `audioAlignment`, and
+  delayed disconnect/end flush). Dedupe by normalized text as well as SDK id.
+- Do not render tentative/debug drafting events (`tentative_agent_response`,
+  `internal_tentative_agent_response`) into customer transcript rows. They cause
+  confusing "入力中" / draft text artifacts.
+- To keep transcript timing near voice playback, buffer Agent text until an
+  audio signal (`onAudio`, `onAudioAlignment`, or `speaking` mode) arrives. Use a
+  short fallback timer only when no audio signal arrives; never hardcode the live
+  opening line to paper over missing SDK events.
 - The root `pnpm` override pins `livekit-client` to `2.16.1` for the ElevenLabs
   React SDK. Versions `2.17.3+` use the newer `/rtc/v1` signaling path, which
   has failed against this voice endpoint. Do not remove or loosen the pin unless
@@ -56,8 +66,27 @@ Do not implement `fakeLive` as another static mock. Its purpose is to prove even
 
 - If a control is requested hidden, remove the visible UI and any dead interactive affordance unless there is a product reason to keep it accessible.
 - Avoid decorative controls with no behavior in the customer-facing shell.
+- Keep these customer-facing controls hidden unless explicitly re-approved:
+  history, voice settings, mock tool, transcript `...` floating buttons,
+  composer clip icon, "詳細を表示", "入力中", and "エージェントが応答中...".
+- The ended state should show only the functional `+ 新しい会話` action centered
+  under the ended text.
 - Header and composer changes usually affect visual snapshots; only update baselines for intentional visual changes.
 - Do not relax visual thresholds to pass tests.
+
+## Transcript Logging
+
+- For production live debugging, client transcript events may be mirrored to
+  `/api/voice/transcript-log`; Cloud Run should log them as one-line JSON with
+  `message: "Roleplay transcript"`.
+- Log phases should distinguish at least `sdk-received`, `displayed`, and
+  `local-user-message` so missing/late transcript issues can be isolated.
+- Never log API keys, conversation tokens, full raw SDK objects, upstream URLs,
+  agent ids, or branch ids. Logging conversation text is allowed for this Adecco
+  demo only because the operator explicitly requested Cloud Run transcript logs.
+- If logs appear as multi-line Node object output (`Roleplay transcript {` plus
+  separate `phase:` / `text:` lines), change the server log call to
+  `console.info(JSON.stringify(...))` before relying on the evidence.
 
 ## Verification
 

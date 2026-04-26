@@ -367,6 +367,58 @@ describe("voice profile resolver against repo config", () => {
     );
   });
 
+  it("Adecco A/B v2 profile tunes only the Adecco-specific candidate lane", async () => {
+    const accountingProfile = await loadVoiceProfile(
+      "accounting_clerk_enterprise_ap_ja_v3_candidate_v1"
+    );
+    const v1Profile = await loadVoiceProfile(
+      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1"
+    );
+    const v2Profile = await loadVoiceProfile(
+      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2"
+    );
+
+    expect(v1Profile.id).toBe(
+      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1"
+    );
+    expect(v2Profile).toMatchObject({
+      id: "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2",
+      language: "ja",
+      model: "eleven_v3",
+      voiceId: "g6xIsTj2HwM6VR4iXFCw",
+      textNormalisationType: "elevenlabs",
+      voiceSettings: {
+        speed: 0.98,
+        stability: 0.5,
+        similarityBoost: 0.78,
+        style: 0,
+        useSpeakerBoost: true,
+      },
+      pronunciationDictionaryLocators: [
+        {
+          pronunciationDictionaryId: "0GxlLMOqlBr3dvEhX6Ji",
+          versionId: "GGzWcurA2ogrgciNu7u5",
+        },
+      ],
+    });
+    expect(v2Profile.firstMessageJa).toBe(
+      "お時間ありがとうございます。今回は新しい派遣会社さんということで、まず弊社の状況をお伝えしながら、要件を整理いただければと思っています。進め方も含めて、確認いただいてもよろしいでしょうか。"
+    );
+    expect(accountingProfile.voiceSettings).toEqual({
+      speed: 0.97,
+      style: 0,
+    });
+    expect(accountingProfile.pronunciationDictionaryLocators).toEqual(
+      v2Profile.pronunciationDictionaryLocators
+    );
+    expect(v2Profile.metadata?.scenarioIds).toEqual([
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+    ]);
+    expect(v2Profile.metadata?.sourceVoiceProfileId).toBe(
+      "accounting_clerk_enterprise_ap_ja_v3_candidate_v1"
+    );
+  });
+
   it("DoD 3-C: scenario-map resolves the Adecco staffing profile for publish/preview/benchmark", async () => {
     const publishProfile = await resolveMappedVoiceProfile(
       "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
@@ -385,13 +437,13 @@ describe("voice profile resolver against repo config", () => {
     );
 
     expect(publishProfile?.id).toBe(
-      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1"
+      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2"
     );
     expect(previewProfile?.id).toBe(
-      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1"
+      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2"
     );
     expect(benchmarkProfile?.id).toBe(
-      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1"
+      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2"
     );
   });
 });

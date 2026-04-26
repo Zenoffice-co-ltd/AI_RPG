@@ -30,12 +30,84 @@ WebRTC path selection、full web test、targeted lint、E2E、visual、build は
 音声、Agent transcript、User voice transcript、mute ON/OFF、New
 Conversation はまだ未検証のため、顧客デモ可否は条件付き可能に留まる。
 
+2026-04-27 05:05 JST update: production operator smoke on the customer URL
+confirmed live speech and transcript display, but surfaced UI transcript
+timing/deduping issues. The latest deployed fix is `mendan-00011-knx`; Full DOD
+remains pending a fresh operator retest on that revision.
+
 Canonical route: `/demo/adecco-roleplay`. Legacy `/demo/adecco-orb`
 redirects to the canonical route with query parameters preserved. Requested
 customer URL `https://mendan-mvk3ouxwza-an.a.run.app/demo/adecco-roleplay` is blocked until
 `mendan.run.app` is verified for the deploying Google account/project; Cloud
 Run domain mapping creation currently fails because the active account has no
 verified domains.
+
+### Orb Live UI Transcript Update: 2026-04-27T05:05+09:00
+
+Operator observations before the fix:
+
+- `入力中` and `エージェントが応答中...` were visually confusing and not
+  desired in the customer transcript.
+- `詳細を表示` was visible but not functional.
+- Agent text could appear before the matching audio.
+- The same Agent sentence, for example `承知しました。少し整理しますね。`,
+  could appear twice when late SDK events and disconnect/end flush both reached
+  the transcript path.
+- Cloud Run transcript logs existed, but Node object logging split the evidence
+  across several lines (`Roleplay transcript {`, then separate `phase:` /
+  `text:` lines), making searches hard.
+
+Remediation applied:
+
+- Removed the visible `入力中` label and the temporary
+  `エージェントが応答中...` indicator.
+- Dropped tentative/debug drafting events from customer transcript rendering.
+- Removed the non-functional `詳細を表示` action; ended state now keeps only the
+  centered `+ 新しい会話` action.
+- Buffered Agent transcript rows until `onAudio`, `onAudioAlignment`, or
+  `speaking` mode indicates playback, with a short fallback if no audio signal
+  arrives.
+- Added normalized-text dedupe for Agent events across `agent_response`,
+  `agent_chat_response_part`, audio-alignment fallback, and delayed end/disconnect
+  flush paths.
+- Added `/api/voice/transcript-log` and changed Cloud Run transcript evidence to
+  one-line JSON with `message: "Roleplay transcript"` for subsequent sessions.
+
+Latest deploy evidence:
+
+| Field | Result |
+| --- | --- |
+| Cloud Build | PASS: `3e8183f5-1fe3-436a-bf64-974af814400f` |
+| Cloud Run service | `mendan` |
+| Cloud Run revision | `mendan-00011-knx` |
+| Image | `asia-northeast1-docker.pkg.dev/adecco-mendan/roleplay-ui/roleplay-ui:end-actions-dedupe-jsonlog-20260427-0458` |
+| Health check | PASS: `https://mendan-mvk3ouxwza-an.a.run.app/api/healthz` returned 200 |
+| Targeted unit tests | PASS: `transcript-reducer`, `normalize-conversation-event` |
+| Full web unit tests | PASS: `pnpm --filter @top-performer/web test` (40 files / 206 tests) |
+| Typecheck | PASS: `pnpm --filter @top-performer/web typecheck` |
+| Targeted lint | PASS: roleplay/API touched paths |
+| E2E | PASS: `pnpm --filter @top-performer/web test:e2e` (3 tests) |
+| Visual | PASS after intentional snapshot update for hidden `詳細を表示` / centered `+ 新しい会話` |
+| Build | PASS: `pnpm --filter @top-performer/web build` |
+
+Next live log query:
+
+```bash
+gcloud logging read \
+  'resource.type="cloud_run_revision" AND resource.labels.service_name="mendan" AND textPayload:"Roleplay transcript"' \
+  --project adecco-mendan \
+  --limit 50 \
+  --format='value(timestamp,resource.labels.revision_name,textPayload)'
+```
+
+Expected post-`mendan-00011-knx` behavior:
+
+- no `入力中` label;
+- no `エージェントが応答中...` row;
+- no `詳細を表示` button;
+- only one `+ 新しい会話` button centered in ended state;
+- repeated identical Agent text is merged/dropped rather than displayed twice;
+- `Roleplay transcript` logs are emitted as single-line JSON.
 
 ### Adecco Live Agent Update: 2026-04-26T19:56+09:00
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, RotateCcw } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { MessageList } from "./MessageList";
 import { Composer } from "./Composer";
@@ -16,7 +16,6 @@ export function TranscriptPanel({
   messages,
   error,
   limitWarning,
-  isAwaitingAgentResponse,
   onSend,
   onRetry,
   onNewConversation,
@@ -26,7 +25,6 @@ export function TranscriptPanel({
   messages: TranscriptMessage[];
   error: string | null;
   limitWarning: boolean;
-  isAwaitingAgentResponse: boolean;
   onSend: (text: string) => Promise<void>;
   onRetry: (message: TranscriptMessage) => void;
   onNewConversation: () => void;
@@ -61,12 +59,6 @@ export function TranscriptPanel({
       <div className="transcript-status">{statusText(state, mode)}</div>
       <div ref={scrollRef} className="transcript-scroll" onScroll={handleScroll}>
         <MessageList messages={messages} onRetry={onRetry} />
-        {isAwaitingAgentResponse ? (
-          <div className="transcript-indicator" aria-live="polite">
-            <span className="transcript-indicator__spinner" aria-hidden="true" />
-            <span>エージェントが応答中...</span>
-          </div>
-        ) : null}
         {state === "ended" ? (
           <div className="transcript-ended">
             <p>通話を終了しました</p>
@@ -74,10 +66,6 @@ export function TranscriptPanel({
               <button type="button" onClick={onNewConversation}>
                 <Plus size={22} />
                 <span>新しい会話</span>
-              </button>
-              <button type="button">
-                <RotateCcw size={20} />
-                <span>詳細を表示</span>
               </button>
             </div>
           </div>

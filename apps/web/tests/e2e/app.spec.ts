@@ -3,8 +3,10 @@ import { expect, test } from "@playwright/test";
 test("adecco orb mock mode renders and supports controls", async ({ page }) => {
   await page.goto("/demo/adecco-roleplay?mock=1");
   await expect(page.getByTestId("roleplay-header")).toContainText(
-    "[MAIN][Adecco Orb]"
+    "[Adecco Demo]"
   );
+  await expect(page.getByLabel("MENDAN")).toBeVisible();
+  await expect(page.getByText("戻る", { exact: true })).toHaveCount(0);
   await expect(page.getByText("通話が開始されました")).toBeVisible();
   await expect(page.getByText("お時間ありがとうございます。")).toBeVisible();
 

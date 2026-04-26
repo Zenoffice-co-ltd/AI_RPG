@@ -23,12 +23,18 @@ function parseOptionalProfileArg() {
   return value;
 }
 
+function parseAbTestArg() {
+  return process.argv.includes("--ab-test");
+}
+
 async function main() {
   const scenarioId = parseScenarioArg();
   const voiceProfileId = parseOptionalProfileArg();
+  const abTest = parseAbTestArg();
   const result = await publishScenarioJob({
     scenarioId,
     ...(voiceProfileId ? { voiceProfileId } : {}),
+    ...(abTest ? { abTest } : {}),
   });
   console.info(JSON.stringify(result, null, 2));
 }

@@ -86,8 +86,9 @@ live 比較用の explicit candidate profile:
 | `busy_manager_ja_v3_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` | `elevenlabs` | `speed=0.97`, `style=0` |
 | `busy_manager_ja_primary_v3_f06` | `eleven_v3` | `4lOQ7A2l7HPuG7UIHiKA` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` | `elevenlabs` | `speed=0.96`, `style=0` |
 | `busy_manager_ja_fallback_v3_m03` | `eleven_v3` | `umjlutQo1p1XQpWffYUI` | `ありがとうございます。お時間に限りがあると思うので、要点から確認させてください。` | `elevenlabs` | `speed=0.96`, `style=0` |
-| `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の求人のご相談させていただけましたらと思い、どうぞよろしくお願いいたします。` | `elevenlabs` | `speed=1.2`, `style=0` |
-| `accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の求人のご相談させていただけましたらと思い、どうぞよろしくお願いいたします。` | `system_prompt` | `speed=1.2`, `style=0` |
+| `accounting_clerk_enterprise_ap_ja_v3_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の体制から確認させてください。` | `elevenlabs` | `speed=0.97`, `style=0` |
+| `accounting_clerk_enterprise_ap_ja_v3_system_prompt_candidate_v1` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `本日はありがとうございます。まずは支払、経費精算、請求書処理の体制から確認させてください。` | `system_prompt` | `speed=0.97`, `style=0` |
+| `staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2` | `eleven_v3` | `g6xIsTj2HwM6VR4iXFCw` | `お時間ありがとうございます。今回は新しい派遣会社さんということで、まず弊社の状況をお伝えしながら、要件を整理いただければと思っています。進め方も含めて、確認いただいてもよろしいでしょうか。` | `elevenlabs` | `stability=0.50`, `similarityBoost=0.78`, `speed=0.98`, `style=0`, `useSpeakerBoost=true` |
 
 最新の v3 shortlist run は `data/generated/voice-benchmark/ja-voice15-round2-v3-2026-04-07/` にあります。
 
@@ -171,10 +172,10 @@ accounting scenario は fail-closed です。
 
 Adecco 住宅設備メーカー staffing scenario も 2026-04-26 以降は legacy fallback を使わず、profile-based 解決のみ:
 
-- `staffing_order_hearing_adecco_manufacturer_busy_manager_medium` は accounting 現行 Publish の voice 設定 (`voiceId=g6xIsTj2HwM6VR4iXFCw`, `model=eleven_v3`, `voiceSettings.speed=1.2`, `textNormalisationType=elevenlabs`, dictionary locator `0GxlLMOqlBr3dvEhX6Ji@GGzWcurA2ogrgciNu7u5`) を staffing 専用 profile `staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1` に mirror する
+- `staffing_order_hearing_adecco_manufacturer_busy_manager_medium` は A/B test 用 profile `staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2` を current mapping とする。voiceId / model / textNormalisationType / dictionary locator は accounting 現行 Publish (`accounting_clerk_enterprise_ap_ja_v3_candidate_v1`) と同じ値を維持し、Adecco 固有の `firstMessageJa` と `voiceSettings` (`speed=0.98`, `stability=0.50`, `similarityBoost=0.78`, `style=0`, `useSpeakerBoost=true`) だけを tuning する
 - `metadata.sourceVoiceProfileId` と `metadata.voiceReuseReason` で再利用根拠を保持し、`scenarioIds` 制約で accounting profile の override を防ぐ
 - `activeProfiles` / `previewProfiles` / `benchmarkProfiles` 全てに staffing 専用 profile を登録し、legacy fallback を使わない
-- 新規 voice 選定はせず、accounting current Publish と完全同一を保つ。差分が発生する場合は `metadata.notes` に追記する
+- v1 profile は rollback 用に残す。既存 `[MAIN][Adecco Orb]` agent を A とし、v2 は `pnpm publish:scenario -- --scenario staffing_order_hearing_adecco_manufacturer_busy_manager_medium --profile staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2 --ab-test` で B 用の新規 Agent として publish する
 
 legacy fallback:
 

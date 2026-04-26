@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
     const env = await getVoiceServerEnvWithSecretFallback();
     const conversationToken = await issueConversationToken({
       env,
+      scenarioId: parsed.data.scenarioId,
       ...(parsed.data.participantName
         ? { participantName: parsed.data.participantName }
         : {}),

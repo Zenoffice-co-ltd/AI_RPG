@@ -491,7 +491,9 @@ export async function publishScenarioJob(input: unknown) {
           language: scenario.language,
         });
 
-    const existingBinding = await ctx.repositories.agentBindings.get(parsed.scenarioId);
+    const existingBinding = parsed.abTest
+      ? null
+      : await ctx.repositories.agentBindings.get(parsed.scenarioId);
     let result;
     try {
       result = await publishScenarioAgent({
@@ -552,7 +554,7 @@ export async function publishScenarioJob(input: unknown) {
       throw error;
     }
 
-    if (result.binding) {
+    if (result.binding && !parsed.abTest) {
       await ctx.repositories.agentBindings.upsert(result.binding);
       await ctx.repositories.scenarios.upsert({
         ...scenario,
@@ -567,6 +569,7 @@ export async function publishScenarioJob(input: unknown) {
       voiceId: voiceSelection.voiceId,
       ttsModel: voiceSelection.ttsModel,
       testRunId: result.testRun?.id,
+      ...(parsed.abTest ? { abTest: true } : {}),
       ...(elevenAgentId
         ? { dashboard: buildElevenLabsDashboardLinks(elevenAgentId) }
         : {}),
@@ -599,11 +602,18 @@ export async function publishScenarioJob(input: unknown) {
       voiceName: resolvedVoice.voiceName,
     };
 
-    await writeGeneratedJson(`publish/${parsed.scenarioId}.json`, publishSnapshot);
-    await writeGeneratedJson(
-      `publish/${parsed.scenarioId}.${scenario.version}.json`,
-      publishSnapshot
-    );
+    if (parsed.abTest) {
+      await writeGeneratedJson(
+        `publish/${parsed.scenarioId}.ab-test.json`,
+        publishSnapshot
+      );
+    } else {
+      await writeGeneratedJson(`publish/${parsed.scenarioId}.json`, publishSnapshot);
+      await writeGeneratedJson(
+        `publish/${parsed.scenarioId}.${scenario.version}.json`,
+        publishSnapshot
+      );
+    }
 
     await ctx.repositories.jobs.upsert({
       ...job,
@@ -612,6 +622,7 @@ export async function publishScenarioJob(input: unknown) {
       scenarioId: parsed.scenarioId,
       metadata: {
         ...job.metadata,
+        ...(parsed.abTest ? { abTest: true } : {}),
         ...(parsed.voiceProfileId
           ? { voiceProfileId: parsed.voiceProfileId }
           : {}),
