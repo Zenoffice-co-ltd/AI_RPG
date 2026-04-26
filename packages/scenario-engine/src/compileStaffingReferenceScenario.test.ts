@@ -77,13 +77,18 @@ describe("compileStaffingReferenceScenario", () => {
       "Answer only the user's current question"
     );
 
-    // Anti-loop guardrails
+    // Anti-loop guardrails — manual orb v5 expanded the wording from
+    // "通常応答では一切使いません" to "通常応答でも沈黙時でも一切使いません".
     expect(compiled.assets.agentSystemPrompt).toContain(
-      "通常応答では一切使いません"
+      "通常応答でも沈黙時でも一切使いません"
     );
     expect(compiled.assets.agentSystemPrompt).toContain(
       "毎ターンの定型句として使わない"
     );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "まだお話しになられていますでしょうか"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain("受発注、在庫確認");
 
     // Knowledge-base normalization stays intact
     expect(compiled.assets.knowledgeBaseText).toContain("千七百五十円から千九百円");

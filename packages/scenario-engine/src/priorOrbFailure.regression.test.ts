@@ -121,6 +121,20 @@ const PRIOR_ORB_BAD_RESPONSES: PriorOrbBadResponse[] = [
       "closing-summary-not-triggered-after-decision-structure",
     ],
   },
+  // ----------------------------------------------------------------
+  // Manual orb v5 (2026-04-26) — P0 blocker:
+  // 学習者が請求単価を 5万円〜10万円 と誤って要約 (真値は 1,750-1,900円)
+  // → AI が「はい、大きくはその整理で合っています」と同意してしまう。
+  // ----------------------------------------------------------------
+  {
+    description:
+      "誤数値 (請求単価 5万円〜10万円) を含む要約に AI が同意してしまう (manual orb v5 P0)",
+    badResponse:
+      "はい、大きくはその整理で合っています。来週水曜日までに初回候補をメールでいただけると助かります。ちなみに、アデコさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+    expectedFailingRegressions: [
+      "closing-summary-rejects-wrong-billing-rate",
+    ],
+  },
 ];
 
 function findTestDefinition(name: string) {
@@ -196,6 +210,12 @@ describe("Prior 2026-04-26 orb failure log binds to regression test failure_exam
       // Manual orb v3 additions:
       "closing-summary-not-triggered-after-decision-structure",
       "closing-summary-requires-explicit-summary-signal",
+      // Manual orb v5 additions:
+      "closing-summary-rejects-wrong-billing-rate",
+      "closing-summary-rejects-wrong-headcount",
+      "closing-summary-rejects-wrong-start-date",
+      "closing-summary-rejects-wrong-overtime",
+      "closing-summary-rejects-wrong-working-hours",
     ];
     for (const tail of required) {
       const def = findTestDefinition(tail);

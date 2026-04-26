@@ -25,6 +25,10 @@ function isAccountingScenario(scenarioId: string) {
   return scenarioId.startsWith(ACCOUNTING_SCENARIO_PREFIX);
 }
 
+function isAdeccoManufacturerScenario(scenarioId: string) {
+  return scenarioId === ADECCO_MANUFACTURER_SCENARIO_ID;
+}
+
 function stripLiveBracketMarkup(text: string) {
   return text
     .replace(/(^|\n)(\s*[-*]\s*)\[(required|optional|important)\]\s+/gi, "$1$2")
@@ -59,7 +63,24 @@ function buildLivePromptText(input: {
 
 function buildLiveTurnConfig(scenarioId: string) {
   if (!isAccountingScenario(scenarioId)) {
-    return undefined;
+    if (!isAdeccoManufacturerScenario(scenarioId)) {
+      return undefined;
+    }
+
+    return {
+      turnTimeoutSeconds: 7,
+      initialWaitTimeSeconds: 1,
+      silenceEndCallTimeoutSeconds: -1,
+      softTimeout: {
+        timeoutSeconds: -1,
+        message: "ご確認したい点からで大丈夫です。",
+      },
+      turnEagerness: "patient" as const,
+      spellingPatience: "auto" as const,
+      speculativeTurn: false,
+      retranscribeOnTurnTimeout: true,
+      mode: "turn" as const,
+    };
   }
 
   return {
@@ -1370,6 +1391,222 @@ function buildAdeccoRegressionTestDefinitions(scenario: ScenarioPack) {
         {
           response:
             "現行ベンダーに加えてもう一社の大手にも相談中です。補足すると、受発注経験と対外調整の経験を重視しています。Adeccoさんの派遣の特徴は何ですか。",
+          type: "failure",
+        },
+      ],
+      type: "llm",
+    },
+    // ----------------------------------------------------------------
+    // Manual orb v5 P0 fix (2026-04-26): closing_summary must verify
+    // each summarised value against the canonical truth table BEFORE
+    // agreeing. The first regression covers the smoking-gun case
+    // (請求単価を 5万円〜10万円 と誤要約 → 真値は 1,750-1,900円).
+    // The remaining 4 cover human errors on other key numeric fields.
+    // ----------------------------------------------------------------
+    {
+      name: `${scenario.id}::closing-summary-rejects-wrong-billing-rate`,
+      chat_history: [
+        {
+          role: "user",
+          message:
+            "ありがとうございます。整理させてください。営業事務1名、6月1日開始、平日8時45分から17時30分、残業は月10から15時間程度、請求は5万円から10万円のレンジで、受発注経験と対外調整経験、正確性と協調性を優先。来週水曜日までに初回候補をメールでお持ちする、という進め方でよろしいでしょうか？",
+          time_in_call_secs: 1,
+        },
+      ],
+      success_condition:
+        "Return true only if the response (a) starts with or clearly contains 「違います」 (or 「いえ」 + explicit rejection), AND (b) provides the correct billing rate referencing 1,750 (or 1750 / 千七百五十) AND 1,900 (or 1900 / 千九百), AND (c) does NOT contain any of: 「はい、大きくはその整理で合っています」, 「はい、その理解で合っています」, 「だいたい合っています」, 「おおむね合っています」, 「ちなみに、Adecco」, 「ちなみに、アデコ」, Adeccoさんの派遣の特徴, アデコさんの派遣の特徴, Adeccoさんの強み, アデコさんの強み, AND (d) explicitly contradicts 5万円 (or 50,000円 / 5万 / 10万円) — i.e. does not silently accept the wrong unit. The agent MUST reject the wrong billing rate clearly and offer correction; it MUST NOT proceed to the Adecco strength reverse question in the same response (manual orb v5: the correction must end the turn so the learner can absorb it).",
+      success_examples: [
+        {
+          response:
+            "違います。請求単価は5万円から10万円ではなく、経験により1,750から1,900円程度を想定しています。それ以外の開始日や就業時間、残業時間の整理は大きく合っています。",
+          type: "success",
+        },
+        {
+          response:
+            "違います。請求は経験により1,750から1,900円程度です。5万円から10万円ではありません。",
+          type: "success",
+        },
+        {
+          response:
+            "違います。請求単価は経験により千七百五十円から千九百円程度を想定しています。5万円から10万円ではありません。それ以外の整理は概ね合っています。",
+          type: "success",
+        },
+      ],
+      failure_examples: [
+        // The exact manual orb v5 P0 smoking-gun.
+        {
+          response:
+            "はい、大きくはその整理で合っています。来週水曜日までに初回候補をメールでいただけると助かります。ちなみに、アデコさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+          type: "failure",
+        },
+        {
+          response:
+            "はい、大きくはその整理で合っています。来週水曜日までに初回候補をメールでいただけると助かります。ちなみに、Adeccoさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+          type: "failure",
+        },
+        // Vague hedging.
+        {
+          response:
+            "だいたい合っていますが、単価だけ少し違うかもしれません。",
+          type: "failure",
+        },
+        {
+          response:
+            "おおむね合っていますが、請求単価だけご確認ください。",
+          type: "failure",
+        },
+        // Correction immediately followed by reverse question (forbidden — must end turn for learner absorption).
+        {
+          response:
+            "違います。請求単価は1,750から1,900円です。ちなみに、アデコさんの派遣の特徴や、他社さんとの違いはどのあたりでしょうか。",
+          type: "failure",
+        },
+        {
+          response:
+            "違います。請求は経験により1,750から1,900円程度です。Adeccoさんの強みは何ですか。",
+          type: "failure",
+        },
+        // Acknowledging the wrong amount silently.
+        {
+          response:
+            "はい、5万円から10万円のレンジで承知しました。来週水曜日までにメールでお送りします。",
+          type: "failure",
+        },
+      ],
+      type: "llm",
+    },
+    {
+      name: `${scenario.id}::closing-summary-rejects-wrong-headcount`,
+      chat_history: [
+        {
+          role: "user",
+          message:
+            "ありがとうございます。整理させてください。営業事務2名、6月1日開始、平日8時45分から17時30分、残業は月10から15時間程度、請求は経験により1,750から1,900円のレンジで、来週水曜日までに初回候補をメールでお持ちする、という進め方でよろしいでしょうか？",
+          time_in_call_secs: 1,
+        },
+      ],
+      success_condition:
+        "Return true only if the response (a) clearly contains 「違います」 (or equivalent explicit rejection), AND (b) states the correct headcount as 1名 OR 一名, AND (c) does NOT silently accept 2名, AND (d) does NOT contain 「はい、大きくはその整理で合っています」 / 「はい、その理解で合っています」.",
+      success_examples: [
+        {
+          response:
+            "違います。募集人数は2名ではなく、営業事務1名で考えています。それ以外の整理は大きく合っています。",
+          type: "success",
+        },
+        {
+          response:
+            "違います。募集は営業事務一名です。2名ではありません。",
+          type: "success",
+        },
+      ],
+      failure_examples: [
+        {
+          response:
+            "はい、大きくはその整理で合っています。営業事務2名で来週水曜日までに初回候補をメールでお送りします。",
+          type: "failure",
+        },
+        {
+          response:
+            "はい、その理解で合っています。営業事務2名で進めましょう。",
+          type: "failure",
+        },
+      ],
+      type: "llm",
+    },
+    {
+      name: `${scenario.id}::closing-summary-rejects-wrong-start-date`,
+      chat_history: [
+        {
+          role: "user",
+          message:
+            "ありがとうございます。整理させてください。営業事務1名、7月1日開始、平日8時45分から17時30分、残業は月10から15時間程度、請求は経験により1,750から1,900円のレンジで、来週水曜日までに初回候補をメールでお持ちする、という進め方でよろしいでしょうか？",
+          time_in_call_secs: 1,
+        },
+      ],
+      success_condition:
+        "Return true only if the response (a) clearly contains 「違います」 (or equivalent explicit rejection), AND (b) states the correct start date as 6月1日 OR 六月一日, AND (c) does NOT silently accept 7月1日, AND (d) does NOT contain 「はい、大きくはその整理で合っています」.",
+      success_examples: [
+        {
+          response:
+            "違います。開始は7月1日ではなく、6月1日を希望しています。それ以外の整理は大きく合っています。",
+          type: "success",
+        },
+        {
+          response:
+            "違います。開始日は六月一日です。七月一日ではありません。",
+          type: "success",
+        },
+      ],
+      failure_examples: [
+        {
+          response:
+            "はい、大きくはその整理で合っています。7月1日開始で進めましょう。",
+          type: "failure",
+        },
+      ],
+      type: "llm",
+    },
+    {
+      name: `${scenario.id}::closing-summary-rejects-wrong-overtime`,
+      chat_history: [
+        {
+          role: "user",
+          message:
+            "ありがとうございます。整理させてください。営業事務1名、6月1日開始、平日8時45分から17時30分、残業は月30時間程度、請求は経験により1,750から1,900円のレンジで、来週水曜日までに初回候補をメールでお持ちする、という進め方でよろしいでしょうか？",
+          time_in_call_secs: 1,
+        },
+      ],
+      success_condition:
+        "Return true only if the response (a) clearly contains 「違います」 (or equivalent explicit rejection), AND (b) states the correct overtime range as 月10から15時間 OR 月十から十五時間, AND (c) does NOT silently accept 月30時間, AND (d) does NOT contain 「はい、大きくはその整理で合っています」.",
+      success_examples: [
+        {
+          response:
+            "違います。残業は月30時間ではなく、月10から15時間程度を想定しています。それ以外の整理は大きく合っています。",
+          type: "success",
+        },
+        {
+          response:
+            "違います。残業の想定は月十から十五時間程度です。月三十時間ではありません。",
+          type: "success",
+        },
+      ],
+      failure_examples: [
+        {
+          response:
+            "はい、大きくはその整理で合っています。残業月30時間で進めましょう。",
+          type: "failure",
+        },
+      ],
+      type: "llm",
+    },
+    {
+      name: `${scenario.id}::closing-summary-rejects-wrong-working-hours`,
+      chat_history: [
+        {
+          role: "user",
+          message:
+            "ありがとうございます。整理させてください。営業事務1名、6月1日開始、平日9時から18時、残業は月10から15時間程度、請求は経験により1,750から1,900円のレンジで、来週水曜日までに初回候補をメールでお持ちする、という進め方でよろしいでしょうか？",
+          time_in_call_secs: 1,
+        },
+      ],
+      success_condition:
+        "Return true only if the response (a) clearly contains 「違います」 (or equivalent explicit rejection), AND (b) states the correct working hours as 8時45分 AND 17時30分 (or 八時四十五分 AND 十七時三十分), AND (c) does NOT silently accept 9時から18時, AND (d) does NOT contain 「はい、大きくはその整理で合っています」.",
+      success_examples: [
+        {
+          response:
+            "違います。就業時間は9時から18時ではなく、平日8時45分から17時30分です。それ以外の整理は大きく合っています。",
+          type: "success",
+        },
+        {
+          response:
+            "違います。就業時間は平日八時四十五分から十七時三十分です。九時から十八時ではありません。",
+          type: "success",
+        },
+      ],
+      failure_examples: [
+        {
+          response:
+            "はい、大きくはその整理で合っています。9時から18時で進めましょう。",
           type: "failure",
         },
       ],
