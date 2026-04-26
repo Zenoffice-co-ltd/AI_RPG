@@ -36,6 +36,22 @@ pnpm smoke:liveavatar
 pnpm verify:acceptance
 ```
 
+## Orb UI Evidence
+
+For Adecco Orb web UI changes, prefer targeted evidence before broader gates:
+
+```bash
+pnpm --filter @top-performer/web exec eslint components/roleplay lib/roleplay --ext .ts,.tsx --ignore-pattern '**/*.test.ts' --ignore-pattern '**/*.test.tsx' --no-error-on-unmatched-pattern
+pnpm --filter @top-performer/web test:e2e
+pnpm --filter @top-performer/web test:visual
+pnpm --filter @top-performer/web build
+```
+
+- Use `/demo/adecco-orb?fakeLive=1` to prove event-driven transcript behavior without external voice network calls.
+- Use `/demo/adecco-orb?mock=1&visualTest=1` only for deterministic visual regression.
+- Record live browser and microphone smoke evidence in `docs/qa.md`; if it is not run, report `実装済み・live未検証`.
+- When root lint/typecheck fails from unrelated repo-wide blockers, capture the exact blocker and keep targeted evidence for the touched Orb files.
+
 ## Guardrails
 
 - Do not claim acceptance is done unless the canonical gate passed or you explicitly document the remaining blocker.
