@@ -91,6 +91,68 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     expect(item!.allowedAnswer).not.toMatch(/SAP|エスエーピー/);
   });
 
+  it("Manual orb v7 P0: closing_summary intentDescription embeds semantic equivalence rule (時刻の半 = 三十分 / 漢数字 ⇔ 算用数字)", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "closing_summary"
+    );
+    expect(item).toBeDefined();
+    expect(item!.intentDescription).toContain("表記揺れの同義扱い");
+    expect(item!.intentDescription).toContain("十七時半");
+    expect(item!.intentDescription).toContain("十七時三十分");
+    expect(item!.intentDescription).toContain("半は 30 分の同義");
+    expect(item!.intentDescription).toContain("一名");
+    expect(item!.intentDescription).toContain("六月一日");
+    expect(item!.intentDescription).toContain("意味が同じ項目は合意");
+  });
+
+  it("Manual orb v7 P0: closing_summary negativeExamples include the 半→三十分 wrong-correction smoking gun", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "closing_summary"
+    );
+    expect(item).toBeDefined();
+    const joined = item!.negativeExamples.join("|");
+    // The exact failure pattern observed in manual orb v7: AI rejected
+    // 十七時半 as different from 十七時三十分 even though they are equivalent.
+    expect(joined).toContain("違います。就業時間は十七時半ではなく、十七時三十分です。");
+    // Also: 漢数字/算用数字の表記揺れを訂正する失敗
+    expect(joined).toContain("違います。募集は1名ではなく、一名で考えています。");
+    expect(joined).toContain("違います。開始は6月1日ではなく、六月一日を希望しています。");
+    // フィラー失敗
+    expect(joined).toContain("承知しました。少し整理しますね。");
+  });
+
+  it("Manual orb v7 P2: handover_method.allowedAnswer uses だいたい (not 概ね) for TTS-friendly speech", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "handover_method"
+    );
+    expect(item).toBeDefined();
+    expect(item!.allowedAnswer).toContain("だいたい一か月");
+    // 概ね is replaced because TTS reads it awkwardly
+    expect(item!.allowedAnswer).not.toContain("概ね一か月");
+  });
+
+  it("Manual orb v7 P1: identity_self intentDescription guards against backchannel misfire (うん / はい / えっと 単独)", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "identity_self"
+    );
+    expect(item).toBeDefined();
+    expect(item!.intentDescription).toContain("短い相槌");
+    expect(item!.intentDescription).toContain("うん");
+    expect(item!.intentDescription).toContain("えっと");
+    expect(item!.intentDescription).toContain("identity_self を発火させない");
+    expect(item!.intentDescription).toContain("役職を 2 回以上同じ会話で言い直さない");
+  });
+
+  it("Manual orb v7 P1: next_step_close intentDescription forbids AI-side self-initiation", () => {
+    const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
+      (i) => i.triggerIntent === "next_step_close"
+    );
+    expect(item).toBeDefined();
+    expect(item!.intentDescription).toContain("AI 側 (人事) から自発的");
+    expect(item!.intentDescription).toContain("学習者 (営業) が AI に問いかける発話パターン");
+    expect(item!.intentDescription).toContain("AI が代わりに進行確認しない");
+  });
+
   it("DoD 3.1: headcount_only is independent and forbids leaking other facts", () => {
     const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
       (i) => i.triggerIntent === "headcount_only"

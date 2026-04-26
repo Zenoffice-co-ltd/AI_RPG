@@ -3,17 +3,17 @@
   "elevenAgentId": "agent_2801kpj49tj1f43sr840cvy17zcc",
   "voiceId": "g6xIsTj2HwM6VR4iXFCw",
   "ttsModel": "eleven_v3",
-  "testRunId": "suite_8901kq5f96qtej6sng9wppx7ax2m",
+  "testRunId": "suite_2301kq5h6aewfagr68c4jzsdw4ax",
   "dashboard": {
     "agentUrl": "https://elevenlabs.io/app/conversational-ai/agents/agent_2801kpj49tj1f43sr840cvy17zcc",
     "orbPreviewUrl": "https://elevenlabs.io/app/talk-to?agent_id=agent_2801kpj49tj1f43sr840cvy17zcc"
   },
   "passed": true,
   "testRun": {
-    "id": "suite_8901kq5f96qtej6sng9wppx7ax2m",
+    "id": "suite_2301kq5h6aewfagr68c4jzsdw4ax",
     "test_runs": [
       {
-        "test_run_id": "trun_0601kq5f96r5eqx8n4rr824xymwv",
+        "test_run_id": "trun_5801kq5h6af5egnr793k2d37v4a1",
         "test_id": "test_7301kq43yth9fs4bnq372ns2hk7y",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::headcount-only",
@@ -22,7 +22,7 @@
         }
       },
       {
-        "test_run_id": "trun_7701kq5f96r4fper087w234d65b9",
+        "test_run_id": "trun_3701kq5h6af4f32a5xty2m9tda9r",
         "test_id": "test_8101kq43ysxhemnvjappzys9yetj",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::opening-line",
@@ -31,16 +31,7 @@
         }
       },
       {
-        "test_run_id": "trun_1701kq5f96r7e13tzsg64d4xcyz6",
-        "test_id": "test_2001kq43yvmxf64b819206gvwwq3",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::background-deep-followup",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_4201kq5f96r8fe7a56twtf7xrvcb",
+        "test_run_id": "trun_2801kq5h6af8e42v463jfcrgn258",
         "test_id": "test_5101kq43yw38ezqvzrwe9tpjd7km",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::next-step-close-safe",
@@ -49,16 +40,16 @@
         }
       },
       {
-        "test_run_id": "trun_5701kq5f96r6fqmr783gtdykq9cm",
-        "test_id": "test_7201kq43yv4pe30b35w773g5616k",
+        "test_run_id": "trun_8501kq5h6af7ef7v3skz5xzvf9wq",
+        "test_id": "test_2001kq43yvmxf64b819206gvwwq3",
         "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::shallow-overview",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::background-deep-followup",
         "condition_result": {
           "result": "success"
         }
       },
       {
-        "test_run_id": "trun_6101kq5f96r9fsaaq7jfpbazy9sq",
+        "test_run_id": "trun_1501kq5h6af9fvwsaww7gq137y0k",
         "test_id": "test_7001kq43ywg2e4aamgf4pw2ndfrz",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::sap-absence-safe",
@@ -67,7 +58,7 @@
         }
       },
       {
-        "test_run_id": "trun_4901kq5f96raeb9rprsykfpvrqee",
+        "test_run_id": "trun_7201kq5h6afaf8xav2kqjj82hfpk",
         "test_id": "test_8701kq43yx9dfdy8144ncfrmk1jf",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::no-coaching-safe",
@@ -76,10 +67,19 @@
         }
       },
       {
-        "test_run_id": "trun_7901kq5f96rbft493k28xcaeaza1",
+        "test_run_id": "trun_4001kq5h6afbepq8rvxe333ccj8c",
         "test_id": "test_5501kq43yxsnftgtqaf7v1v7q2n7",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::closing-summary-simple",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_4101kq5h6af6egpregcfyvrrm0v0",
+        "test_id": "test_7201kq43yv4pe30b35w773g5616k",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::shallow-overview",
         "condition_result": {
           "result": "success"
         }
@@ -92,10 +92,10 @@
     "scenarioId": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
     "elevenAgentId": "agent_2801kpj49tj1f43sr840cvy17zcc",
     "elevenBranchId": "agtbrch_9701kpj49vbdepjr8szvwc6w7e6b",
-    "elevenVersionId": "agtvrsn_0801kq5f92bpfv98kjyaggst35c4",
+    "elevenVersionId": "agtvrsn_0101kq5h655eeygbx4840pva7y8g",
     "voiceProfileId": "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2",
     "voiceId": "g6xIsTj2HwM6VR4iXFCw",
-    "publishedAt": "2026-04-26T18:02:17.728Z"
+    "publishedAt": "2026-04-26T18:35:37.395Z"
   },
   "testedBranchId": "agtbrch_8001kpj49xpsermt0fy3xrr5ph8z",
   "testPolicy": {
