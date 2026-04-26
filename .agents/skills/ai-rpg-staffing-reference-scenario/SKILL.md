@@ -197,3 +197,92 @@ manual orb v3 の 3-Layer Edit Rule (Ledger / rendered prompt / locked-in tests)
 - (将来) `schedule_check` (学習者が日程提案 → 真値と照合)
 
 新しい "検証型" intent を追加するときは、最初から canonical truth table + Case 1/2 + hedging negativeExamples + ConvAI 回帰テストをセットで設計する。トリガだけ厳密にして発火後を例文 1 つで済ませると、必ず v5 と同じ罠を踏む。
+
+## Manual Orb v8/v9 lesson: 4 つの繰り返し観察された prompt-engineering アンチパターン (2026-04-27)
+
+manual orb v3 〜 v9 を通して **同じクラスの問題が複数回再発** したため、メタパターンとして恒常化。新しい intent / prompt 編集に着手する前に必ずこのセクションを参照する。
+
+### Pattern 1: 「Allow vs ban conflict」アンチパターン (v5 / v7→v8 / v8→v9 で 3 回再発)
+
+**症状**: prompt 内に「一般的に X を許可」と「特定の compound 'X+Y' を禁止」というコンフリクト構造があると、LLM は **allow を override として ban を破る**。
+
+**過去事例**:
+- v5: 「請求単価は経験により1,750-1,900円」allow + 「5万円から10万円」negative example → AI が「5万円から10万円」を user 発話と誤解して "違います。請求単価は5万円から10万円ではなく..." を hallucinate
+- v7→v8: 「短い相槌は曖昧発話扱い、何も返さず次の発話を待つ」instructional → AI が「（何も返さず、ユーザーの次の発話を待ちます）」を literal 発話
+- v8→v9: 「『承知しました』を自然に使ってよい」allow + 「『承知しました。少し整理しますね。』を ban」 → AI が compound を生成
+
+**標準的解決策 (3 ステップ)**:
+
+1. **allow を位置 / 文脈で制限された stricter form に変換**
+   - 旧 (conflict): 「『承知しました』は自然に使ってよい」+「『承知しました。少し整理しますね。』禁止」
+   - 新 (positional restriction): 「『承知しました』は **応答の冒頭ではなく、文中で自然に** 使う」
+
+2. **失敗例を smoking gun として negativeExamples に lock**
+   - 観測された literal 失敗テキストをそのまま negativeExamples 配列に投入
+   - 表記揺れ (英字 / カナ / 全角半角) もすべて列挙
+
+3. **高 salience の独立セクションに昇格** (Pattern 4 参照)
+   - bullet item ではなく `# Section` に昇格
+   - 「**This step is important. Top-priority rule for response generation.**」を冒頭に明示
+
+**Verification check**: prompt 編集後、`grep -E "(allow|ok|使ってよい).*(ban|禁止|出さない)"` で潜在 conflict を検出。同じ語に対して allow と ban が両方ある場合は要 audit。
+
+### Pattern 2: Trigger split (1 trigger = 1 narrow topic)
+
+**症状**: 1 trigger が複数 sub-topic (例: culture_fit_question = 部署人数 + 男女比 + 課長の人柄 + 服装 + 休憩室) を **1 つの canonical answer に詰め込む** と、フォローアップ質問でも同じ canonical を全文 repeat する。
+
+**過去事例 (v8)**:
+- `culture_fit_question` 1 trigger → Q1「指揮命令者は？」と Q2「部署の雰囲気は？」で同じ canonical を 2 回 emit
+- 「同じ応答を 2 回以上繰り返さない」prompt rule では弱く、構造的に解決できなかった
+
+**標準的解決策**:
+1. **1 trigger = 1 narrow topic** に分離 (v8 で `supervisor_personality_question` + `team_atmosphere_question` に split)
+2. 各 trigger の `allowedAnswer` は **1〜2 文に限定**
+3. 他 trigger の内容を leak することを **negativeExamples で明示禁止** (cross-contamination guard)
+4. `shallowGuards` も責務を限定して書き換え
+
+**判定基準**: trigger の allowedAnswer が 3 文以上 OR 5 種類以上のサブトピックを含む場合は分離検討。
+
+### Pattern 3: Stage direction smoking-gun lock
+
+**症状**: LLM は prompt 内の **instructional text を template として誤解** し、literal 出力する性質がある。括弧付きの「メタ動作描写」「ト書き」が特に出やすい。
+
+**過去事例**:
+- v5: prompt の negative example「5万円から10万円」を user 発話例と誤認
+- v7→v8: 「何も返さず次の発話を待つ」指示を「（何も返さず、ユーザーの次の発話を待ちます）」と literal 発話
+
+**標準的解決策**:
+1. **指示文を imperative form に統一** (「○○しない」「○○しません」「○○を生成しない」)
+2. **template-shaped phrase を避ける** (「○○と返す」「○○と答える」のような出力例を内部行動の説明として使わない)
+3. **stage direction literal 失敗を smoking gun として negativeExamples に lock**:
+   - 「（沈黙）」「（応答なし）」「（何も返さず）」「（次の発話を待つ）」「（保留）」など括弧付きト書きを明示禁止
+   - 過去観測した literal 出力テキストもそのまま追加
+
+**判定基準**: prompt 内に「（〜〜）」のような括弧付きメタ説明があれば、それが literal 発話される候補。imperative + smoking-gun セットで防御。
+
+### Pattern 4: 高 salience 独立セクション昇格
+
+**症状**: critical なルールを既存 section の bullet item として追加すると、LLM が無視する場合がある。
+
+**過去事例 (v9)**:
+- v7 で「取りつくろいフィラー禁止」を Tone and Response Style の bullet に追加 → v8 manual orb で「承知しました。少し整理しますね。」が再発
+- v9 で **「# Response Opening Format」独立セクション** に昇格 + 「**This step is important. Top-priority rule for response generation.**」冒頭明示で解決
+
+**標準的解決策**:
+1. critical なルールは bullet item ではなく **独立 `# Section`** に昇格
+2. セクション冒頭に **「This step is important. Top-priority rule for response generation.**」** または同等の salience marker を置く
+3. **worked example** (× FORBIDDEN / ○ CORRECT) を併記して LLM に具体的な対比を示す
+4. forbidden phrase は **明示列挙** (regex / 抽象記述ではなく literal list)
+
+**判定基準**: 同じ rule を 2 PR 以上に渡って追加してもまだ守られない場合、salience 不足を疑い昇格を検討。
+
+### v8 で確立した「分離可能 intent」マーカー
+
+`culture_fit_question` を `supervisor_personality_question` + `team_atmosphere_question` に分離した経験から、以下の性質を持つ intent は **最初から分離設計** すべき:
+
+- 質問パターンが明らかに 2 種類以上ある (例: 人柄 vs 環境)
+- canonical answer が 3 文を超える
+- 学習者が連続して関連質問を投げる可能性がある (Q1 = 一部、Q2 = 別の一部)
+- 各 sub-topic の Excel weight (Sheet 05) が独立している
+
+将来の検証型 intent (例: `cost_negotiation`) を追加する際は、まず分離可能性を check してから単一 trigger 化を判断する。

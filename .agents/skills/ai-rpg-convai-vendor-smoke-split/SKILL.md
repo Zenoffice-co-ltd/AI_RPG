@@ -107,6 +107,25 @@ Retry-once-before-debugging protocol:
 
 This is **separate from** the documented multi-turn judge variance (13/22 〜 18/22 PASS variance). The HTTP 400 flake is a **request-acceptance** flake at the API layer, not a judge-evaluation flake.
 
+## softTimeout filler 落とし穴 (manual orb v7 lesson, 2026-04-27)
+
+ElevenLabs ConvAI の `conversation_config.turn.soft_timeout_config.message` は、**intermediate silence (= turn 完了未満の途中沈黙) で発火する filler メッセージ** を生成する vendor-side 機能。
+
+**過去事例**: Adecco lane に `softTimeout: { timeoutSeconds: 3, message: "承知しました。少し整理しますね。" }` が設定されていた結果、orb で AI 応答の **本文の前に毎回「承知しました。少し整理しますね。」** が出るユーザー報告 (manual orb v7)。これは prompt 由来ではなく vendor turn config 由来。
+
+**標準診断手順**: orb で意図しないフィラー / 定型句 / 前置き文が出た場合、prompt より前に **vendor turn config を確認**:
+
+1. `data/generated/publish/<scenario>.json` の `conversation_config.turn` セクションを開く
+2. `soft_timeout_config.message` がセットされていないか確認
+3. セットされていれば、その literal text と orb で観測されたフィラーが一致するか比較
+4. 一致した場合、`buildLiveTurnConfig` 関数 (`packages/scenario-engine/src/publishAgent.ts`) から `softTimeout` 設定を削除して再 publish
+
+**Adecco lane の現状 (v7 fix 以降)**: `softTimeout` は完全削除済。intermediate silence では vendor 側からのフィラー発話なし。
+
+**注意**: `soft_timeout_config` の API バリデーションは「message が non-empty 文字列」を要求するため、削除する場合は `softTimeout` フィールド自体を payload から omit する。空文字列を送ると ElevenLabs が HTTP 400 を返す。
+
+vendor 由来フィラー vs prompt 由来フィラーの **切り分けは publish snapshot の確認が最短経路**。prompt 修正を先に試すと無駄な PR 周回になる。
+
 ## Guardrails
 
 - This is **NOT a test weakening**. The 22+ rich observations are still asserted — just in a deterministic rule-based environment instead of a non-deterministic vendor judge.
