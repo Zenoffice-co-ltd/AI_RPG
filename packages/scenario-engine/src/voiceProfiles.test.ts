@@ -294,4 +294,72 @@ describe("voice profile resolver against repo config", () => {
       id: "busy_manager_ja_primary_v3_f06",
     });
   });
+
+  it("DoD 3: Adecco staffing voice profile mirrors the accounting v3 profile exactly", async () => {
+    const accountingProfile = await loadVoiceProfile(
+      "accounting_clerk_enterprise_ap_ja_v3_candidate_v1"
+    );
+    const staffingProfile = await loadVoiceProfile(
+      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1"
+    );
+
+    // Voice settings must match the source profile exactly.
+    expect(staffingProfile.voiceId).toBe(accountingProfile.voiceId);
+    expect(staffingProfile.model).toBe(accountingProfile.model);
+    expect(staffingProfile.textNormalisationType).toBe(
+      accountingProfile.textNormalisationType
+    );
+    expect(staffingProfile.voiceSettings).toEqual(accountingProfile.voiceSettings);
+    expect(staffingProfile.pronunciationDictionaryLocators).toEqual(
+      accountingProfile.pronunciationDictionaryLocators
+    );
+
+    // Provenance must point back to the accounting profile.
+    expect(staffingProfile.metadata?.sourceVoiceProfileId).toBe(
+      "accounting_clerk_enterprise_ap_ja_v3_candidate_v1"
+    );
+    expect(staffingProfile.metadata?.voiceReuseReason).toBeTruthy();
+
+    // Scenario binding must be Adecco-only (no accounting override leak).
+    expect(staffingProfile.metadata?.scenarioIds).toEqual([
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+    ]);
+
+    // First message must match the Adecco scenario opening line, not the
+    // accounting first message.
+    expect(staffingProfile.firstMessageJa).toContain(
+      "新しい派遣会社さんとして"
+    );
+    expect(staffingProfile.firstMessageJa).toContain(
+      "要件を整理できるか見せていただけますか"
+    );
+  });
+
+  it("DoD 3-C: scenario-map resolves the Adecco staffing profile for publish/preview/benchmark", async () => {
+    const publishProfile = await resolveMappedVoiceProfile(
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+      undefined,
+      "publish"
+    );
+    const previewProfile = await resolveMappedVoiceProfile(
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+      undefined,
+      "preview"
+    );
+    const benchmarkProfile = await resolveMappedVoiceProfile(
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+      undefined,
+      "benchmark"
+    );
+
+    expect(publishProfile?.id).toBe(
+      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1"
+    );
+    expect(previewProfile?.id).toBe(
+      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1"
+    );
+    expect(benchmarkProfile?.id).toBe(
+      "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v1"
+    );
+  });
 });

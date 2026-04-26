@@ -78,6 +78,12 @@ export const voiceProfileSchema = z
         controlGroup: z.boolean().optional(),
         rescueFallback: z.boolean().optional(),
         notes: z.string().min(1).optional(),
+        // DoD 3-B: when a profile is created to mirror another scenario's
+        // approved voice (e.g. Adecco staffing reusing the accounting voice),
+        // record the source profile and the reuse rationale so diff checks
+        // can verify the mirror without ambiguity.
+        sourceVoiceProfileId: z.string().min(1).optional(),
+        voiceReuseReason: z.string().min(1).optional(),
       })
       .strict()
       .optional(),

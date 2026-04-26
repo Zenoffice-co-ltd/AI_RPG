@@ -32,22 +32,64 @@ describe("compileStaffingReferenceScenario", () => {
       expect.arrayContaining([
         "募集背景",
         "業務内容・一日の流れ",
-        "入力・調整・例外判断の線引き",
-        "社員が持つ業務と派遣に任せる業務の線引き",
         "請求金額・交通費",
         "競合他社依頼状況",
         "具体的なネクストアクションと期日",
       ])
     );
-    expect(compiled.assets.agentSystemPrompt).toContain("営業をコーチしない");
-    expect(compiled.assets.agentSystemPrompt).toContain("浅い質問には浅く返し");
-    expect(compiled.assets.agentSystemPrompt).toContain("Adecco の派遣の特徴や強み");
-    expect(compiled.assets.agentSystemPrompt).toContain("例外対応の線引き");
-    expect(compiled.assets.agentSystemPrompt).toContain("時給は千五百円からです");
+    // ElevenLabs-recommended section structure (Personality / Tone / Guardrails ...)
+    expect(compiled.assets.agentSystemPrompt).toContain("# Personality");
+    expect(compiled.assets.agentSystemPrompt).toContain("# Tone and Response Style");
+    expect(compiled.assets.agentSystemPrompt).toContain("# Critical Live Behavior");
+    expect(compiled.assets.agentSystemPrompt).toContain("# Disclosure Ledger");
+    expect(compiled.assets.agentSystemPrompt).toContain("# Adecco Reverse Question Rule");
+    expect(compiled.assets.agentSystemPrompt).toContain("# Silence and Ambiguity Handling");
+    expect(compiled.assets.agentSystemPrompt).toContain("# Guardrails");
+    // Reference Sections were removed in DoD recovery to avoid duplication
+    expect(compiled.assets.agentSystemPrompt).not.toContain("# Reference Sections");
+
+    // Persona / coaching prohibition retained (rephrased into new sections)
+    expect(compiled.assets.agentSystemPrompt).toContain("ロープレコーチ");
+    expect(compiled.assets.agentSystemPrompt).toContain("Adeccoさんの派遣の特徴や");
+    expect(compiled.assets.agentSystemPrompt).toContain("千五百円から");
+
+    // Disclosure Ledger trigger-intent ids must be embedded (not sequence-based)
+    expect(compiled.assets.agentSystemPrompt).toContain("## overview_shallow");
+    expect(compiled.assets.agentSystemPrompt).toContain("## closing_summary");
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "doNotAdvanceLedgerAutomatically: true"
+    );
+
+    // DoD 3.1 / 3.2 / 3.3: new triggers must be present
+    expect(compiled.assets.agentSystemPrompt).toContain("## headcount_only");
+    expect(compiled.assets.agentSystemPrompt).toContain("## next_step_close");
+    expect(compiled.assets.agentSystemPrompt).toContain("## start_date_only");
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "## urgency_or_submission_deadline"
+    );
+
+    // English Critical Live Behavior emphasis must be present (DoD 4.1)
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "Answer only the user's current question"
+    );
+
+    // Anti-loop guardrails
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "通常応答では一切使いません"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "毎ターンの定型句として使わない"
+    );
+
+    // Knowledge-base normalization stays intact
     expect(compiled.assets.knowledgeBaseText).toContain("千七百五十円から千九百円");
     expect(compiled.assets.knowledgeBaseText).not.toContain("1,750");
     expect(compiled.assets.knowledgeBaseText).not.toContain("8:45");
     expect(compiled.assets.knowledgeBaseText).toContain("早出し禁止");
-    expect(compiled.assets.knowledgeBaseText).toContain("社員が持つ業務と派遣スタッフに任せる業務");
+
+    // SAP precondition must be fully removed (English + katakana)
+    const banned = /(SAP|エスエーピー|Oracle|オラクル|ERP|イーアールピー)/;
+    expect(compiled.assets.agentSystemPrompt).not.toMatch(banned);
+    expect(compiled.assets.knowledgeBaseText).not.toMatch(banned);
   });
 });

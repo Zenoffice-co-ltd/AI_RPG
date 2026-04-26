@@ -50,7 +50,7 @@ function createElevenLabsStub(): ElevenLabsClient {
 }
 
 describe("publishScenarioAgent", () => {
-  it("appends a pronunciation guide for system_prompt live comparison lanes", async () => {
+  it("sanitizes accounting live prompt and appends a pronunciation guide for system_prompt lanes", async () => {
     const elevenLabs = createElevenLabsStub();
 
     await publishScenarioAgent({
@@ -62,8 +62,8 @@ describe("publishScenarioAgent", () => {
       } as never,
       assets: {
         knowledgeBaseText:
-          "AP/支払、税区分、件数感、OracleやSAP等のERPを確認します。",
-        agentSystemPrompt: "あなたは経理責任者です。",
+          "- [required] [体制強化] と [内製強化] を確認します。AP/支払、税区分、件数感、OracleやSAP等のERPを確認します。",
+        agentSystemPrompt: "あなたは[経理責任者]です。",
         promptVersion: "v1",
         scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
         generatedAt: new Date().toISOString(),
@@ -87,9 +87,91 @@ describe("publishScenarioAgent", () => {
     expect(elevenLabs.updateAgent).toHaveBeenCalledWith(
       "agent_123",
       expect.objectContaining({
+        turn: {
+          turnTimeoutSeconds: 5,
+          initialWaitTimeSeconds: 1,
+          turnEagerness: "eager",
+        },
+        prompt: expect.stringContaining("# Live Delivery"),
+      }),
+      expect.any(Object)
+    );
+    expect(elevenLabs.updateAgent).toHaveBeenCalledWith(
+      "agent_123",
+      expect.objectContaining({
+        prompt: expect.stringContaining("[slow]"),
+      }),
+      expect.any(Object)
+    );
+    expect(elevenLabs.updateAgent).toHaveBeenCalledWith(
+      "agent_123",
+      expect.objectContaining({
+        prompt: expect.not.stringContaining("[経理責任者]"),
+      }),
+      expect.any(Object)
+    );
+    expect(elevenLabs.updateAgent).toHaveBeenCalledWith(
+      "agent_123",
+      expect.objectContaining({
         prompt: expect.stringContaining("# Pronunciation Guide"),
       }),
       expect.any(Object)
+    );
+    expect(elevenLabs.createKnowledgeBaseDocumentFromText).toHaveBeenCalledWith(
+      "accounting_clerk_enterprise_ap_busy_manager_medium:v1",
+      expect.not.stringContaining("[")
+    );
+  });
+
+  it("keeps non-accounting live prompts unchanged", async () => {
+    const elevenLabs = createElevenLabsStub();
+
+    await publishScenarioAgent({
+      elevenLabs,
+      scenario: {
+        id: "staffing_order_hearing_busy_manager_medium",
+        title: "Staffing",
+        version: "v1",
+      } as never,
+      assets: {
+        knowledgeBaseText: "募集背景を確認します。",
+        agentSystemPrompt: "あなたは採用責任者です。",
+        promptVersion: "v1",
+        scenarioId: "staffing_order_hearing_busy_manager_medium",
+        generatedAt: new Date().toISOString(),
+      },
+      llmModel: "gpt-5-mini",
+      voiceSelection: {
+        mode: "profile",
+        scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
+        voiceProfileId: "accounting_clerk_enterprise_ap_ja_v3_candidate_v1",
+        label: "Accounting default lane",
+        language: "ja",
+        ttsModel: "eleven_v3",
+        voiceId: "voice_123",
+        firstMessage: "よろしくお願いします。",
+        textNormalisationType: "elevenlabs",
+        voiceSettings: {},
+      },
+    });
+
+    expect(elevenLabs.updateAgent).toHaveBeenCalledWith(
+      "agent_123",
+      expect.objectContaining({
+        prompt: "あなたは採用責任者です。",
+      }),
+      expect.any(Object)
+    );
+    expect(elevenLabs.updateAgent).toHaveBeenCalledWith(
+      "agent_123",
+      expect.not.objectContaining({
+        turn: expect.anything(),
+      }),
+      expect.any(Object)
+    );
+    expect(elevenLabs.createKnowledgeBaseDocumentFromText).toHaveBeenCalledWith(
+      "staffing_order_hearing_busy_manager_medium:v1",
+      "募集背景を確認します。"
     );
   });
 
@@ -126,33 +208,124 @@ describe("publishScenarioAgent", () => {
       },
     });
 
-    expect(elevenLabs.createAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: "[MAIN][Adecco Orb] Adecco Manufacturer",
-      })
-    );
-    expect(elevenLabs.createTest).toHaveBeenCalledTimes(11);
+    // DoD v2: ElevenLabs only receives the 8 vendor smoke tests. The full
+    // 22+ rich regression suite stays local. This is the single most
+    // important change of the Auto Gate Recovery v2.
+    expect(elevenLabs.createTest).toHaveBeenCalledTimes(8);
+
+    const vendorSmokeNames = [
+      "opening-line",
+      "headcount-only",
+      "shallow-overview",
+      "background-deep-followup",
+      "next-step-close-safe",
+      "sap-absence-safe",
+      "no-coaching-safe",
+      "closing-summary-simple",
+    ];
+    for (const tail of vendorSmokeNames) {
+      expect(elevenLabs.createTest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: `staffing_order_hearing_adecco_manufacturer_busy_manager_medium::${tail}`,
+          type: "llm",
+        })
+      );
+    }
+
+    // Negative assertion: the rich multi-turn regression tests must NOT be
+    // sent to ElevenLabs. They live solely in the local regression suite.
+    const richOnlyNames = [
+      "ending-adecco-strength-reverse-question",
+      "one-turn-lag-regression",
+      "background-depth-controlled-disclosure",
+      "competitor-and-decision-depth-controlled-disclosure",
+      "manual-test-script-fixture",
+      "phrase-loop-regression",
+      "asr-variant-robustness",
+    ];
+    for (const tail of richOnlyNames) {
+      expect(elevenLabs.createTest).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: `staffing_order_hearing_adecco_manufacturer_busy_manager_medium::${tail}`,
+        })
+      );
+    }
+
+    // Vendor-smoke-specific content checks
     expect(elevenLabs.createTest).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::ending-adecco-strength-reverse-question",
-        success_condition: expect.stringContaining("Adecco"),
-      })
-    );
-    expect(elevenLabs.createTest).toHaveBeenCalledWith(
-      expect.objectContaining({
+        name: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::closing-summary-simple",
         success_condition: expect.stringContaining("強み"),
       })
     );
+    expect(elevenLabs.createTest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::sap-absence-safe",
+        success_condition: expect.stringContaining("SAP"),
+      })
+    );
+    expect(elevenLabs.createTest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::headcount-only",
+        chat_history: expect.arrayContaining([
+          expect.objectContaining({
+            message: expect.stringContaining("人数"),
+          }),
+        ]),
+      })
+    );
+
     expect(elevenLabs.runTests).toHaveBeenCalledWith(
       "agent_123",
       expect.arrayContaining([
-        "test_staffing_order_hearing_adecco_manufacturer_busy_manager_medium::ending-adecco-strength-reverse-question",
+        "test_staffing_order_hearing_adecco_manufacturer_busy_manager_medium::opening-line",
+        "test_staffing_order_hearing_adecco_manufacturer_busy_manager_medium::closing-summary-simple",
+        "test_staffing_order_hearing_adecco_manufacturer_busy_manager_medium::sap-absence-safe",
       ]),
       "branch_staging"
     );
   });
 
-  it("keeps the prompt unchanged for elevenlabs live lanes", async () => {
+  it("DoD v2 §4: local regression bundle keeps the 22+ rich tests for offline assertion", async () => {
+    const { __testing } = await import("./publishAgent");
+    const fakeAdecco = {
+      id: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+      title: "Adecco",
+      version: "v1.0.0",
+    } as never;
+    const local = __testing.buildAdeccoLocalRegressionDefinitions(fakeAdecco);
+    const vendor = __testing.buildAdeccoVendorSmokeDefinitions(fakeAdecco);
+
+    expect(local.length).toBeGreaterThanOrEqual(22);
+    expect(vendor).toHaveLength(8);
+
+    const localNames = local.map((t) => t.name);
+    // Every rich regression must be present in the local bundle
+    for (const tail of [
+      "ending-adecco-strength-reverse-question",
+      "one-turn-lag-regression",
+      "phrase-loop-regression",
+      "shallow-overview-no-hidden-leak",
+      "background-depth-controlled-disclosure",
+      "business-task-depth-controlled-disclosure",
+      "competitor-and-decision-depth-controlled-disclosure",
+      "manual-test-script-fixture",
+      "asr-variant-robustness",
+      "sap-absence",
+      "no-coaching-strict",
+    ]) {
+      expect(localNames).toContain(
+        `staffing_order_hearing_adecco_manufacturer_busy_manager_medium::${tail}`
+      );
+    }
+
+    // Vendor smoke names must NOT appear in the local pool (no double-count)
+    const vendorNames = vendor.map((t) => t.name);
+    const overlap = vendorNames.filter((n) => localNames.includes(n));
+    expect(overlap).toEqual([]);
+  });
+
+  it("strips accounting bracket markup for elevenlabs lanes", async () => {
     const elevenLabs = createElevenLabsStub();
 
     await publishScenarioAgent({
@@ -163,8 +336,8 @@ describe("publishScenarioAgent", () => {
         version: "v1",
       } as never,
       assets: {
-        knowledgeBaseText: "AP/支払、税区分を確認します。",
-        agentSystemPrompt: "あなたは経理責任者です。",
+        knowledgeBaseText: "今回は [1名] の募集で、背景は [体制強化] と [内製強化] です。",
+        agentSystemPrompt: "あなたは [経理責任者] として話してください。",
         promptVersion: "v1",
         scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
         generatedAt: new Date().toISOString(),
@@ -184,10 +357,14 @@ describe("publishScenarioAgent", () => {
       },
     });
 
+    expect(elevenLabs.createKnowledgeBaseDocumentFromText).toHaveBeenCalledWith(
+      "accounting_clerk_enterprise_ap_busy_manager_medium:v1",
+      "今回は 1名 の募集で、背景は 体制強化 と 内製強化 です。"
+    );
     expect(elevenLabs.updateAgent).toHaveBeenCalledWith(
       "agent_123",
       expect.objectContaining({
-        prompt: "あなたは経理責任者です。",
+        prompt: expect.stringContaining("あなたは 経理責任者 として話してください。"),
       }),
       expect.any(Object)
     );
