@@ -30,6 +30,7 @@ const CONNECT_TIMEOUT_MS = 20_000;
 const AGENT_RESPONSE_TIMEOUT_MS = 15_000;
 const AGENT_TEXT_AUDIO_SYNC_FALLBACK_MS = 1_800;
 const AGENT_AUDIO_SIGNAL_RECENT_MS = 2_500;
+const AGENT_SYNC_DEDUPE_MS = 180_000;
 const DEBUG_QUERY_PARAM = "debugEvents";
 
 type StartTrigger = "call" | "text" | "new-conversation";
@@ -47,6 +48,11 @@ type PendingAgentEvent = {
   event: NormalizedConversationEvent;
   generation: number;
   conversationLocalId: string;
+};
+
+type AgentDedupeEntry = {
+  textKey: string;
+  recordedAt: number;
 };
 
 export type RoleplayConversation = UseRoleplayConversationReturn & {
@@ -91,6 +97,7 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
   const audioAlignmentResetTimerRef = useRef<number | null>(null);
   const pendingAgentEventsRef = useRef<PendingAgentEvent[]>([]);
   const pendingAgentFlushTimerRef = useRef<number | null>(null);
+  const displayedAgentDedupeRef = useRef(new Map<string, AgentDedupeEntry>());
   const lastAgentAudioSignalAtRef = useRef(0);
   const lastAgentTextDispatchAtRef = useRef(0);
   const debugEventsEnabledRef = useRef(false);
@@ -128,6 +135,7 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     agentChatPartBuffersRef.current.clear();
     clearPendingAgentEvents();
     clearAudioAlignmentBuffer();
+    clearDisplayedAgentDedupe();
     sessionGenerationRef.current += 1;
     localConversationIdRef.current = createLocalConversationId();
   }, [mode]);
@@ -219,6 +227,21 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
         return;
       }
 
+      if (
+        mergedEvent.role === "agent" &&
+        mergedEvent.isFinal &&
+        isDuplicateSynchronousAgentEvent(mergedEvent, now)
+      ) {
+        recordDebugEvent(debugEventsEnabledRef.current, "event-dropped-sync-duplicate", {
+          role: mergedEvent.role,
+          channel: mergedEvent.channel,
+          textLength: mergedEvent.text.length,
+          sdkMessageId: mergedEvent.sdkMessageId,
+          generation,
+        });
+        return;
+      }
+
       const message = createTranscriptMessage({
         role: mergedEvent.role,
         channel: mergedEvent.channel,
@@ -228,6 +251,9 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
         sdkMessageId: mergedEvent.sdkMessageId,
         createdAt: now,
       });
+      if (mergedEvent.role === "agent" && mergedEvent.isFinal) {
+        rememberDisplayedAgentEvent(mergedEvent, now);
+      }
       dispatchMessages({
         type: "append",
         message,
@@ -307,6 +333,7 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     agentChatPartBuffersRef.current.clear();
     clearPendingAgentEvents();
     clearAudioAlignmentBuffer();
+    clearDisplayedAgentDedupe();
     persistHistory();
 
     if (modeRef.current === "fakeLive") {
@@ -1036,6 +1063,19 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
       count: pending.length,
     });
     for (const item of pending) {
+      if (
+        item.event.role === "agent" &&
+        item.event.isFinal &&
+        isDuplicateSynchronousAgentEvent(item.event, Date.now())
+      ) {
+        recordDebugEvent(debugEventsEnabledRef.current, "pending-agent-dropped-sync-duplicate", {
+          channel: item.event.channel,
+          textLength: item.event.text.length,
+          sdkMessageId: item.event.sdkMessageId,
+          generation: item.generation,
+        });
+        continue;
+      }
       handleNormalizedEvent(item.event, item.generation, item.conversationLocalId);
     }
   }
@@ -1045,6 +1085,45 @@ export function useRoleplayConversation(mode: RoleplayMode): RoleplayConversatio
     lastAgentAudioSignalAtRef.current = 0;
     lastAgentTextDispatchAtRef.current = 0;
     clearPendingAgentTimer();
+  }
+
+  function isDuplicateSynchronousAgentEvent(
+    event: NormalizedConversationEvent,
+    now: number
+  ) {
+    const textKey = normalizeComparableAgentText(event.text);
+    if (textKey.length < 8) {
+      return false;
+    }
+    pruneDisplayedAgentDedupe(now);
+    return [...displayedAgentDedupeRef.current.values()].some(
+      (entry) => entry.textKey === textKey
+    );
+  }
+
+  function rememberDisplayedAgentEvent(
+    event: NormalizedConversationEvent,
+    now: number
+  ) {
+    const textKey = normalizeComparableAgentText(event.text);
+    if (textKey.length < 8) {
+      return;
+    }
+    pruneDisplayedAgentDedupe(now);
+    const sdkKey = event.sdkMessageId ?? `agent-text-${textKey}`;
+    displayedAgentDedupeRef.current.set(sdkKey, { textKey, recordedAt: now });
+  }
+
+  function pruneDisplayedAgentDedupe(now: number) {
+    for (const [key, entry] of displayedAgentDedupeRef.current.entries()) {
+      if (now - entry.recordedAt > AGENT_SYNC_DEDUPE_MS) {
+        displayedAgentDedupeRef.current.delete(key);
+      }
+    }
+  }
+
+  function clearDisplayedAgentDedupe() {
+    displayedAgentDedupeRef.current.clear();
   }
 
   function clearPendingAgentTimer() {
@@ -1187,7 +1266,7 @@ function createClientMessageId() {
 }
 
 function normalizeComparableAgentText(text: string) {
-  return text.replace(/\s+/g, "").trim();
+  return text.replace(/[\s、。，．,.！？!?"'「」『』（）()[\]［］【】]/g, "").trim();
 }
 
 type TranscriptLogPhase = "sdk-received" | "displayed" | "local-user-message";

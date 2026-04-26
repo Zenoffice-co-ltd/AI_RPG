@@ -35,6 +35,17 @@ confirmed live speech and transcript display, but surfaced UI transcript
 timing/deduping issues. The latest deployed fix is `mendan-00011-knx`; Full DOD
 remains pending a fresh operator retest on that revision.
 
+2026-04-27 06:26 JST update: operator reported a repeated Agent row around
+`現行ベンダーに加えて、もう一社の大手にも相談中です。`. Cloud Run logs for
+`mendan-00011-knx` showed the same Agent turn arriving through multiple SDK
+paths (`agent_chat_response_part` as `agent-chat-*` and final `agent_response`
+as `agent-*`). The latest deployed fix is `mendan-00012-4bs`; it merges
+`agent-chat-N` and `agent-N` into a single transcript row, adds synchronous
+final-text dedupe for near-simultaneous duplicate Agent events, and logs
+`normalizedTextHash`, `textEscaped`, and `textUtf8Base64` so future Japanese
+log searches do not depend on Cloud Logging's display encoding. Full DOD remains
+pending a fresh operator retest on `mendan-00012-4bs`.
+
 Canonical route: `/demo/adecco-roleplay`. Legacy `/demo/adecco-orb`
 redirects to the canonical route with query parameters preserved. Requested
 customer URL `https://mendan-mvk3ouxwza-an.a.run.app/demo/adecco-roleplay` is blocked until
@@ -77,13 +88,13 @@ Latest deploy evidence:
 
 | Field | Result |
 | --- | --- |
-| Cloud Build | PASS: `3e8183f5-1fe3-436a-bf64-974af814400f` |
+| Cloud Build | PASS: `bc4ac34c-f388-46b4-8ed4-9d14a79a4778` |
 | Cloud Run service | `mendan` |
-| Cloud Run revision | `mendan-00011-knx` |
-| Image | `asia-northeast1-docker.pkg.dev/adecco-mendan/roleplay-ui/roleplay-ui:end-actions-dedupe-jsonlog-20260427-0458` |
+| Cloud Run revision | `mendan-00012-4bs` |
+| Image | `asia-northeast1-docker.pkg.dev/adecco-mendan/roleplay-ui/roleplay-ui:agent-dedupe-loghash-20260427-0620` |
 | Health check | PASS: `https://mendan-mvk3ouxwza-an.a.run.app/api/healthz` returned 200 |
-| Targeted unit tests | PASS: `transcript-reducer`, `normalize-conversation-event` |
-| Full web unit tests | PASS: `pnpm --filter @top-performer/web test` (40 files / 206 tests) |
+| Targeted unit tests | PASS: `transcript-reducer`, `transcript-log-route` |
+| Full web unit tests | PASS: `pnpm --filter @top-performer/web test` (41 files / 210 tests) |
 | Typecheck | PASS: `pnpm --filter @top-performer/web typecheck` |
 | Targeted lint | PASS: roleplay/API touched paths |
 | E2E | PASS: `pnpm --filter @top-performer/web test:e2e` (3 tests) |
@@ -94,10 +105,10 @@ Next live log query:
 
 ```bash
 gcloud logging read \
-  'resource.type="cloud_run_revision" AND resource.labels.service_name="mendan" AND textPayload:"Roleplay transcript"' \
+  'resource.type="cloud_run_revision" AND resource.labels.service_name="mendan" AND jsonPayload.message="Roleplay transcript"' \
   --project adecco-mendan \
   --limit 50 \
-  --format='value(timestamp,resource.labels.revision_name,textPayload)'
+  --format='json(timestamp,resource.labels.revision_name,jsonPayload.phase,jsonPayload.role,jsonPayload.sdkMessageId,jsonPayload.textEscaped,jsonPayload.normalizedTextHash)'
 ```
 
 Expected post-`mendan-00011-knx` behavior:
@@ -106,8 +117,10 @@ Expected post-`mendan-00011-knx` behavior:
 - no `エージェントが応答中...` row;
 - no `詳細を表示` button;
 - only one `+ 新しい会話` button centered in ended state;
-- repeated identical Agent text is merged/dropped rather than displayed twice;
-- `Roleplay transcript` logs are emitted as single-line JSON.
+- repeated identical Agent text is merged/dropped rather than displayed twice,
+  including `agent-chat-N` + `agent-N` duplicates from the same SDK event id;
+- `Roleplay transcript` logs are emitted as single-line JSON with
+  `normalizedTextHash`, `textEscaped`, and `textUtf8Base64`.
 
 ### Adecco Live Agent Update: 2026-04-26T19:56+09:00
 
