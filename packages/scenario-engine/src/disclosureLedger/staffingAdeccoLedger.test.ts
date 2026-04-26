@@ -262,7 +262,7 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     expect(item!.intentDescription).toContain("短い相槌");
     expect(item!.intentDescription).toContain("うん");
     expect(item!.intentDescription).toContain("えっと");
-    expect(item!.intentDescription).toContain("identity_self を発火させない");
+    expect(item!.intentDescription).toContain("役割確認として扱わない");
     expect(item!.intentDescription).toContain("役職を 2 回以上同じ会話で言い直さない");
   });
 
@@ -272,7 +272,7 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     );
     expect(item).toBeDefined();
     expect(item!.intentDescription).toContain("AI 側 (人事) から自発的");
-    expect(item!.intentDescription).toContain("学習者 (営業) が AI に問いかける発話パターン");
+    expect(item!.intentDescription).toContain("商談進行確認は学習者 (営業) が AI に問いかける発話パターン");
     expect(item!.intentDescription).toContain("AI が代わりに進行確認しない");
   });
 
@@ -306,7 +306,7 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     expect(next!.allowedAnswer).toContain("ご提案");
     expect(next!.allowedAnswer).toContain("メール");
     // Coaching must explicitly NOT match next-step phrasing
-    expect(coaching!.intentDescription).toContain("next_step_close");
+    expect(coaching!.intentDescription).toContain("コーチング要求ではなく顧客として自然な次アクション");
     // next_step_close negativeExamples should include the typical brushed-off response
     const nextNegatives = next!.negativeExamples.join(" / ");
     expect(nextNegatives).toContain("どの点についてですか");
@@ -346,10 +346,10 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     // anti-leak: AI must not initiate a summary on its own
     expect(item!.intentDescription).toContain("AI 自身が要約を始めない");
     // anti-leak: must not append closing_summary content to other intents
-    expect(item!.intentDescription).toContain("decision_structure");
-    expect(item!.intentDescription).toContain("当該 intent の allowedAnswer だけで応答を終え");
+    expect(item!.intentDescription).toContain("決定構造・次ステップ・競合・単価・件数");
+    expect(item!.intentDescription).toContain("今聞かれた質問への答えだけで応答を終え");
     // chat_history accumulation must NOT be a basis for firing
-    expect(item!.intentDescription).toContain("chat_history");
+    expect(item!.intentDescription).toContain("会話履歴上");
     expect(item!.intentDescription).toContain("AI 過去発話");
     // allowedAnswer embeds the Adecco/アデコ reverse question (manual orb v4: TTS-friendly katakana form)
     expect(item!.allowedAnswer).toContain("アデコさんの派遣の特徴や");
@@ -513,33 +513,15 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     expect(md).toContain("前置きフィラーを **絶対に** 置かない");
   });
 
-  it("Manual orb v3 DoD: shallowGuards include anti-leak entries for deep intents (decision_structure / next_step_close / competition / commercial_terms / volume_cycle / first_proposal_window)", () => {
+  it("Manual orb v3 DoD: rendered shallowGuards include anti-leak entries without exposing internal intent ids", () => {
     const md = renderDisclosureLedgerForPrompt();
-    // For each at-risk deep intent, the rendered Markdown must contain a 今の応答に含めない line
-    // that explicitly forbids appending closing_summary content.
-    const deepIntents = [
-      "decision_structure",
-      "next_step_close",
-      "competition",
-      "commercial_terms",
-      "volume_cycle",
-      "first_proposal_window",
-      // v8 split (manual orb v7→v8): culture_fit_question を 2 trigger 化
-      "supervisor_personality_question",
-      "team_atmosphere_question",
-    ];
-    for (const intent of deepIntents) {
-      // Each intent's H2 block must contain an anti-leak guard.
-      // We assert the guard text mentions at least one of: 要約合意文 / Adecco 強み逆質問 / 続けて出さない.
-      const blockStart = md.indexOf(`## ${intent}`);
-      expect(blockStart, `## ${intent} block must exist`).toBeGreaterThan(-1);
-      const nextBlockStart = md.indexOf("\n## ", blockStart + 1);
-      const block = nextBlockStart === -1 ? md.slice(blockStart) : md.slice(blockStart, nextBlockStart);
-      expect(block, `${intent} block must include 今の応答に含めない anti-leak line`).toContain("今の応答に含めない");
-      expect(block, `${intent} guard must forbid Adecco reverse question or summary agreement leak`).toMatch(
-        /(要約合意文|Adecco 強み逆質問|続けて出さない)/
-      );
-    }
+    expect((md.match(/今回の回答では触れない情報/g) ?? []).length).toBeGreaterThanOrEqual(14);
+    expect(md).toContain("要約合意文");
+    expect(md).toContain("Adecco / アデコ 強み逆質問");
+    expect(md).toContain("続けて出さない");
+    expect(md).not.toContain("decision_structure");
+    expect(md).not.toContain("team_atmosphere_question");
+    expect(md).not.toContain("supervisor_personality_question");
   });
 
   it("requires every item to set doNotAdvanceLedgerAutomatically=true (no sequential reveal)", () => {
@@ -639,24 +621,34 @@ describe("renderDisclosureLedgerForPrompt", () => {
   it("renders an intro that forbids sequential reveal", () => {
     const md = renderDisclosureLedgerForPrompt();
     expect(md).toContain("質問意図");
-    expect(md).toContain("doNotAdvanceLedgerAutomatically");
     expect(md).toContain("順送り");
     expect(md).toContain("各ターン独立");
-    expect(md).toContain("forbiddenUntilAsked");
-    // forbiddenUntilAsked semantics must be explained
     expect(md).toContain("先出ししない");
+    expect(md).toContain("内部の台帳名");
+    expect(md).not.toContain("triggerIntent");
+    expect(md).not.toContain("doNotAdvanceLedgerAutomatically");
+    expect(md).not.toContain("forbiddenUntilAsked");
   });
 
-  it("renders every trigger as an H2 block", () => {
+  it("renders every item as a sanitized H2 block", () => {
     const md = renderDisclosureLedgerForPrompt();
+    const blockCount = (md.match(/^## 質問意図 \d+/gm) ?? []).length;
+    expect(blockCount).toBe(STAFFING_ADECCO_DISCLOSURE_LEDGER.length);
     for (const item of STAFFING_ADECCO_DISCLOSURE_LEDGER) {
-      expect(md).toContain(`## ${item.triggerIntent}`);
+      expect(md).not.toContain(`## ${item.triggerIntent}`);
     }
   });
 
-  it("renders the doNotAdvanceLedgerAutomatically literal in the intro", () => {
+  it("does not render implementation field names in the live prompt", () => {
     const md = renderDisclosureLedgerForPrompt();
-    expect(md).toContain("doNotAdvanceLedgerAutomatically: true");
+    expect(md).not.toContain("triggerIntent");
+    expect(md).not.toContain("doNotAdvanceLedgerAutomatically");
+    expect(md).not.toContain("forbiddenUntilAsked");
+    expect(md).not.toContain("allowedAnswer");
+    expect(md).not.toContain("team_atmosphere_question");
+    expect(md).not.toContain("supervisor_personality_question");
+    expect(md).not.toContain("応答ルール");
+    expect(md).not.toContain("判定条件");
   });
 
   it("renders allowedAnswer as the directive '応答' line for every trigger (with manual orb v11 inline filler ban)", () => {

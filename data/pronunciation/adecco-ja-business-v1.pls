@@ -110,4 +110,13 @@
     <grapheme>KPI</grapheme>
     <alias>ケーピーアイ</alias>
   </lexeme>
+  <!-- Manual orb v12 (2026-04-27): TTS misreads 見積 as ケンセキ; force ミツモリ. -->
+  <lexeme>
+    <grapheme>見積補助</grapheme>
+    <alias>ミツモリホジョ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>見積</grapheme>
+    <alias>ミツモリ</alias>
+  </lexeme>
 </lexicon>
