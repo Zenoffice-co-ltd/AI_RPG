@@ -293,3 +293,100 @@ manual orb v3 〜 v9 を通して **同じクラスの問題が複数回再発**
 - 各 sub-topic の Excel weight (Sheet 05) が独立している
 
 将来の検証型 intent (例: `cost_negotiation`) を追加する際は、まず分離可能性を check してから単一 trigger 化を判断する。
+
+## Manual Orb v10 lesson: pre-commit audit checklist (2026-04-27)
+
+v10 で「自分自身が文書化した直後にパターンを踏んだ」皮肉な事例から確立した audit 手順。`compileStaffingReferenceScenario.ts` または `staffingAdeccoLedger.ts` を編集する **PR 作成前に必ず実行** すること。
+
+### Step 1: Pattern 1 (Allow vs ban conflict) audit
+
+```bash
+# allow を示唆する語のスキャン
+grep -E "使ってください|OK ですが|自然に使って|使う場合は|使ってよい|許可" packages/scenario-engine/src/compileStaffingReferenceScenario.ts
+
+# 各ヒットに対して、同じ語/文に関する ban が他セクションに存在しないか確認
+# 例: 「承知しました」が allow されているなら、別セクションで「承知しました 禁止」もないか?
+```
+
+### Step 2: 重複トピックセクション audit
+
+```bash
+# トピック語ごとに section が複数ないか確認
+grep -E "^# .*沈黙|^# .*silence|^# .*Silence|^# .*フィラー|^# .*filler|^# .*取りつくろい|^# .*Response Opening" packages/scenario-engine/src/compileStaffingReferenceScenario.ts
+```
+
+ヒット 2 件以上 → 統合 / 1 つに merge する。重複は Pattern 1 の温床。
+
+### Step 3: Literal example audit (Pattern 3 補強)
+
+```bash
+# 「アシスタント: 「...」」のような literal example を find
+grep -E "アシスタント:\s*「" packages/scenario-engine/src/compileStaffingReferenceScenario.ts
+```
+
+各 literal example に対して:
+- 冒頭が Response Opening Format で禁止されている前置き定型句で始まっていないか確認
+- 該当する場合、例文を **abstract guideline** に書き換える (literal template parrot risk 回避)
+
+### Step 4: 並行セッション由来の merged コンテンツ audit
+
+並行 session の作業を bundle した PR (PR #18 v7 が canonical example) は **追加されたセクションの全数を一度 review** すること。並行 session が古い prompt 設計を持ち込んでいる可能性がある。
+
+```bash
+git log --oneline -p packages/scenario-engine/src/compileStaffingReferenceScenario.ts | grep "^# " | sort -u | head -30
+```
+
+新しい `# Section` が登場した場合、それが既存の v3-v9 修正と conflict しないか full review。
+
+### Step 5: Verify smoking-gun reach (v11 lesson)
+
+`negativeExamples` への smoking-gun 追加だけでは **live agent には届かない**。詳細は次のセクション。
+
+## Manual Orb v11 lesson: smoking-gun lock の正しい reach (2026-04-27)
+
+v11 で発見した critical operational fact:
+
+### `renderDisclosureLedgerForPrompt()` は `negativeExamples` を live prompt に render しない
+
+`renderDisclosureLedgerForPrompt()` ([packages/scenario-engine/src/disclosureLedger/staffingAdeccoLedger.ts](../../../packages/scenario-engine/src/disclosureLedger/staffingAdeccoLedger.ts)) が live agent prompt に書き出すフィールドは:
+
+- `## triggerIntent` (見出し)
+- `判定条件: ${intentDescription}`
+- `応答 (※ 本題から直接始める...): ${allowedAnswer}` (v11 inline ban suffix 付き)
+- `今の応答に含めない: ${shallowGuard}` (該当 trigger のみ)
+- `ユーザー発話の手がかり: ${asrVariantTriggers.join(", ")}`
+
+**`negativeExamples` は render されない** — それらは ConvAI 自動テスト fixture (`publishAgent.ts` の test definitions) でしか使われない。
+
+### Pattern 3 smoking-gun lock の **正しい reach 戦略**
+
+LLM の hallucination / template-parrot を **live agent に対して** 防ぐには:
+
+| 手段 | live agent への効果 | ConvAI 自動テストへの効果 |
+|---|---|---|
+| `negativeExamples` に追加 | **❌ 効果なし** (render されない) | ✅ 検出する |
+| `intentDescription` に inline embed | ✅ 直接届く | ✅ 検出される (ledger 参照) |
+| `allowedAnswer` の前後に inline 注釈 | ✅ 直接届く (v11 採用) | ✅ 検出される |
+| `renderDisclosureLedgerForPrompt` の formatter で全 trigger に suffix 付与 | ✅ **maximum proximity** (v11 採用) | ✅ |
+| Rendered prompt の高 salience 独立セクション | ✅ 直接届く (recency 含む) | (test には影響なし) |
+
+**標準的アプローチ (v11 確立)**:
+
+1. **Live agent に効かせたい禁止** = `intentDescription` / `allowedAnswer` に inline embed OR `renderDisclosureLedgerForPrompt` formatter に suffix を加える OR rendered prompt に高 salience セクション追加
+2. **ConvAI 自動テストで検出したい failure mode** = `negativeExamples` に literal smoking-gun を追加 (test fixture に伝播)
+3. 両方欲しい場合 (推奨) = 1 + 2 の **両方適用**
+
+### Recency bias 活用パターン (v11 で確立)
+
+prompt 全体は LLM の attention で読まれるが、**末尾セクションは recency bias により最高 attention** を受ける。critical な禁止ルールは:
+
+- 末尾に独立セクション (例: `# Final Reminder Before You Speak`) を追加
+- 「**This is the LAST instruction before you generate your response. Apply it on every turn.**」と明示
+- 5〜7 個の最頻違反ルールを enumerate
+
+これは v9 で導入した「Response Opening Format を高 salience セクションに昇格」とは **補完関係**:
+- v9 の `# Response Opening Format` (Disclosure Ledger の前) = 早期に rule を提示
+- v11 の `# Final Reminder Before You Speak` (Guardrails の後 = prompt 末尾) = 直前に rule を再提示
+- 両方あることで、LLM の attention window のどこからでも rule を参照できる
+
+長い prompt (Disclosure Ledger が 21 trigger 分で巨大) では proximity + recency の **両ストラテジー併用** が必須。
