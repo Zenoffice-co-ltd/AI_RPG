@@ -50,7 +50,6 @@ export function AdeccoOrbClient({
           agentState={visualTest ? "talking" : orbState}
           muted={roleplay.isMuted}
           visualTest={visualTest}
-          isStarting={roleplay.isConnecting}
           getInputVolume={roleplay.getInputVolume}
           getOutputVolume={roleplay.getOutputVolume}
           onCall={() => {
@@ -95,7 +94,7 @@ function initialMode(
 }
 
 async function handleCall(roleplay: RoleplayConversation) {
-  if (roleplay.isConnected) {
+  if (roleplay.isConnected || roleplay.isConnecting) {
     await roleplay.endConversation();
     return;
   }

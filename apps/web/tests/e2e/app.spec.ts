@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("adecco orb mock mode renders and supports controls", async ({ page }) => {
-  await page.goto("/demo/adecco-orb?mock=1");
+  await page.goto("/demo/adecco-roleplay?mock=1");
   await expect(page.getByTestId("roleplay-header")).toContainText(
     "[MAIN][Adecco Orb]"
   );
@@ -24,7 +24,7 @@ test("adecco orb mock mode renders and supports controls", async ({ page }) => {
 });
 
 test("start button cannot issue duplicate starts in mock mode", async ({ page }) => {
-  await page.goto("/demo/adecco-orb?mock=1");
+  await page.goto("/demo/adecco-roleplay?mock=1");
   const call = page.getByLabel("通話を開始");
   await call.click();
   await expect(page.getByText("通話が開始されました")).toBeVisible();
@@ -34,7 +34,7 @@ test("start button cannot issue duplicate starts in mock mode", async ({ page })
 test("fake live mode is event-driven and supports chat, mute, and new conversation", async ({
   page,
 }) => {
-  await page.goto("/demo/adecco-orb?fakeLive=1");
+  await page.goto("/demo/adecco-roleplay?fakeLive=1");
   await expect(page.getByTestId("message-list").locator(".message-row")).toHaveCount(0);
   await expect(page.getByText("お時間ありがとうございます。今回は新しい派遣会社さん")).toHaveCount(0);
 

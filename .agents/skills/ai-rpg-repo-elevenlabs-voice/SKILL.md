@@ -39,11 +39,35 @@ Current repo rule:
 - Agents / ConvAI payload normalizes `eleven_v3 -> eleven_v3_conversational`
 - raw TTS `/v1/text-to-speech` keeps `eleven_v3`
 - Adecco manufacturer Orb answers must spell out amounts, times, ranges, counts, and business abbreviations in spoken Japanese; avoid raw values like yen ranges, clock separators, slashes, and hour-per-month notation in live response text
+- Adecco manufacturer live publish should include patient turn-taking so user utterances are not cut mid-sentence: `turn_timeout=7`, `turn_eagerness=patient`, `speculative_turn=false`, `retranscribe_on_turn_timeout=true`, `silence_end_call_timeout=-1`, and disabled soft timeout where supported
 - accounting live publish strips square-bracket markup such as `[体制強化]` only at transport time so the agent does not speak the brackets
 - accounting live publish can also tune turn-taking at transport time: use `turn_eagerness=eager` with a short `turn_timeout` only for the accounting lane when the goal is to reduce perceived dead air without changing staffing defaults
 - when latency is still too high on accounting live, prefer tightening turn-taking and prompt brevity before swapping the publish LLM
 
 Only change `packages/vendors/src/elevenlabs.ts` `buildConversationConfig()` for this fix. Do not change raw render model handling or v3 normalization payloads.
+
+## Agents Turn-Taking Payload Guardrail
+
+If a publish object contains `turn` but the live Agent ignores it, inspect
+`packages/vendors/src/elevenlabs.ts` `buildConversationConfig()` first. The
+vendor API expects `conversation_config.turn` with snake_case keys:
+
+- `turn_timeout`
+- `initial_wait_time`
+- `silence_end_call_timeout`
+- `soft_timeout_config.timeout_seconds`
+- `soft_timeout_config.message`
+- `turn_eagerness`
+- `spelling_patience`
+- `speculative_turn`
+- `retranscribe_on_turn_timeout`
+- `mode`
+
+Do not rely on top-level camelCase publish fields being forwarded. Tests should
+assert the exact snake_case payload in `packages/vendors/src/elevenlabs.test.ts`.
+The API rejects an empty `soft_timeout_config.message`; use a safe Japanese
+fallback such as `ご確認したい点からで大丈夫です。` if the config object must be
+sent.
 
 ## Publish Diagnostics
 

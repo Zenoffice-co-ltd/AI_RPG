@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, MicOff, Phone } from "lucide-react";
+import { Mic, MicOff, Phone, PhoneOff } from "lucide-react";
 import { Orb, type AgentState } from "../ui/orb";
 import type { RoleplayStatus } from "@/lib/roleplay/conversation-types";
 
@@ -9,7 +9,6 @@ export function OrbStage({
   agentState,
   muted,
   visualTest,
-  isStarting,
   getInputVolume,
   getOutputVolume,
   onCall,
@@ -19,7 +18,6 @@ export function OrbStage({
   agentState: AgentState;
   muted: boolean;
   visualTest: boolean;
-  isStarting: boolean;
   getInputVolume: () => number;
   getOutputVolume: () => number;
   onCall: () => void;
@@ -31,6 +29,7 @@ export function OrbStage({
     state === "thinking" ||
     state === "speaking" ||
     state === "muted";
+  const activeOrStarting = connected || state === "connecting" || state === "ending";
 
   return (
     <section className="orb-stage" data-testid="left-orb-panel">
@@ -47,12 +46,19 @@ export function OrbStage({
           />
           <button
             type="button"
-            className="orb-call-button"
+            className={
+              activeOrStarting
+                ? "orb-call-button orb-call-button--active"
+                : "orb-call-button"
+            }
             onClick={onCall}
-            disabled={isStarting}
-            aria-label={connected ? "通話を終了" : "通話を開始"}
+            aria-label={activeOrStarting ? "通話を終了" : "通話を開始"}
           >
-            <Phone size={31} fill="currentColor" />
+            {activeOrStarting ? (
+              <PhoneOff size={31} />
+            ) : (
+              <Phone size={31} fill="currentColor" />
+            )}
           </button>
         </div>
       </div>

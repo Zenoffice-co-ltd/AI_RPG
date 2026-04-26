@@ -8,7 +8,7 @@ import {
   buildRateLimitKey,
   checkSessionTokenRateLimit,
 } from "@/lib/roleplay/rate-limit";
-import { getVoiceServerEnv } from "@/lib/roleplay/server-env";
+import { getVoiceServerEnvWithSecretFallback } from "@/lib/roleplay/server-env";
 import {
   issueConversationToken,
   SAFE_SESSION_ERROR,
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const env = getVoiceServerEnv();
+    const env = await getVoiceServerEnvWithSecretFallback();
     const conversationToken = await issueConversationToken({
       env,
       ...(parsed.data.participantName

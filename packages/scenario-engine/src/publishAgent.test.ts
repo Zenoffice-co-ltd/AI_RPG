@@ -212,6 +212,26 @@ describe("publishScenarioAgent", () => {
     // 22+ rich regression suite stays local. This is the single most
     // important change of the Auto Gate Recovery v2.
     expect(elevenLabs.createTest).toHaveBeenCalledTimes(8);
+    expect(elevenLabs.updateAgent).toHaveBeenCalledWith(
+      "agent_123",
+      expect.objectContaining({
+        turn: {
+          turnTimeoutSeconds: 7,
+          initialWaitTimeSeconds: 1,
+          silenceEndCallTimeoutSeconds: -1,
+          softTimeout: {
+            timeoutSeconds: -1,
+            message: "ご確認したい点からで大丈夫です。",
+          },
+          turnEagerness: "patient",
+          spellingPatience: "auto",
+          speculativeTurn: false,
+          retranscribeOnTurnTimeout: true,
+          mode: "turn",
+        },
+      }),
+      expect.any(Object)
+    );
 
     const vendorSmokeNames = [
       "opening-line",

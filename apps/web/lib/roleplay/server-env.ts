@@ -1,5 +1,11 @@
 import { z } from "zod";
 import { ensureEnvLoaded } from "../../server/loadEnv";
+import {
+  DEFAULT_ELEVENLABS_SECRET_NAME,
+  DEFAULT_SECRET_SOURCE_PROJECT_ID,
+  getEnvOrSecret,
+  trimConfiguredValue,
+} from "../../server/secrets";
 
 const serverEnvSchema = z.object({
   ELEVENLABS_API_KEY: z.string().min(1),
@@ -14,6 +20,37 @@ export type VoiceServerEnv = z.infer<typeof serverEnvSchema>;
 export function getVoiceServerEnv(): VoiceServerEnv {
   ensureEnvLoaded();
   const parsed = serverEnvSchema.safeParse(process.env);
+  if (!parsed.success) {
+    throw new Error("Voice session server environment is not configured.");
+  }
+  return parsed.data;
+}
+
+export async function getVoiceServerEnvWithSecretFallback(): Promise<VoiceServerEnv> {
+  ensureEnvLoaded();
+
+  if (process.env["NODE_ENV"] === "production") {
+    const parsed = serverEnvSchema.safeParse({
+      ...process.env,
+      ELEVENLABS_API_KEY: trimConfiguredValue(process.env["ELEVENLABS_API_KEY"]),
+    });
+    if (!parsed.success) {
+      throw new Error("Voice session server environment is not configured.");
+    }
+    return parsed.data;
+  }
+
+  const secretProjectId =
+    process.env["SECRET_SOURCE_PROJECT_ID"] ?? DEFAULT_SECRET_SOURCE_PROJECT_ID;
+  const apiKey = await getEnvOrSecret(
+    "ELEVENLABS_API_KEY",
+    DEFAULT_ELEVENLABS_SECRET_NAME,
+    secretProjectId
+  );
+  const parsed = serverEnvSchema.safeParse({
+    ...process.env,
+    ELEVENLABS_API_KEY: apiKey,
+  });
   if (!parsed.success) {
     throw new Error("Voice session server environment is not configured.");
   }

@@ -271,9 +271,9 @@
   box-shadow: 0 12px 22px rgba(0, 0, 0, 0.08);
 }
 
-.orb-call-button:disabled {
-  cursor: wait;
-  opacity: 0.65;
+.orb-call-button--active {
+  background: #f04444;
+  box-shadow: 0 12px 24px rgba(240, 68, 68, 0.22);
 }
 
 .orb-control-pill {
@@ -461,10 +461,28 @@
 }
 
 .transcript-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
   margin: 18px 0 0 37px;
   color: #a3a7af;
   font-size: 17px;
   font-weight: 800;
+}
+
+.transcript-indicator__spinner {
+  width: 14px;
+  height: 14px;
+  border: 3px solid #d6d9df;
+  border-top-color: #8f9299;
+  border-radius: 50%;
+  animation: transcript-spinner 0.86s linear infinite;
+}
+
+@keyframes transcript-spinner {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .transcript-warning,
@@ -571,6 +589,48 @@
 .roleplay-modal__panel input[type="range"],
 .roleplay-access input {
   min-height: 42px;
+}
+
+.roleplay-access input {
+  appearance: none;
+  width: 100%;
+  border: 2px solid #0b0b0b;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0 14px;
+  color: #0b0b0b;
+  font: inherit;
+  font-weight: 700;
+  outline: 2px solid #0b0b0b;
+  outline-offset: -2px;
+  box-shadow: inset 0 0 0 1px #0b0b0b;
+}
+
+.roleplay-access input::placeholder {
+  color: #8f9299;
+  font-weight: 700;
+}
+
+.roleplay-access input:focus {
+  border-color: #0b0b0b;
+  outline-color: #0b0b0b;
+  box-shadow:
+    inset 0 0 0 1px #0b0b0b,
+    0 0 0 3px rgb(11 11 11 / 10%);
+}
+
+.roleplay-access__input {
+  display: block !important;
+  box-sizing: border-box;
+  height: 48px;
+  min-height: 48px;
+  margin: 2px 0 4px;
+  border: 2px solid #0b0b0b !important;
+  outline: 2px solid #0b0b0b !important;
+  outline-offset: -2px;
+  box-shadow: inset 0 0 0 1px #0b0b0b !important;
+  border-radius: 12px;
+  background: #ffffff;
 }
 
 .roleplay-modal__toggle {

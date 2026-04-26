@@ -55,21 +55,55 @@ export function hasDemoApiAccess(request: NextRequest) {
 export function validateSameOrigin(request: NextRequest) {
   const origin = request.headers.get("origin");
   const referer = request.headers.get("referer");
-  const requestOrigin = request.nextUrl.origin;
+  const requestOrigin = resolveRequestOrigin(request);
 
-  if (origin && origin !== requestOrigin) {
+  if (origin && !sameOriginOrLoopbackAlias(origin, requestOrigin)) {
     return false;
   }
 
   if (!origin && referer) {
     try {
-      return new URL(referer).origin === requestOrigin;
+      return sameOriginOrLoopbackAlias(new URL(referer).origin, requestOrigin);
     } catch {
       return false;
     }
   }
 
   return Boolean(origin || referer);
+}
+
+function sameOriginOrLoopbackAlias(left: string, right: string) {
+  if (left === right) {
+    return true;
+  }
+
+  try {
+    const leftUrl = new URL(left);
+    const rightUrl = new URL(right);
+    const isLoopbackPair =
+      isLoopbackHost(leftUrl.hostname) && isLoopbackHost(rightUrl.hostname);
+    return (
+      isLoopbackPair &&
+      leftUrl.protocol === rightUrl.protocol &&
+      leftUrl.port === rightUrl.port
+    );
+  } catch {
+    return false;
+  }
+}
+
+function resolveRequestOrigin(request: NextRequest) {
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  if (!forwardedHost) {
+    return request.nextUrl.origin;
+  }
+  const forwardedProto =
+    request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  return `${forwardedProto}://${forwardedHost}`;
+}
+
+function isLoopbackHost(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
 }
 
 function safeEqual(left: string, right: string) {
