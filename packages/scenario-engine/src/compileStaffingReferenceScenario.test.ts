@@ -115,6 +115,19 @@ describe("compileStaffingReferenceScenario", () => {
     );
     // Manual orb v7 P2: filler ban
     expect(compiled.assets.agentSystemPrompt).toContain("取りつくろいフィラー禁止");
+    // Manual orb v9 P1: high-salience Response Opening Format section bans 承知しました prefix
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "# Response Opening Format"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "AI 応答の **最初の 1 文** に以下のフレーズを **絶対に置かない**"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "× 「**承知しました。少し整理しますね。** 指揮命令者の課長は...」"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "○ 「指揮命令者の課長は落ち着いていますが正確性に厳しい方です。"
+    );
     expect(compiled.assets.agentSystemPrompt).toContain(
       "毎ターンの定型句として使わない"
     );
