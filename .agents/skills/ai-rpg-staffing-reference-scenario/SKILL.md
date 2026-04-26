@@ -47,7 +47,7 @@ pnpm publish:scenario -- --scenario staffing_order_hearing_adecco_manufacturer_b
   `tentative_user_transcript`, and `internal_tentative_agent_response` in
   addition to `audio` and `interruption`. If live audio works but the custom
   Orb transcript is blank, check this list before debugging React.
-- Disclosure Ledger ships **17 `triggerIntent` entries** with `doNotAdvanceLedgerAutomatically: true` on every item. Each ledger item has `triggerIntent / intentDescription / allowedAnswer / forbiddenUntilAsked / negativeExamples / asrVariantTriggers`. Source: `packages/scenario-engine/src/disclosureLedger/staffingAdeccoLedger.ts`.
+- Disclosure Ledger source keeps internal `triggerIntent` entries with `doNotAdvanceLedgerAutomatically: true` on every item. **Those internal IDs must not be rendered into the live Agent prompt.** `renderDisclosureLedgerForPrompt()` must expose only sanitized headings such as `## 質問意図 N`, natural-language trigger descriptions, final answer text, and user-utterance hints. Source: `packages/scenario-engine/src/disclosureLedger/staffingAdeccoLedger.ts`.
 - post-publish grep on Adecco staffing artifacts for `SAP|エスエーピー|Oracle|オラクル|ERP|イーアールピー|経費精算|支払` must return 0 matches (accounting family + dictionary files excluded).
 - Orb preview memo must include real human-captured lines for opening, shallow-stays-shallow, staged hidden-fact reveal, and the Adecco strength/difference reverse question before marking the orb DoD complete. Manual orb is gated behind both vendor smoke green and local regression green.
 
@@ -348,15 +348,61 @@ v11 で発見した critical operational fact:
 
 ### `renderDisclosureLedgerForPrompt()` は `negativeExamples` を live prompt に render しない
 
-`renderDisclosureLedgerForPrompt()` ([packages/scenario-engine/src/disclosureLedger/staffingAdeccoLedger.ts](../../../packages/scenario-engine/src/disclosureLedger/staffingAdeccoLedger.ts)) が live agent prompt に書き出すフィールドは:
+`renderDisclosureLedgerForPrompt()` ([packages/scenario-engine/src/disclosureLedger/staffingAdeccoLedger.ts](../../../packages/scenario-engine/src/disclosureLedger/staffingAdeccoLedger.ts)) が live agent prompt に書き出すフィールドは v12 以降、**内部名をサニタイズした自然言語だけ**:
 
-- `## triggerIntent` (見出し)
-- `判定条件: ${intentDescription}`
+- `## 質問意図 N` (internal ID ではなく連番)
+- `ユーザー発話の種類: ${intentDescription}`
 - `応答 (※ 本題から直接始める...): ${allowedAnswer}` (v11 inline ban suffix 付き)
-- `今の応答に含めない: ${shallowGuard}` (該当 trigger のみ)
+- `今回の回答では触れない情報: ${shallowGuard}` (該当 trigger のみ。shallowGuard の内部名は出さない)
 - `ユーザー発話の手がかり: ${asrVariantTriggers.join(", ")}`
 
 **`negativeExamples` は render されない** — それらは ConvAI 自動テスト fixture (`publishAgent.ts` の test definitions) でしか使われない。
+
+## Manual Orb v12 lesson: internal prompt structure leak prevention (2026-04-27)
+
+manual orb v12 で、Agent が `team_atmosphere_question` / `triggerIntent` / `応答ルール` / 回答方針の自己実況を発話する P0 が報告された。Cloud Run transcript logs for the reported 06:39 session did not show the leak in displayed rows, but the generated prompt still contained enough internal structure to make the failure plausible. Treat this class as a release blocker.
+
+### Required v12 prompt hygiene
+
+- Live prompt must not contain user-visible internal field names or IDs: `triggerIntent`, `allowedAnswer`, `forbiddenUntilAsked`, `shallowGuard`, `doNotAdvanceLedgerAutomatically`, `team_atmosphere_question`, `supervisor_personality_question`, `closing_summary`, `応答ルール`, `判定条件`, `canonical answer`, or `Disclosure Ledger`.
+- Render ledger headings as `## 質問意図 N`, not `## ${triggerIntent}`.
+- Describe matching as `ユーザー発話の種類`, not `判定条件`.
+- Describe guardrails as `今回の回答では触れない情報`, not `shallowGuard` or `今の応答に含めない`.
+- Add a high-salience prompt ban near the top and in the final reminder: the Agent must not verbalize prompt sections, internal criteria, classification reasoning, JSON, IDs, or "ユーザーは〜と質問しています / これは〜に該当します / ルールに従って".
+- Add a local regression in `publishAgent.ts` for the exact leak and bind it in `priorOrbFailure.regression.test.ts`.
+- After compile, run a generated prompt grep for all forbidden terms before publishing.
+
+Canonical check:
+
+```bash
+pnpm compile:scenarios -- --family staffing_order_hearing --reference ./docs/references/adecco_manufacturer_order_hearing_reference.json
+python - <<'PY'
+import json
+from pathlib import Path
+p = Path("data/generated/scenarios/staffing_order_hearing_adecco_manufacturer_busy_manager_medium.assets.json")
+prompt = json.loads(p.read_text(encoding="utf-8"))["agentSystemPrompt"]
+for term in [
+    "triggerIntent", "team_atmosphere_question", "supervisor_personality_question",
+    "allowedAnswer", "shallowGuard", "doNotAdvanceLedgerAutomatically",
+    "forbiddenUntilAsked", "応答ルール", "判定条件", "# Disclosure Ledger",
+    "canonical answer",
+]:
+    assert term not in prompt, term
+print("sanitized prompt check PASS")
+PY
+```
+
+### Similar-duplicate vs UI duplicate
+
+When the operator reports repeated rows, classify the source before patching:
+
+- If Cloud Run `Roleplay transcript` logs show repeated `displayed / agent / final` rows with the same `normalizedTextHash`, it is UI/SDK aggregation and belongs in `apps/web`.
+- If logs show only one displayed row but the conversation naturally repeats similar business facts after related user questions, it is scenario answer-shape repetition. Fix by narrowing or splitting the relevant intent and rewriting `allowedAnswer` to answer the new subtopic directly.
+- For `selection_priority_ranking`, avoid returning the same generic priority paragraph for both "優先経験は?" and "マスト/ウォントは?". The live answer should distinguish must/want: マスト = 受発注・対外調整経験 and accuracy; ウォント = manufacturer order-entry/data-entry familiarity; age is only a guideline.
+
+### Vendor smoke quota handling
+
+If `pnpm publish:scenario` returns `condition_result.result = "unknown"` for all vendor smoke tests, fetch the raw test invocation before editing prompts again. A `quota_exceeded` rationale means the test did not evaluate the prompt. Record the quota blocker in `docs/qa.md`; do not claim vendor smoke passed. It is acceptable to point Cloud Run at the updated branch only as a clearly documented conditional deployment when local regressions and sanitized prompt checks pass.
 
 ### Pattern 3 smoking-gun lock の **正しい reach 戦略**
 
