@@ -46,6 +46,17 @@ final-text dedupe for near-simultaneous duplicate Agent events, and logs
 log searches do not depend on Cloud Logging's display encoding. Full DOD remains
 pending a fresh operator retest on `mendan-00012-4bs`.
 
+2026-04-27 06:38 JST investigation: reviewed 2,356 `Roleplay transcript` log
+rows from the prior `mendan-00011-knx` revision. The duplicate pattern was
+Agent-only: 53 displayed Agent final rows included 21 canonical
+`agent-chat-N` + `agent-N` duplicate groups and 22 near same-length duplicate
+pairs within five seconds. Displayed User final rows had 0 near duplicate pairs,
+and there were no displayed System final rows. No `mendan-00012-4bs` transcript
+rows existed at investigation time, so post-fix validation still requires a new
+operator smoke. The reusable investigation process is now captured in
+`.agents/skills/ai-rpg-orb-live-ui/SKILL.md` under "Duplicate Transcript
+Investigation".
+
 Canonical route: `/demo/adecco-roleplay`. Legacy `/demo/adecco-orb`
 redirects to the canonical route with query parameters preserved. Requested
 customer URL `https://mendan-mvk3ouxwza-an.a.run.app/demo/adecco-roleplay` is blocked until

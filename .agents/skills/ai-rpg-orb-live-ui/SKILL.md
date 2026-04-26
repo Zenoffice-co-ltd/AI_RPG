@@ -88,6 +88,41 @@ Do not implement `fakeLive` as another static mock. Its purpose is to prove even
   separate `phase:` / `text:` lines), change the server log call to
   `console.info(JSON.stringify(...))` before relying on the evidence.
 
+## Duplicate Transcript Investigation
+
+When an operator reports repeated Agent transcript rows, investigate the logs
+before changing the scenario prompt.
+
+1. Pull Cloud Run transcript logs for the customer service and keep revisions
+   separate:
+
+   ```bash
+   gcloud logging read \
+     'resource.type="cloud_run_revision" AND resource.labels.service_name="mendan" AND jsonPayload.message="Roleplay transcript"' \
+     --project adecco-mendan \
+     --limit 5000 \
+     --freshness=24h \
+     --format=json
+   ```
+
+2. Analyze only `phase=displayed`, `role=agent`, `status=final` rows first.
+   Compare against `displayed/user/final`; if user rows are clean and Agent rows
+   duplicate, suspect SDK event aggregation rather than user echo.
+3. Known ElevenLabs duplicate pattern: the same Agent turn can arrive as both
+   `agent_chat_response_part` (`sdkMessageId=agent-chat-N`) and final
+   `agent_response` (`sdkMessageId=agent-N`). Treat those as one canonical event.
+4. Also check near-simultaneous `agent-chat-N` / `agent-chat-(N+1)` rows with
+   the same `normalizedTextHash` or same normalized text. `sdkMessageId` alone
+   is not a sufficient dedupe key.
+5. Cloud Logging may render Japanese `text` as `????`; use
+   `normalizedTextHash`, `textEscaped`, and `textUtf8Base64` for evidence.
+6. Do not count logs from the old revision against the current fix. For example,
+   `mendan-00011-knx` had known Agent duplicate display issues; verify
+   post-fix behavior on `mendan-00012-4bs` or later.
+7. If a new duplicate appears on the current revision, record the revision,
+   conversationLocalId, generation, sdkMessageId list, normalizedTextHash, and
+   timestamps in `docs/qa.md` before patching.
+
 ## Verification
 
 Run the narrowest checks that cover the change:
