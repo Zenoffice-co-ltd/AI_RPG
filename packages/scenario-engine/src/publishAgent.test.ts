@@ -395,6 +395,8 @@ describe("publishScenarioAgent", () => {
       "silence-no-coaching-fallback",
       "tone-no-trailing-prompt",
       "intent-disambiguation-overview-vs-atmosphere",
+      // Manual orb v14 P0: literal stage direction copy ban
+      "silence-no-stage-direction-leak",
     ]) {
       expect(localNames).toContain(
         `staffing_order_hearing_adecco_manufacturer_busy_manager_medium::${tail}`

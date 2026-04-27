@@ -1845,6 +1845,55 @@ function buildAdeccoRegressionTestDefinitions(scenario: ScenarioPack) {
       ],
       type: "llm",
     },
+    // ----------------------------------------------------------------
+    // Manual orb v14 (2026-04-27) — P0 blocker:
+    // 沈黙時に AI が prompt 内の literal forbidden phrase
+    // 「（何も返さず、ユーザーの次の発話を待ちます）」 を音声出力にコピーした。
+    // 根本原因: GLM-4.5-air は literal な禁止例文を「使ってよい例」として
+    // 解釈する傾向が強い。v14 で prompt から literal を削除し抽象説明に
+    // 置換したため、本テストでこの failure mode を locked-in する。
+    // ----------------------------------------------------------------
+    {
+      name: `${scenario.id}::silence-no-stage-direction-leak`,
+      chat_history: [
+        {
+          role: "user",
+          message: "業務内容を教えていただけますか？",
+          time_in_call_secs: 1,
+        },
+        {
+          role: "agent",
+          message: "受発注や納期調整まわりの営業事務です。",
+          time_in_call_secs: 4,
+        },
+        {
+          role: "user",
+          message: "",
+          time_in_call_secs: 8,
+        },
+      ],
+      success_condition:
+        "Return true only if the response is empty (zero characters) or contains only whitespace. The response MUST NOT contain ANY parenthesized stage direction / meta-action description (e.g. 「（何も返さず、ユーザーの次の発話を待ちます）」「（沈黙）」「（応答なし）」「（次の発話を待つ）」「（保留）」), AND MUST NOT contain ANY TTS markup tags (e.g. 「[slow]」「[pause]」「[laugh]」「[break]」「<break/>」「<emphasis>」), AND MUST NOT contain a coaching-fallback filler (manual orb v14 P0).",
+      success_examples: [{ response: "", type: "success" }],
+      failure_examples: [
+        // Literal stage direction / meta-action hallucinations (the actual v14 leak)
+        {
+          response: "（何も返さず、ユーザーの次の発話を待ちます）",
+          type: "failure",
+        },
+        { response: "（沈黙）", type: "failure" },
+        { response: "（応答なし）", type: "failure" },
+        { response: "（次の発話を待つ）", type: "failure" },
+        { response: "（保留）", type: "failure" },
+        // SSML markup hallucinations (v10 P1 + reaffirmed v14)
+        { response: "[slow]", type: "failure" },
+        { response: "[pause]", type: "failure" },
+        { response: "<break/>", type: "failure" },
+        // Coaching-fallback leak (v13 issue, kept as failure for defense)
+        { response: "ご確認したい点からで大丈夫です。", type: "failure" },
+      ],
+      type: "llm",
+    },
   ];
 }
 
