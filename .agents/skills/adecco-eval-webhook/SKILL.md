@@ -28,6 +28,8 @@ ElevenLabs post-call transcription -> AI_RPG Cloud Run `/api/vendor/eleven/postc
 - Treat the HTML report file as the visual design template only. The delivered report content must be dynamically rendered from Claude's JSON response (`total_score`, rubric scores, must-capture items, strengths, improvements, learner feedback, and training actions); never send the sample HTML with fixed placeholder scores as the final report.
 - Treat email delivery as incomplete until the route returns `mail.ok=true` and the user can visually confirm receipt.
 - Keep the ElevenLabs vendor webhook fast. `/api/vendor/eleven/postcall` must acknowledge with `202` after filtering/saving/enqueueing work; Claude evaluation, Conversation Details fallback, and Gmail sending belong in the Cloud Tasks worker `/api/internal/adecco-eval` to avoid ElevenLabs 504 auto-disable.
+- After the async Cloud Tasks split, do not expect `mail.ok=true` in the vendor webhook response. The webhook DOD is quick `202` with `evaluation=enqueued`; email DOD is confirmed from the worker log `adecco_eval_task_completed` plus inbox receipt.
+- If ElevenLabs auto-disables the webhook after repeated failures, first fix/deploy the endpoint, then re-enable the existing webhook and confirm `is_disabled=false` and `is_auto_disabled=false`. A stale `most_recent_failure_error_code=504` can remain as historical metadata after recovery.
 - Before opening/merging a PR, re-check the user's DOD. Do not treat a visual-template match as sufficient when the user requires data to come from the LLM response.
 - If the user asks for "PR作成 -> main merge", verify `gh auth status` first. If `gh` is not authenticated, run the login flow and wait for authentication; do not substitute a direct main push.
 - HMAC webhooks may be registered in ElevenLabs, but endpoint-side signature verification is a separate hardening task unless explicitly implemented.
@@ -55,13 +57,15 @@ ElevenLabs post-call transcription -> AI_RPG Cloud Run `/api/vendor/eleven/postc
     - `status=accepted`
     - `evaluation=enqueued`
     - `taskName=...`
+    - response latency should normally be a few seconds or less; it must not wait for Claude/Gmail
 12. Confirm Cloud Run logs for the task worker include:
     - `model=claude-sonnet-4-5-20250929`
     - `validation.ok=true`
     - `mail.routed_to=iwase@zenoffice.co.jp`
     - `mail.delivery=direct`
     - `mail.ok=true`
-13. When the user identifies a concrete local JSON file, use that exact file for E2E. Record the input path, generated `sessionId`, validation status, and Gmail message id in the completion note.
+13. Confirm the user sees the corresponding email in the inbox. Use received time and Gmail message id from logs to disambiguate multiple E2E emails.
+14. When the user identifies a concrete local JSON file, use that exact file for E2E. Record the input path, generated `sessionId`, validation status, and Gmail message id in the completion note.
 
 ## Cloud Run Notes
 
@@ -117,6 +121,21 @@ Invoke-RestMethod -Method Patch -Uri "https://api.elevenlabs.io/v1/convai/settin
     send_audio = $false
   }
 } | ConvertTo-Json -Depth 10)
+```
+
+Re-enable an auto-disabled webhook after the endpoint has been fixed and deployed:
+
+```powershell
+$webhookId = "8de14d81bc624dcfa37e02f1b9e9a17e"
+Invoke-RestMethod -Method Patch -Uri "https://api.elevenlabs.io/v1/workspace/webhooks/$webhookId" -Headers @{ "xi-api-key" = $apiKey; "Content-Type" = "application/json" } -Body (@{
+  is_disabled = $false
+  name = "AI_RPG Adecco Eval MVP"
+  retry_enabled = $true
+} | ConvertTo-Json)
+
+$all = Invoke-RestMethod -Method Get -Uri "https://api.elevenlabs.io/v1/workspace/webhooks" -Headers @{ "xi-api-key" = $apiKey; accept = "application/json" }
+$webhooks = if ($all.webhooks) { $all.webhooks } else { $all }
+$webhooks | Where-Object { $_.webhook_id -eq $webhookId -or $_.id -eq $webhookId } | Select-Object name,webhook_id,is_disabled,is_auto_disabled,retry_enabled,most_recent_failure_error_code
 ```
 
 ## References
