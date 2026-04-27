@@ -56,8 +56,8 @@ export function TranscriptPanel({
 
   return (
     <aside className="transcript-panel" data-testid="right-transcript-panel">
-      <div className="transcript-status">{statusText(state, mode)}</div>
       <div ref={scrollRef} className="transcript-scroll" onScroll={handleScroll}>
+        <div className="transcript-status">{statusText(state, mode)}</div>
         <MessageList messages={messages} onRetry={onRetry} />
         {state === "ended" ? (
           <div className="transcript-ended">
