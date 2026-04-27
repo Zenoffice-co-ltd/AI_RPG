@@ -149,6 +149,39 @@ const PRIOR_ORB_BAD_RESPONSES: PriorOrbBadResponse[] = [
       "prompt-leak-no-trigger-intent-verbalization",
     ],
   },
+  // ----------------------------------------------------------------
+  // Manual orb v13 (2026-04-27) — 3 P0 blockers + 1 structural issue:
+  // 1. 「どの点についてですか」末尾連呼 (Pattern 1 conflict in Tone + Guardrails)
+  // 2. 「ご確認したい点からで大丈夫です」沈黙時発話 (Silence Handling allow-path)
+  // 3. 1 ターン off-by-one mis-classification (## 質問意図 N 連番に semantic anchor 不足)
+  // ----------------------------------------------------------------
+  {
+    description:
+      "通常応答末尾に「どの点についてですか」を連呼 (manual orb v13 P0 trailing-prompt filler)",
+    badResponse:
+      "受発注入力と納期調整が中心です。どの点についてですか。",
+    expectedFailingRegressions: [
+      "tone-no-trailing-prompt",
+      "phrase-loop-regression",
+    ],
+  },
+  {
+    description:
+      "沈黙時に「ご確認したい点からで大丈夫です」を fallback として発話 (manual orb v13 P0 silence-fallback ban)",
+    badResponse: "ご確認したい点からで大丈夫です。",
+    expectedFailingRegressions: [
+      "silence-no-coaching-fallback",
+    ],
+  },
+  {
+    description:
+      "「概要を教えてください」に対して team_atmosphere の答えを返す off-by-one mis-classification (manual orb v13 structural)",
+    badResponse:
+      "営業業務課は三十代から四十代が中心です。どの点についてですか。",
+    expectedFailingRegressions: [
+      "intent-disambiguation-overview-vs-atmosphere",
+    ],
+  },
 ];
 
 function findTestDefinition(name: string) {
@@ -232,6 +265,10 @@ describe("Prior 2026-04-26 orb failure log binds to regression test failure_exam
       "closing-summary-rejects-wrong-working-hours",
       // Manual orb v12 additions:
       "prompt-leak-no-trigger-intent-verbalization",
+      // Manual orb v13 additions:
+      "silence-no-coaching-fallback",
+      "tone-no-trailing-prompt",
+      "intent-disambiguation-overview-vs-atmosphere",
     ];
     for (const tail of required) {
       const def = findTestDefinition(tail);

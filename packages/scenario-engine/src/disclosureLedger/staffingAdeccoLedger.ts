@@ -406,9 +406,9 @@ export const STAFFING_ADECCO_DISCLOSURE_LEDGER: DisclosureItem[] = [
   {
     triggerIntent: "commercial_terms",
     intentDescription:
-      "学習者が請求単価・時給・残業・就業時間・在宅頻度・予算を個別に確認した時。聞かれた項目だけ答え、聞かれていない条件をまとめて全開示しない。開始日・期限はそれぞれ start_date_only / urgency_or_submission_deadline で扱う。",
+      "学習者が請求単価・時給・残業・就業時間・在宅頻度・予算を個別に確認した時。**聞かれた項目だけ答え、聞かれていない条件をまとめて全開示しない (manual orb v13 P2 fix)**。開始日・期限はそれぞれ開始日のみ / 充足期限の質問意図で扱う。具体値: 就業時間=平日八時四十五分から十七時三十分、残業=月十から十五時間、請求想定=千七百五十円から千九百円、交通費=別途。",
     allowedAnswer:
-      "聞かれた項目に対応する値だけ返す。平日八時四十五分から十七時三十分、残業は月十から十五時間、請求想定は千七百五十円から千九百円、交通費は別途。",
+      "「請求想定は経験により千七百五十円から千九百円程度です。」",
     forbiddenUntilAsked: ["closing_summary"],
     negativeExamples: [
       "開始は六月一日希望、八時四十五分から十七時三十分、残業は月十から十五時間、請求は千七百五十円から千九百円、優先順位は受発注経験、決定は人事主導、見学は来週後半、決定は二から三営業日。",
@@ -684,9 +684,9 @@ export const STAFFING_ADECCO_DISCLOSURE_LEDGER: DisclosureItem[] = [
   {
     triggerIntent: "coaching_request",
     intentDescription:
-      "学習者がヒアリング項目の列挙や指導を求めた時のみ。例：『何を聞けばよいですか』『次は何を確認すれば良いですか』。**注意**: 『次はどう進めますか』『今後の進め方は』のような商談進行の質問は、コーチング要求ではなく顧客として自然な次アクションを返すこと。混同しないこと。",
+      "学習者がヒアリング項目の列挙や指導を求めた時のみ。例：『何を聞けばよいですか』『次は何を確認すれば良いですか』。短く受け流すだけで、確認項目を列挙しない。**注意**: 『次はどう進めますか』『今後の進め方は』のような商談進行の質問は、コーチング要求ではなく顧客として自然な次アクションを返すこと。混同しないこと。**沈黙・短い相槌・聞き取れない音には発火しない (manual orb v13 P0)** — coaching_request の応答 (`「ご確認したい点からで大丈夫です。」`) は明示的なコーチング要求にだけ返す canonical 応答であり、沈黙時 fallback として使ってはいけない。",
     allowedAnswer:
-      "「ご確認したい点からで大丈夫です。」程度で短く受け流す。確認項目を列挙しない。",
+      "「ご確認したい点からで大丈夫です。」",
     forbiddenUntilAsked: [],
     negativeExamples: [
       "まず決裁者、その次に充足期限、最後に請求単価を聞いてください。",
@@ -702,6 +702,42 @@ export const STAFFING_ADECCO_DISCLOSURE_LEDGER: DisclosureItem[] = [
     doNotAdvanceLedgerAutomatically: true,
   },
 ];
+
+/**
+ * Manual orb v13 P0 fix (2026-04-27): Japanese semantic labels for the
+ * `## 質問意図 N` headings rendered into the live prompt. Without semantic
+ * anchors, adjacent intents with overlapping ASR triggers (e.g.
+ * overview_shallow ↔ team_atmosphere_question both touching 「概要」「何名」)
+ * cause off-by-one mis-classification. Adding a Japanese label per heading
+ * gives the LLM an intent-matching anchor without exposing the English
+ * triggerIntent ID (defense-in-depth from v12 maintained).
+ *
+ * Note: this is a low-risk improvement. ASR / turn-segmentation effects may
+ * also contribute to the off-by-one observation; track separately.
+ */
+const JAPANESE_INTENT_LABELS: Record<string, string> = {
+  identity_self: "役割確認",
+  overview_shallow: "概要 (浅い)",
+  headcount_only: "人数のみ",
+  background_shallow: "募集背景 (浅い)",
+  background_deep_vendor_reason: "現行ベンダー不満の深掘り",
+  job_shallow: "職種 (短答)",
+  job_detail_tasks: "業務内容詳細",
+  volume_cycle: "件数・繁忙サイクル",
+  handover_method: "引継ぎ方法・期間",
+  competition: "競合・並行相談",
+  first_proposal_window: "先行提案期間",
+  decision_structure: "決定構造",
+  start_date_only: "開始日のみ",
+  urgency_or_submission_deadline: "充足期限・候補提示の急ぎ度",
+  commercial_terms: "請求単価・就業時間・残業 (単発)",
+  selection_priority_ranking: "採用優先順位 (must/want)",
+  supervisor_personality_question: "指揮命令者の人柄",
+  team_atmosphere_question: "部署環境 (人数・男女比・年齢層・服装)",
+  next_step_close: "次アクション",
+  closing_summary: "要約確認",
+  coaching_request: "コーチング要求",
+};
 
 /**
  * Render the disclosure ledger as Markdown for embedding into the agent
@@ -720,8 +756,10 @@ export function renderDisclosureLedgerForPrompt(
 
   const blocks = ledger
     .map((item, index) => {
+      const semanticLabel =
+        JAPANESE_INTENT_LABELS[item.triggerIntent] ?? "その他";
       const lines: string[] = [
-        `## 質問意図 ${index + 1}`,
+        `## 質問意図 ${index + 1}: ${semanticLabel}`,
         `ユーザー発話の種類: ${item.intentDescription}`,
         // Manual orb v11 P0 (2026-04-27): inline filler ban directly at the
         // 応答 line. The previous Response Opening Format section (placed

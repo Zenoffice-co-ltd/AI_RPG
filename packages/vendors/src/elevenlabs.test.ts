@@ -336,6 +336,41 @@ describe("buildConversationConfig", () => {
     });
     expect(config.tts.stability).toBeUndefined();
   });
+
+  it("omits soft_timeout_config when softTimeout is undefined (manual orb v13 P1 attempt: ElevenLabs API rejects null)", () => {
+    // Manual orb v13 attempted to send `soft_timeout_config: null` to force-
+    // clear the dashboard filler 「承知しました。少し整理しますね。」 that
+    // was set in the dashboard before v7 and persisted across publishes
+    // (PATCH semantics preserves omitted fields). The API responded with
+    // `Invalid conversation config: Input should be a valid dictionary or
+    // instance of SoftTimeoutConfig` — null is not accepted. Reverted to
+    // omit-when-undefined and documented operator-side dashboard cleanup
+    // in the runbook + SKILL.md.
+    const config = buildConversationConfig({
+      name: "Adecco",
+      prompt: "prompt",
+      firstMessage: "お時間ありがとうございます。",
+      knowledgeBase: [],
+      llmModel: "gpt-5-mini",
+      language: "ja",
+      turn: {
+        turnTimeoutSeconds: 14,
+        initialWaitTimeSeconds: 1,
+        silenceEndCallTimeoutSeconds: -1,
+        // softTimeout intentionally omitted
+        turnEagerness: "patient",
+        spellingPatience: "auto",
+        retranscribeOnTurnTimeout: true,
+        mode: "turn",
+      },
+      tts: {
+        modelId: "eleven_v3",
+        voiceId: "voice_456",
+      },
+    });
+
+    expect(config.turn).not.toHaveProperty("soft_timeout_config");
+  });
 });
 
 describe("ElevenLabsClient.renderSpeech", () => {

@@ -391,6 +391,10 @@ describe("publishScenarioAgent", () => {
       "no-coaching-strict",
       // Manual orb v12 P0: prompt structure verbalization ban
       "prompt-leak-no-trigger-intent-verbalization",
+      // Manual orb v13 P0: silence + trailing-prompt + intent disambiguation
+      "silence-no-coaching-fallback",
+      "tone-no-trailing-prompt",
+      "intent-disambiguation-overview-vs-atmosphere",
     ]) {
       expect(localNames).toContain(
         `staffing_order_hearing_adecco_manufacturer_busy_manager_medium::${tail}`
