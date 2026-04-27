@@ -3,26 +3,17 @@
   "elevenAgentId": "agent_2801kpj49tj1f43sr840cvy17zcc",
   "voiceId": "g6xIsTj2HwM6VR4iXFCw",
   "ttsModel": "eleven_v3",
-  "testRunId": "suite_7001kq636g7des0rzvwendpnvtad",
+  "testRunId": "suite_3701kq65vpzmfs3asgtrzwtsz2cr",
   "dashboard": {
     "agentUrl": "https://elevenlabs.io/app/conversational-ai/agents/agent_2801kpj49tj1f43sr840cvy17zcc",
     "orbPreviewUrl": "https://elevenlabs.io/app/talk-to?agent_id=agent_2801kpj49tj1f43sr840cvy17zcc"
   },
   "passed": true,
   "testRun": {
-    "id": "suite_7001kq636g7des0rzvwendpnvtad",
+    "id": "suite_3701kq65vpzmfs3asgtrzwtsz2cr",
     "test_runs": [
       {
-        "test_run_id": "trun_8101kq636g7mf0ps2rb0ws6vek3q",
-        "test_id": "test_7301kq43yth9fs4bnq372ns2hk7y",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::headcount-only",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_3601kq636g7ne7rv7e14xh0zyv48",
+        "test_run_id": "trun_6701kq65vpzwfcn8ga3e6x25v4d7",
         "test_id": "test_7201kq43yv4pe30b35w773g5616k",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::shallow-overview",
@@ -31,43 +22,7 @@
         }
       },
       {
-        "test_run_id": "trun_9001kq636g7kfapv7whd92vgwbtn",
-        "test_id": "test_8101kq43ysxhemnvjappzys9yetj",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::opening-line",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_0601kq636g7pf5vt70fvbsjamt89",
-        "test_id": "test_2001kq43yvmxf64b819206gvwwq3",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::background-deep-followup",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_7901kq636g7qey8smsj2fv3mttxn",
-        "test_id": "test_5101kq43yw38ezqvzrwe9tpjd7km",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::next-step-close-safe",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_1001kq636g7re6xa3y4xx9ghtjg0",
-        "test_id": "test_7001kq43ywg2e4aamgf4pw2ndfrz",
-        "status": "passed",
-        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::sap-absence-safe",
-        "condition_result": {
-          "result": "success"
-        }
-      },
-      {
-        "test_run_id": "trun_1801kq636g7sfh68kw1eqkt980tp",
+        "test_run_id": "trun_6201kq65vq00e8bajb0paf3s89xd",
         "test_id": "test_8701kq43yx9dfdy8144ncfrmk1jf",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::no-coaching-safe",
@@ -76,7 +31,52 @@
         }
       },
       {
-        "test_run_id": "trun_7301kq636g7tf3gvk1anjf4wtwck",
+        "test_run_id": "trun_9601kq65vpzte5yt9rxhwrs8bwhm",
+        "test_id": "test_8101kq43ysxhemnvjappzys9yetj",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::opening-line",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_9101kq65vpzze03bawmfr199skx0",
+        "test_id": "test_7001kq43ywg2e4aamgf4pw2ndfrz",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::sap-absence-safe",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_0801kq65vpzvfwpbhhgknsz83j4f",
+        "test_id": "test_7301kq43yth9fs4bnq372ns2hk7y",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::headcount-only",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_1201kq65vpzxesybjxajcbc1k76s",
+        "test_id": "test_2001kq43yvmxf64b819206gvwwq3",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::background-deep-followup",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_2701kq65vpzye0199mdzvbavy9dm",
+        "test_id": "test_5101kq43yw38ezqvzrwe9tpjd7km",
+        "status": "passed",
+        "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::next-step-close-safe",
+        "condition_result": {
+          "result": "success"
+        }
+      },
+      {
+        "test_run_id": "trun_1701kq65vq01ehw99fz07w6mqmaz",
         "test_id": "test_5501kq43yxsnftgtqaf7v1v7q2n7",
         "status": "passed",
         "test_name": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium::closing-summary-simple",
@@ -92,15 +92,15 @@
     "scenarioId": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
     "elevenAgentId": "agent_2801kpj49tj1f43sr840cvy17zcc",
     "elevenBranchId": "agtbrch_9701kpj49vbdepjr8szvwc6w7e6b",
-    "elevenVersionId": "agtvrsn_7901kq636bsfe258sg2zb51px5e7",
+    "elevenVersionId": "agtvrsn_1401kq65vjt6egnrha2hh9yfx9by",
     "voiceProfileId": "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2",
     "voiceId": "g6xIsTj2HwM6VR4iXFCw",
-    "publishedAt": "2026-04-26T23:50:21.079Z"
+    "publishedAt": "2026-04-27T00:36:53.495Z"
   },
   "testedBranchId": "agtbrch_8001kpj49xpsermt0fy3xrr5ph8z",
   "testPolicy": {
     "vendorSmokeCount": 8,
-    "localRegressionCount": 33,
+    "localRegressionCount": 34,
     "vendorSmokeRationale": "ElevenLabs ConvAI LLM judge is non-deterministic for long multi-turn cascade tests; rich regression remains enforced locally via priorOrbFailure.regression.test.ts and gradeStaffingSession.ts."
   },
   "scenarioVersion": "v1.0.0",

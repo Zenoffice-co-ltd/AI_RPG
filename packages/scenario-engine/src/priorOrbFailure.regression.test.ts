@@ -182,6 +182,20 @@ const PRIOR_ORB_BAD_RESPONSES: PriorOrbBadResponse[] = [
       "intent-disambiguation-overview-vs-atmosphere",
     ],
   },
+  // ----------------------------------------------------------------
+  // Manual orb v14 (2026-04-27) — P0 blocker:
+  // 沈黙時に AI が prompt 内の literal forbidden phrase
+  // 「（何も返さず、ユーザーの次の発話を待ちます）」 を音声出力にコピー。
+  // GLM-4.5-air は literal 禁止例文を「使ってよい例」と誤解する傾向。
+  // ----------------------------------------------------------------
+  {
+    description:
+      "沈黙時に prompt 内の literal forbidden stage direction を音声出力にコピー (manual orb v14 P0)",
+    badResponse: "（何も返さず、ユーザーの次の発話を待ちます）",
+    expectedFailingRegressions: [
+      "silence-no-stage-direction-leak",
+    ],
+  },
 ];
 
 function findTestDefinition(name: string) {
@@ -269,6 +283,8 @@ describe("Prior 2026-04-26 orb failure log binds to regression test failure_exam
       "silence-no-coaching-fallback",
       "tone-no-trailing-prompt",
       "intent-disambiguation-overview-vs-atmosphere",
+      // Manual orb v14 addition:
+      "silence-no-stage-direction-leak",
     ];
     for (const tail of required) {
       const def = findTestDefinition(tail);

@@ -127,13 +127,29 @@ describe("compileStaffingReferenceScenario", () => {
       "使う場合は次の文言にしてください: 「すみません、少し音声が途切れたかもしれません。続きがあれば伺います。」"
     );
 
-    // Manual orb v10 P1: SSML/TTS markup hallucination ban (extends v8 stage direction ban).
+    // Manual orb v10 P1 + v14 P0: SSML/TTS markup + stage direction ban.
+    // v14 abstracted the literal forbidden phrases (`（何も返さず…）`, `[slow]`,
+    // `[pause]`, `<break/>` etc.) because GLM-4.5-air copies literal forbidden
+    // phrases into output. The ban now uses category-level wording.
     expect(compiled.assets.agentSystemPrompt).toContain(
-      "SSML / TTS markup タグも禁止"
+      "TTS 用 markup タグも禁止"
     );
-    expect(compiled.assets.agentSystemPrompt).toContain("『[slow]』");
-    expect(compiled.assets.agentSystemPrompt).toContain("『[pause]』");
-    expect(compiled.assets.agentSystemPrompt).toContain("『<break/>』");
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "速度・休止・笑い・改行・強調などを表す英語タグや SSML タグ全般"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "応答は人間の口頭発話のみ"
+    );
+    expect(compiled.assets.agentSystemPrompt).toContain(
+      "内部動作 (沈黙する・無応答にする・待機する・保留する 等) を**括弧書きで実況する文や、ト書き形式で書いた説明**を出力に含めてはいけません"
+    );
+    // Literal forbidden phrases must NOT appear in the rendered prompt.
+    expect(compiled.assets.agentSystemPrompt).not.toContain("（何も返さず、ユーザーの次の発話を待ちます）");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("『（沈黙）』");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("『（応答なし）』");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("『[slow]』");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("『[pause]』");
+    expect(compiled.assets.agentSystemPrompt).not.toContain("『<break/>』");
 
     // Manual orb v10 P0: # ユーザーの途中回答への対応 example was abstracted (no literal アシスタント
     // template starting with 「ありがとうございます。」).

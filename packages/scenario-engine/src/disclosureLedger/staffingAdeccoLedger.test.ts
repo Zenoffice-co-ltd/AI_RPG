@@ -117,16 +117,24 @@ describe("STAFFING_ADECCO_DISCLOSURE_LEDGER", () => {
     expect(joined).toContain("（保留）");
   });
 
-  it("Manual orb v8 P0: identity_self.intentDescription forbids stage direction output and references manual orb v8", () => {
+  it("Manual orb v8 P0 + v14 P0: identity_self.intentDescription forbids stage direction output (abstract phrasing)", () => {
     const item = STAFFING_ADECCO_DISCLOSURE_LEDGER.find(
       (i) => i.triggerIntent === "identity_self"
     );
     expect(item).toBeDefined();
     expect(item!.intentDescription).toContain("manual orb v8");
+    expect(item!.intentDescription).toContain("v14 P0");
     expect(item!.intentDescription).toContain(
       "応答テキストを 1 文字も生成しない"
     );
-    expect(item!.intentDescription).toContain("stage direction");
+    // Manual orb v14 P0: literal `（何も返さず…）`, `（沈黙）`, `（応答なし）` were
+    // removed from intentDescription because GLM-4.5-air copies literal forbidden
+    // phrases into output (audit finding #10). The ban is now phrased abstractly.
+    expect(item!.intentDescription).toContain(
+      "内部動作 (沈黙・無応答・待機 等) を括弧書き / ト書き形式で実況する文を発話してはいけない"
+    );
+    expect(item!.intentDescription).not.toContain("（何も返さず");
+    expect(item!.intentDescription).not.toContain("（沈黙）");
   });
 
   it("Manual orb v10 P1: identity_self.negativeExamples lock SSML/TTS markup hallucination ([slow] / [pause] / [laugh] / [break] / <break/>)", () => {
