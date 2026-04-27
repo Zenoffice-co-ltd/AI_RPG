@@ -310,28 +310,26 @@
 }
 
 .transcript-status {
-  position: absolute;
-  top: 50px;
-  left: 0;
-  right: 0;
-  z-index: 2;
+  position: relative;
+  z-index: 1;
   text-align: center;
   color: #a3a7af;
   font-size: 17px;
   font-weight: 800;
+  margin: 0 0 29px;
 }
 
 .transcript-scroll {
   height: calc(100% - 141px);
   overflow-y: auto;
-  padding: 88px 38px 40px 29px;
+  padding: 50px 38px 40px 29px;
 }
 
 .message-list {
   display: flex;
   flex-direction: column;
   gap: 22px;
-  padding-top: 13px;
+  padding-top: 0;
 }
 
 .message-row {

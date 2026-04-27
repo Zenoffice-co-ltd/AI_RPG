@@ -220,4 +220,81 @@ describe("transcriptReducer", () => {
       "現行ベンダーに加えてもう一社の大手にも相談中です"
     );
   });
+
+  it("replaces a competing final chat candidate from the same agent turn", () => {
+    const staleCandidate = createTranscriptMessage({
+      id: "agent-chat-272",
+      sdkMessageId: "agent-chat-272",
+      role: "agent",
+      channel: "chat",
+      text: "終了時期は現時点では定まっていません。長期の可能性が高いですが、状況に応じて延長するかどうか検討します。",
+      status: "final",
+      source: "sdk",
+      createdAt: 1_000,
+    });
+
+    const finalCandidate = createTranscriptMessage({
+      id: "agent-chat-276",
+      sdkMessageId: "agent-chat-276",
+      role: "agent",
+      channel: "chat",
+      text: "終了時期は現時点では未定です。長期の可能性もありますが、まずは六月一日からの開始を優先しています。",
+      status: "final",
+      source: "sdk",
+      createdAt: 1_100,
+    });
+
+    const merged = transcriptReducer([staleCandidate], {
+      type: "append",
+      message: finalCandidate,
+    });
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({
+      id: "agent-chat-272",
+      sdkMessageId: "agent-chat-276",
+      text: "終了時期は現時点では未定です。長期の可能性もありますが、まずは六月一日からの開始を優先しています。",
+      status: "final",
+    });
+  });
+
+  it("keeps separate agent turns when a user message appears between them", () => {
+    const firstAgent = createTranscriptMessage({
+      id: "agent-chat-1",
+      sdkMessageId: "agent-chat-1",
+      role: "agent",
+      channel: "chat",
+      text: "開始は六月一日を希望しています。",
+      status: "final",
+      source: "sdk",
+      createdAt: 1_000,
+    });
+    const user = createTranscriptMessage({
+      id: "user-2",
+      sdkMessageId: "user-2",
+      role: "user",
+      channel: "voice",
+      text: "終了時期は？",
+      status: "final",
+      source: "sdk",
+      createdAt: 1_050,
+    });
+    const secondAgent = createTranscriptMessage({
+      id: "agent-chat-3",
+      sdkMessageId: "agent-chat-3",
+      role: "agent",
+      channel: "chat",
+      text: "終了時期は現時点では未定です。",
+      status: "final",
+      source: "sdk",
+      createdAt: 1_100,
+    });
+
+    const merged = transcriptReducer([firstAgent, user], {
+      type: "append",
+      message: secondAgent,
+    });
+
+    expect(merged).toHaveLength(3);
+  });
 });

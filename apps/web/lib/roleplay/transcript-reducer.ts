@@ -4,6 +4,7 @@ import type { TranscriptMessage } from "./conversation-types";
 
 const LOCAL_ECHO_DEDUPE_MS = 5_000;
 const AGENT_DEDUPE_MS = 180_000;
+const AGENT_COMPETING_FINAL_MS = 3_000;
 
 export type TranscriptAction =
   | { type: "reset"; messages?: TranscriptMessage[] }
@@ -108,6 +109,16 @@ export function mergeMessages(
       continue;
     }
 
+    const competingAgentIndex = findRecentCompetingAgentIndex(merged, nextMessage);
+    if (competingAgentIndex >= 0) {
+      const currentMessage = merged[competingAgentIndex];
+      if (!currentMessage) {
+        continue;
+      }
+      merged[competingAgentIndex] = replaceAgentMessage(currentMessage, nextMessage);
+      continue;
+    }
+
     merged.push(nextMessage);
   }
 
@@ -166,8 +177,61 @@ function findAgentDuplicateIndex(
   });
 }
 
+function findRecentCompetingAgentIndex(
+  messages: TranscriptMessage[],
+  incoming: TranscriptMessage
+) {
+  if (
+    incoming.role !== "agent" ||
+    incoming.source !== "sdk" ||
+    incoming.status !== "final"
+  ) {
+    return -1;
+  }
+
+  const incomingText = normalizeComparableText(incoming.text);
+  if (incomingText.length < 8) {
+    return -1;
+  }
+
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (!message) {
+      continue;
+    }
+    if (message.role === "user") {
+      return -1;
+    }
+    if (
+      message.role !== "agent" ||
+      message.source !== "sdk" ||
+      message.status !== "final"
+    ) {
+      continue;
+    }
+    if (Math.abs(incoming.createdAt - message.createdAt) > AGENT_COMPETING_FINAL_MS) {
+      continue;
+    }
+
+    const currentText = normalizeComparableText(message.text);
+    if (!currentText || currentText === incomingText) {
+      continue;
+    }
+
+    if (isAgentSdkEventId(message.sdkMessageId) && isAgentSdkEventId(incoming.sdkMessageId)) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
 function normalizeComparableText(text: string) {
   return text.replace(/[\s、。，．,.！？!?"'「」『』（）()[\]［］【】]/g, "").trim();
+}
+
+function isAgentSdkEventId(sdkMessageId: string | undefined) {
+  return /^agent(?:-chat)?-\d+$/.test(sdkMessageId ?? "");
 }
 
 function canonicalAgentSdkMessageId(sdkMessageId: string | undefined) {
@@ -194,6 +258,19 @@ function mergeMessage(
     id: current.id,
     clientMessageId: current.clientMessageId ?? incoming.clientMessageId,
     sdkMessageId: current.sdkMessageId ?? incoming.sdkMessageId,
+    createdAt: Math.min(current.createdAt, incoming.createdAt),
+  };
+}
+
+function replaceAgentMessage(
+  current: TranscriptMessage,
+  incoming: TranscriptMessage
+): TranscriptMessage {
+  return {
+    ...current,
+    ...incoming,
+    id: current.id,
+    clientMessageId: current.clientMessageId ?? incoming.clientMessageId,
     createdAt: Math.min(current.createdAt, incoming.createdAt),
   };
 }
