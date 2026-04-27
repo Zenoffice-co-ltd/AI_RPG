@@ -27,6 +27,7 @@ ElevenLabs post-call transcription -> AI_RPG Cloud Run `/api/vendor/eleven/postc
 - Preserve sandbox semantics in subject lines. The current report subject should include `[SANDBOX] [AIロープレ評価]`.
 - Treat the HTML report file as the visual design template only. The delivered report content must be dynamically rendered from Claude's JSON response (`total_score`, rubric scores, must-capture items, strengths, improvements, learner feedback, and training actions); never send the sample HTML with fixed placeholder scores as the final report.
 - Treat email delivery as incomplete until the route returns `mail.ok=true` and the user can visually confirm receipt.
+- Keep the ElevenLabs vendor webhook fast. `/api/vendor/eleven/postcall` must acknowledge with `202` after filtering/saving/enqueueing work; Claude evaluation, Conversation Details fallback, and Gmail sending belong in the Cloud Tasks worker `/api/internal/adecco-eval` to avoid ElevenLabs 504 auto-disable.
 - Before opening/merging a PR, re-check the user's DOD. Do not treat a visual-template match as sufficient when the user requires data to come from the LLM response.
 - If the user asks for "PR作成 -> main merge", verify `gh auth status` first. If `gh` is not authenticated, run the login flow and wait for authentication; do not substitute a direct main push.
 - HMAC webhooks may be registered in ElevenLabs, but endpoint-side signature verification is a separate hardening task unless explicitly implemented.
@@ -42,17 +43,25 @@ ElevenLabs post-call transcription -> AI_RPG Cloud Run `/api/vendor/eleven/postc
 5. Send Gmail through service account domain-wide delegation when OAuth refresh tokens fail.
 6. For HTML report updates, copy the requested HTML into `scripts/adecco_order_hearing_eval/email_templates/` and verify SHA-256 equality with the source file as a design-template integrity check.
 7. Render the HTML part dynamically from the parsed Claude JSON while preserving the template layout/styles. Keep plain text as a fallback with raw JSON and validation metadata.
-8. Run typecheck/tests before deploy:
+8. For ElevenLabs post-call webhooks, enqueue a Cloud Tasks job and return immediately:
+   - vendor route expected response: `status=accepted`, `evaluation=enqueued`, `taskName=...`
+   - worker route: `/api/internal/adecco-eval`, protected by `x-queue-shared-secret`
+   - worker logs should include `adecco_eval_task_completed` with model, validation, and mail metadata
+9. Run typecheck/tests before deploy:
    - `corepack pnpm --filter @top-performer/web typecheck`
    - `corepack pnpm --filter @top-performer/vendors test`
-9. Build and deploy Cloud Run, then verify latest revision and health.
-10. POST an ElevenLabs-shaped sample payload to the production webhook and confirm the response includes:
+10. Build and deploy Cloud Run, then verify latest revision and health.
+11. POST an ElevenLabs-shaped sample payload to the production webhook and confirm the immediate response includes:
+    - `status=accepted`
+    - `evaluation=enqueued`
+    - `taskName=...`
+12. Confirm Cloud Run logs for the task worker include:
     - `model=claude-sonnet-4-5-20250929`
     - `validation.ok=true`
     - `mail.routed_to=iwase@zenoffice.co.jp`
     - `mail.delivery=direct`
     - `mail.ok=true`
-11. When the user identifies a concrete local JSON file, use that exact file for E2E. Record the input path, generated `sessionId`, validation status, and Gmail message id in the completion note.
+13. When the user identifies a concrete local JSON file, use that exact file for E2E. Record the input path, generated `sessionId`, validation status, and Gmail message id in the completion note.
 
 ## Cloud Run Notes
 
