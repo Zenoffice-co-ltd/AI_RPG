@@ -81,6 +81,7 @@ All secrets live in `projects/zapier-transfer/secrets/<NAME>`. Fetch with `gclou
 | `GOOGLE_API_KEY` | `gemini-api-key-default` | Phase 6 Google AI Studio streaming (ADC NOT required for the LLM lane) |
 | `ELEVENLABS_API_KEY` | `ELEVENLABS_API_KEY` | Phase 6 Stage 3 ElevenLabs ConvAI lane (REST + WebSocket) |
 | `INWORLD_API_KEY` | `INWORLD_API_KEY` | Phase 6 Inworld Router LLM (shares the key with TTS) |
+| `XAI_API_KEY` | `XAI_API_KEY` | xAI Grok Voice Realtime (native voice lane in chat-orb-server + grok-voice-batch). Saved 2026-05-04. |
 | `CARTESIA_*` / `FISH_*` / `INWORLD_VOICE_ID` | (same as Phase 4) | Phase 5/6 E2E TTS lanes |
 
 `GOOGLE_TTS_*` for the Gemini TTS provider still uses ADC + `GOOGLE_CLOUD_PROJECT=adecco-mendan` (not `GOOGLE_API_KEY`). Phase 6 Stage 1-2 specific: `OPENAI_RESPONSE_LATENCY_MODEL` may be set via env to override the LLM model fallback chain (`OPENAI_RESPONSE_LATENCY_MODEL` → `OPENAI_MINING_MODEL` → `OPENAI_ANALYSIS_MODEL`).
@@ -173,7 +174,58 @@ LLM provider model names and reasoning controls change frequently. **Before any 
 
 - `ai-rpg-tts-provider-benchmark` — Phase 4 TTS-only comparison (offline, fixed text). Use that skill when the question is "which TTS provider streams Japanese audio fastest for a given utterance" without LLM in the loop.
 - `adecco-eval-webhook` — production ConvAI agent + post-call eval pipeline. **Required reading** before running this skill's ElevenLabs lane (`--elevenlabs-agent`). The detach/restore pattern lives there.
+- `ai-rpg-orb-chat-verification` — interactive multi-turn chat tooling (`pnpm chat:orb`, `pnpm chat:orb:web`) for hands-on quality verification of Stage 3 candidates. Includes the xAI Grok Voice Realtime native voice lane.
 - `ai-rpg-staffing-reference-scenario` / `ai-rpg-repo-elevenlabs-voice` — production agent / voice profile work. Out of scope for benchmarks.
+
+## Quality verification tooling (post-benchmark)
+
+Once Stage 3 numbers are out, the next step is usually "let me actually talk to these candidates and feel the difference." Two interactive tools live alongside the benchmarks:
+
+| Command | Purpose |
+|---|---|
+| `pnpm chat:orb -- --llm <id> --tts <provider>` | Terminal CLI multi-turn chat. Saves WAV per turn + `transcript.md`. |
+| `pnpm chat:orb:web` (Windows: `.\scripts\chat-orb-web.ps1`) | Browser UI at `http://127.0.0.1:3030`. Streaming token display, autoplay TTS, mic input via Web Speech API, native voice lane (xAI Grok), 10 preset case buttons. |
+
+The browser UI's **🎙 mic button** uses Web Speech API for browser-side ASR when paired with text LLM × external TTS. When paired with `xai:grok-voice-think-fast-1.0`, it switches to a server-proxied WebSocket flow (`/api/voice-realtime` → `wss://api.x.ai/v1/realtime`) that streams PCM16 24kHz both ways. The TTS dropdown is auto-disabled in native voice mode because Grok handles the full stack.
+
+Reference doc: [docs/CHAT_ORB.md](../../docs/CHAT_ORB.md).
+
+## Native voice model evaluation methodology (xAI Grok Voice example)
+
+Grok Voice Think Fast 1.0 (and other native-voice candidates) cannot be scored on text generation directly because they emit audio. The pattern shipped 2026-05-04 in [scripts/grok-voice-batch.ts](../../scripts/grok-voice-batch.ts):
+
+1. Take each case's `userInput` (text) and synthesize to PCM16 24kHz via OpenAI TTS (`gpt-4o-mini-tts`, voice=`marin`)
+2. Open WS to xAI Realtime with the same `QUALITY_LATENCY_SYSTEM_PROMPT` via `session.update` (turn_detection=null, manual commit)
+3. Send `input_audio_buffer.append` → `commit` → `response.create`
+4. Capture `response.output_audio.delta` chunks (PCM16 base64) and assemble a WAV
+5. **xAI does NOT emit `response.audio_transcript.delta`** — fall back to OpenAI Whisper-1 (`POST /v1/audio/transcriptions` with the assembled WAV) to recover the AI text
+6. Save in schema-compatible form to `llm-text/xai-grok-voice-think-fast-1-0__<caseId>__r01.json` so the same Pareto / judge tooling can ingest it
+
+Run it with:
+
+```powershell
+.\scripts\grok-voice-batch.ps1 -RunDir <p6s3 run dir> -Voice ara -Limit 24
+```
+
+This adds `XAI_API_KEY` to the secrets pulled from zapier-transfer and uses OpenAI for both the user-side TTS and the post-hoc Whisper transcription.
+
+### ⚠️ TTS→ASR roundtrip caveat (real-audio re-eval recommended)
+
+The synthetic-audio path produces ~16-25% knockout rate for Grok Voice on the 24-case set, but **2 of those knockouts (ql_019, ql_020) are caused by `gpt-4o-mini-tts` voice `marin` (English-leaning) producing audio that xAI's internal Whisper transcribes incorrectly** — e.g. "某A社さん" → "防衛者さん" → Grok hallucinates about NLP precision unrelated to staffing. Real native-Japanese-speaker audio likely cuts the knockout rate to ~8-12%. The chat-orb-web native voice lane is the way to verify with real microphone input.
+
+## Cross-judge validation methodology (Claude in conversation as 2nd judge)
+
+Stage 3C uses Anthropic Sonnet 4.5 as the LLM judge. Sonnet judging Anthropic candidates is a self-bias risk. Cross-validation pattern (used 2026-05-03):
+
+1. Read all `(model, case)` r01 responses from `llm-text/`
+2. In conversation, apply the same rubric (intentFit 25 / businessCorrectness 20 / nextAction 15 / conciseness 15 / japaneseNaturalness 15 / voiceReadiness 10 + meta-leak −50 / unsupported guarantee −30 / wrong numeric −25 / does-not-answer −25 / too-verbose −15) to each
+3. Save to `claude-judge-scores.csv` (same shape as `judge-scores.csv` but with `judgeProvider=claude-opus-4-7`)
+4. Aggregate to `claude-judge-summary.csv` and compare ranks vs `judge-summary.csv`
+5. Document divergences in `claude-judge-report.md`
+
+Result on run `p6s3-20260503T072554094Z`: ranks identical 6/6 across both judges; absolute scores differ by +13-19 points (Claude is more lenient on the upper band) but knockout patterns matched. **Sonnet self-bias did exist** (it missed ql_001 placeholder + ql_011 fabricated stat in its OWN responses) but did not flip the model ranking.
+
+Future: add OpenAI gpt-4.1 as a 3rd judge to break the all-Anthropic dependency. Stage 3C `--judge-models` already supports the csv form.
 
 ## Guardrails
 

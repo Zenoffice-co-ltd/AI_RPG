@@ -33,6 +33,8 @@
     "benchmark:tts:response": "tsx scripts/tts/compare-response-latency.ts",
     "benchmark:llm:latency": "tsx scripts/tts/compare-llm-model-latency.ts",
     "benchmark:quality-latency": "tsx scripts/tts/compare-quality-latency.ts",
+    "chat:orb": "tsx scripts/chat-orb.ts",
+    "chat:orb:web": "tsx scripts/chat-orb-server.ts",
     "review:summarize:ja": "tsx scripts/elevenlabs/summarize-ja-voice-review.ts",
     "smoke:eleven": "tsx scripts/smoke-eleven.ts",
     "smoke:liveavatar": "tsx scripts/smoke-liveavatar.ts",
@@ -46,6 +48,7 @@
     "@types/node": "^24.7.2",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^6.0.1",
     "@vitest/coverage-v8": "^4.0.8",
     "eslint": "^9.39.1",
@@ -60,7 +63,8 @@
     "turbo": "^2.5.8",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.46.1",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.2",
+    "ws": "^8.20.0"
   },
   "pnpm": {
     "overrides": {

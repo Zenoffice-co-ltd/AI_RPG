@@ -20,6 +20,8 @@ export type LlmStreamRequest = {
   model: string;
   systemPrompt: string;
   userMessage: string;
+  /** Prior conversation turns. Optional; omit for one-shot benchmark calls. */
+  history?: readonly { role: "user" | "assistant"; text: string }[];
   maxOutputTokens?: number;
   temperature?: number;
   seed?: number;

@@ -13,10 +13,20 @@ export type StreamingTextEvent = StreamingTextDelta | StreamingTextDone;
 
 export type ReasoningEffort = "minimal" | "low" | "medium" | "high";
 
+export type StreamingTextHistoryTurn = {
+  role: "user" | "assistant";
+  text: string;
+};
+
 export type StreamingTextRequest = {
   model: string;
   systemPrompt: string;
   userMessage: string;
+  /**
+   * Prior conversation turns (excluding the current `userMessage` and the
+   * `systemPrompt`). Provide for multi-turn chat; omit/empty for one-shot.
+   */
+  history?: readonly StreamingTextHistoryTurn[];
   maxOutputTokens?: number;
   temperature?: number;
   seed?: number;
@@ -84,20 +94,33 @@ export class OpenAiResponsesStreamingClient {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
+    const conversationInput: Array<Record<string, unknown>> = [
+      {
+        role: "system",
+        content: [{ type: "input_text", text: input.systemPrompt }],
+      },
+    ];
+    if (input.history) {
+      for (const turn of input.history) {
+        conversationInput.push({
+          role: turn.role,
+          content: [
+            turn.role === "assistant"
+              ? { type: "output_text", text: turn.text }
+              : { type: "input_text", text: turn.text },
+          ],
+        });
+      }
+    }
+    conversationInput.push({
+      role: "user",
+      content: [{ type: "input_text", text: input.userMessage }],
+    });
     const body: Record<string, unknown> = {
       model: input.model,
       stream: true,
       truncation: "disabled",
-      input: [
-        {
-          role: "system",
-          content: [{ type: "input_text", text: input.systemPrompt }],
-        },
-        {
-          role: "user",
-          content: [{ type: "input_text", text: input.userMessage }],
-        },
-      ],
+      input: conversationInput,
     };
     if (input.maxOutputTokens !== undefined) {
       body["max_output_tokens"] = input.maxOutputTokens;

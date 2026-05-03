@@ -59,13 +59,22 @@ export class GoogleAiStudioStreamingClient {
       generationConfig["thinkingConfig"] = { thinkingBudget: this.thinkingBudget };
     }
 
+    const contents: Array<Record<string, unknown>> = [];
+    if (input.history) {
+      for (const turn of input.history) {
+        contents.push({
+          // Gemini uses "model" rather than "assistant" for the agent role.
+          role: turn.role === "assistant" ? "model" : "user",
+          parts: [{ text: turn.text }],
+        });
+      }
+    }
+    contents.push({
+      role: "user",
+      parts: [{ text: input.userMessage }],
+    });
     const body: Record<string, unknown> = {
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: input.userMessage }],
-        },
-      ],
+      contents,
       systemInstruction: {
         parts: [{ text: input.systemPrompt }],
       },
