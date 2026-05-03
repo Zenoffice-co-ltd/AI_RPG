@@ -406,6 +406,26 @@ accounting family の E2E では次を確認する。
 - 2026-04-19: `accounting_clerk_enterprise_ap_busy_manager_medium::no-hidden-fact-leak` failed once during publish and passed on immediate rerun. Treat busy-manager ConvAI judge results as vendor-side unstable when a single run fails without code or prompt changes.
 - 2026-04-26: Full `pnpm verify:acceptance` reached the legacy `staffing_order_hearing_busy_manager_medium` publish step and failed after 3 ConvAI judge attempts on `no-coaching`, with one retry also showing `no-hidden-fact-leak`. Adecco manufacturer publish and tests passed separately on `suite_7601kq3pv0jvf0e91hc0j5v7saj4`.
 
+## TTS Provider Benchmark MVP (offline only)
+
+オフラインで Cartesia / Inworld / Fish / Google Gemini / OpenAI の音声・レイテンシを横断比較するためのスクリプト。LiveAvatar / ConvAI publish / Firestore には**接続しない**。詳細は [docs/TTS_PROVIDER_BENCHMARK_MVP.md](TTS_PROVIDER_BENCHMARK_MVP.md) を参照。
+
+```bash
+pnpm benchmark:tts:mvp -- --preflight
+pnpm benchmark:tts:mvp -- --providers openai --repeats 1
+pnpm benchmark:tts:mvp -- --providers cartesia,inworld,fish,google_gemini,openai --repeats 5 --mode warm
+```
+
+公式 docs 確認ログ (provider endpoint / model / streaming 形式は preview/GA 状態で頻繁に変わるため、実 API smoke を回す前に再確認して日付付きで追記する):
+
+- 2026-05-03: 初版。各 provider の endpoint・model 名は MVP plan の既定値で実装。実 API smoke 実行前に公式 docs を再確認すること。
+- 2026-05-03: OpenAI `/v1/audio/speech` (model=`gpt-4o-mini-tts`, response_format=`pcm`, voice=`marin`) で 8/8 success 確認 (run mvp-20260503T040026851Z)。
+- 2026-05-03: Cartesia `POST /tts/bytes` (cartesia-version=`2024-11-13`, model=`sonic-3`, output_format=`raw/pcm_s16le/24000`) で 8/8 success 確認 (run mvp-20260503T041115131Z)。voice一覧は `GET https://api.cartesia.ai/voices/?limit=200` の `data` 配列から `language=="ja"` でフィルタ。
+- 2026-05-03: Google Gemini TTS は `gemini-3.1-flash-tts-preview` ではなく **`gemini-2.5-flash-preview-tts`** が現行 preview。`https://aiplatform.googleapis.com/v1/projects/<project>/locations/global/publishers/google/models/gemini-2.5-flash-preview-tts:generateContent` (location=`global`) + ADC で動作。`responseModalities=["AUDIO"]` + `speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName=<Voice>` (例: `Aoede`)。応答は `candidates[0].content.parts[0].inlineData.data` に base64 PCM (mime `audio/L16;codec=pcm;rate=24000`)。`adecco-mendan` で `aiplatform.googleapis.com` を有効化済み。実装の既定 model を修正済み。
+- 2026-05-03: Fish Audio voice 検索は `GET https://api.fish.audio/model?language=ja&page_size=20&sort_by=score&title=<query>` で `items[]._id` を取得。本実装の smoke では `68fdd4419bd64b42a6e59927c67dfb92` (ビジネス男性ナレーション) を採用。
+- 2026-05-03: Inworld voice 一覧は `GET https://api.inworld.ai/tts/v1/voices` (Authorization: `Basic <key>`) で `voices[].voiceId` を取得。本実装では `Satoshi` を採用。
+- 2026-05-03: 5 provider smoke (run mvp-20260503T044651820Z) — cartesia/inworld/google_gemini/openai は 8/8 success。**Fish Audio は HTTP 402 `Insufficient Balance` で 8/8 failed**。コード起因ではなくアカウント残高問題。Fish Audio dashboard で credit を追加するまで本 provider は未検証扱い。errorMessage は metrics.csv に保存済み。
+
 ## Follow-up Backlog
 
 - [ ] `staffing_order_hearing_busy_manager_medium::no-coaching` legacy live ConvAI judge mismatch

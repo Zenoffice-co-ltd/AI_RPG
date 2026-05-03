@@ -174,5 +174,6 @@ pnpm test:e2e
 - `pnpm bootstrap:vendors` is idempotent by default. If `/settings/runtime.liveAvatarElevenSecretId` already exists, it is reused unless `--refresh-secret` is passed.
 - `pnpm smoke:eleven -- --preflight`, `pnpm smoke:liveavatar -- --preflight`, and `pnpm verify:acceptance -- --preflight` print the exact required input block before touching vendor APIs.
 - `pnpm verify:acceptance` is the canonical acceptance entrypoint. When `APP_BASE_URL` is local, it starts a local production server and directly delivers `/api/internal/analyze-session` after queue enqueue so the scorecard path can still be verified.
+- `pnpm benchmark:tts:mvp -- --preflight` validates env for the offline TTS provider comparison MVP (Cartesia / Inworld / Fish / Google Gemini / OpenAI). See [docs/TTS_PROVIDER_BENCHMARK_MVP.md](docs/TTS_PROVIDER_BENCHMARK_MVP.md). Does **not** affect live runtime.
 
 詳細は [docs/IMPLEMENTATION.md](/C:/AI_RPG/docs/IMPLEMENTATION.md)、[docs/OPERATIONS.md](/C:/AI_RPG/docs/OPERATIONS.md)、[docs/DELIVERY_STATUS.md](/C:/AI_RPG/docs/DELIVERY_STATUS.md)、[docs/PROMPTS.md](/C:/AI_RPG/docs/PROMPTS.md) を参照してください。

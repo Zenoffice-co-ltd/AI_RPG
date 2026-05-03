@@ -29,6 +29,7 @@
     "voices:dictionary:upload": "tsx scripts/elevenlabs/upload-pronunciation-dictionary.ts",
     "benchmark:render": "tsx scripts/elevenlabs/render-benchmark.ts",
     "benchmark:render:ja": "tsx scripts/elevenlabs/render-ja-voice-benchmark.ts",
+    "benchmark:tts:mvp": "tsx scripts/tts/compare-mvp.ts",
     "review:summarize:ja": "tsx scripts/elevenlabs/summarize-ja-voice-review.ts",
     "smoke:eleven": "tsx scripts/smoke-eleven.ts",
     "smoke:liveavatar": "tsx scripts/smoke-liveavatar.ts",
