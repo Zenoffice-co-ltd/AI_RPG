@@ -13,3 +13,5 @@ firebase-debug.log
 *.tsbuildinfo
 *.log
 data/generated/voice-benchmark/
+data/generated/tts-provider-benchmark/
+.claude/
