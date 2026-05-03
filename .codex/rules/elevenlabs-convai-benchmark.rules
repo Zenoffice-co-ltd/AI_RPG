@@ -1,0 +1,26 @@
+prefix_rule(
+    pattern = ["pnpm", "benchmark:quality-latency"],
+    decision = "prompt",
+    justification = "Quality-latency benchmark may run the ElevenLabs ConvAI lane. Confirm the workspace post-call webhook (`8de14d81bc624dcfa37e02f1b9e9a17e`, AI_RPG Adecco Eval MVP) will be detached before any conversation traffic and restored in finally. Running ConvAI traffic with the webhook attached fires the production eval pipeline against `iwase@zenoffice.co.jp` for every conversation (~72 emails per benchmark run plus Claude API spend). The CLI's `--elevenlabs-agent` subcommand handles detach/restore automatically; ad-hoc ConvAI traffic must replicate the pattern manually. See `.agents/skills/adecco-eval-webhook/SKILL.md` § 'Workspace webhook fires on ALL agents' for the safe detach pattern.",
+    match = [
+        "pnpm benchmark:quality-latency -- --elevenlabs-agent --run p6s3-...",
+        "pnpm benchmark:quality-latency -- --elevenlabs-agent --create-temp-agent --run p6s3-... --repeats 3",
+    ],
+    not_match = [
+        "pnpm benchmark:quality-latency -- --score-rules --run p6s3-...",
+        "pnpm benchmark:quality-latency -- --judge --run p6s3-...",
+        "pnpm benchmark:quality-latency -- --pareto --run p6s3-...",
+    ],
+)
+
+prefix_rule(
+    pattern = ["curl", "wss://api.elevenlabs.io"],
+    decision = "prompt",
+    justification = "Direct ConvAI WebSocket traffic will trigger the workspace post-call webhook on every conversation. Confirm webhook detach is in place before running. See `.agents/skills/adecco-eval-webhook/SKILL.md`.",
+    match = [
+        "curl wss://api.elevenlabs.io/v1/convai/conversation?agent_id=agent_2801kpj49tj1f43sr840cvy17zcc",
+    ],
+    not_match = [
+        "curl https://api.elevenlabs.io/v1/convai/agents",
+    ],
+)

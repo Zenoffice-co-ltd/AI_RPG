@@ -14,4 +14,7 @@ firebase-debug.log
 *.log
 data/generated/voice-benchmark/
 data/generated/tts-provider-benchmark/
+data/generated/tts-response-latency-benchmark/
+data/generated/llm-model-latency/
+data/generated/quality-latency-benchmark/
 .claude/

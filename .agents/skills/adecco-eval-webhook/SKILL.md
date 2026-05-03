@@ -138,6 +138,75 @@ $webhooks = if ($all.webhooks) { $all.webhooks } else { $all }
 $webhooks | Where-Object { $_.webhook_id -eq $webhookId -or $_.id -eq $webhookId } | Select-Object name,webhook_id,is_disabled,is_auto_disabled,retry_enabled,most_recent_failure_error_code
 ```
 
+## ⚠️ Workspace webhook fires on ALL agents — temporary detach for benchmarking
+
+**Critical operational hazard (logged 2026-05-03)**: the workspace-level `post_call_webhook_id` (`8de14d81bc624dcfa37e02f1b9e9a17e`, `AI_RPG Adecco Eval MVP`) fires on every ConvAI conversation in the workspace, **including any temporary or test agent**. Running a quality/latency benchmark against ConvAI without disabling this webhook caused 72 unintended evaluation runs against `iwase@zenoffice.co.jp` in a single afternoon (each consumes Claude Sonnet API credit + sends an email).
+
+Per-agent override does **not** suppress this. We verified that PATCHing `platform_settings.workspace_overrides.webhooks.events = []` on the agent left `events: ["transcript"]` in the response. Only workspace-level detach reliably stops post-call events.
+
+### Safe pattern: detach → run → restore
+
+```typescript
+// Use the helpers shipped 2026-05-03 in packages/vendors/src/elevenlabs.ts:
+//   ElevenLabsClient.getConvaiSettings()
+//   ElevenLabsClient.setConvaiPostCallWebhookId(webhookId | null, options)
+//
+// Always wrap detach in try/finally so restore runs even on crash.
+
+const settings = await el.getConvaiSettings();
+const original = settings.webhooks; // snapshot post_call_webhook_id, events, transcript_format, send_audio
+try {
+  await el.setConvaiPostCallWebhookId(null, {
+    events: original.events,
+    transcriptFormat: original.transcript_format,
+    sendAudio: original.send_audio,
+  });
+  // ... run ConvAI traffic that should NOT trigger the eval webhook
+} finally {
+  await el.setConvaiPostCallWebhookId(original.post_call_webhook_id, {
+    events: original.events,
+    transcriptFormat: original.transcript_format,
+    sendAudio: original.send_audio,
+  });
+}
+```
+
+Equivalent PowerShell for emergency manual recovery (when a script crashed mid-run and webhook stayed detached):
+
+```powershell
+$apiKey = (gcloud secrets versions access latest --secret=ELEVENLABS_API_KEY --project=zapier-transfer)
+$body = @{ webhooks = @{
+  post_call_webhook_id = "8de14d81bc624dcfa37e02f1b9e9a17e"
+  events = @("transcript")
+  transcript_format = "json"
+  send_audio = $false
+} } | ConvertTo-Json -Depth 6
+Invoke-RestMethod -Method PATCH -Uri "https://api.elevenlabs.io/v1/convai/settings" `
+  -Headers @{ "xi-api-key"=$apiKey; "content-type"="application/json"; "accept"="application/json" } `
+  -Body $body
+```
+
+### When to detach
+
+- ✅ Running `pnpm benchmark:quality-latency -- --elevenlabs-agent` (the CLI handles detach/restore automatically in `finally`)
+- ✅ Any other ad-hoc ConvAI WebSocket / `/v1/convai/conversation` traffic for testing
+- ✅ Creating a temporary benchmark agent via `createAgent` and sending it user_messages
+- ❌ Production traffic (the eval flow needs the webhook attached)
+
+### Trade-off while detached
+
+While `post_call_webhook_id` is `null`, **production conversations during the detach window also skip the eval pipeline**. Keep detach windows short (a single benchmark run, typically 5–30 minutes). If a production conversation lands during the window and needs evaluation, re-trigger it via the worker route `/api/internal/adecco-eval` after restore.
+
+## ⚠️ Do not benchmark on the production agent directly
+
+The production agent `agent_2801kpj49tj1f43sr840cvy17zcc` is tuned for the 住宅設備メーカー scenario with a fixed `first_message`. Sending generic test prompts to it returns the **same opening greeting** regardless of the user message, and the speed measurement reflects only how fast that fixed greeting plays back — not the underlying GLM-4.5 + ElevenLabs TTS performance.
+
+To benchmark the same LLM + voice + TTS stack against generic cases, use the temporary-agent flow in `pnpm benchmark:quality-latency -- --elevenlabs-agent --create-temp-agent`. It clones `glm-45-air-fp8` + voice `g6xIsTj2HwM6VR4iXFCw` + `eleven_v3_conversational` from the production agent, runs the benchmark with `QUALITY_LATENCY_SYSTEM_PROMPT`, and deletes the temp agent in `finally`.
+
+## Related skills
+
+- `ai-rpg-quality-latency-benchmark` — Phase 6 Stage 3 LLM × TTS Pareto benchmark, includes the ElevenLabs ConvAI lane that uses the detach/restore pattern above.
+
 ## References
 
 - For detailed verification commands and expected outputs, see `references/verification.md`.

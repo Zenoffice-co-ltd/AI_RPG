@@ -127,6 +127,11 @@ pnpm --filter @top-performer/scenario-engine typecheck
 - **Never use** `@ts-ignore` or `as any` to paper over provider response shape mismatches. Update the Zod schema or response parsing instead.
 - For preview models (current: Google Gemini), re-check public docs before each wide run and update `docs/OPERATIONS.md` log.
 
+## Related skills
+
+- `ai-rpg-quality-latency-benchmark` — When the question moves beyond TTS-only fixed-text speed (Phase 4) into "what does end-to-end latency look like with real LLM generation in front of TTS, and how good is the response quality?" (Phase 5/6/Stage 3). That skill covers `pnpm benchmark:tts:response`, `pnpm benchmark:llm:latency`, and `pnpm benchmark:quality-latency`. It reuses Phase 4's TTS providers (no changes here) but adds blind LLM judge, pairwise blind ranking, Pareto frontier, and the ElevenLabs ConvAI lane via temporary agent + workspace webhook detach.
+- `adecco-eval-webhook` — Required reading before any ConvAI / WebSocket benchmark traffic; covers the production post-call webhook detach/restore pattern.
+
 ## Completion report template
 
 Use this format when reporting a wide run to CTO. The Phase 4 report on 2026-05-03 (run `mvp-20260503T045340387Z`) is the canonical example.
