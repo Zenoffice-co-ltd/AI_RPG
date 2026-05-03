@@ -1098,6 +1098,89 @@ export class ElevenLabsClient {
     return response;
   }
 
+  /**
+   * Get current ConvAI workspace settings (includes the workspace-level
+   * post_call_webhook_id that fires on every conversation transcript event).
+   */
+  async getConvaiSettings(): Promise<{
+    webhooks: {
+      post_call_webhook_id: string | null;
+      events: string[];
+      transcript_format: string;
+      send_audio: boolean;
+    };
+  }> {
+    const apiKey = await this.resolveApiKey();
+    const response = await fetch(`${this.baseUrl}/v1/convai/settings`, {
+      method: "GET",
+      headers: { "xi-api-key": apiKey, accept: "application/json" },
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(
+        `getConvaiSettings failed: HTTP ${response.status} ${text.slice(0, 240)}`
+      );
+    }
+    return JSON.parse(text);
+  }
+
+  /**
+   * Update the workspace-level post-call webhook association.
+   * Pass `null` to detach (so no post-call webhook fires), or a webhook id to attach.
+   *
+   * IMPORTANT: This affects ALL ConvAI agents in the workspace including production.
+   * Always restore the original value in a finally block.
+   */
+  async setConvaiPostCallWebhookId(
+    webhookId: string | null,
+    options?: {
+      events?: string[];
+      transcriptFormat?: string;
+      sendAudio?: boolean;
+    }
+  ): Promise<void> {
+    const apiKey = await this.resolveApiKey();
+    const response = await fetch(`${this.baseUrl}/v1/convai/settings`, {
+      method: "PATCH",
+      headers: {
+        "xi-api-key": apiKey,
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        webhooks: {
+          post_call_webhook_id: webhookId,
+          events: options?.events ?? ["transcript"],
+          transcript_format: options?.transcriptFormat ?? "json",
+          send_audio: options?.sendAudio ?? false,
+        },
+      }),
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(
+        `setConvaiPostCallWebhookId failed: HTTP ${response.status} ${text.slice(0, 240)}`
+      );
+    }
+  }
+
+  async deleteAgent(agentId: string): Promise<void> {
+    const apiKey = await this.resolveApiKey();
+    const response = await fetch(`${this.baseUrl}/v1/convai/agents/${agentId}`, {
+      method: "DELETE",
+      headers: {
+        "xi-api-key": apiKey,
+        accept: "application/json",
+      },
+    });
+    if (!response.ok) {
+      const text = await response.text().catch(() => "");
+      throw new Error(
+        `deleteAgent failed: HTTP ${response.status} ${text.slice(0, 240)}`
+      );
+    }
+  }
+
   async getAgent(agentId: string, branchId?: string) {
     const apiKey = await this.resolveApiKey();
     const query = new URLSearchParams();

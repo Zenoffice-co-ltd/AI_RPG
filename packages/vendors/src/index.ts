@@ -5,4 +5,5 @@ export * from "./liveavatar";
 export * from "./livekit";
 export * from "./logging";
 export * from "./openai";
+export * from "./llm/index";
 export * from "./tts/index";

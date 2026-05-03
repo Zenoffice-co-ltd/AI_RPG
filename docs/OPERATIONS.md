@@ -426,6 +426,100 @@ pnpm benchmark:tts:mvp -- --providers cartesia,inworld,fish,google_gemini,openai
 - 2026-05-03: Inworld voice 一覧は `GET https://api.inworld.ai/tts/v1/voices` (Authorization: `Basic <key>`) で `voices[].voiceId` を取得。本実装では `Satoshi` を採用。
 - 2026-05-03: 5 provider smoke (run mvp-20260503T044651820Z) — cartesia/inworld/google_gemini/openai は 8/8 success。**Fish Audio は HTTP 402 `Insufficient Balance` で 8/8 failed**。コード起因ではなくアカウント残高問題。Fish Audio dashboard で credit を追加するまで本 provider は未検証扱い。errorMessage は metrics.csv に保存済み。
 
+## TTS Response Latency Benchmark (Phase 5, offline only)
+
+LLM streaming + TTS の合成応答速度を3モード (llm-only / full-text / first-sentence) で測定する。LiveAvatar / ConvAI publish / Firestore には**接続しない**。詳細は [docs/TTS_RESPONSE_LATENCY_BENCHMARK.md](TTS_RESPONSE_LATENCY_BENCHMARK.md) を参照。
+
+```bash
+pnpm benchmark:tts:response -- --modes llm-only --preflight
+pnpm benchmark:tts:response -- --modes llm-only --repeats 3
+pnpm benchmark:tts:response -- --tts-providers cartesia,fish,openai,inworld,google_gemini --modes full-text,first-sentence --repeats 3 --reuse-llm-cache
+```
+
+env:
+
+- `OPENAI_API_KEY` (必須)
+- `OPENAI_RESPONSE_LATENCY_MODEL` (推奨。未設定時は `OPENAI_MINING_MODEL` → `OPENAI_ANALYSIS_MODEL` の順でfallback)
+- `RESPONSE_LATENCY_SYSTEM_PROMPT_VERSION=v1`
+- TTS provider別keyはPhase 4と同一
+
+OpenAI Responses API streaming docs 確認ログ (preview 状態で event 名が変わる可能性があるので、実 API smoke を回す前に再確認する):
+
+- 2026-05-03: 初版。`POST /v1/responses` に `stream: true` を渡すと SSE で `response.text.delta` (または `response.output_text.delta`) と `response.completed` を含むイベント列が返る。本実装の `OpenAiResponsesStreamingClient` は両 variant の event 名を受け付け、SSE format `event: <name>\ndata: <json>\n\n` をパースする。失敗時は `response.failed` / `response.error` / `error` を `StreamingTextError` として throw する。出典: openai-python リポジトリの streaming events 列挙 (`src/openai/lib/streaming/responses/_events.py`) で確認。OpenAI 公式 docs サイトは外部 fetch 不可だったため、SDK ソースで補強した。実 API smoke 実行前に platform.openai.com の最新仕様を再確認すること。
+- 2026-05-03: Phase 5 smoke (gpt-5-mini, run p5-20260503T053906586Z) で p90 first sentence ≈ 7050ms を観測。reasoning-class model のためdefault reasoning effort=medium が原因。会話AI用途では非適と判断、Phase 6で reasoning effort 制御を追加。
+
+## LLM Model Latency Benchmark (Phase 6, offline only)
+
+LLM単体の応答速度をモデル横断で測るスクリプト。reasoning effort制御つき。LiveAvatar / ConvAI publish / Firestore には**接続しない**。詳細は [docs/LLM_MODEL_LATENCY_BENCHMARK.md](LLM_MODEL_LATENCY_BENCHMARK.md) を参照。
+
+```bash
+pnpm benchmark:llm:latency -- --models openai:gpt-4.1-nano,openai:gpt-4.1-mini,openai:gpt-4o-mini,openai:gpt-5-nano --preflight
+pnpm benchmark:llm:latency -- --models openai:gpt-4.1-nano,openai:gpt-4.1-mini,openai:gpt-4o-mini,openai:gpt-5-nano --modes llm-only --repeats 5
+```
+
+env:
+
+- `OPENAI_API_KEY` (必須、zapier-transfer の `openai-api-key-default` を使用)
+
+Stage 1 では OpenAI のみサポート。Stage 2 (Anthropic / Google / Z.AI / Inworld) と Stage 3 (ElevenLabs Agents hosted / OpenAI Realtime / Google Gemini Live) は別途実装する。
+
+OpenAI Responses API streaming + reasoning effort 確認ログ:
+
+- 2026-05-03: 初版。`POST /v1/responses` body に `reasoning: { effort: "minimal" | "low" | "medium" | "high" }` を渡すと、reasoning-class model (gpt-5系・o系) の reasoning depth が制御される。`minimal` を渡すと extended reasoning がほぼスキップされ、first token までの遅延が大幅に短縮される（実測値はPhase 6 smoke run で確認）。非reasoning model (gpt-4.1系・gpt-4o系) は本フィールドを無視する。出典: openai-python `responses_create_params.py` ("reasoning: Optional[Reasoning]. gpt-5 and o-series models only.")。
+- 2026-05-03: gpt-5系 reasoning model (gpt-5-nano/gpt-5-mini) は body 内の `temperature` カスタム指定を **HTTP 400で拒否する** ことを実測 (Phase 6 Stage 1 初回 smoke)。回避策として runner で `category === "reasoning"` のとき `temperature` を request body から省略するよう実装済 ([packages/scenario-engine/src/llmLatencyMatrix/llmLatencyMatrixBenchmark.ts](packages/scenario-engine/src/llmLatencyMatrix/llmLatencyMatrixBenchmark.ts))。gpt-4.x 系 (general-fast/general-mid) には `temperature=0.2` を渡しても問題ない。
+- 2026-05-03: Phase 6 Stage 1 smoke (run p6-20260503T061823550Z) で 4 OpenAI fast model 全成功、p90 first sentence: gpt-4.1-nano=932ms / gpt-4.1-mini=1137ms / gpt-4o-mini=2252ms / gpt-5-nano(effort=minimal)=1517ms。Phase 5 baseline gpt-5-mini (default effort) の 7050ms から **6.5倍以上短縮** を確認。
+- 2026-05-03: Phase 6 Stage 2 で Anthropic Messages API (`https://api.anthropic.com/v1/messages` + `x-api-key` + `anthropic-version: 2023-06-01`)、Google AI Studio (`https://generativelanguage.googleapis.com/v1beta/models/<model>:streamGenerateContent?alt=sse&key=<KEY>` API key 認証、ADC 不要)、Z.AI (`https://api.z.ai/api/paas/v4/chat/completions` Bearer + body内 `thinking: {type:"disabled"}` で reasoning 抑制)、Inworld Router (`https://api.inworld.ai/v1/chat/completions` `Authorization: Basic <key>` model="auto") のstreaming clientを追加実装。Z.AI は zapier-transfer Secret Manager に key 未登録のため preflight で MISSING 扱い、smoke は 4 provider で実行。
+- 2026-05-03: Phase 6 Stage 2 smoke (run p6-20260503T063329274Z) 結果: 200 rows / 1 failure (Inworld のタイムアウト 1件)。p90 first sentence の昇順: **google:gemini-2.5-flash-lite=749ms (非常に良い域に近接)** > anthropic:claude-haiku-4-5-20251001=960ms > openai:gpt-4.1-nano=1043ms > inworld:auto=2425ms > **google:gemini-2.5-flash=2205ms (要thinking disabled)**。`gemini-2.5-flash` は thinking が default 有効で `maxOutputTokens=200` を reasoning tokens で食い潰し、応答テキストが 12 文字 (`"はい、〇〇株式会社の△△"` で打ち切り) という症状を確認。
+- 2026-05-03: `GoogleAiStudioStreamingClient` に `thinkingBudget` オプションを追加 (default `0`)。`generationConfig.thinkingConfig.thinkingBudget` を経由して Gemini 2.5+ の thinking を抑制。Stage 2 再 smoke (run p6-20260503T064643482Z) で `gemini-2.5-flash` の応答が `"お世話になっております。本日はどのようなご用件でしょうか。"` (29 chars/2 sentences) と正常化、p90 first sentence が **2205→1008ms** (約2倍短縮) を確認。
+- 2026-05-03: Z.AI を運用方針として除外。`MODEL_REGISTRY` から `zai:*` エントリを削除。`ZaiChatCompletionsStreamingClient` のコードと unit tests は将来の再評価用に保持。
+- 2026-05-03: Phase 6 Stage 3 (Quality-Latency Pareto Benchmark) 実装開始。`packages/scenario-engine/src/qualityLatency/` に 24+ ケース・rule scorer・blind judge・pairwise ranking・Pareto frontier・E2E runner を追加。`MODEL_REGISTRY` に `anthropic:claude-sonnet-4-5-20250929` と `openai:gpt-4.1` を追加 (judge candidate)。`packages/vendors/src/llm/anthropicStructured.ts` を新規追加 — Anthropic Tool Use を使った JSON strict ヘルパーで blind judge / pairwise の structured output を強制する。
+- 2026-05-03: Stage 3 judge JSON schema 修正 — OpenAI strict mode は `type: ["string", "null"]` の nullable 型を **拒否** する (HTTP 400)。回避策として `knockoutReason` を `type: "string"` (空文字許容) に変更。Anthropic Sonnet 4.5 は shortRationale を 120 字超で返すことが多かったため、Zod schema を `transform((v) => v.slice(0, 240))` に変更して切り詰め保存。
+
+## Quality-Latency Pareto Benchmark (Phase 6 Stage 3, offline only)
+
+LLM 応答の速度・品質・音声化適性・E2E を同一 run で比較するベンチマーク。LiveAvatar / ConvAI publish / Firestore には**接続しない**。詳細は [docs/QUALITY_LATENCY_BENCHMARK.md](QUALITY_LATENCY_BENCHMARK.md) を参照。
+
+```bash
+# 1. LLM fresh generation
+pnpm benchmark:quality-latency -- --models <csv> --repeats 10
+# 2. rule scoring (instant)
+pnpm benchmark:quality-latency -- --score-rules --run <runId>
+# 3. blind LLM judge (provider/model anonymized)
+pnpm benchmark:quality-latency -- --judge --run <runId> --judge-models anthropic:claude-sonnet-4-5-20250929,openai:gpt-4.1
+# 4. pairwise blind ranking
+pnpm benchmark:quality-latency -- --pairwise --run <runId> --judge-models anthropic:claude-sonnet-4-5-20250929
+# 5. E2E TTS connection
+pnpm benchmark:quality-latency -- --e2e --run <runId> --tts-providers cartesia,fish,openai,inworld,google_gemini --modes first-sentence,full-text --repeats 5
+# 6. Pareto frontier + index.html
+pnpm benchmark:quality-latency -- --pareto --run <runId>
+```
+
+env:
+- `OPENAI_API_KEY` (zapier-transfer の `openai-api-key-default`)
+- `ANTHROPIC_API_KEY` (`anthropic-api-key-default`)
+- `GOOGLE_API_KEY` (`gemini-api-key-default`、ADC 不要)
+- `INWORLD_API_KEY` (TTS と共有)
+- `ELEVENLABS_API_KEY` (Stage 3G ElevenLabs lane を使う場合のみ。`ELEVENLABS_API_KEY` secret)
+- `ELEVENLABS_AGENT_ID` (Stage 3G で参照する本番 agent 既定値、`.env.local.example` の値)
+
+Stage 3G ElevenLabs lane:
+
+```bash
+# 本番 agent (`agent_2801kpj49tj1f43sr840cvy17zcc`、住宅設備メーカーシナリオ) は specific
+# scenario-tuned のため generic 24-case とは評価基準が合わない。
+# `--create-temp-agent` で本番から llm/voice/tts を継承した一時 agent を作成し、
+# 終了後に自動削除する形で benchmark する。
+pnpm benchmark:quality-latency -- --elevenlabs-agent --create-temp-agent --run <runId> --repeats 3
+```
+
+Stage 3G の挙動:
+- 本番 agent の `getAgent` で `glm-45-air-fp8` LLM、voice、`eleven_v3_conversational` TTS、language を取得
+- 同設定 + `QUALITY_LATENCY_SYSTEM_PROMPT` + 空 first_message で temp agent を `createAgent`
+- 24 cases × repeats を ConvAI WebSocket (signed URL flow) で実行
+- 終了時 (成功/失敗を問わず) `deleteAgent` で temp agent を削除
+- `elevenlabs-agent-metrics.csv` に保存
+- `--pareto` 時に自動的に frontier に注入 (`mode=first-sentence`、`ttsProvider=elevenlabs`)
+
 ## Follow-up Backlog
 
 - [ ] `staffing_order_hearing_busy_manager_medium::no-coaching` legacy live ConvAI judge mismatch
