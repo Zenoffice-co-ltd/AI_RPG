@@ -34,17 +34,25 @@ export class AnthropicMessagesStreamingClient {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
+    const messages: Array<Record<string, unknown>> = [];
+    if (input.history) {
+      for (const turn of input.history) {
+        messages.push({
+          role: turn.role,
+          content: [{ type: "text", text: turn.text }],
+        });
+      }
+    }
+    messages.push({
+      role: "user",
+      content: [{ type: "text", text: input.userMessage }],
+    });
     const body: Record<string, unknown> = {
       model: input.model,
       stream: true,
       max_tokens: input.maxOutputTokens ?? 1024,
       system: input.systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: [{ type: "text", text: input.userMessage }],
-        },
-      ],
+      messages,
     };
     if (input.temperature !== undefined) {
       body["temperature"] = input.temperature;

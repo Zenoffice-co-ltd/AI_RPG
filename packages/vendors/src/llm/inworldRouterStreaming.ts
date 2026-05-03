@@ -33,13 +33,19 @@ export class InworldRouterStreamingClient {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
+    const messages: Array<{ role: string; content: string }> = [
+      { role: "system", content: input.systemPrompt },
+    ];
+    if (input.history) {
+      for (const turn of input.history) {
+        messages.push({ role: turn.role, content: turn.text });
+      }
+    }
+    messages.push({ role: "user", content: input.userMessage });
     const body: Record<string, unknown> = {
       model: input.model,
       stream: true,
-      messages: [
-        { role: "system", content: input.systemPrompt },
-        { role: "user", content: input.userMessage },
-      ],
+      messages,
     };
     if (input.maxOutputTokens !== undefined) {
       body["max_tokens"] = input.maxOutputTokens;
