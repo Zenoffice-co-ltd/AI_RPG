@@ -62,6 +62,23 @@ env:
     secret: ADMIN_BASIC_AUTH_PASS
   - variable: DEFAULT_ELEVEN_VOICE_ID
     secret: DEFAULT_ELEVEN_VOICE_ID
+  # ElevenLabs ConvAI runtime config (was missing from apphosting.yaml — caused
+  # /api/voice/session-token to throw "Voice session server environment is not
+  # configured." which surfaced to the UI as "セッションの開始に失敗しました").
+  - variable: ELEVENLABS_AGENT_ID
+    value: "agent_2801kpj49tj1f43sr840cvy17zcc"
+    availability:
+      - RUNTIME
+  - variable: ELEVENLABS_BRANCH_ID
+    value: "agtbrch_9701kpj49vbdepjr8szvwc6w7e6b"
+    availability:
+      - RUNTIME
+  - variable: ELEVENLABS_ENVIRONMENT
+    value: "production"
+    availability:
+      - RUNTIME
+  - variable: ELEVENLABS_API_KEY
+    secret: ELEVENLABS_API_KEY
   # Haiku-Fish A/B backend (re-enabled — secrets ANTHROPIC_API_KEY,
   # FISH_API_KEY, FISH_ADECCO_VOICE_REFERENCE_ID are now provisioned in
   # adecco-mendan with full SA bindings).

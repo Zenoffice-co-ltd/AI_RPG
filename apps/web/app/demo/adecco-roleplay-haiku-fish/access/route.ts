@@ -2,11 +2,10 @@ import type { NextRequest } from "next/server";
 import { handleDemoAccess } from "@/lib/roleplay/access-route";
 
 export async function POST(request: NextRequest) {
+  // Broad cookie paths (/demo + /api) so a single login covers all three
+  // A/B routes — see /demo/adecco-roleplay/access for context.
   return handleDemoAccess(request, {
     successPath: "/demo/adecco-roleplay-haiku-fish",
-    cookiePaths: {
-      ui: "/demo/adecco-roleplay-haiku-fish",
-      api: "/api/haiku-fish",
-    },
+    cookiePaths: { ui: "/demo", api: "/api" },
   });
 }
