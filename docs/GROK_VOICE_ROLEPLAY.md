@@ -1,17 +1,25 @@
-# Grok Voice Think Fast 1.0 — Adecco住宅設備メーカーDemo (A/B backend)
+# Grok Voice Think Fast 1.0 — Adecco住宅設備メーカー Demo (production canonical)
 
-既存の `/demo/adecco-roleplay` (ElevenLabs ConvAI) と
-`/demo/adecco-roleplay-haiku-fish` (Claude Haiku 4.5 + Fish Audio TTS) を
-**完全に温存** したまま、xAI の **Grok Voice Think Fast 1.0** で同じ
-住宅設備メーカー初回派遣オーダーヒアリングシナリオを音声会話できる
-side-by-side ルートを `/demo/adecco-roleplay-grok-voice` に追加する。
+> **Status: production canonical backend** as of 2026-05-04.
+> ElevenLabs ConvAI (`/demo/adecco-roleplay`) と Claude Haiku + Fish Audio
+> (`/demo/adecco-roleplay-haiku-fish`) は live で残しているが、本番運用は
+> **Grok Voice Think Fast 1.0** をデフォルトとする。3-way A/B 比較結果と
+> 採用判断の根拠は [docs/OPERATIONS.md](./OPERATIONS.md) "Adecco Roleplay —
+> 3-way A/B Backend Comparison" を参照。
+
+xAI の **Grok Voice Think Fast 1.0** で住宅設備メーカー初回派遣オーダー
+ヒアリングシナリオを音声会話できる本番ルート。同じシナリオ資産
+(`agentSystemPrompt + knowledgeBaseText` from `assets.json`) を Haiku Fish /
+ElevenLabs と共有しているため、prompt 一貫性は維持される。
 
 ## URL
 
-- Local: `http://localhost:3000/demo/adecco-roleplay-grok-voice`
-- Production: `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-grok-voice`
-  (※ `ENABLE_GROK_VOICE_ROLEPLAY=true` を Secret Manager / apphosting.yaml で
-  立てた状態でのみ公開)
+- **Production (canonical)**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-grok-voice
+- Local: http://localhost:3000/demo/adecco-roleplay-grok-voice
+
+`ENABLE_GROK_VOICE_ROLEPLAY=true` (apphosting.yaml) は本番で常時有効。
+secret は `XAI_API_KEY` (zapier-transfer + adecco-mendan 両方に存在、
+build-time + runtime 両 SA に IAM bindings 付与済み)。
 
 ## API 調査 (実装日 2026-05-04)
 

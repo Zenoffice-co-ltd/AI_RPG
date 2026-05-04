@@ -627,8 +627,57 @@ Manual smoke (operator がアクセスコード入力後に実施):
 - Fish TTS は first sentence (日本語句点) 検出時点で起動し、残りの文も sentence 単位で TTS キューに乗る。
   ブラウザ側は `decodeAudioData` で WAV を decode し、`AudioContext.currentTime` ベースで連続再生する。
   真の binary streaming ではなく chunk 再生方式である旨を debug metrics に明記している。
-- Lane B (microphone → STT → Claude → Fish) は scaffold のみ。`/api/haiku-fish/transcribe` は常に 501 を返す。
-  GCP Speech-to-Text v2 streaming は別 PR で。
+- Lane B (microphone → STT → Claude → Fish) は **enabled** (2026-05-04)。
+  `/api/haiku-fish/transcribe` は GCP Speech-to-Text v2 (`latest_short`, ja-JP) を呼び、
+  WebM/Opus を `auto_decoding_config` で自動デコード。Cloud Run SA `roles/speech.client` 必須。
+  `ENABLE_HAIKU_FISH_MIC_INPUT=false` にすると 501 (フォールバック)。
+
+## Adecco Roleplay — 3-way A/B Backend Comparison (2026-05-04 結果)
+
+3 環境 (ElevenLabs / Haiku Fish / Grok Voice) を同じ住宅設備メーカーシナリオで
+10 発話走らせた結果、**xAI Grok Voice Think Fast 1.0 を本命 (production canonical) として採用**。
+Haiku Fish と ElevenLabs は比較・フォールバック用に live で維持。
+
+### 定量結果 (n=各 10〜17 turns、Cloud Logging 90分集計)
+
+| Metric | ② Haiku Fish | ③ Grok Voice | 勝者 |
+|---|---|---|---|
+| LLM first sentence | p50 1125 ms / p90 1515 ms | (xAI 内部) | — |
+| **First audio (体感反応)** | p50 2602 ms / p90 3800 ms | **p50 2415 ms / p90 3219 ms** | 🥇 Grok (7%) |
+| Done | p50 4772 ms / p90 7623 ms | **p50 4730 ms / p90 5455 ms** | 🥇 Grok (p90 で 28% 短い) |
+| Errors | 0 | 0 | tie |
+| STT confidence (avg) | 0.867 (GCP v2) | (xAI 内部、textLen のみ) | Grok の方が短発話に頑健 |
+| STT empty/skipped | 2/13 (15%) | 0/10 (0%) | 🥇 Grok |
+
+ElevenLabs (①) は LiveKit 経由で latency が App Hosting log に出ないため定量比較不能。
+Operator 側で `?debugMetrics=1` の体感値を別途取得する。
+
+### 採用判断の根拠
+
+- Grok の **p90 done が 5455 ms** と Haiku Fish (7623 ms) より 28% 短い → 安定性で勝負あり
+- Grok は STT skip 0 件 (xAI 統合 STT が GCP `latest_short` より頑健、特に短発話)
+- 応答品質 (1〜2文、guardrails 遵守、AI 自己言及拒否、system prompt 拒否) は両者同等
+- Full-duplex で interruption 対応、ブラウザ直結で 1-hop 短い
+
+### Production canonical URL
+
+```
+https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-grok-voice
+```
+
+### Backup routes (live)
+
+- `/demo/adecco-roleplay` — ElevenLabs ConvAI (既存資産、interruption 強み)
+- `/demo/adecco-roleplay-haiku-fish` — Claude Haiku 4.5 + Fish + GCP STT v2 (prompt 全制御、コスト抑制)
+
+### Single-login UX
+
+3 環境すべて AccessGate cookie が `Path=/demo` + `Path=/api` で発行されるため、
+どれか 1 つでアクセスコード入力すれば残り 2 つも追加認証なしで切り替え可能。
+
+詳細な runbook と xAI Voice Agent integration 仕様は
+[docs/GROK_VOICE_ROLEPLAY.md](./GROK_VOICE_ROLEPLAY.md) を参照。
+A/B 切替や新 backend 追加の playbook は skill `ai-rpg-adecco-roleplay-ab-backends` を参照。
 
 ## Adecco Roleplay — Grok Voice Think Fast 1.0 A/B backend
 
@@ -661,7 +710,7 @@ URL:
 | `GROK_VOICE_INPUT_FORMAT` / `GROK_VOICE_OUTPUT_FORMAT` | string | apphosting plain | 既定 `audio/pcm` |
 | `GROK_VOICE_SAMPLE_RATE` | number | apphosting plain | 既定 `24000` |
 | `GROK_VOICE_REALTIME_BASE` | string | apphosting plain | 既定 `wss://api.x.ai/v1/realtime` |
-| `GROK_VOICE_EPHEMERAL_BASE` | string | apphosting plain | 既定 `https://api.x.ai/v1/realtime/sessions` |
+| `GROK_VOICE_EPHEMERAL_BASE` | string | apphosting plain | 既定 `https://api.x.ai/v1/realtime/client_secrets` |
 | `GROK_VOICE_TURN_DETECTION_THRESHOLD` | number | apphosting plain | 既定 `0.5` |
 | `GROK_VOICE_TURN_DETECTION_SILENCE_MS` | number | apphosting plain | 既定 `500` |
 | `XAI_API_KEY` | string | Secret Manager (`zapier-transfer`) | 既存 secret を再利用。xAI 公式 SDK の慣例名 (`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` と同じ流儀) |
