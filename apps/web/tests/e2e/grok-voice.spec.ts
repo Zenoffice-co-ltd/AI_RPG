@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 // `visualTest=1` mode so it bypasses the demo access gate AND skips any
 // network call to xAI (the hook only opens a WebSocket when mode === "live").
 //
-// What this test does NOT cover (intentionally — requires real GROK_API_KEY +
+// What this test does NOT cover (intentionally — requires real XAI_API_KEY +
 // xAI network access; operator runs locally):
 //   - actual ephemeral token issuance
 //   - WebSocket connection

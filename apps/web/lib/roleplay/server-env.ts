@@ -124,7 +124,7 @@ export function assertHaikuFishEnvForProduction() {
 }
 
 const grokVoiceServerEnvSchema = z.object({
-  GROK_API_KEY: z.string().min(1),
+  XAI_API_KEY: z.string().min(1),
   GROK_VOICE_MODEL: z.string().min(1).default("grok-voice-think-fast-1.0"),
   GROK_VOICE_VOICE_ID: z.string().min(1).default("rex"),
   GROK_VOICE_INPUT_FORMAT: z.string().min(1).default("audio/pcm"),
@@ -168,7 +168,7 @@ export function assertGrokVoiceEnvForProduction() {
   if (!isGrokVoiceRoleplayEnabled()) {
     return;
   }
-  const required = ["GROK_API_KEY"] as const;
+  const required = ["XAI_API_KEY"] as const;
   const missing = required.filter((key) => !process.env[key]);
   if (missing.length > 0) {
     throw new Error(

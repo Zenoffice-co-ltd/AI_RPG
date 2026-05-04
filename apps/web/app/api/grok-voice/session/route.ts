@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
   try {
     token = await issueGrokEphemeralToken({
       endpoint: env.GROK_VOICE_EPHEMERAL_BASE,
-      apiKey: env.GROK_API_KEY,
+      apiKey: env.XAI_API_KEY,
       request: {
         model: env.GROK_VOICE_MODEL,
         voice: env.GROK_VOICE_VOICE_ID,

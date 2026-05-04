@@ -649,7 +649,7 @@ URL:
 接続方式: ephemeral token を `/api/grok-voice/session` で発行し、ブラウザが
 `wss://api.x.ai/v1/realtime?model=grok-voice-think-fast-1.0` に
 `xai-client-secret.<token>` subprotocol で直結する (Priority 1)。
-`GROK_API_KEY` は server-side のみで取り扱う。
+`XAI_API_KEY` は server-side のみで取り扱う。
 
 新規 env (apphosting.yaml + .env.local.example に追加済み):
 
@@ -664,21 +664,16 @@ URL:
 | `GROK_VOICE_EPHEMERAL_BASE` | string | apphosting plain | 既定 `https://api.x.ai/v1/realtime/sessions` |
 | `GROK_VOICE_TURN_DETECTION_THRESHOLD` | number | apphosting plain | 既定 `0.5` |
 | `GROK_VOICE_TURN_DETECTION_SILENCE_MS` | number | apphosting plain | 既定 `500` |
-| `GROK_API_KEY` | string | Secret Manager | 必要 (feature 有効時) |
+| `XAI_API_KEY` | string | Secret Manager (`zapier-transfer`) | 既存 secret を再利用。xAI 公式 SDK の慣例名 (`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` と同じ流儀) |
 
-Secret Manager 登録手順 (operator が実行 — ユーザー指示「zapier-transfer の
-Secret Manager にあるはず (もしくは adecco-mendan)」を踏まえて存在チェックから):
+Secret Manager 登録手順 (operator が実行 — `XAI_API_KEY` は zapier-transfer に既存):
 
 ```bash
-gcloud config set project zapier-transfer
-gcloud secrets describe GROK_API_KEY 2>/dev/null && echo "exists" || echo "missing"
+# 確認
+gcloud secrets describe XAI_API_KEY --project=zapier-transfer
 
-# 未登録の場合のみ作成
-printf '%s' "$GROK_API_KEY_VALUE" | gcloud secrets create GROK_API_KEY \
-  --replication-policy=automatic --data-file=-
-
-# adecco-mendan App Hosting SA に accessor 付与
-gcloud secrets add-iam-policy-binding GROK_API_KEY \
+# adecco-mendan App Hosting SA に accessor 付与 (未付与の場合)
+gcloud secrets add-iam-policy-binding XAI_API_KEY \
   --project=zapier-transfer \
   --member="serviceAccount:firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor"

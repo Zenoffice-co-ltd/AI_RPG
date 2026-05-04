@@ -30,7 +30,7 @@ describe("grok-voice session route", () => {
     resetSessionTokenRateLimit();
     vi.stubEnv("DEMO_ACCESS_TOKEN", "demo-secret");
     vi.stubEnv("ENABLE_GROK_VOICE_ROLEPLAY", "true");
-    vi.stubEnv("GROK_API_KEY", "grok-test-key");
+    vi.stubEnv("XAI_API_KEY", "xai-test-key");
     vi.stubEnv("GROK_VOICE_MODEL", "grok-voice-think-fast-1.0");
     vi.stubEnv("GROK_VOICE_VOICE_ID", "rex");
     vi.stubEnv("GROK_VOICE_INPUT_FORMAT", "audio/pcm");
@@ -58,8 +58,8 @@ describe("grok-voice session route", () => {
     expect(response.status).toBe(503);
   });
 
-  it("returns 503 when GROK_API_KEY is missing", async () => {
-    vi.stubEnv("GROK_API_KEY", "");
+  it("returns 503 when XAI_API_KEY is missing", async () => {
+    vi.stubEnv("XAI_API_KEY", "");
     const { POST } = await import("../../app/api/grok-voice/session/route");
     const response = await POST(validRequest());
     expect(response.status).toBe(503);
@@ -82,7 +82,7 @@ describe("grok-voice session route", () => {
     expect(response.status).toBe(403);
   });
 
-  it("issues an ephemeral token and returns wsUrl + firstMessage WITHOUT exposing GROK_API_KEY", async () => {
+  it("issues an ephemeral token and returns wsUrl + firstMessage WITHOUT exposing XAI_API_KEY", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(
@@ -118,14 +118,14 @@ describe("grok-voice session route", () => {
     expect(typeof body["guardrailVersion"]).toBe("string");
     // CRITICAL: The xAI API key must NEVER be returned to the client.
     const serialised = JSON.stringify(body);
-    expect(serialised).not.toContain("grok-test-key");
+    expect(serialised).not.toContain("xai-test-key");
     // We also confirm the upstream request used the API key header.
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.x.ai/v1/realtime/sessions",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          authorization: "Bearer grok-test-key",
+          authorization: "Bearer xai-test-key",
         }),
       })
     );

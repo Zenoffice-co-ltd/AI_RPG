@@ -118,10 +118,10 @@ env:
     secret: FISH_API_KEY
   - variable: FISH_ADECCO_VOICE_REFERENCE_ID
     secret: FISH_ADECCO_VOICE_REFERENCE_ID
-  # Grok Voice Think Fast 1.0 A/B backend (off by default; flip ENABLE_GROK_VOICE_ROLEPLAY=true to expose
-  # /demo/adecco-roleplay-grok-voice). Existing ElevenLabs / Haiku-Fish routes are unaffected.
+  # Grok Voice Think Fast 1.0 A/B backend (gated by ENABLE_GROK_VOICE_ROLEPLAY).
+  # Existing ElevenLabs / Haiku-Fish routes are unaffected.
   - variable: ENABLE_GROK_VOICE_ROLEPLAY
-    value: "false"
+    value: "true"
     availability:
       - RUNTIME
   - variable: GROK_VOICE_MODEL
@@ -160,5 +160,5 @@ env:
     value: "500"
     availability:
       - RUNTIME
-  - variable: GROK_API_KEY
-    secret: GROK_API_KEY
+  - variable: XAI_API_KEY
+    secret: XAI_API_KEY

@@ -63,7 +63,8 @@ side-by-side ルートを `/demo/adecco-roleplay-grok-voice` に追加する。
                   └ POST /api/grok-voice/event (telemetry: ws/mic/stt/turn metrics)
 ```
 
-API key (`GROK_API_KEY`) は **server-side のみ**。`/api/grok-voice/session`
+API key (`XAI_API_KEY` — xAI 公式 SDK の慣例名、既存 zapier-transfer secret を再利用)
+は **server-side のみ**。`/api/grok-voice/session`
 が xAI の ephemeral endpoint を叩いて短命 token を発行し、ブラウザはそれを
 WebSocket subprotocol に乗せて直接 xAI に接続する。
 
@@ -138,31 +139,24 @@ jsonPayload.scope=~"^grokVoice\."
 | `GROK_VOICE_EPHEMERAL_BASE` | string | apphosting plain | 既定 `https://api.x.ai/v1/realtime/sessions` |
 | `GROK_VOICE_TURN_DETECTION_THRESHOLD` | number | apphosting plain | 既定 `0.5` |
 | `GROK_VOICE_TURN_DETECTION_SILENCE_MS` | number | apphosting plain | 既定 `500` |
-| `GROK_API_KEY` | string | Secret Manager | 必要 (feature 有効時) |
+| `XAI_API_KEY` | string | Secret Manager (`zapier-transfer`) | 既存 secret 再利用。xAI 公式 SDK の慣例名 |
 
 ## Secret Manager 登録手順 (operator が実行)
 
-ユーザー指示: 「Grok Voice Think Fast 1.0 の音声 API は zapier-transfer の
-Secret Manager にあるはず (もしくは adecco-mendan)」。
+確認: `XAI_API_KEY` は `zapier-transfer` プロジェクトに既存 (xAI 公式 SDK
+慣例名、既存 secret を再利用)。
 
 ```bash
-# 既存値の有無を確認
-gcloud config set project zapier-transfer
-gcloud secrets describe GROK_API_KEY 2>/dev/null && echo "exists" || echo "missing"
-
-# 未登録の場合のみ作成
-printf '%s' "$GROK_API_KEY_VALUE" | gcloud secrets create GROK_API_KEY \
-  --replication-policy=automatic --data-file=-
+# 確認
+gcloud secrets describe XAI_API_KEY --project=zapier-transfer
 
 # adecco-mendan の Firebase App Hosting service account に accessor 付与
-gcloud secrets add-iam-policy-binding GROK_API_KEY \
+# (未付与の場合のみ)
+gcloud secrets add-iam-policy-binding XAI_API_KEY \
   --project=zapier-transfer \
   --member="serviceAccount:firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com" \
   --role="roles/secretmanager.secretAccessor"
 ```
-
-`adecco-mendan` 側で既に存在する場合は `SECRET_SOURCE_PROJECT_ID=adecco-mendan`
-にして同様の binding を確認する。
 
 ## Manual smoke (operator が access code 入力後に実施)
 

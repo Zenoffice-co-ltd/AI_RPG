@@ -44,7 +44,7 @@ export const serverEnvSchema = z.object({
   FISH_TTS_SAMPLE_RATE: z.string().min(1).optional(),
   ENABLE_HAIKU_FISH_ROLEPLAY: booleanFromString.optional(),
   ENABLE_HAIKU_FISH_MIC_INPUT: booleanFromString.optional(),
-  GROK_API_KEY: z.string().min(1).optional(),
+  XAI_API_KEY: z.string().min(1).optional(),
   GROK_VOICE_MODEL: z.string().min(1).optional(),
   GROK_VOICE_VOICE_ID: z.string().min(1).optional(),
   GROK_VOICE_INPUT_FORMAT: z.string().min(1).optional(),
