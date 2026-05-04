@@ -3,7 +3,7 @@
 import type { GrokVoiceSession } from "./grok-voice-types";
 
 export async function fetchGrokVoiceSession(): Promise<GrokVoiceSession> {
-  const response = await fetch("/api/grok-voice/session", {
+  const response = await fetch("/api/v3/session", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({}),
@@ -34,7 +34,7 @@ export function postGrokVoiceEvent(
   payload?: { sessionId?: string; details?: Record<string, unknown> }
 ): Promise<void> {
   // Fire-and-forget. Failures are silent — telemetry must never block UX.
-  return fetch("/api/grok-voice/event", {
+  return fetch("/api/v3/event", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

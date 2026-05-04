@@ -662,7 +662,7 @@ Operator 側で `?debugMetrics=1` の体感値を別途取得する。
 ### Production canonical URL
 
 ```
-https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-grok-voice
+https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v3
 ```
 
 ### Backup routes (live)
@@ -685,17 +685,17 @@ A/B 切替や新 backend 追加の playbook は skill `ai-rpg-adecco-roleplay-ab
 `/demo/adecco-roleplay-haiku-fish` (Claude Haiku 4.5 + Fish Audio TTS) を
 **完全に温存** したまま、住宅設備メーカー初回派遣オーダーヒアリングシナリオを
 **xAI Grok Voice Think Fast 1.0** (full-duplex native voice) で会話できる
-side-by-side ルートを `/demo/adecco-roleplay-grok-voice` に追加した。
+side-by-side ルートを `/demo/adecco-roleplay-v3` に追加した。
 
 詳細は [docs/GROK_VOICE_ROLEPLAY.md](./GROK_VOICE_ROLEPLAY.md) を参照。
 
 URL:
 
-- Local: `http://localhost:3000/demo/adecco-roleplay-grok-voice`
-- Production: `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-grok-voice`
+- Local: `http://localhost:3000/demo/adecco-roleplay-v3`
+- Production: `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v3`
   (※ `ENABLE_GROK_VOICE_ROLEPLAY=true` を Secret Manager / apphosting.yaml で立てた状態でのみ公開)
 
-接続方式: ephemeral token を `/api/grok-voice/session` で発行し、ブラウザが
+接続方式: ephemeral token を `/api/v3/session` で発行し、ブラウザが
 `wss://api.x.ai/v1/realtime?model=grok-voice-think-fast-1.0` に
 `xai-client-secret.<token>` subprotocol で直結する (Priority 1)。
 `XAI_API_KEY` は server-side のみで取り扱う。
@@ -744,6 +744,6 @@ Cloud Logging では `jsonPayload.scope=~"^grokVoice\\."` で集約可能。
 Manual smoke (10 発話) と既知制約は [docs/GROK_VOICE_ROLEPLAY.md](./GROK_VOICE_ROLEPLAY.md) 参照。
 
 Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
-`/demo/adecco-roleplay-grok-voice` は ServiceUnavailable、`/api/grok-voice/*`
+`/demo/adecco-roleplay-v3` は ServiceUnavailable、`/api/v3/*`
 は 503。既存 `/demo/adecco-roleplay` / `/demo/adecco-roleplay-haiku-fish` は
 完全に独立しているので影響なし。

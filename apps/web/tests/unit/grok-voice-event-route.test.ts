@@ -17,7 +17,7 @@ describe("grok-voice event route", () => {
   });
 
   it("logs a generic clientEvent line for every accepted kind", async () => {
-    const { POST } = await import("../../app/api/grok-voice/event/route");
+    const { POST } = await import("../../app/api/v3/event/route");
     const response = await POST(
       validRequest({
         body: {
@@ -40,7 +40,7 @@ describe("grok-voice event route", () => {
   });
 
   it("emits dedicated grokVoice.stt + clientEvent lines for stt.completed (補強案 #1)", async () => {
-    const { POST } = await import("../../app/api/grok-voice/event/route");
+    const { POST } = await import("../../app/api/v3/event/route");
     const response = await POST(
       validRequest({
         body: {
@@ -75,7 +75,7 @@ describe("grok-voice event route", () => {
   });
 
   it("emits a dedicated grokVoice.stt.skipped line for empty STT (補強案 #2)", async () => {
-    const { POST } = await import("../../app/api/grok-voice/event/route");
+    const { POST } = await import("../../app/api/v3/event/route");
     const response = await POST(
       validRequest({
         body: {
@@ -99,7 +99,7 @@ describe("grok-voice event route", () => {
   });
 
   it("includes promptHash + promptVersion + guardrailVersion in turn.completed metrics (補強案 #3)", async () => {
-    const { POST } = await import("../../app/api/grok-voice/event/route");
+    const { POST } = await import("../../app/api/v3/event/route");
     const response = await POST(
       validRequest({
         body: {
@@ -141,7 +141,7 @@ describe("grok-voice event route", () => {
   });
 
   it("emits a dedicated grokVoice.mic.state line on mic state transitions (補強案 #4)", async () => {
-    const { POST } = await import("../../app/api/grok-voice/event/route");
+    const { POST } = await import("../../app/api/v3/event/route");
     const response = await POST(
       validRequest({
         body: {
@@ -168,7 +168,7 @@ describe("grok-voice event route", () => {
   });
 
   it("trims long string values in details to bound log volume", async () => {
-    const { POST } = await import("../../app/api/grok-voice/event/route");
+    const { POST } = await import("../../app/api/v3/event/route");
     const huge = "x".repeat(500);
     const response = await POST(
       validRequest({ body: { kind: "ws.error", details: { message: huge } } })
@@ -185,7 +185,7 @@ describe("grok-voice event route", () => {
   });
 
   it("rejects unknown event kinds with 400", async () => {
-    const { POST } = await import("../../app/api/grok-voice/event/route");
+    const { POST } = await import("../../app/api/v3/event/route");
     const response = await POST(
       validRequest({ body: { kind: "totally.fake.kind" } })
     );
@@ -193,7 +193,7 @@ describe("grok-voice event route", () => {
   });
 
   it("returns 401 without access cookie", async () => {
-    const { POST } = await import("../../app/api/grok-voice/event/route");
+    const { POST } = await import("../../app/api/v3/event/route");
     const response = await POST(
       validRequest({ body: { kind: "ws.connected" }, cookie: "" })
     );
@@ -202,7 +202,7 @@ describe("grok-voice event route", () => {
 
   it("returns 503 when ENABLE_GROK_VOICE_ROLEPLAY=false", async () => {
     vi.stubEnv("ENABLE_GROK_VOICE_ROLEPLAY", "false");
-    const { POST } = await import("../../app/api/grok-voice/event/route");
+    const { POST } = await import("../../app/api/v3/event/route");
     const response = await POST(
       validRequest({ body: { kind: "ws.connected" } })
     );
@@ -213,7 +213,7 @@ describe("grok-voice event route", () => {
 function validRequest({
   body,
   origin = "http://127.0.0.1:3000",
-  referer = "http://127.0.0.1:3000/demo/adecco-roleplay-grok-voice",
+  referer = "http://127.0.0.1:3000/demo/adecco-roleplay-v3",
   cookie = `roleplay_api_access=${signAccessToken("demo-secret")}`,
 }: {
   body: unknown;
@@ -225,7 +225,7 @@ function validRequest({
   if (origin) headers.set("origin", origin);
   if (referer) headers.set("referer", referer);
   if (cookie) headers.set("cookie", cookie);
-  return new NextRequest("http://127.0.0.1:3000/api/grok-voice/event", {
+  return new NextRequest("http://127.0.0.1:3000/api/v3/event", {
     method: "POST",
     headers,
     body: JSON.stringify(body),

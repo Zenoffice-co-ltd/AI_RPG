@@ -9,7 +9,7 @@ export default function GrokVoiceRoleplayRoute(props: DemoPageProps) {
   return (
     <GrokVoiceRoleplayPage
       {...props}
-      accessAction="/demo/adecco-roleplay-grok-voice/access"
+      accessAction="/demo/adecco-roleplay-v3/access"
     />
   );
 }

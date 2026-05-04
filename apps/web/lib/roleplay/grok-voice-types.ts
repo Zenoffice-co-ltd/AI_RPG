@@ -16,7 +16,7 @@ export type GrokVoiceAudioConfig = {
   sampleRate: number; // Hz
 };
 
-// What the server returns from POST /api/grok-voice/session — the API key is
+// What the server returns from POST /api/v3/session — the API key is
 // never present here; only a short-lived ephemeral token plus metadata the
 // client needs to open the WebSocket and configure the session.
 export type GrokVoiceSession = {
