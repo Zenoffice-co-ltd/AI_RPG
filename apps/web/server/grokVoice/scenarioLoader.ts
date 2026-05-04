@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { buildLivePronunciationGuide } from "@top-performer/scenario-engine";
 import { WORKSPACE_ROOT } from "../workspace";
 
 const SCENARIO_ID =
-  "staffing_order_hearing_adecco_manufacturer_busy_manager_medium";
+  "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21";
 const VOICE_PROFILE_ID =
   "staffing_order_hearing_adecco_manufacturer_ja_v3_candidate_v2";
 
@@ -25,6 +26,7 @@ export type GrokVoiceScenarioBundle = {
   agentSystemPrompt: string;
   knowledgeBaseText: string;
   firstMessage: string;
+  pronunciationGuide: string;
   agentSystemPromptHash: string;
   knowledgeBaseTextHash: string;
   promptSectionsHash: string;
@@ -75,12 +77,28 @@ export async function loadGrokVoiceScenarioBundle(): Promise<GrokVoiceScenarioBu
 
   const promptSectionsSerialized = JSON.stringify(assets.promptSections ?? null);
 
+  // Generate the pronunciation guide from the local PLS lexicon, scoped to
+  // tokens that actually appear in the prompt or knowledge base. This keeps
+  // Grok's instruction body small while overriding TTS readings for the
+  // housing-equipment + staffing-acronym terms it tends to mispronounce.
+  // The v2.1 scenario hits ~28 lexemes (Adecco brand variants + staffing
+  // acronyms + housing-equipment terms); raise the cap to 40 so future
+  // additions still surface without truncating "職場見学" / "CP" / "SK" at
+  // the end of the lexicon.
+  const pronunciationGuide = await buildLivePronunciationGuide({
+    scenarioId: assets.scenarioId,
+    textNormalisationType: "system_prompt",
+    referenceTexts: [assets.agentSystemPrompt, assets.knowledgeBaseText],
+    maxEntries: 40,
+  });
+
   cached = {
     scenarioId: assets.scenarioId,
     promptVersion: assets.promptVersion,
     agentSystemPrompt: assets.agentSystemPrompt,
     knowledgeBaseText: assets.knowledgeBaseText,
     firstMessage: voiceProfile.firstMessageJa,
+    pronunciationGuide,
     agentSystemPromptHash: sha256(assets.agentSystemPrompt),
     knowledgeBaseTextHash: sha256(assets.knowledgeBaseText),
     promptSectionsHash: sha256(promptSectionsSerialized),

@@ -144,6 +144,16 @@ const grokVoiceServerEnvSchema = z.object({
     .int()
     .nonnegative()
     .default(500),
+  // v2.1 (2026-05-04): VAD prefix padding. Recommended profiles —
+  //   max_speed:        threshold=0.72, silence=650, prefix_padding=333
+  //   stable_japanese:  threshold=0.78, silence=850, prefix_padding=333
+  //   noisy_demo:       threshold=0.85, silence=950, prefix_padding=450
+  // Default 333 (max_speed) for the live demo.
+  GROK_VOICE_TURN_DETECTION_PREFIX_PADDING_MS: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .default(333),
 });
 
 export type GrokVoiceServerEnv = z.infer<typeof grokVoiceServerEnvSchema>;

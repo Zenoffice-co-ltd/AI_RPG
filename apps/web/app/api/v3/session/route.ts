@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
     type: "server_vad" as const,
     threshold: env.GROK_VOICE_TURN_DETECTION_THRESHOLD,
     silence_duration_ms: env.GROK_VOICE_TURN_DETECTION_SILENCE_MS,
+    prefix_padding_ms: env.GROK_VOICE_TURN_DETECTION_PREFIX_PADDING_MS,
   };
   const audio = {
     inputFormat: env.GROK_VOICE_INPUT_FORMAT,

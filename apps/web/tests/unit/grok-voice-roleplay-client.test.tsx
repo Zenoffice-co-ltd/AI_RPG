@@ -13,7 +13,8 @@ import type {
 
 const SESSION: GrokVoiceSession = {
   sessionId: "gv_sess_test",
-  scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+  scenarioId:
+    "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21",
   backend: "grok-voice-think-fast",
   promptVersion: "v1",
   promptHash: "abc123def456",

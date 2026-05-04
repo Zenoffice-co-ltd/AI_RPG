@@ -24,14 +24,14 @@ export type GrokVoicePromptManifest = {
 export function buildGrokVoiceSystemPrompt(
   bundle: GrokVoiceScenarioBundle
 ): string {
-  return [
+  const sections = [
     bundle.agentSystemPrompt.trim(),
-    "",
-    "# Knowledge Base",
-    bundle.knowledgeBaseText.trim(),
-    "",
+    "# Knowledge Base\n" + bundle.knowledgeBaseText.trim(),
+    bundle.pronunciationGuide?.trim() ?? "",
     GROK_VOICE_RUNTIME_GUARDRAIL,
-  ].join("\n");
+  ].filter((section) => section.length > 0);
+
+  return sections.join("\n\n");
 }
 
 export function buildGrokVoicePromptManifest(

@@ -119,4 +119,79 @@
     <grapheme>見積</grapheme>
     <alias>ミツモリ</alias>
   </lexeme>
+  <!-- Manual orb v13 (2026-05-04): housing-equipment manufacturer × staffing
+       order-hearing v2.1. Force readings for product/operation terms that TTS
+       commonly mispronounces, plus internal staffing acronyms. -->
+  <lexeme>
+    <grapheme>受発注</grapheme>
+    <alias>ジュハッチュウ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>納期調整</grapheme>
+    <alias>ノウキチョウセイ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>在庫確認</grapheme>
+    <alias>ザイコカクニン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>代理店</grapheme>
+    <alias>ダイリテン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>工務店</grapheme>
+    <alias>コウムテン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>施工日</grapheme>
+    <alias>セコウビ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>引渡し</grapheme>
+    <alias>ヒキワタシ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>品番</grapheme>
+    <alias>ヒンバン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>型番</grapheme>
+    <alias>カタバン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>仕様違い</grapheme>
+    <alias>シヨウチガイ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>販売管理</grapheme>
+    <alias>ハンバイカンリ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>EDI</grapheme>
+    <alias>イーディーアイ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>CP</grapheme>
+    <alias>シーピー</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>Career Planner</grapheme>
+    <alias>キャリアプランナー</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>SK</grapheme>
+    <alias>エスケー</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>職場見学</grapheme>
+    <alias>ショクバケンガク</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>KAM</grapheme>
+    <alias>カム</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>Key Account Manager</grapheme>
+    <alias>キーアカウントマネージャー</alias>
+  </lexeme>
 </lexicon>

@@ -66,7 +66,7 @@ describe("GrokVoiceRealtime", () => {
     expect(sockets[0]!.protocols).toEqual(["xai-client-secret.ephemeral-xyz"]);
   });
 
-  it("sends session.update with voice + instructions + audio + turn_detection", () => {
+  it("sends session.update with voice + instructions + audio + turn_detection (incl. prefix_padding_ms)", () => {
     const realtime = new GrokVoiceRealtime({
       url: "wss://example",
       ephemeralToken: "t",
@@ -76,7 +76,12 @@ describe("GrokVoiceRealtime", () => {
           voice: "rex",
           instructions: "You are a roleplay agent.",
           audio: { inputFormat: "audio/pcm", outputFormat: "audio/pcm", sampleRate: 24_000 },
-          turn_detection: { type: "server_vad", threshold: 0.5, silence_duration_ms: 500 },
+          turn_detection: {
+            type: "server_vad",
+            threshold: 0.72,
+            silence_duration_ms: 650,
+            prefix_padding_ms: 333,
+          },
         });
       },
       WebSocketCtor: FakeWebSocketCtor,
@@ -93,7 +98,12 @@ describe("GrokVoiceRealtime", () => {
           input: { format: { type: string; rate: number } };
           output: { format: { type: string; rate: number } };
         };
-        turn_detection: { type: string; threshold: number };
+        turn_detection: {
+          type: string;
+          threshold: number;
+          silence_duration_ms: number;
+          prefix_padding_ms: number;
+        };
       };
     };
     expect(sent.type).toBe("session.update");
@@ -102,6 +112,9 @@ describe("GrokVoiceRealtime", () => {
     expect(sent.session.audio.input.format.type).toBe("audio/pcm");
     expect(sent.session.audio.output.format.rate).toBe(24_000);
     expect(sent.session.turn_detection.type).toBe("server_vad");
+    expect(sent.session.turn_detection.threshold).toBe(0.72);
+    expect(sent.session.turn_detection.silence_duration_ms).toBe(650);
+    expect(sent.session.turn_detection.prefix_padding_ms).toBe(333);
   });
 
   it("injects firstMessage as a prior assistant turn via conversation.item.create", () => {

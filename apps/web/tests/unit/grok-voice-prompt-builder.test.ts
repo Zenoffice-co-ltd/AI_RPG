@@ -8,13 +8,15 @@ import {
 import type { GrokVoiceScenarioBundle } from "../../server/grokVoice/scenarioLoader";
 
 const fixture: GrokVoiceScenarioBundle = {
-  scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
-  promptVersion: "test-prompt-v1",
+  scenarioId:
+    "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21",
+  promptVersion: "test-prompt-v21",
   agentSystemPrompt:
     "# Personality\nあなたは住宅設備メーカーの人事課主任です。\n# Scenario\n営業事務一名の派遣相談です。",
   knowledgeBaseText:
     "# Scenario\nTitle: 住宅設備メーカー 人事課主任 初回派遣オーダーヒアリング",
   firstMessage: "お時間ありがとうございます。",
+  pronunciationGuide: "",
   agentSystemPromptHash: "a".repeat(64),
   knowledgeBaseTextHash: "b".repeat(64),
   promptSectionsHash: "c".repeat(64),
@@ -52,12 +54,36 @@ describe("grok-voice prompt builder", () => {
     expect(prompt).not.toMatch(/promptSections\s*=/);
   });
 
+  it("injects the pronunciation guide between KB and runtime guardrail when present", () => {
+    const withGuide = buildGrokVoiceSystemPrompt({
+      ...fixture,
+      pronunciationGuide:
+        "# Pronunciation Guide\n- 「受発注」は「ジュハッチュウ」の読みを優先する",
+    });
+    const guideIndex = withGuide.indexOf("# Pronunciation Guide");
+    const kbIndex = withGuide.indexOf("# Knowledge Base");
+    const guardrailIndex = withGuide.indexOf("Runtime Guardrails");
+    expect(guideIndex).toBeGreaterThan(kbIndex);
+    expect(guardrailIndex).toBeGreaterThan(guideIndex);
+    expect(withGuide).toContain("ジュハッチュウ");
+  });
+
+  it("omits the pronunciation guide section entirely when guide is empty", () => {
+    const prompt = buildGrokVoiceSystemPrompt({
+      ...fixture,
+      pronunciationGuide: "",
+    });
+    expect(prompt).not.toContain("# Pronunciation Guide");
+    // KB still flows directly into the guardrail without an empty section.
+    expect(prompt).not.toMatch(/\n\n\n/);
+  });
+
   it("returns a manifest with hashes + guardrail version + prompt version", () => {
     const manifest = buildGrokVoicePromptManifest(fixture);
     expect(manifest.agentSystemPromptHash).toBe("a".repeat(64));
     expect(manifest.knowledgeBaseTextHash).toBe("b".repeat(64));
     expect(manifest.promptSectionsHash).toBe("c".repeat(64));
     expect(manifest.guardrailVersion).toBe(GROK_VOICE_GUARDRAIL_VERSION);
-    expect(manifest.promptVersion).toBe("test-prompt-v1");
+    expect(manifest.promptVersion).toBe("test-prompt-v21");
   });
 });
