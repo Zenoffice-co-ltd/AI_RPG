@@ -62,16 +62,15 @@ env:
     secret: ADMIN_BASIC_AUTH_PASS
   - variable: DEFAULT_ELEVEN_VOICE_ID
     secret: DEFAULT_ELEVEN_VOICE_ID
-  # Haiku-Fish A/B backend — currently disabled. The required secrets
-  # (ANTHROPIC_API_KEY, FISH_API_KEY, FISH_ADECCO_VOICE_REFERENCE_ID) are
-  # not yet provisioned in the adecco-mendan Secret Manager (they exist
-  # only as anthropic-api-key-default etc. in zapier-transfer). Operator:
-  # provision the three secrets in adecco-mendan, then flip this flag and
-  # uncomment the secret bindings below.
+  # Haiku-Fish A/B backend (re-enabled — secrets ANTHROPIC_API_KEY,
+  # FISH_API_KEY, FISH_ADECCO_VOICE_REFERENCE_ID are now provisioned in
+  # adecco-mendan with full SA bindings).
   - variable: ENABLE_HAIKU_FISH_ROLEPLAY
-    value: "false"
+    value: "true"
     availability:
       - RUNTIME
+  # Mic-input lane (Lane B) is still scaffold-only — /api/haiku-fish/transcribe
+  # returns 501. Keep flag off until GCP Speech-to-Text v2 streaming lands.
   - variable: ENABLE_HAIKU_FISH_MIC_INPUT
     value: "false"
     availability:
@@ -116,14 +115,12 @@ env:
     value: "24000"
     availability:
       - RUNTIME
-  # Haiku-Fish secret bindings disabled until operator provisions them in
-  # adecco-mendan Secret Manager. Re-enable alongside ENABLE_HAIKU_FISH_ROLEPLAY=true.
-  # - variable: ANTHROPIC_API_KEY
-  #   secret: ANTHROPIC_API_KEY
-  # - variable: FISH_API_KEY
-  #   secret: FISH_API_KEY
-  # - variable: FISH_ADECCO_VOICE_REFERENCE_ID
-  #   secret: FISH_ADECCO_VOICE_REFERENCE_ID
+  - variable: ANTHROPIC_API_KEY
+    secret: ANTHROPIC_API_KEY
+  - variable: FISH_API_KEY
+    secret: FISH_API_KEY
+  - variable: FISH_ADECCO_VOICE_REFERENCE_ID
+    secret: FISH_ADECCO_VOICE_REFERENCE_ID
   # Grok Voice Think Fast 1.0 A/B backend (gated by ENABLE_GROK_VOICE_ROLEPLAY).
   # Existing ElevenLabs / Haiku-Fish routes are unaffected.
   - variable: ENABLE_GROK_VOICE_ROLEPLAY
