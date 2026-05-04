@@ -41,7 +41,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob:",
               "font-src 'self' data:",
               "media-src 'self' blob:",
-              "connect-src 'self' https://api.elevenlabs.io wss://*.elevenlabs.io https://*.elevenlabs.io https://*.livekit.cloud wss://*.livekit.cloud",
+              "connect-src 'self' https://api.elevenlabs.io wss://*.elevenlabs.io https://*.elevenlabs.io https://*.livekit.cloud wss://*.livekit.cloud https://api.x.ai wss://api.x.ai",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
             ].join("; "),
