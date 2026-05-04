@@ -91,6 +91,7 @@ type PassCondition =
   | { kind: "must_contain_any"; terms: string[]; reason: string }
   | { kind: "must_not_contain_any"; terms: string[]; reason: string }
   | { kind: "max_sentences"; max: number; reason: string }
+  | { kind: "must_contain_at_least"; n: number; terms: string[]; reason: string }
   | { kind: "must_contain_in_turn"; turnIndex: number; terms: string[]; reason: string }
   | {
       kind: "must_not_contain_in_turn";
@@ -122,10 +123,44 @@ const CASES: CaseDef[] = [
           "単価",
           "決定プロセス",
           "職場見学",
+          // PR #52 review (Blocker 1) — shallow background must not leak
+          // any competitive-comparison vocabulary.
+          "比較",
+          "新しい派遣会社",
+          "他社",
+          "大手",
+          "声をかけ",
         ],
         reason: "深掘り情報を勝手に出さない",
       },
       { kind: "max_sentences", max: 3, reason: "1〜2文で短く" },
+    ],
+  },
+  {
+    id: "case3b_weak_question_no_reveal",
+    label: "弱い質問では earned reveal を発火させない (negative control)",
+    critical: true,
+    turns: [
+      { role: "user", text: "営業事務の業務内容を詳しく教えてください。" },
+    ],
+    passConditions: [
+      {
+        // The agreement-phrase MUST NOT fire here — there is no domain
+        // hypothesis in the user's question. (PR #52 Blocker 2.)
+        kind: "must_not_contain_any",
+        terms: ["よくご存じ", "その理解で近い", "おっしゃる通り"],
+        reason: "業界×職種仮説のない specific 質問では earned-reveal 発火しない",
+      },
+      {
+        // Specific question gets core_tasks-level reveal only — domain
+        // hidden facts (施工日 / 引渡し / 代理店 / 工務店) must NOT spill.
+        // 品番 / 型番 are excluded from this list because they can come up
+        // naturally in a "what does the role do" answer.
+        kind: "must_not_contain_any",
+        terms: ["施工日", "引渡し", "代理店", "工務店"],
+        reason: "domain hidden facts をまとめて出さない",
+      },
+      { kind: "max_sentences", max: 3, reason: "1〜2文で具体回答" },
     ],
   },
   {
@@ -188,18 +223,33 @@ const CASES: CaseDef[] = [
     passConditions: [
       {
         kind: "must_not_contain_any",
-        terms: ["供給力", "アデコさんは強み", "Adeccoの強み"],
-        reason: "顧客AIがAdeccoの強みを代弁しない",
+        terms: [
+          "供給力",
+          "アデコさんは強み",
+          "Adeccoの強み",
+          // PR #52 Blocker 3 — customer must NOT echo / accept the pitch.
+          "人材が豊富",
+          "スピード対応",
+          "すぐ紹介",
+          "すぐご紹介",
+          "助かります",
+          "期待しています",
+          "お願いします",
+          "ありがたいです",
+        ],
+        reason: "顧客AIが営業の売り込みを代弁・受容しない",
       },
       {
+        // PR #52 Blocker 3 — require a concrete redirect phrase, not just
+        // any single noun like "要件".
         kind: "must_contain_any",
         terms: [
-          "要件",
-          "整理",
-          "理解",
-          "確認",
+          "まずは要件",
+          "要件をどこまで理解",
+          "条件を整理",
+          "募集内容を確認",
         ],
-        reason: "要件整理へのリダイレクトが入る",
+        reason: "要件整理への明示的なリダイレクトを要求",
       },
       { kind: "max_sentences", max: 3, reason: "1〜2文" },
     ],
@@ -231,6 +281,11 @@ const CASES: CaseDef[] = [
           "自己流",
           "協調",
           "落ち着",
+          // The model often condenses the priority补足 into "重視" /
+          // "受発注経験" / "共有" — accept those forms as well.
+          "重視",
+          "受発注経験",
+          "共有",
         ],
         reason: "優先・人材像の補足が入る",
       },
@@ -276,8 +331,43 @@ const CASES: CaseDef[] = [
           "現行ベンダー",
           "比較軸は",
           "決裁者は人事",
+          // PR #52 Blocker 4 — concrete values must not leak in a
+          // compound question. Cover both kanji- and digit-form numerals.
+          "六月一日",
+          "6月1日",
+          "十から十五",
+          "10から15",
+          "千七百五十",
+          "1750",
+          "千九百",
+          "1900",
+          "現場課長",
+          "職場見学",
+          "来週後半",
+          "二から三営業日",
+          "交通費",
         ],
         reason: "全部を一括開示しない",
+      },
+      {
+        // PR #52 Blocker 4 — require an explicit "narrow to one" cue.
+        // Accept multiple natural phrasings: "まず業務内容から…",
+        // "業務内容を先に…", "順番にお聞き", etc. The spirit is "do not
+        // dump everything at once".
+        kind: "must_contain_any",
+        terms: [
+          "まずは業務内容から",
+          "まず業務内容から",
+          "業務内容を先に",
+          "業務内容から",
+          "一度に全部ではなく",
+          "重要なところから",
+          "まず優先順位",
+          "順番にお答え",
+          "順番にお聞き",
+          "先に確認",
+        ],
+        reason: "整理して 1 つに絞り直す合図を要求",
       },
     ],
   },
@@ -326,6 +416,121 @@ const CASES: CaseDef[] = [
         terms: ["特徴", "違い", "強み"],
         reason: "終盤で一度だけ逆質問する",
       },
+    ],
+  },
+  {
+    // PR #52 Blocker 5 — top-performer norm: pre-briefing the candidate on
+    // the hard parts of the role (fitRisk + productComplexity +
+    // deliveryPressure should be acknowledged).
+    id: "case9_negative_info_prebriefing",
+    label: "ネガティブ情報の事前共有提案に応える",
+    critical: true,
+    turns: [
+      {
+        role: "user",
+        text:
+          "候補者には、良い点だけでなく大変な部分も事前に伝えた方が定着しやすいと思っています。今回、事前に伝えておくべきギャップや大変さはありますか？",
+      },
+    ],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: ["そうですね", "その方が良い", "助かります", "はい", "いい考え"],
+        reason: "肯定で受ける",
+      },
+      {
+        kind: "must_contain_at_least",
+        n: 2,
+        terms: [
+          "納期調整",
+          "品番",
+          "製品コード",
+          "社外対応",
+          "施工日",
+          "事前に伝える",
+        ],
+        reason: "fitRisk + productComplexity + deliveryPressure のうち少なくとも 2 つに触れる",
+      },
+      { kind: "max_sentences", max: 4, reason: "1〜3文" },
+    ],
+  },
+  {
+    // PR #52 Blocker 5 — top-performer norm: SK is a confirmation +
+    // feedback-loop venue, not a first-pitch venue.
+    id: "case10_sk_confirmation_loop",
+    label: "SK を確認・深掘りの場として位置づける提案を受ける",
+    critical: false,
+    turns: [
+      {
+        role: "user",
+        text:
+          "職場見学は、候補者が初めて聞く場ではなく、事前に伝えた内容を確認・深掘りする場にしたいです。見学後にずれがあれば、次の人選に活かせるよう確認させてください。",
+      },
+    ],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: [
+          "そうですね",
+          "助かります",
+          "いいです",
+          "はい",
+          // The model often agrees with 「わかりました、」 — accept it.
+          "わかりました",
+          "ぜひ",
+        ],
+        reason: "肯定する",
+      },
+      {
+        kind: "must_contain_any",
+        terms: ["見学後", "ずれ", "次の候補者", "確認", "人選"],
+        reason: "SK 後フィードバックループの語に触れる",
+      },
+      { kind: "max_sentences", max: 4, reason: "1〜3文" },
+    ],
+  },
+  {
+    // PR #52 Blocker 5 — top-performer norm: separate ideal from minimum
+    // line so the CP can match against a realistic candidate pool.
+    id: "case11_best_to_minimum_line",
+    label: "ベスト条件と最低ラインを分けて返す",
+    critical: true,
+    turns: [
+      {
+        role: "user",
+        text:
+          "理想はメーカーでの受発注経験者だと思いますが、候補者が少ない場合、営業事務で納期調整や社外対応の経験があれば、住宅設備業界未経験でも検討できますか？",
+      },
+    ],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: [
+          "検討できます",
+          "検討可能",
+          "業界未経験でも",
+          "業界経験必須ではない",
+          "そうですね",
+        ],
+        reason: "業界経験必須ではない / 検討可能を明示",
+      },
+      {
+        // The model often satisfies the spirit by surfacing "受発注経験",
+        // "納期調整", "社外対応", or "重視" — broaden to those.
+        kind: "must_contain_any",
+        terms: [
+          "正確",
+          "調整経験",
+          "確認しながら",
+          "対外調整",
+          "納期調整",
+          "社外対応",
+          "受発注経験",
+          "重視",
+        ],
+        reason: "理想の代替軸 (正確性 / 調整経験 / 社外対応) を提示",
+      },
+      { kind: "max_sentences", max: 4, reason: "1〜3文" },
     ],
   },
 ];
@@ -543,6 +748,13 @@ function evaluateOutcome(caseDef: CaseDef, outcome: RunOutcome): void {
     } else if (cond.kind === "max_sentences") {
       const n = countSentences(last);
       if (n > cond.max) failures.push(`too_long:${n}>${cond.max} (${cond.reason})`);
+    } else if (cond.kind === "must_contain_at_least") {
+      const hits = cond.terms.filter((t) => last.includes(t)).length;
+      if (hits < cond.n) {
+        failures.push(
+          `only_${hits}_of_${cond.n}[${cond.terms.join("|")}] (${cond.reason})`
+        );
+      }
     } else if (cond.kind === "must_contain_in_turn") {
       const turn = outcome.transcripts[cond.turnIndex]?.assistant ?? "";
       const hit = cond.terms.some((t) => turn.includes(t));
@@ -665,9 +877,16 @@ async function main(): Promise<void> {
   const outDir = resolve(REPO_ROOT, "out", "grok_voice_v21_e2e", stamp);
   await mkdir(outDir, { recursive: true });
 
-  const filtered = CASES.filter((c) =>
-    ONLY_CASES.length === 0 ? true : ONLY_CASES.some((s) => c.id.startsWith(`case${s}_`))
-  ).slice(0, LIMIT);
+  const filtered = CASES.filter((c) => {
+    if (ONLY_CASES.length === 0) return true;
+    // Match against either "case<id>_..." (legacy "1", "7") or the
+    // mid-id token directly ("3b", "9", "11"). The previous startsWith
+    // form skipped Case 3b because "case3b_" doesn't match "case3_".
+    return ONLY_CASES.some((s) => {
+      const prefix = `case${s}_`;
+      return c.id.startsWith(prefix) || c.id === `case${s}`;
+    });
+  }).slice(0, LIMIT);
 
   console.info(`[grok-voice-v21-e2e] model=${MODEL} voice=${VOICE}`);
   console.info(`[grok-voice-v21-e2e] cases=${filtered.length} rounds=${ROUNDS} criticalRounds=${CRITICAL_ROUNDS}`);
@@ -683,6 +902,11 @@ async function main(): Promise<void> {
     consecutivePass: number;
   }> = [];
 
+  // xAI realtime endpoint enforces a per-minute connection limit. With
+  // 12 cases × ~3 rounds × 1 WS each, bursts can hit 429. Sleep briefly
+  // between rounds to keep the pacing under the rate cap.
+  const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
   for (const c of filtered) {
     const target = c.critical ? Math.max(ROUNDS, CRITICAL_ROUNDS) : ROUNDS;
     const rounds: RunOutcome[] = [];
@@ -691,6 +915,15 @@ async function main(): Promise<void> {
       const outcome = await runOneRound(c, i, instructions);
       evaluateOutcome(c, outcome);
       rounds.push(outcome);
+      // Throttle: 2.5s between successful rounds. If we hit a 429, back off
+      // for 30s before continuing — gives the per-minute window time to
+      // reset. (Other errors fall through with the default delay.)
+      if (outcome.errorCode === "WS_ERROR" && /429/.test(outcome.errorMessage)) {
+        process.stdout.write("  …rate-limited, backing off 30s…\n");
+        await sleep(30_000);
+      } else {
+        await sleep(2_500);
+      }
       console.info(
         outcome.pass
           ? `PASS (${outcome.totalMs}ms)`
