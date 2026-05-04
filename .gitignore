@@ -17,4 +17,5 @@ data/generated/tts-provider-benchmark/
 data/generated/tts-response-latency-benchmark/
 data/generated/llm-model-latency/
 data/generated/quality-latency-benchmark/
+data/generated/chat-orb-sessions/
 .claude/

@@ -62,3 +62,103 @@ env:
     secret: ADMIN_BASIC_AUTH_PASS
   - variable: DEFAULT_ELEVEN_VOICE_ID
     secret: DEFAULT_ELEVEN_VOICE_ID
+  # Haiku-Fish A/B backend (off by default; flip ENABLE_HAIKU_FISH_ROLEPLAY=true to expose
+  # /demo/adecco-roleplay-haiku-fish). Existing ElevenLabs roleplay is unaffected.
+  - variable: ENABLE_HAIKU_FISH_ROLEPLAY
+    value: "true"
+    availability:
+      - RUNTIME
+  - variable: ENABLE_HAIKU_FISH_MIC_INPUT
+    value: "true"
+    availability:
+      - RUNTIME
+  - variable: GOOGLE_CLOUD_PROJECT
+    value: adecco-mendan
+    availability:
+      - RUNTIME
+  - variable: GOOGLE_CLOUD_LOCATION
+    value: global
+    availability:
+      - RUNTIME
+  - variable: GOOGLE_STT_LANGUAGE
+    value: ja-JP
+    availability:
+      - RUNTIME
+  - variable: GOOGLE_STT_MODEL
+    value: latest_short
+    availability:
+      - RUNTIME
+  - variable: HAIKU_FISH_LLM_MODEL
+    value: claude-haiku-4-5-20251001
+    availability:
+      - RUNTIME
+  - variable: HAIKU_FISH_LLM_TEMPERATURE
+    value: "0.2"
+    availability:
+      - RUNTIME
+  - variable: HAIKU_FISH_LLM_MAX_TOKENS
+    value: "220"
+    availability:
+      - RUNTIME
+  - variable: FISH_TTS_MODEL
+    value: s2-pro
+    availability:
+      - RUNTIME
+  - variable: FISH_TTS_FORMAT
+    value: wav
+    availability:
+      - RUNTIME
+  - variable: FISH_TTS_SAMPLE_RATE
+    value: "24000"
+    availability:
+      - RUNTIME
+  - variable: ANTHROPIC_API_KEY
+    secret: ANTHROPIC_API_KEY
+  - variable: FISH_API_KEY
+    secret: FISH_API_KEY
+  - variable: FISH_ADECCO_VOICE_REFERENCE_ID
+    secret: FISH_ADECCO_VOICE_REFERENCE_ID
+  # Grok Voice Think Fast 1.0 A/B backend (off by default; flip ENABLE_GROK_VOICE_ROLEPLAY=true to expose
+  # /demo/adecco-roleplay-grok-voice). Existing ElevenLabs / Haiku-Fish routes are unaffected.
+  - variable: ENABLE_GROK_VOICE_ROLEPLAY
+    value: "false"
+    availability:
+      - RUNTIME
+  - variable: GROK_VOICE_MODEL
+    value: "grok-voice-think-fast-1.0"
+    availability:
+      - RUNTIME
+  - variable: GROK_VOICE_VOICE_ID
+    value: "rex"
+    availability:
+      - RUNTIME
+  - variable: GROK_VOICE_INPUT_FORMAT
+    value: "audio/pcm"
+    availability:
+      - RUNTIME
+  - variable: GROK_VOICE_OUTPUT_FORMAT
+    value: "audio/pcm"
+    availability:
+      - RUNTIME
+  - variable: GROK_VOICE_SAMPLE_RATE
+    value: "24000"
+    availability:
+      - RUNTIME
+  - variable: GROK_VOICE_REALTIME_BASE
+    value: "wss://api.x.ai/v1/realtime"
+    availability:
+      - RUNTIME
+  - variable: GROK_VOICE_EPHEMERAL_BASE
+    value: "https://api.x.ai/v1/realtime/sessions"
+    availability:
+      - RUNTIME
+  - variable: GROK_VOICE_TURN_DETECTION_THRESHOLD
+    value: "0.5"
+    availability:
+      - RUNTIME
+  - variable: GROK_VOICE_TURN_DETECTION_SILENCE_MS
+    value: "500"
+    availability:
+      - RUNTIME
+  - variable: GROK_API_KEY
+    secret: GROK_API_KEY

@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { RoleplayShell } from "@/components/roleplay/RoleplayShell";
+import { GrokVoiceRoleplayShell } from "@/components/roleplay/GrokVoiceRoleplayShell";
 import {
   AccessGate,
   ServiceUnavailable,
@@ -10,18 +10,27 @@ import {
   shouldRequireDemoAccess,
   verifyAccessSignature,
 } from "@/lib/roleplay/auth";
-import { assertDemoAccessEnvForProduction } from "@/lib/roleplay/server-env";
+import {
+  assertDemoAccessEnvForProduction,
+  assertGrokVoiceEnvForProduction,
+  isGrokVoiceRoleplayEnabled,
+} from "@/lib/roleplay/server-env";
 
 export type DemoPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export async function AdeccoRoleplayPage({
+export async function GrokVoiceRoleplayPage({
   searchParams,
   accessAction,
 }: DemoPageProps & { accessAction: string }) {
+  if (!isGrokVoiceRoleplayEnabled()) {
+    return <ServiceUnavailable />;
+  }
+
   try {
     assertDemoAccessEnvForProduction();
+    assertGrokVoiceEnvForProduction();
   } catch {
     return <ServiceUnavailable />;
   }
@@ -32,6 +41,7 @@ export async function AdeccoRoleplayPage({
   const mock = stringParam(params["mock"]) === "1";
   const visualTest = stringParam(params["visualTest"]) === "1";
   const fakeLive = stringParam(params["fakeLive"]) === "1";
+  const debugMetrics = stringParam(params["debugMetrics"]) === "1";
 
   if (shouldRequireDemoAccess() && !hasAccess && !visualTest) {
     return (
@@ -43,10 +53,11 @@ export async function AdeccoRoleplayPage({
   }
 
   return (
-    <RoleplayShell
+    <GrokVoiceRoleplayShell
       initialMock={mock || visualTest}
       visualTest={visualTest}
       fakeLive={fakeLive && !mock && !visualTest}
+      debugMetrics={debugMetrics}
     />
   );
 }
