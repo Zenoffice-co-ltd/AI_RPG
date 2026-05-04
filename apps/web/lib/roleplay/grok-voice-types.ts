@@ -6,6 +6,7 @@ export type GrokVoiceTurnDetectionConfig = {
   type: "server_vad" | null;
   threshold?: number;
   silence_duration_ms?: number;
+  prefix_padding_ms?: number;
 };
 
 export type GrokVoiceAudioConfig = {

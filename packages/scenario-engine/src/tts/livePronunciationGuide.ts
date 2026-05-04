@@ -32,12 +32,37 @@ const LOCAL_PRONUNCIATION_LEXICONS: Record<string, string> = {
 const pronunciationLexiconCache = new Map<string, Promise<PronunciationLexeme[]>>();
 
 function getScenarioFamilyFromId(scenarioId: string) {
-  const delimiterIndex = scenarioId.lastIndexOf("_busy_manager_medium");
-  if (delimiterIndex > 0) {
-    return scenarioId.slice(0, delimiterIndex);
+  // Strip "_<persona>_manager_<difficulty>" and an optional "_v<digits>"
+  // version suffix (e.g. "..._busy_manager_medium" or
+  // "..._busy_manager_medium_v21") to recover the family-key candidate.
+  const match = scenarioId.match(
+    /^(.+)_(?:busy|friendly|skeptical)_manager_(?:easy|medium|hard)(?:_v\d+)?$/
+  );
+  if (match && match[1]) {
+    return match[1];
   }
 
   return scenarioId.split("_").slice(0, -2).join("_");
+}
+
+// Resolves the most specific PLS lexicon registered for the scenario by
+// walking the family-key candidate down (longest prefix first), so
+// `staffing_order_hearing_adecco_manufacturer` matches the
+// `staffing_order_hearing` lexicon without requiring an explicit alias.
+function resolveLexiconPathForScenario(scenarioId: string): string | undefined {
+  let candidate = getScenarioFamilyFromId(scenarioId);
+  while (candidate.length > 0) {
+    const path = LOCAL_PRONUNCIATION_LEXICONS[candidate];
+    if (path) {
+      return path;
+    }
+    const lastUnderscore = candidate.lastIndexOf("_");
+    if (lastUnderscore <= 0) {
+      return undefined;
+    }
+    candidate = candidate.slice(0, lastUnderscore);
+  }
+  return undefined;
 }
 
 async function loadPronunciationLexemes(path: string) {
@@ -71,8 +96,7 @@ export async function buildLivePronunciationGuide(input: {
     return "";
   }
 
-  const family = getScenarioFamilyFromId(input.scenarioId);
-  const lexiconPath = LOCAL_PRONUNCIATION_LEXICONS[family];
+  const lexiconPath = resolveLexiconPathForScenario(input.scenarioId);
   if (!lexiconPath) {
     return "";
   }

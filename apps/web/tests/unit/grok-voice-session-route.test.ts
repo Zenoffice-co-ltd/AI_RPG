@@ -43,6 +43,7 @@ describe("grok-voice session route", () => {
     );
     vi.stubEnv("GROK_VOICE_TURN_DETECTION_THRESHOLD", "0.5");
     vi.stubEnv("GROK_VOICE_TURN_DETECTION_SILENCE_MS", "500");
+    vi.stubEnv("GROK_VOICE_TURN_DETECTION_PREFIX_PADDING_MS", "333");
   });
 
   afterEach(() => {
@@ -116,6 +117,58 @@ describe("grok-voice session route", () => {
     expect(typeof body["promptVersion"]).toBe("string");
     expect(typeof body["promptHash"]).toBe("string");
     expect(typeof body["guardrailVersion"]).toBe("string");
+    expect(body["scenarioId"]).toBe(
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21"
+    );
+    const turnDetection = body["turnDetection"] as Record<string, unknown>;
+    expect(turnDetection["type"]).toBe("server_vad");
+    expect(turnDetection["prefix_padding_ms"]).toBe(333);
+    // -------------------------------------------------------------
+    // Gate 3 — session route content: every v2.1 priority block + the
+    // earned-reveal phrases the live cases hinge on must be present in the
+    // exact instructions Grok will see.
+    // -------------------------------------------------------------
+    const instructions = body["instructions"] as string;
+    expect(instructions).toContain("住宅設備メーカー");
+    expect(instructions).toContain("よくご存じですね");
+    expect(instructions).toContain("その理解で近いです");
+    expect(instructions).toContain("v2.1 Customer Attitude");
+    expect(instructions).toContain("v2.1 Answer Budget");
+    expect(instructions).toContain("v2.1 Housing Equipment Manufacturer Domain");
+    expect(instructions).toContain("v2.1 Earned Reveal Policy");
+    expect(instructions).toContain("Pronunciation Guide");
+    // -------------------------------------------------------------
+    // Gate 3 — section ordering: Pronunciation Guide must sit BETWEEN the
+    // Knowledge Base and the Runtime Guardrail (so Grok reads the lexicon
+    // overrides as part of its scenario context, not as an afterthought).
+    // -------------------------------------------------------------
+    const kbIdx = instructions.indexOf("# Knowledge Base");
+    const guideIdx = instructions.indexOf("# Pronunciation Guide");
+    const guardrailIdx = instructions.indexOf("Runtime Guardrails");
+    expect(kbIdx).toBeGreaterThan(0);
+    expect(guideIdx).toBeGreaterThan(kbIdx);
+    expect(guardrailIdx).toBeGreaterThan(guideIdx);
+    // -------------------------------------------------------------
+    // Gate 4 — pronunciation guide vocabulary: every Adecco-flagged term
+    // that ALSO appears in the bundled scenario texts must be reflected in
+    // the guide. (Terms only used by sales-side jargon, e.g. KAM, won't
+    // appear in the customer-AI prompt and so won't appear in the guide;
+    // those are covered by the lexicon-file gate below.)
+    // -------------------------------------------------------------
+    const requiredVocabInPrompt = [
+      "受発注",
+      "納期調整",
+      "在庫確認",
+      "品番",
+      "型番",
+      "施工日",
+      "職場見学",
+      "CP",
+      "SK",
+    ];
+    for (const term of requiredVocabInPrompt) {
+      expect(instructions).toContain(`「${term}」`);
+    }
     // CRITICAL: The xAI API key must NEVER be returned to the client.
     const serialised = JSON.stringify(body);
     expect(serialised).not.toContain("xai-test-key");
@@ -136,6 +189,42 @@ describe("grok-voice session route", () => {
       (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.body as string
     ) as Record<string, unknown>;
     expect(sentBody).toEqual({ expires_after: { seconds: 300 } });
+  });
+
+  // Gate 4 — verify the staffing PLS lexicon registers every vocabulary the
+  // v2.1 spec lists, including sales-side-only terms (KAM, Career Planner)
+  // that don't appear in the customer-AI prompt but must be normalised if
+  // the user ever brings them up.
+  it("registers all v2.1 vocabulary in the staffing PLS lexicon (incl. sales-only acronyms)", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const plsPath = path.resolve(
+      __dirname,
+      "../../../../data/pronunciation/adecco-ja-business-v1.pls"
+    );
+    const lexicon = await fs.readFile(plsPath, "utf8");
+    for (const term of [
+      "受発注",
+      "納期調整",
+      "在庫確認",
+      "代理店",
+      "工務店",
+      "施工日",
+      "引渡し",
+      "品番",
+      "型番",
+      "仕様違い",
+      "販売管理",
+      "EDI",
+      "CP",
+      "Career Planner",
+      "SK",
+      "職場見学",
+      "KAM",
+      "Key Account Manager",
+    ]) {
+      expect(lexicon).toContain(`<grapheme>${term}</grapheme>`);
+    }
   });
 
   it("returns 502 when the ephemeral token endpoint fails", async () => {

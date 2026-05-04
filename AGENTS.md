@@ -12,6 +12,13 @@
 - For reference-artifact staffing scenarios, keep the checked-in artifact under `docs/references/` as the human-reviewable SoT and treat `data/generated/*` as reproducible evidence unless the task explicitly asks to commit generated artifacts.
 - When behavior, public contracts, or runbooks change, update the relevant docs in `docs/` in the same change.
 
+## Secrets
+
+- All API keys, tokens, and credentials are sourced from Google Secret Manager. The runtime (`apps/web/server/secrets.ts`) and any operational scripts must fetch from Secret Manager — never hard-code keys, never commit them to `.env*` files, and never paste them into the repo.
+- Default secret-source project is `zapier-transfer` (overridable via `SECRET_SOURCE_PROJECT_ID`); per-tenant secrets such as `XAI_API_KEY` may also live in `adecco-mendan` as a fallback.
+- Local development that needs a live API key should pull it via `gcloud secrets versions access latest --secret=<NAME> --project=<PROJECT>` at the start of the session, into the current shell only. Do not write the value into `apps/web/.env.local` or any tracked file.
+- E2E and benchmark scripts should resolve secrets at runtime (env first, then Secret Manager) and exit with a clear "BLOCKED" message if neither source is available — they must not silently fall back to placeholder strings.
+
 ## Working Defaults
 
 - Prefer root `pnpm` scripts over ad hoc one-off commands so operational flows stay reproducible.

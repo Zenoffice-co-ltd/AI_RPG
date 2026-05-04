@@ -12,6 +12,25 @@ describe("buildLivePronunciationGuide", () => {
     ).resolves.toBe("");
   });
 
+  it("falls back to the staffing PLS for nested adecco-manufacturer scenarios (incl. _v21)", async () => {
+    const guide = await buildLivePronunciationGuide({
+      scenarioId:
+        "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21",
+      textNormalisationType: "system_prompt",
+      referenceTexts: [
+        "受発注、納期調整、職場見学、品番、施工日、CP、SK、SAPまわりの確認をします。",
+      ],
+    });
+
+    expect(guide).toContain("# Pronunciation Guide");
+    expect(guide).toContain("「受発注」");
+    expect(guide).toContain("ジュハッチュウ");
+    expect(guide).toContain("「職場見学」");
+    expect(guide).toContain("「施工日」");
+    expect(guide).toContain("「CP」");
+    expect(guide).toContain("「SK」");
+  });
+
   it("builds an accounting pronunciation guide from the local PLS for system_prompt mode", async () => {
     const guide = await buildLivePronunciationGuide({
       scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
