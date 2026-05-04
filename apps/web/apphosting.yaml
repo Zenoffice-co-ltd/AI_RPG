@@ -168,3 +168,8 @@ env:
       - RUNTIME
   - variable: XAI_API_KEY
     secret: XAI_API_KEY
+  # Demo access gate token (existing secret stored as `demo-access-token` in
+  # adecco-mendan; maps to `DEMO_ACCESS_TOKEN` env var consumed by
+  # apps/web/lib/roleplay/auth.ts and the assertion in *RoleplayPage.tsx).
+  - variable: DEMO_ACCESS_TOKEN
+    secret: demo-access-token
