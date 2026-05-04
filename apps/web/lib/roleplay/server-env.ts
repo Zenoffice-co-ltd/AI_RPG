@@ -137,7 +137,7 @@ const grokVoiceServerEnvSchema = z.object({
   GROK_VOICE_EPHEMERAL_BASE: z
     .string()
     .min(1)
-    .default("https://api.x.ai/v1/realtime/sessions"),
+    .default("https://api.x.ai/v1/realtime/client_secrets"),
   GROK_VOICE_TURN_DETECTION_THRESHOLD: z.coerce.number().default(0.5),
   GROK_VOICE_TURN_DETECTION_SILENCE_MS: z.coerce
     .number()

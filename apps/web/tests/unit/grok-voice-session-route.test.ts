@@ -39,7 +39,7 @@ describe("grok-voice session route", () => {
     vi.stubEnv("GROK_VOICE_REALTIME_BASE", "wss://api.x.ai/v1/realtime");
     vi.stubEnv(
       "GROK_VOICE_EPHEMERAL_BASE",
-      "https://api.x.ai/v1/realtime/sessions"
+      "https://api.x.ai/v1/realtime/client_secrets"
     );
     vi.stubEnv("GROK_VOICE_TURN_DETECTION_THRESHOLD", "0.5");
     vi.stubEnv("GROK_VOICE_TURN_DETECTION_SILENCE_MS", "500");
@@ -88,10 +88,8 @@ describe("grok-voice session route", () => {
       .mockResolvedValue(
         new Response(
           JSON.stringify({
-            client_secret: {
-              value: "ephemeral-secret-value",
-              expires_at: 1747_000_000,
-            },
+            value: "xai-realtime-client-secret-test-value",
+            expires_at: 1747_000_000,
           }),
           { status: 200, headers: { "content-type": "application/json" } }
         )
@@ -107,7 +105,9 @@ describe("grok-voice session route", () => {
     expect(body["wsUrl"]).toMatch(
       /^wss:\/\/api\.x\.ai\/v1\/realtime\?model=grok-voice-think-fast-1\.0$/
     );
-    expect(body["ephemeralToken"]).toBe("ephemeral-secret-value");
+    expect(body["ephemeralToken"]).toBe(
+      "xai-realtime-client-secret-test-value"
+    );
     expect(body["grokVoiceModel"]).toBe("grok-voice-think-fast-1.0");
     expect(body["grokVoiceVoiceId"]).toBe("rex");
     expect(typeof body["firstMessage"]).toBe("string");
@@ -121,7 +121,7 @@ describe("grok-voice session route", () => {
     expect(serialised).not.toContain("xai-test-key");
     // We also confirm the upstream request used the API key header.
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.x.ai/v1/realtime/sessions",
+      "https://api.x.ai/v1/realtime/client_secrets",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
@@ -129,6 +129,13 @@ describe("grok-voice session route", () => {
         }),
       })
     );
+    // Body must NOT include session config (the xAI ephemeral endpoint
+    // explicitly rejects `session` and `expires_after.anchor`); only
+    // `expires_after.seconds`.
+    const sentBody = JSON.parse(
+      (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.body as string
+    ) as Record<string, unknown>;
+    expect(sentBody).toEqual({ expires_after: { seconds: 300 } });
   });
 
   it("returns 502 when the ephemeral token endpoint fails", async () => {
@@ -146,7 +153,7 @@ describe("grok-voice session route", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(() =>
       Promise.resolve(
         new Response(
-          JSON.stringify({ client_secret: { value: "v", expires_at: 1 } }),
+          JSON.stringify({ value: "xai-test-token", expires_at: 1 }),
           { status: 200 }
         )
       )
