@@ -240,7 +240,8 @@ export function useGrokVoiceConversation(
           break;
         }
         case "response.text.delta":
-        case "response.audio_transcript.delta": {
+        case "response.audio_transcript.delta":
+        case "response.output_audio_transcript.delta": {
           const delta = event.delta ?? "";
           if (delta.length === 0) break;
           turnAccumulatedTextRef.current += delta;
