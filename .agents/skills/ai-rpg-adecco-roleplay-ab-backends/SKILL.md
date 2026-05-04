@@ -1,6 +1,6 @@
 ---
 name: ai-rpg-adecco-roleplay-ab-backends
-description: Use when working on the three side-by-side Adecco roleplay A/B backends (`/demo/adecco-roleplay` ElevenLabs ConvAI, `/demo/adecco-roleplay-haiku-fish` Claude Haiku 4.5 + Fish Audio + GCP STT, `/demo/adecco-roleplay-grok-voice` xAI Grok Voice Think Fast 1.0 — **canonical production backend as of 2026-05-04**), or when adding a 4th backend variant on top of the same scenario assets. Covers Firebase App Hosting deploy gotchas (Secret Manager IAM trio, cross-project secret name mismatches, `fah/misconfigured-secret` debugging, CSP wiring for new WSS endpoints, AccessGate cookie scoping), per-backend env/secret/log conventions, the xAI Voice Agent integration specifics (ephemeral token endpoint, browser subprotocol auth, event name differences from OpenAI Realtime), and Cloud Logging query templates for quantitative A/B comparison. Do NOT use for the offline benchmark suite (that's `ai-rpg-quality-latency-benchmark`) or the `chat-orb` interactive Stage 3 tooling (that's `ai-rpg-orb-chat-verification`).
+description: Use when working on the three side-by-side Adecco roleplay A/B backends (`/demo/adecco-roleplay` ElevenLabs ConvAI, `/demo/adecco-roleplay-haiku-fish` Claude Haiku 4.5 + Fish Audio + GCP STT, `/demo/adecco-roleplay-v3` xAI Grok Voice Think Fast 1.0 — **canonical production backend as of 2026-05-04**), or when adding a 4th backend variant on top of the same scenario assets. Covers Firebase App Hosting deploy gotchas (Secret Manager IAM trio, cross-project secret name mismatches, `fah/misconfigured-secret` debugging, CSP wiring for new WSS endpoints, AccessGate cookie scoping), per-backend env/secret/log conventions, the xAI Voice Agent integration specifics (ephemeral token endpoint, browser subprotocol auth, event name differences from OpenAI Realtime), and Cloud Logging query templates for quantitative A/B comparison. Do NOT use for the offline benchmark suite (that's `ai-rpg-quality-latency-benchmark`) or the `chat-orb` interactive Stage 3 tooling (that's `ai-rpg-orb-chat-verification`).
 ---
 
 # Adecco Roleplay A/B Backends
@@ -40,9 +40,9 @@ operator captures via `?debugMetrics=1` in the browser when needed.
 
 | | ① ElevenLabs | ② Haiku Fish | ③ Grok Voice |
 |---|---|---|---|
-| Page route | `/demo/adecco-roleplay` | `/demo/adecco-roleplay-haiku-fish` | `/demo/adecco-roleplay-grok-voice` |
-| Access route | `/demo/adecco-roleplay/access` | `/demo/adecco-roleplay-haiku-fish/access` | `/demo/adecco-roleplay-grok-voice/access` |
-| API namespace | `/api/voice/*` | `/api/haiku-fish/*` | `/api/grok-voice/*` |
+| Page route | `/demo/adecco-roleplay` | `/demo/adecco-roleplay-haiku-fish` | `/demo/adecco-roleplay-v3` |
+| Access route | `/demo/adecco-roleplay/access` | `/demo/adecco-roleplay-haiku-fish/access` | `/demo/adecco-roleplay-v3/access` |
+| API namespace | `/api/voice/*` | `/api/haiku-fish/*` | `/api/v3/*` |
 | LLM | (ElevenLabs internal — gpt-5-mini) | Anthropic Messages API streaming | xAI Voice Agent (model `grok-voice-think-fast-1.0`) |
 | TTS | ElevenLabs (eleven_v3) | Fish Audio s2-pro WAV 24kHz | xAI native PCM16 24kHz |
 | STT | ElevenLabs internal | GCP Speech-to-Text v2 (`latest_short`, ja-JP) | xAI Voice Agent internal |
@@ -205,11 +205,11 @@ jsonPayload.scope=~"^(grokVoice|haikuFish)\\."
 
 | Scope | Emitted by | Per turn? | Useful for |
 |---|---|---|---|
-| `grokVoice.session.created` | `/api/grok-voice/session` (server) | No (per session) | Provenance audit (promptHash, guardrailVersion, model, voice, ephemeralExpiresAt) |
-| `grokVoice.turnMetrics` | client → `/api/grok-voice/event` (kind=turn.completed) | Yes | p50/p90 firstAudioMs, doneMs, audioBytes per turn |
-| `grokVoice.stt` | client → `/api/grok-voice/event` (kind=stt.completed) | Per user utterance | xAI STT result text length |
-| `grokVoice.stt.skipped` | client → `/api/grok-voice/event` (kind=stt.skipped) | Per skip | Empty/silent STT detection |
-| `grokVoice.mic.state` | client → `/api/grok-voice/event` (kind=mic.state.changed) | Per state change | idle / listening / speaking transitions |
+| `grokVoice.session.created` | `/api/v3/session` (server) | No (per session) | Provenance audit (promptHash, guardrailVersion, model, voice, ephemeralExpiresAt) |
+| `grokVoice.turnMetrics` | client → `/api/v3/event` (kind=turn.completed) | Yes | p50/p90 firstAudioMs, doneMs, audioBytes per turn |
+| `grokVoice.stt` | client → `/api/v3/event` (kind=stt.completed) | Per user utterance | xAI STT result text length |
+| `grokVoice.stt.skipped` | client → `/api/v3/event` (kind=stt.skipped) | Per skip | Empty/silent STT detection |
+| `grokVoice.mic.state` | client → `/api/v3/event` (kind=mic.state.changed) | Per state change | idle / listening / speaking transitions |
 | `grokVoice.clientEvent` | All client `/event` posts | Yes | Uniform audit trail (ws.connected, ws.error, audio.queue.error, etc.) |
 
 ### Haiku Fish scope catalog
@@ -250,7 +250,7 @@ new backend should be compared against those.
 | `セッションの開始に失敗しました` on every backend | DEMO_ACCESS_TOKEN env unset OR cookie path too narrow | Check `assertDemoAccessEnvForProduction` throws + `apphosting.yaml` has `DEMO_ACCESS_TOKEN: secret: demo-access-token` + access routes use `cookiePaths: {ui: "/demo", api: "/api"}` |
 | `セッションの開始に失敗しました` on ① only | ELEVENLABS_AGENT_ID / BRANCH_ID / API_KEY missing in apphosting.yaml | Cloud Run stderr: `Voice session server environment is not configured.` |
 | `セッションの開始に失敗しました` on ② only with 502 from `/api/haiku-fish/respond` | ANTHROPIC_API_KEY / FISH_API_KEY / FISH_ADECCO_VOICE_REFERENCE_ID secret missing or wrong IAM | Cloud Build log: `fah/misconfigured-secret` |
-| `セッションの開始に失敗しました` on ③ with 502 from `/api/grok-voice/session` | XAI_API_KEY missing OR endpoint URL wrong | Cloud Run stderr: `grokVoice ephemeral token failed`. Verify `GROK_VOICE_EPHEMERAL_BASE=https://api.x.ai/v1/realtime/client_secrets` (NOT `/sessions`) |
+| `セッションの開始に失敗しました` on ③ with 502 from `/api/v3/session` | XAI_API_KEY missing OR endpoint URL wrong | Cloud Run stderr: `grokVoice ephemeral token failed`. Verify `GROK_VOICE_EPHEMERAL_BASE=https://api.x.ai/v1/realtime/client_secrets` (NOT `/sessions`) |
 | ③ orb shows `通話が開始されました` then immediately `接続に失敗しました` | CSP missing `wss://api.x.ai` | DevTools console shows `Content Security Policy directive: "connect-src ..."`. Fix `apps/web/next.config.ts` |
 | ③ first message shows but agent text never appears (audio plays) | xAI event name not handled in hook switch | Hook must handle `response.output_audio_transcript.delta` (not `response.audio_transcript.delta`) |
 | ② mic permission granted but never transcribes | `ENABLE_HAIKU_FISH_MIC_INPUT=false` (returns 501) | Flip flag in `apphosting.yaml` and verify SA has `roles/speech.client` on adecco-mendan |

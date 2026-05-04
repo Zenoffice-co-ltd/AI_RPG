@@ -4,7 +4,7 @@ import { handleDemoAccess } from "../../lib/roleplay/access-route";
 
 function buildFormRequest(token: string) {
   const body = new URLSearchParams({ token }).toString();
-  return new NextRequest("http://127.0.0.1:3000/demo/adecco-roleplay-grok-voice/access", {
+  return new NextRequest("http://127.0.0.1:3000/demo/adecco-roleplay-v3/access", {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
@@ -31,12 +31,12 @@ describe("grok-voice access route", () => {
     vi.unstubAllEnvs();
   });
 
-  it("scopes UI cookie to /demo/adecco-roleplay-grok-voice and API cookie to /api/grok-voice", async () => {
+  it("scopes UI cookie to /demo/adecco-roleplay-v3 and API cookie to /api/v3", async () => {
     const response = await handleDemoAccess(buildFormRequest("demo-secret"), {
-      successPath: "/demo/adecco-roleplay-grok-voice",
+      successPath: "/demo/adecco-roleplay-v3",
       cookiePaths: {
-        ui: "/demo/adecco-roleplay-grok-voice",
-        api: "/api/grok-voice",
+        ui: "/demo/adecco-roleplay-v3",
+        api: "/api/v3",
       },
     });
 
@@ -48,16 +48,16 @@ describe("grok-voice access route", () => {
     const apiCookie = setCookieHeaders.find((value) =>
       value.startsWith("roleplay_api_access=")
     );
-    expect(accessCookie).toMatch(/Path=\/demo\/adecco-roleplay-grok-voice/);
-    expect(apiCookie).toMatch(/Path=\/api\/grok-voice/);
+    expect(accessCookie).toMatch(/Path=\/demo\/adecco-roleplay-v3/);
+    expect(apiCookie).toMatch(/Path=\/api\/v3/);
   });
 
   it("redirects to ?access=denied when the token does not match", async () => {
     const response = await handleDemoAccess(buildFormRequest("nope"), {
-      successPath: "/demo/adecco-roleplay-grok-voice",
+      successPath: "/demo/adecco-roleplay-v3",
       cookiePaths: {
-        ui: "/demo/adecco-roleplay-grok-voice",
-        api: "/api/grok-voice",
+        ui: "/demo/adecco-roleplay-v3",
+        api: "/api/v3",
       },
     });
     expect(response.status).toBe(307);

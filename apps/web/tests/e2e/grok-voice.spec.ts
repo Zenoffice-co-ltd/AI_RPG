@@ -12,11 +12,11 @@ import { expect, test } from "@playwright/test";
 // The unit suite already covers session route / event route / hook orchestration
 // with mocked WebSocket events.
 
-test.describe("/demo/adecco-roleplay-grok-voice", () => {
+test.describe("/demo/adecco-roleplay-v3", () => {
   test("visualTest mode renders the Grok Voice topbar and backend badge", async ({
     page,
   }) => {
-    await page.goto("/demo/adecco-roleplay-grok-voice?visualTest=1");
+    await page.goto("/demo/adecco-roleplay-v3?visualTest=1");
 
     // The page is feature-flag-gated: if ENABLE_GROK_VOICE_ROLEPLAY is not
     // set in the dev env, the page shows ServiceUnavailable. We assert on
@@ -60,7 +60,7 @@ test.describe("/demo/adecco-roleplay-grok-voice", () => {
     });
 
     const response = await page.goto(
-      "/demo/adecco-roleplay-grok-voice?visualTest=1"
+      "/demo/adecco-roleplay-v3?visualTest=1"
     );
     expect(response?.status()).toBeLessThan(500);
 

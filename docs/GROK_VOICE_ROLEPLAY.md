@@ -14,8 +14,8 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 
 ## URL
 
-- **Production (canonical)**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-grok-voice
-- Local: http://localhost:3000/demo/adecco-roleplay-grok-voice
+- **Production (canonical)**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v3
+- Local: http://localhost:3000/demo/adecco-roleplay-v3
 
 `ENABLE_GROK_VOICE_ROLEPLAY=true` (apphosting.yaml) は本番で常時有効。
 secret は `XAI_API_KEY` (zapier-transfer + adecco-mendan 両方に存在、
@@ -50,12 +50,12 @@ build-time + runtime 両 SA に IAM bindings 付与済み)。
 
 ```text
 [browser]
-  /demo/adecco-roleplay-grok-voice (server component, AccessGate)
+  /demo/adecco-roleplay-v3 (server component, AccessGate)
     └ GrokVoiceRoleplayShell ("use client")
         └ GrokVoiceOrbClient
             ├ TopBar / OrbStage / TranscriptPanel  (既存共通UI再利用)
             └ useGrokVoiceConversation()
-                  ├ POST /api/grok-voice/session   → ephemeral token + sessionId + firstMessage
+                  ├ POST /api/v3/session   → ephemeral token + sessionId + firstMessage
                   ├ WebSocket → wss://api.x.ai/v1/realtime?model=grok-voice-think-fast-1.0
                   │   subprotocol: xai-client-secret.<token>
                   │   send: session.update (voice, instructions, audio, turn_detection)
@@ -68,11 +68,11 @@ build-time + runtime 両 SA に IAM bindings 付与済み)。
                   │   recv: response.done → metrics emit
                   ├ GrokVoiceMicRecorder (ScriptProcessor → 24 kHz PCM16 100 ms chunks)
                   ├ GrokVoiceAudioQueue (decode base64 PCM16 → AudioBuffer scheduling)
-                  └ POST /api/grok-voice/event (telemetry: ws/mic/stt/turn metrics)
+                  └ POST /api/v3/event (telemetry: ws/mic/stt/turn metrics)
 ```
 
 API key (`XAI_API_KEY` — xAI 公式 SDK の慣例名、既存 zapier-transfer secret を再利用)
-は **server-side のみ**。`/api/grok-voice/session`
+は **server-side のみ**。`/api/v3/session`
 が xAI の ephemeral endpoint を叩いて短命 token を発行し、ブラウザはそれを
 WebSocket subprotocol に乗せて直接 xAI に接続する。
 
@@ -137,7 +137,7 @@ jsonPayload.scope=~"^grokVoice\."
 
 | Variable | Type | Source | Notes |
 |----------|------|--------|-------|
-| `ENABLE_GROK_VOICE_ROLEPLAY` | bool | apphosting.yaml plain `value:` | `false` のままなら全 `/api/grok-voice/*` が 503、ページは ServiceUnavailable |
+| `ENABLE_GROK_VOICE_ROLEPLAY` | bool | apphosting.yaml plain `value:` | `false` のままなら全 `/api/v3/*` が 503、ページは ServiceUnavailable |
 | `GROK_VOICE_MODEL` | string | apphosting plain | 既定 `grok-voice-think-fast-1.0` |
 | `GROK_VOICE_VOICE_ID` | string | apphosting plain | 既定 `rex` |
 | `GROK_VOICE_INPUT_FORMAT` | string | apphosting plain | 既定 `audio/pcm` |
@@ -189,7 +189,7 @@ gcloud secrets add-iam-policy-binding XAI_API_KEY \
 - xAI Voice Agent realtime API の rate limit / concurrency は公式 docs に
   明示されていない。本番投入前に operator が小規模負荷で確認すること。
 - Browser direct WebSocket のため、サーバー側で audio chunk を直接 inspect
-  することはできない。turn metrics は client → `/api/grok-voice/event` 経由で
+  することはできない。turn metrics は client → `/api/v3/event` 経由で
   集める。
 - mic input は `ScriptProcessorNode` ベース。AudioWorklet 化は将来の最適化候補。
 - first message (firstMessageJa) は `conversation.item.create` で履歴注入する
@@ -203,6 +203,6 @@ gcloud secrets add-iam-policy-binding XAI_API_KEY \
 ## Rollback
 
 `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
-`/demo/adecco-roleplay-grok-voice` は `ServiceUnavailable`、
-`/api/grok-voice/*` は 503 を返す。既存 `/demo/adecco-roleplay` および
+`/demo/adecco-roleplay-v3` は `ServiceUnavailable`、
+`/api/v3/*` は 503 を返す。既存 `/demo/adecco-roleplay` および
 `/demo/adecco-roleplay-haiku-fish` は完全に独立しているので影響なし。

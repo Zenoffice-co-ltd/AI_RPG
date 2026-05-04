@@ -5,7 +5,7 @@ import { resetSessionTokenRateLimit } from "../../lib/roleplay/rate-limit";
 
 function validRequest({
   origin = "http://127.0.0.1:3000",
-  referer = "http://127.0.0.1:3000/demo/adecco-roleplay-grok-voice",
+  referer = "http://127.0.0.1:3000/demo/adecco-roleplay-v3",
   cookie = `roleplay_api_access=${signAccessToken("demo-secret")}`,
   body = {},
 }: {
@@ -18,7 +18,7 @@ function validRequest({
   if (origin) headers.set("origin", origin);
   if (referer) headers.set("referer", referer);
   if (cookie) headers.set("cookie", cookie);
-  return new NextRequest("http://127.0.0.1:3000/api/grok-voice/session", {
+  return new NextRequest("http://127.0.0.1:3000/api/v3/session", {
     method: "POST",
     headers,
     body: JSON.stringify(body),
@@ -53,26 +53,26 @@ describe("grok-voice session route", () => {
 
   it("returns 503 when ENABLE_GROK_VOICE_ROLEPLAY is false", async () => {
     vi.stubEnv("ENABLE_GROK_VOICE_ROLEPLAY", "false");
-    const { POST } = await import("../../app/api/grok-voice/session/route");
+    const { POST } = await import("../../app/api/v3/session/route");
     const response = await POST(validRequest());
     expect(response.status).toBe(503);
   });
 
   it("returns 503 when XAI_API_KEY is missing", async () => {
     vi.stubEnv("XAI_API_KEY", "");
-    const { POST } = await import("../../app/api/grok-voice/session/route");
+    const { POST } = await import("../../app/api/v3/session/route");
     const response = await POST(validRequest());
     expect(response.status).toBe(503);
   });
 
   it("returns 401 without an access cookie", async () => {
-    const { POST } = await import("../../app/api/grok-voice/session/route");
+    const { POST } = await import("../../app/api/v3/session/route");
     const response = await POST(validRequest({ cookie: "" }));
     expect(response.status).toBe(401);
   });
 
   it("returns 403 when origin doesn't match", async () => {
-    const { POST } = await import("../../app/api/grok-voice/session/route");
+    const { POST } = await import("../../app/api/v3/session/route");
     const response = await POST(
       validRequest({
         origin: "http://evil.example.com",
@@ -95,7 +95,7 @@ describe("grok-voice session route", () => {
         )
       );
 
-    const { POST } = await import("../../app/api/grok-voice/session/route");
+    const { POST } = await import("../../app/api/v3/session/route");
     const response = await POST(validRequest());
     expect(response.status).toBe(200);
     const body = (await response.json()) as Record<string, unknown>;
@@ -142,7 +142,7 @@ describe("grok-voice session route", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("upstream blew up", { status: 502 })
     );
-    const { POST } = await import("../../app/api/grok-voice/session/route");
+    const { POST } = await import("../../app/api/v3/session/route");
     const response = await POST(validRequest());
     expect(response.status).toBe(502);
   });
@@ -158,7 +158,7 @@ describe("grok-voice session route", () => {
         )
       )
     );
-    const { POST } = await import("../../app/api/grok-voice/session/route");
+    const { POST } = await import("../../app/api/v3/session/route");
     for (let i = 0; i < 3; i += 1) {
       const ok = await POST(validRequest());
       expect(ok.status).toBe(200);

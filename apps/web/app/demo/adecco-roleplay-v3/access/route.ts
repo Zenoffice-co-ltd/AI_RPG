@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   // Broad cookie paths (/demo + /api) so a single login covers all three
   // A/B routes — see /demo/adecco-roleplay/access for context.
   return handleDemoAccess(request, {
-    successPath: "/demo/adecco-roleplay-grok-voice",
+    successPath: "/demo/adecco-roleplay-v3",
     cookiePaths: { ui: "/demo", api: "/api" },
   });
 }
