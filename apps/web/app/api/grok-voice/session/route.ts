@@ -88,16 +88,6 @@ export async function POST(request: NextRequest) {
     token = await issueGrokEphemeralToken({
       endpoint: env.GROK_VOICE_EPHEMERAL_BASE,
       apiKey: env.XAI_API_KEY,
-      request: {
-        model: env.GROK_VOICE_MODEL,
-        voice: env.GROK_VOICE_VOICE_ID,
-        instructions,
-        audio: {
-          input: { format: { type: audio.inputFormat, rate: audio.sampleRate } },
-          output: { format: { type: audio.outputFormat, rate: audio.sampleRate } },
-        },
-        turn_detection: turnDetection,
-      },
     });
   } catch (error) {
     console.error(

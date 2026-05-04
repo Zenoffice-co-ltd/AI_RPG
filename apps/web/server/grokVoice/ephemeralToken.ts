@@ -3,34 +3,18 @@
 // browser as the `xai-client-secret.<token>` WebSocket subprotocol, so the
 // xAI API key never reaches the client.
 //
-// Reference: https://docs.x.ai/developers/model-capabilities/audio/voice-agent
+// Reference:
+//   https://docs.x.ai/developers/model-capabilities/audio/ephemeral-tokens
+//   POST https://api.x.ai/v1/realtime/client_secrets
+//   Authorization: Bearer XAI_API_KEY
+//   Body: { "expires_after": { "seconds": <int> } }
+//   Response: { "value": "<token>", "expires_at": <unix_seconds> }
 //
-// The exact request/response shape on the xAI ephemeral endpoint mirrors
-// OpenAI's `/v1/realtime/sessions` style; if xAI publishes a slightly
-// different field naming we adjust here without touching the rest of the
-// pipeline.
-
-export type GrokEphemeralAudioFormat = {
-  type: string;
-  rate: number;
-};
-
-export type GrokEphemeralTurnDetection = {
-  type: "server_vad" | null;
-  threshold?: number;
-  silence_duration_ms?: number;
-};
-
-export type GrokEphemeralTokenRequest = {
-  model: string;
-  voice: string;
-  instructions: string;
-  audio: {
-    input: { format: GrokEphemeralAudioFormat };
-    output: { format: GrokEphemeralAudioFormat };
-  };
-  turn_detection: GrokEphemeralTurnDetection;
-};
+// Session configuration (voice, instructions, audio format, turn_detection)
+// is NOT part of this request — the xAI ephemeral endpoint deliberately
+// rejects `session` here. Session config is sent over the WebSocket via
+// `session.update` once the browser has connected (handled by the client
+// in `apps/web/lib/roleplay/grok-voice-realtime.ts`).
 
 export type GrokEphemeralTokenIssued = {
   value: string;
@@ -40,10 +24,12 @@ export type GrokEphemeralTokenIssued = {
 export type IssueGrokEphemeralTokenOptions = {
   endpoint: string;
   apiKey: string;
-  request: GrokEphemeralTokenRequest;
+  expiresAfterSeconds?: number; // default 300
   fetchImpl?: typeof fetch;
   signal?: AbortSignal;
 };
+
+const DEFAULT_TTL_SECONDS = 300;
 
 export async function issueGrokEphemeralToken(
   options: IssueGrokEphemeralTokenOptions
@@ -56,12 +42,8 @@ export async function issueGrokEphemeralToken(
       authorization: `Bearer ${options.apiKey}`,
     },
     body: JSON.stringify({
-      model: options.request.model,
-      session: {
-        voice: options.request.voice,
-        instructions: options.request.instructions,
-        audio: options.request.audio,
-        turn_detection: options.request.turn_detection,
+      expires_after: {
+        seconds: options.expiresAfterSeconds ?? DEFAULT_TTL_SECONDS,
       },
     }),
   };
@@ -77,13 +59,14 @@ export async function issueGrokEphemeralToken(
     );
   }
   const payload = (await response.json()) as {
-    client_secret?: { value?: unknown; expires_at?: unknown };
+    value?: unknown;
+    expires_at?: unknown;
   };
-  const value = payload?.client_secret?.value;
-  const expiresAt = payload?.client_secret?.expires_at;
+  const value = payload?.value;
+  const expiresAt = payload?.expires_at;
   if (typeof value !== "string" || value.length === 0) {
     throw new GrokEphemeralTokenError(
-      "ephemeral token response missing client_secret.value",
+      "ephemeral token response missing value",
       500,
       JSON.stringify(payload).slice(0, 200)
     );

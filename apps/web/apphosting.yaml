@@ -155,7 +155,7 @@ env:
     availability:
       - RUNTIME
   - variable: GROK_VOICE_EPHEMERAL_BASE
-    value: "https://api.x.ai/v1/realtime/sessions"
+    value: "https://api.x.ai/v1/realtime/client_secrets"
     availability:
       - RUNTIME
   - variable: GROK_VOICE_TURN_DETECTION_THRESHOLD
