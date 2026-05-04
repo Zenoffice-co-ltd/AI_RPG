@@ -61,6 +61,7 @@ export type GrokVoiceServerEvent =
   | { type: "session.updated"; session?: unknown }
   | { type: "response.created"; response?: unknown }
   | { type: "response.output_audio.delta"; delta: string; item_id?: string }
+  | { type: "response.output_audio_transcript.delta"; delta: string; item_id?: string }
   | { type: "response.text.delta"; delta: string; item_id?: string }
   | { type: "response.audio_transcript.delta"; delta: string; item_id?: string }
   | {
