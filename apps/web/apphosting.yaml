@@ -86,10 +86,12 @@ env:
     value: "true"
     availability:
       - RUNTIME
-  # Mic-input lane (Lane B) is still scaffold-only — /api/haiku-fish/transcribe
-  # returns 501. Keep flag off until GCP Speech-to-Text v2 streaming lands.
+  # Lane B (microphone → GCP Speech-to-Text v2 → Claude → Fish Audio) enabled.
+  # Speech-to-Text API is enabled in adecco-mendan and the App Hosting SA has
+  # roles/speech.client. Recognition latency is bounded — STT runs synchronously
+  # per utterance (RMS-based VAD on the client triggers the request).
   - variable: ENABLE_HAIKU_FISH_MIC_INPUT
-    value: "false"
+    value: "true"
     availability:
       - RUNTIME
   - variable: GOOGLE_CLOUD_PROJECT
