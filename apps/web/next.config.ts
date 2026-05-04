@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
     "/*": [
       "../../packages/scoring/src/prompts/**/*.md",
       "../../config/voice-profiles/**/*.json",
+      "../../data/generated/scenarios/**/*.json",
     ]
   },
   async headers() {

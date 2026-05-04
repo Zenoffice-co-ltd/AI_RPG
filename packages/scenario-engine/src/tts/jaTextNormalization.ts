@@ -185,3 +185,31 @@ export function normalizeJaTextForTts(input: {
     appliedRules,
   };
 }
+
+// Sibling of normalizeJaTextForTts that always applies the per-scenario rules,
+// regardless of TTS model / text-normalisation flags. Used by the Haiku+Fish
+// A/B path which needs the same Adecco rewrites (アデコ / 八時四十五分 etc.)
+// but does not run through ElevenLabs server-side normalisation.
+export function applyJaScenarioTtsRulesUnconditional(input: {
+  text: string;
+  scenarioId: string;
+}): JaTextNormalizationResult {
+  const displayText = input.text;
+  const rules = SCENARIO_RULES[input.scenarioId];
+  if (!rules) {
+    return { displayText, ttsText: input.text, appliedRules: [] };
+  }
+
+  let ttsText = input.text;
+  const appliedRules: string[] = [];
+  for (const rule of rules) {
+    rule.pattern.lastIndex = 0;
+    if (!rule.pattern.test(ttsText)) {
+      continue;
+    }
+    ttsText = ttsText.replace(rule.pattern, rule.replacement);
+    appliedRules.push(rule.id);
+  }
+
+  return { displayText, ttsText, appliedRules };
+}
