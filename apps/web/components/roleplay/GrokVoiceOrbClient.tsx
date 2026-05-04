@@ -7,14 +7,17 @@ import {
   useGrokVoiceConversation,
   type GrokVoiceConversation,
 } from "@/lib/roleplay/useGrokVoiceConversation";
-import { GROK_VOICE_BACKEND_BADGE } from "@/lib/roleplay/grok-voice-types";
 import type {
   RoleplayMode,
   RoleplayStatus,
 } from "@/lib/roleplay/conversation-types";
 
-const ROLEPLAY_TITLE_GROK_VOICE =
-  "[A/B] 住宅設備メーカー 人事課主任 初回派遣オーダーヒアリング — Grok Voice Think Fast 1.0";
+// Customer-facing demo title — no model name, no A/B label, no version
+// suffix. The backend identity is intentionally hidden in the UI; all
+// model / version metadata stays in server logs (`grokVoice.session.created`)
+// and is recoverable via Cloud Logging when needed.
+const ROLEPLAY_TITLE =
+  "住宅設備メーカー 人事課主任 初回派遣オーダーヒアリング";
 
 type GrokVoiceOrbClientProps = {
   initialMock: boolean;
@@ -96,22 +99,8 @@ function GrokVoiceTopBar() {
         </a>
       </nav>
 
-      <div
-        className="roleplay-topbar__title"
-        title={ROLEPLAY_TITLE_GROK_VOICE}
-      >
-        {ROLEPLAY_TITLE_GROK_VOICE}
-      </div>
-
-      <div className="roleplay-topbar__branch">
-        <div
-          className="roleplay-branch-button"
-          aria-label={GROK_VOICE_BACKEND_BADGE}
-          data-testid="grok-voice-backend-badge"
-        >
-          <span>A/B</span>
-          <span className="roleplay-live-badge">{GROK_VOICE_BACKEND_BADGE}</span>
-        </div>
+      <div className="roleplay-topbar__title" title={ROLEPLAY_TITLE}>
+        {ROLEPLAY_TITLE}
       </div>
 
       <div className="roleplay-topbar__right" aria-hidden="true" />

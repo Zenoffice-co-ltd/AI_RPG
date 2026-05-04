@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-// E2E for the Grok Voice A/B backend route. We exercise the page in
-// `visualTest=1` mode so it bypasses the demo access gate AND skips any
-// network call to xAI (the hook only opens a WebSocket when mode === "live").
+// E2E for the v3 production canonical route (Grok Voice backend, but the UI
+// intentionally hides the model identity for customer demos).
 //
 // What this test does NOT cover (intentionally — requires real XAI_API_KEY +
 // xAI network access; operator runs locally):
@@ -12,8 +11,10 @@ import { expect, test } from "@playwright/test";
 // The unit suite already covers session route / event route / hook orchestration
 // with mocked WebSocket events.
 
+const SCENARIO_TITLE = "住宅設備メーカー 人事課主任 初回派遣オーダーヒアリング";
+
 test.describe("/demo/adecco-roleplay-v3", () => {
-  test("visualTest mode renders the Grok Voice topbar and backend badge", async ({
+  test("visualTest mode renders the customer-facing topbar without leaking backend identity", async ({
     page,
   }) => {
     await page.goto("/demo/adecco-roleplay-v3?visualTest=1");
@@ -23,32 +24,32 @@ test.describe("/demo/adecco-roleplay-v3", () => {
     // either the live page OR on a clear ServiceUnavailable signal so this
     // test stays useful in both states.
     const header = page.getByTestId("roleplay-header");
-    const badge = page.getByTestId("grok-voice-backend-badge");
 
     if (await header.isVisible().catch(() => false)) {
-      await expect(header).toContainText("Grok Voice Think Fast 1.0");
-      await expect(badge).toBeVisible();
-      await expect(badge).toHaveAttribute(
-        "aria-label",
-        "Backend: Grok Voice Think Fast 1.0"
-      );
+      await expect(header).toContainText(SCENARIO_TITLE);
       // Topbar must show the MENDAN logo from the shared TopBar pattern.
       await expect(page.getByLabel("MENDAN")).toBeVisible();
 
-      // Hardening: the page must not leak ElevenLabs / Haiku-Fish /
-      // Anthropic / xAI internal markers into the visible DOM.
+      // Customer-facing demo invariants — the visible UI MUST NOT leak
+      // backend identity, vendor names, A/B labels, or version markers.
       const visibleText = (await page.locator("body").innerText()).toLowerCase();
+      expect(visibleText).not.toContain("grok");
+      expect(visibleText).not.toContain("xai");
+      expect(visibleText).not.toContain("anthropic");
+      expect(visibleText).not.toContain("claude");
+      expect(visibleText).not.toContain("haiku");
+      expect(visibleText).not.toContain("fish");
       expect(visibleText).not.toContain("elevenlabs");
       expect(visibleText).not.toContain("convai");
-      expect(visibleText).not.toContain("anthropic");
-      expect(visibleText).not.toContain("xai-client-secret");
+      expect(visibleText).not.toContain("backend:");
+      expect(visibleText).not.toContain("a/b");
+      expect(visibleText).not.toContain("v3");
       expect(visibleText).not.toContain("api.x.ai");
+      expect(visibleText).not.toContain("xai-client-secret");
     } else {
       // Flag-off path: ServiceUnavailable component renders.
       const body = await page.locator("body").innerText();
       expect(body.length).toBeGreaterThan(0);
-      // No partial state should be visible.
-      await expect(badge).toHaveCount(0);
     }
   });
 
@@ -59,9 +60,7 @@ test.describe("/demo/adecco-roleplay-v3", () => {
       if (msg.type() === "error") consoleErrors.push(msg.text());
     });
 
-    const response = await page.goto(
-      "/demo/adecco-roleplay-v3?visualTest=1"
-    );
+    const response = await page.goto("/demo/adecco-roleplay-v3?visualTest=1");
     expect(response?.status()).toBeLessThan(500);
 
     // Tolerate console errors that come from missing browser APIs in

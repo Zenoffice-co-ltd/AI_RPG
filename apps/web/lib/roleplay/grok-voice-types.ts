@@ -1,7 +1,5 @@
 "use client";
 
-export const GROK_VOICE_BACKEND_BADGE = "Backend: Grok Voice Think Fast 1.0";
-
 export type GrokVoiceMicState = "idle" | "listening" | "speaking" | "paused";
 
 export type GrokVoiceTurnDetectionConfig = {
