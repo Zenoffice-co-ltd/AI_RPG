@@ -18,6 +18,10 @@ const nextConfig: NextConfig = {
       "../../packages/scoring/src/prompts/**/*.md",
       "../../config/voice-profiles/**/*.json",
       "../../data/generated/scenarios/**/*.json",
+      // PLS lexicon (.pls) — read at runtime by buildLivePronunciationGuide
+      // for Grok Voice instructions injection. Without this, the standalone
+      // bundle returns ENOENT and the v3 session route 502s.
+      "../../data/pronunciation/**/*.pls",
     ]
   },
   async headers() {
