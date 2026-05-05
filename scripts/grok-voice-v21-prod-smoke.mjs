@@ -114,9 +114,9 @@ const required = [
   "ご質問があればお聞かせください",
 ];
 
-// 2b. promptVersion must reflect the v3 hardening bump.
-const expectedPromptVersionPrefix =
-  "compile-scenario@2026-05-06.v3.staffing-reference-adecco-v21-quality";
+// 2b. promptVersion must reflect the v3.x hardening bump (v3 = initial
+// hardening; v3.1+ = incremental anchor reinforcements).
+const expectedPromptVersionPrefix = "compile-scenario@2026-05-06.v3";
 if (
   typeof body.promptVersion !== "string" ||
   !body.promptVersion.startsWith(expectedPromptVersionPrefix)

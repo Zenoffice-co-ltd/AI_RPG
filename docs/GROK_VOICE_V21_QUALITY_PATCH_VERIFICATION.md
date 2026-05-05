@@ -27,7 +27,7 @@ PR [#55](https://github.com/Zenoffice-co-ltd/AI_RPG/pull/55) (commit `a2f8bdf`) 
 
 | 領域 | パッチ前 | パッチ後 |
 |---|---|---|
-| `promptVersion` | `compile-scenario@2026-05-04.v1.staffing-reference-adecco-v21` | `compile-scenario@2026-05-06.v3.staffing-reference-adecco-v21-quality-2` |
+| `promptVersion` | `compile-scenario@2026-05-04.v1.staffing-reference-adecco-v21` | `compile-scenario@2026-05-06.v3.1.staffing-reference-adecco-v21-quality-2-anchor` |
 | `guardrailVersion` | `gv-think-fast-v1-2026-05-04` | `gv-think-fast-v3-2026-05-06` |
 | 「よくご存じですね」発火 | 1 domain term + 枕詞でも発火 | **2+ domain terms + 業務負荷/人材像/定着 接続**だけ |
 | 「複合質問なので」のメタ前置き | 出る | 禁止 |
@@ -51,11 +51,11 @@ node scripts/grok-voice-v21-prod-smoke.mjs
 ```
 [smoke] /api/v3/session → 200
 [smoke] scenarioId: staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21
-[smoke] promptVersion: compile-scenario@2026-05-06.v3.staffing-reference-adecco-v21-quality-2
+[smoke] promptVersion: compile-scenario@2026-05-06.v3.1.staffing-reference-adecco-v21-quality-2-anchor
 [smoke] PASS — production deploy serves v2.1 instructions.
 ```
 
-`promptVersion` が `v3.staffing-reference-adecco-v21-quality-2` で終わっていない場合、デプロイがまだ反映されていない。**ここで止まったら以降をやらない**。
+`promptVersion` が `compile-scenario@2026-05-06.v3` で始まっていない場合、デプロイがまだ反映されていない。**ここで止まったら以降をやらない**。
 
 ### 2.2 ブラウザ準備
 
