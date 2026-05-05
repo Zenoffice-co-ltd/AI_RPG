@@ -370,7 +370,7 @@
   border-radius: 999px;
   background: var(--bubble-user-bg);
   padding: 10px 25px;
-  text-align: center;
+  text-align: left;
 }
 
 .message-row--system {

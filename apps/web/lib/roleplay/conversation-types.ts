@@ -29,6 +29,11 @@ export type TranscriptMessage = {
   createdAt: number;
   clientMessageId?: string | undefined;
   sdkMessageId?: string | undefined;
+  // Strictly monotonic insertion sequence. Assigned by the reducer on append.
+  // Used as the primary sort key so transcript order tracks event-arrival
+  // order rather than wall-clock createdAt (which can collide or arrive
+  // out-of-order between user STT completion and assistant response.created).
+  seq?: number | undefined;
 };
 
 export type UseRoleplayConversationReturn = {

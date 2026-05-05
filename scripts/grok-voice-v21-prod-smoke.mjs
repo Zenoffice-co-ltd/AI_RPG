@@ -91,11 +91,16 @@ if (body.scenarioId !== "staffing_order_hearing_adecco_manufacturer_busy_manager
 }
 
 // 2. v2.1 sections + housing-equipment marker + earned-reveal phrases
+//    (v2.1 quality patch — 2026-05-05 added Tier ladder, No Stock Suffix,
+//     Personal Smalltalk Deflect, Voice-Friendly Phrasing.)
 const required = [
   "v2.1 Customer Attitude",
   "v2.1 Answer Budget",
   "v2.1 Housing Equipment Manufacturer Domain",
   "v2.1 Earned Reveal Policy",
+  "v2.1 No Stock Suffix",
+  "v2.1 Personal Smalltalk Deflect",
+  "v2.1 Voice-Friendly Phrasing",
   "Pronunciation Guide",
   "住宅設備メーカー",
   "よくご存じですね",
@@ -118,6 +123,7 @@ if (!(kb < guide && guide < guard)) {
 }
 
 // 4. Required v21 vocabulary in Pronunciation Guide
+//    (v2.1 quality patch added: 見積もり補助 / 夕方五時三十分 / 朝八時四十五分)
 const requiredVocab = [
   "受発注",
   "納期調整",
@@ -128,6 +134,9 @@ const requiredVocab = [
   "職場見学",
   "CP",
   "SK",
+  "見積もり補助",
+  "夕方五時三十分",
+  "朝八時四十五分",
 ];
 for (const term of requiredVocab) {
   if (!body.instructions.includes(`「${term}」`)) {

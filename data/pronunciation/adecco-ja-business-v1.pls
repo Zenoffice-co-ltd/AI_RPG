@@ -119,6 +119,45 @@
     <grapheme>見積</grapheme>
     <alias>ミツモリ</alias>
   </lexeme>
+  <!-- v2.1 quality patch (2026-05-05): voice-friendly surface forms.
+       Placed early in the lexicon so the relevance-filter (maxEntries=80)
+       keeps them when joined-text matches exceed the cap. -->
+  <lexeme>
+    <grapheme>見積もり補助</grapheme>
+    <alias>ミツモリホジョ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>見積もりの補助</grapheme>
+    <alias>ミツモリノホジョ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>施工日に合わせて</grapheme>
+    <alias>セコウビニアワセテ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>施工日に間に合うように</grapheme>
+    <alias>セコウビニマニアウヨウニ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>施工予定日</grapheme>
+    <alias>セコウヨテイビ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>夕方五時三十分</grapheme>
+    <alias>ユウガタゴジサンジュップン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>午後五時三十分</grapheme>
+    <alias>ゴゴゴジサンジュップン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>朝八時四十五分</grapheme>
+    <alias>アサハチジヨンジュウゴフン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>午前八時四十五分</grapheme>
+    <alias>ゴゼンハチジヨンジュウゴフン</alias>
+  </lexeme>
   <!-- Manual orb v13 (2026-05-04): housing-equipment manufacturer × staffing
        order-hearing v2.1. Force readings for product/operation terms that TTS
        commonly mispronounces, plus internal staffing acronyms. -->
