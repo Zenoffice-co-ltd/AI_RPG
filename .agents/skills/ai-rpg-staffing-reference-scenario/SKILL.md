@@ -48,6 +48,62 @@ Use `scripts/grok-voice-v21-voice-e2e.ts --limit 5` for fixed-WAV audio-path
 evidence. It validates STT and assistant transcript separately and writes
 evidence under `out/grok_voice_v21_voice_e2e/<timestamp>/`.
 
+### Grok Voice v2.1 DOD Closure Checklist
+
+When the user asks to "complete DOD", "deploy", "create PR", or "merge to main"
+for Grok Voice v2.1, keep the implementation and release loops separate:
+
+1. Implement on a `codex/` branch and preserve unrelated untracked files such as
+   `out/` and temporary prompt files.
+2. Run local gates:
+   - `corepack pnpm -r typecheck`
+   - `corepack pnpm -r test`
+   - `corepack pnpm exec tsx scripts/check-grok-voice-e2e-matrix.ts`
+3. For risky prompt/runtime changes, run focused E2E first, then full E2E:
+   - focused: `corepack pnpm exec tsx scripts/grok-voice-v21-scenario-e2e.ts --cases 19,20,21,22,23,24 --rounds 2 --critical-rounds 3`
+   - full: `corepack pnpm exec tsx scripts/grok-voice-v21-scenario-e2e.ts --rounds 2 --critical-rounds 3`
+4. Create a PR, include VAD exclusion, facts unchanged, default production
+   impact, rollback, and exact evidence paths.
+5. Merge to `main`, deploy App Hosting, then run production smoke.
+6. Comment the final DOD evidence on the PR.
+
+Runtime guardrail patching rules:
+
+- Bump `GROK_VOICE_GUARDRAIL_VERSION` whenever runtime behavior changes.
+- Bump only `promptVersion` metadata in
+  `data/generated/scenarios/staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21.assets.json`;
+  do not rewrite hidden facts or reveal rules for DOD closure.
+- Update `scripts/grok-voice-v21-prod-smoke.mjs` and the runbooks to expect the
+  new prompt/guardrail versions.
+- Keep correction behavior short and explicit. For numeric/condition
+  misrecognition, assert "does not agree with the wrong value" with forbidden
+  terms, not just sentence count.
+
+Known Grok Voice v2.1 evidence semantics:
+
+- Full scenario E2E PASS is the text-quality release gate.
+- New numeric/condition cases `case19` through `case24` are critical and should
+  be called out explicitly.
+- Voice E2E `--limit 5` remains a harness/evidence gate unless the user promotes
+  it to a 5/5 quality gate. STT drift is reported as quality follow-up, not as
+  harness failure.
+- xAI `429` during E2E is not product behavior. Wait after balance top-up or
+  rate limiting, then rerun focused cases before rerunning the full suite.
+
+Production smoke on Windows:
+
+- Prefer direct Node for the `.mjs` smoke after setting `DEMO_ACCESS_TOKEN`:
+
+```powershell
+$token = gcloud secrets versions access latest --secret=demo-access-token --project=adecco-mendan
+$env:DEMO_ACCESS_TOKEN = $token.Trim()
+node scripts/grok-voice-v21-prod-smoke.mjs
+```
+
+- If `tsx` prints PASS but exits with `Assertion failed: !(handle->flags &
+  UV_HANDLE_CLOSING)`, rerun with direct `node` and report the direct `node`
+  result.
+
 ## Expected Evidence (Auto Gate v2 — 2026-04-26 onwards)
 
 - Generated scenario pack and assets under `data/generated/scenarios/`.
