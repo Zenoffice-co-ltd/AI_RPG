@@ -210,7 +210,36 @@ jsonPayload.scope=~"^(grokVoice|haikuFish)\\."
 | `grokVoice.stt` | client → `/api/v3/event` (kind=stt.completed) | Per user utterance | xAI STT result text length |
 | `grokVoice.stt.skipped` | client → `/api/v3/event` (kind=stt.skipped) | Per skip | Empty/silent STT detection |
 | `grokVoice.mic.state` | client → `/api/v3/event` (kind=mic.state.changed) | Per state change | idle / listening / speaking transitions |
-| `grokVoice.clientEvent` | All client `/event` posts | Yes | Uniform audit trail (ws.connected, ws.error, audio.queue.error, etc.) |
+| `grokVoice.clientEvent` | All client `/event` posts | Yes | Uniform audit trail (ws.connected, ws.error, audio.queue.error, ws.send.*, session.ready, barge_in.*, audio.queue.flushed, etc.) |
+
+Transcript previews are disabled in production by default. Only set
+`GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` for a demo debugging window,
+and keep `GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_MAX_CHARS` bounded (default 200).
+When disabled, `/api/v3/event` must strip `sttTextPreview`,
+`userTextPreview`, and `agentTextPreview` even if the browser sends them. Never
+log full prompts, instructions, or knowledge base text.
+
+## Grok Voice v2.1 PR58 regression gates
+
+Use these after changing `/api/v3/*`, `grok-voice-realtime.ts`,
+`useGrokVoiceConversation.ts`, runtime guardrails, or v2.1 scenario behavior:
+
+```bash
+pnpm exec tsx scripts/check-grok-voice-e2e-matrix.ts
+pnpm exec tsx scripts/grok-voice-v21-scenario-e2e.ts --rounds 2 --critical-rounds 3
+pnpm exec tsx scripts/grok-voice-v21-voice-e2e.ts --limit 5
+pnpm exec tsx scripts/grok-voice-v21-prod-smoke.mjs
+```
+
+PR58 added `docs/GROK_VOICE_V21_E2E_MATRIX.md` as the coverage map. The source
+of truth for text scenario cases is `scripts/grok-voice-v21-e2e-cases.ts`.
+The voice harness writes `summary.json` and `transcript.md` under
+`out/grok_voice_v21_voice_e2e/<timestamp>/`; keep those as evidence, not source.
+
+Do not change VAD A/B, `GROK_VOICE_TURN_DETECTION_THRESHOLD`,
+`GROK_VOICE_TURN_DETECTION_SILENCE_MS`, or
+`GROK_VOICE_TURN_DETECTION_PREFIX_PADDING_MS` as part of v2.1 quality patches
+unless the task explicitly scopes VAD work.
 
 ### Haiku Fish scope catalog
 

@@ -4,7 +4,11 @@ import {
   hasDemoApiAccess,
   validateSameOrigin,
 } from "@/lib/roleplay/auth";
-import { isGrokVoiceRoleplayEnabled } from "@/lib/roleplay/server-env";
+import {
+  getGrokVoiceTranscriptPreviewMaxChars,
+  isGrokVoiceRoleplayEnabled,
+  isGrokVoiceTranscriptPreviewLoggingEnabled,
+} from "@/lib/roleplay/server-env";
 import {
   logGrokVoiceClientEvent,
   logGrokVoiceMicState,
@@ -28,7 +32,16 @@ const allowedKinds = [
   "turn.completed",
   "turn.error",
   "audio.queue.error",
+  "audio.queue.flushed",
   "session.cancelled",
+  "ws.send.queued",
+  "ws.send.flushed",
+  "ws.send.failed",
+  "session.ready",
+  "session.prime.failed",
+  "barge_in.detected",
+  "barge_in.cancel_sent",
+  "barge_in.stale_delta_discarded",
 ] as const;
 
 const requestSchema = z.object({
@@ -55,17 +68,7 @@ export function POST(request: NextRequest) {
       if (!parsed.success) {
         return NextResponse.json({ error: SAFE_ERROR }, { status: 400 });
       }
-      // Trim individual detail values to keep log lines bounded.
-      const trimmedDetails: Record<string, unknown> = {};
-      if (parsed.data.details) {
-        for (const [key, value] of Object.entries(parsed.data.details)) {
-          if (typeof value === "string" && value.length > 200) {
-            trimmedDetails[key] = `${value.slice(0, 200)}…`;
-          } else {
-            trimmedDetails[key] = value;
-          }
-        }
-      }
+      const trimmedDetails = sanitizeEventDetails(parsed.data.details ?? {});
       const sessionId = parsed.data.sessionId ?? null;
       const kind = parsed.data.kind;
       const ip = resolveClientIp(request);
@@ -86,12 +89,16 @@ export function POST(request: NextRequest) {
       // transitions (#4) all surface as first-class log scopes.
       switch (kind) {
         case "stt.completed": {
+          const sttTextPreview = stringOrUndefined(
+            trimmedDetails["sttTextPreview"]
+          );
           logGrokVoiceStt({
             sessionId,
             turnIndex: numberOrNull(trimmedDetails["turnIndex"]),
             textLen: numberOr(trimmedDetails["textLen"], 0),
             confidence: numberOrNull(trimmedDetails["confidence"]),
             vendorMs: numberOrNull(trimmedDetails["vendorMs"]),
+            ...(sttTextPreview ? { sttTextPreview } : {}),
           });
           break;
         }
@@ -114,6 +121,12 @@ export function POST(request: NextRequest) {
         }
         case "turn.completed": {
           if (sessionId) {
+            const userTextPreview = stringOrUndefined(
+              trimmedDetails["userTextPreview"]
+            );
+            const agentTextPreview = stringOrUndefined(
+              trimmedDetails["agentTextPreview"]
+            );
             logGrokVoiceTurnMetrics({
               sessionId,
               turnIndex: numberOr(trimmedDetails["turnIndex"], 0),
@@ -127,6 +140,8 @@ export function POST(request: NextRequest) {
               doneMs: numberOrNull(trimmedDetails["doneMs"]),
               audioBytes: numberOr(trimmedDetails["audioBytes"], 0),
               error: stringOrNull(trimmedDetails["error"]),
+              ...(userTextPreview ? { userTextPreview } : {}),
+              ...(agentTextPreview ? { agentTextPreview } : {}),
               provenance: {
                 promptVersion: stringOr(
                   trimmedDetails["promptVersion"],
@@ -189,4 +204,51 @@ function stringOr(value: unknown, fallback: string): string {
 }
 function stringOrNull(value: unknown): string | null {
   return typeof value === "string" ? value : null;
+}
+function stringOrUndefined(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+const TRANSCRIPT_PREVIEW_KEYS = new Set([
+  "sttTextPreview",
+  "userTextPreview",
+  "agentTextPreview",
+]);
+
+const NEVER_LOG_DETAIL_KEYS = new Set([
+  "prompt",
+  "instructions",
+  "knowledgeBase",
+  "knowledgeBaseText",
+  "agentSystemPrompt",
+]);
+
+function sanitizeEventDetails(details: Record<string, unknown>) {
+  const previewEnabled = isGrokVoiceTranscriptPreviewLoggingEnabled();
+  const previewMaxChars = getGrokVoiceTranscriptPreviewMaxChars();
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(details)) {
+    if (NEVER_LOG_DETAIL_KEYS.has(key)) continue;
+    if (TRANSCRIPT_PREVIEW_KEYS.has(key)) {
+      if (!previewEnabled || typeof value !== "string") continue;
+      sanitized[key] = buildTranscriptPreview(value, previewMaxChars);
+      continue;
+    }
+    if (typeof value === "string" && value.length > 200) {
+      sanitized[key] = `${value.slice(0, 200)}…`;
+    } else {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
+function buildTranscriptPreview(value: string, maxChars: number) {
+  return redactTranscriptPreview(value).slice(0, maxChars);
+}
+
+function redactTranscriptPreview(value: string) {
+  // Dedicated hook for future PII redaction. Today we only normalize
+  // whitespace so structured logs stay compact and queryable.
+  return value.replace(/\s+/g, " ").trim();
 }

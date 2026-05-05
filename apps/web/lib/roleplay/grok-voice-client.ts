@@ -27,7 +27,16 @@ export type GrokVoiceEventKind =
   | "turn.completed"
   | "turn.error"
   | "audio.queue.error"
-  | "session.cancelled";
+  | "audio.queue.flushed"
+  | "session.cancelled"
+  | "ws.send.queued"
+  | "ws.send.flushed"
+  | "ws.send.failed"
+  | "session.ready"
+  | "session.prime.failed"
+  | "barge_in.detected"
+  | "barge_in.cancel_sent"
+  | "barge_in.stale_delta_discarded";
 
 export function postGrokVoiceEvent(
   kind: GrokVoiceEventKind,

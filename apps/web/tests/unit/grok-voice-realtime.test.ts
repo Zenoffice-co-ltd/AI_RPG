@@ -17,6 +17,7 @@ class FakeWebSocket {
   onclose: ((event: CloseEvent) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
   sent: string[] = [];
+  throwOnSend = false;
 
   constructor(url: string | URL, protocols?: string | string[]) {
     this.url = typeof url === "string" ? url : url.toString();
@@ -25,6 +26,9 @@ class FakeWebSocket {
   }
 
   send(data: string) {
+    if (this.throwOnSend) {
+      throw new Error("send boom");
+    }
     this.sent.push(data);
   }
 
@@ -45,6 +49,17 @@ class FakeWebSocket {
 }
 
 const FakeWebSocketCtor = FakeWebSocket as unknown as typeof WebSocket;
+const SESSION_UPDATE = {
+  voice: "rex",
+  instructions: "You are a roleplay agent.",
+  audio: { inputFormat: "audio/pcm", outputFormat: "audio/pcm", sampleRate: 24_000 },
+  turn_detection: {
+    type: "server_vad" as const,
+    threshold: 0.72,
+    silence_duration_ms: 650,
+    prefix_padding_ms: 333,
+  },
+};
 
 afterEach(() => {
   sockets.length = 0;
@@ -72,17 +87,7 @@ describe("GrokVoiceRealtime", () => {
       ephemeralToken: "t",
       onMessage: () => undefined,
       onOpen: () => {
-        realtime.sendSessionUpdate({
-          voice: "rex",
-          instructions: "You are a roleplay agent.",
-          audio: { inputFormat: "audio/pcm", outputFormat: "audio/pcm", sampleRate: 24_000 },
-          turn_detection: {
-            type: "server_vad",
-            threshold: 0.72,
-            silence_duration_ms: 650,
-            prefix_padding_ms: 333,
-          },
-        });
+        realtime.sendSessionUpdate(SESSION_UPDATE);
       },
       WebSocketCtor: FakeWebSocketCtor,
     });
@@ -126,6 +131,7 @@ describe("GrokVoiceRealtime", () => {
     });
     realtime.open();
     sockets[0]!.open();
+    realtime.sendSessionUpdate(SESSION_UPDATE);
     realtime.sendAssistantHistory("お時間ありがとうございます。");
     const sent = sockets[0]!.sent.map((s) => JSON.parse(s)) as Array<{
       type: string;
@@ -146,15 +152,22 @@ describe("GrokVoiceRealtime", () => {
     });
     realtime.open();
     sockets[0]!.open();
+    realtime.sendSessionUpdate(SESSION_UPDATE);
+    realtime.sendAssistantHistory("お時間ありがとうございます。");
     realtime.sendUserText("募集背景を教えてください");
     const sent = sockets[0]!.sent.map((s) => JSON.parse(s)) as Array<{
       type: string;
       item?: { role?: string; content?: Array<{ type: string; text: string }> };
     }>;
-    expect(sent[0]!.type).toBe("conversation.item.create");
-    expect(sent[0]!.item!.role).toBe("user");
-    expect(sent[0]!.item!.content?.[0]?.text).toBe("募集背景を教えてください");
-    expect(sent[1]!.type).toBe("response.create");
+    const userCreate = sent.find(
+      (payload) =>
+        payload.type === "conversation.item.create" &&
+        payload.item?.role === "user"
+    );
+    expect(userCreate?.item!.content?.[0]?.text).toBe(
+      "募集背景を教えてください"
+    );
+    expect(sent.at(-1)!.type).toBe("response.create");
   });
 
   it("parses and forwards typed server events", () => {
@@ -186,9 +199,79 @@ describe("GrokVoiceRealtime", () => {
     });
     realtime.open();
     sockets[0]!.open();
+    realtime.sendSessionUpdate(SESSION_UPDATE);
+    realtime.sendAssistantHistory("お時間ありがとうございます。");
     realtime.appendAudio("BASE64DATA");
-    const sent = JSON.parse(sockets[0]!.sent[0]!) as { type: string; audio: string };
-    expect(sent.type).toBe("input_audio_buffer.append");
-    expect(sent.audio).toBe("BASE64DATA");
+    const sent = sockets[0]!.sent
+      .map((payload) => JSON.parse(payload) as { type: string; audio?: string })
+      .find((payload) => payload.type === "input_audio_buffer.append");
+    expect(sent).toBeDefined();
+    expect(sent!.type).toBe("input_audio_buffer.append");
+    expect(sent!.audio).toBe("BASE64DATA");
+  });
+
+  it("queues session.update before socket open and flushes it after open", () => {
+    const telemetry: string[] = [];
+    const realtime = new GrokVoiceRealtime({
+      url: "wss://example",
+      ephemeralToken: "t",
+      onMessage: () => undefined,
+      onTelemetry: (event) => telemetry.push(event.kind),
+      WebSocketCtor: FakeWebSocketCtor,
+    });
+    realtime.open();
+    realtime.sendSessionUpdate(SESSION_UPDATE);
+    expect(sockets[0]!.sent).toHaveLength(0);
+    sockets[0]!.open();
+    expect(JSON.parse(sockets[0]!.sent[0]!).type).toBe("session.update");
+    expect(telemetry).toContain("ws.send.queued");
+    expect(telemetry).toContain("ws.send.flushed");
+  });
+
+  it("gates audio before ready and flushes it after assistant history primes the session", () => {
+    const telemetry: string[] = [];
+    const realtime = new GrokVoiceRealtime({
+      url: "wss://example",
+      ephemeralToken: "t",
+      onMessage: () => undefined,
+      onTelemetry: (event) => telemetry.push(event.kind),
+      WebSocketCtor: FakeWebSocketCtor,
+    });
+    realtime.open();
+    sockets[0]!.open();
+    realtime.appendAudio("EARLY_AUDIO");
+    expect(sockets[0]!.sent).toHaveLength(0);
+    realtime.sendSessionUpdate(SESSION_UPDATE);
+    expect(sockets[0]!.sent.map((s) => JSON.parse(s).type)).toEqual([
+      "session.update",
+    ]);
+    realtime.sendAssistantHistory("お時間ありがとうございます。");
+    expect(sockets[0]!.sent.map((s) => JSON.parse(s).type)).toEqual([
+      "session.update",
+      "conversation.item.create",
+      "input_audio_buffer.append",
+    ]);
+    expect(realtime.isReady()).toBe(true);
+    expect(telemetry).toContain("session.ready");
+  });
+
+  it("emits send failure telemetry when socket.send throws", () => {
+    const telemetry: Array<{ kind: string; details?: Record<string, unknown> }> = [];
+    const errors: string[] = [];
+    const realtime = new GrokVoiceRealtime({
+      url: "wss://example",
+      ephemeralToken: "t",
+      onMessage: () => undefined,
+      onTelemetry: (event) => telemetry.push(event),
+      onError: (error) => errors.push(error.message),
+      WebSocketCtor: FakeWebSocketCtor,
+    });
+    realtime.open();
+    sockets[0]!.open();
+    sockets[0]!.throwOnSend = true;
+    realtime.sendSessionUpdate(SESSION_UPDATE);
+    expect(telemetry.some((event) => event.kind === "ws.send.failed")).toBe(true);
+    expect(errors).toEqual(["send boom"]);
+    expect(realtime.getReadyState()).toBe("error");
   });
 });
