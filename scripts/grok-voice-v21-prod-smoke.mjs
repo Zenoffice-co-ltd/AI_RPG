@@ -116,9 +116,9 @@ const required = [
   "現場確認が必要です",
 ];
 
-// 2b. promptVersion must reflect the v3.x hardening line and PR58 runtime
+// 2b. promptVersion must reflect the v3.x hardening line and PR58 DOD runtime
 // contract metadata bump.
-const expectedPromptVersionPrefix = "compile-scenario@2026-05-06.v3.2";
+const expectedPromptVersionPrefix = "compile-scenario@2026-05-06.v3.7";
 if (
   typeof body.promptVersion !== "string" ||
   !body.promptVersion.startsWith(expectedPromptVersionPrefix)
@@ -133,7 +133,7 @@ for (const s of required) {
   }
 }
 
-const expectedGuardrailVersion = "gv-think-fast-v4-2026-05-06";
+const expectedGuardrailVersion = "gv-think-fast-v4.5-2026-05-06";
 if (body.guardrailVersion !== expectedGuardrailVersion) {
   failures.push(
     `guardrailVersion mismatch: ${body.guardrailVersion} (expected ${expectedGuardrailVersion})`

@@ -27,8 +27,8 @@ PR [#55](https://github.com/Zenoffice-co-ltd/AI_RPG/pull/55) (commit `a2f8bdf`) 
 
 | 領域 | パッチ前 | パッチ後 |
 |---|---|---|
-| `promptVersion` | `compile-scenario@2026-05-04.v1.staffing-reference-adecco-v21` | `compile-scenario@2026-05-06.v3.2.staffing-reference-adecco-v21-pr58-runtime-contract` |
-| `guardrailVersion` | `gv-think-fast-v1-2026-05-04` | `gv-think-fast-v4-2026-05-06` |
+| `promptVersion` | `compile-scenario@2026-05-04.v1.staffing-reference-adecco-v21` | `compile-scenario@2026-05-06.v3.7.staffing-reference-adecco-v21-pr58-dod-contract` |
+| `guardrailVersion` | `gv-think-fast-v1-2026-05-04` | `gv-think-fast-v4.5-2026-05-06` |
 | 「よくご存じですね」発火 | 1 domain term + 枕詞でも発火 | **2+ domain terms + 業務負荷/人材像/定着 接続**だけ |
 | 「複合質問なので」のメタ前置き | 出る | 禁止 |
 | 「何か他に確認したい点はありますか」末尾 | 頻出 | 禁止 |
@@ -55,7 +55,7 @@ node scripts/grok-voice-v21-prod-smoke.mjs
 [smoke] PASS — production deploy serves v2.1 instructions.
 ```
 
-`promptVersion` が `compile-scenario@2026-05-06.v3.2` で始まらない、または `guardrailVersion` が `gv-think-fast-v4-2026-05-06` でない場合、デプロイがまだ反映されていない。**ここで止まったら以降をやらない**。
+`promptVersion` が `compile-scenario@2026-05-06.v3.7` で始まらない、または `guardrailVersion` が `gv-think-fast-v4.5-2026-05-06` でない場合、デプロイがまだ反映されていない。**ここで止まったら以降をやらない**。
 
 ### 2.1.1 PR58 追加自動チェック
 
