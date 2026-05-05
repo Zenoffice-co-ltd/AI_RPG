@@ -197,9 +197,20 @@ const CASES: CaseDef[] = [
     ],
     passConditions: [
       {
+        // v2.1 quality patch: accept all four Tier-2 praise variants the new
+        // prompt allows (the previous short "その理解で近い" still matches as a
+        // substring of "その理解でかなり近い"... wait, it doesn't — the new
+        // phrase has "かなり" between で and 近い. Enumerate explicitly.)
         kind: "must_contain_any",
-        terms: ["よくご存じ", "その理解で近い", "おっしゃる通り"],
-        reason: "earned-reveal の同調フレーズが出る",
+        terms: [
+          "よくご存じ",
+          "その理解で近い",
+          "その理解でかなり近い",
+          "そこまで押さえていただける",
+          "まさにそのあたりが今回のポイント",
+          "おっしゃる通り",
+        ],
+        reason: "earned-reveal の同調フレーズが出る (Tier 2 4種 + legacy)",
       },
       {
         kind: "must_contain_any",
@@ -533,6 +544,225 @@ const CASES: CaseDef[] = [
       { kind: "max_sentences", max: 4, reason: "1〜3文" },
     ],
   },
+  // ---- v2.1 quality patch (manual-test findings) — Cases 12–16 ----
+  {
+    // Praise threshold: introducer phrase + only ONE domain term should land
+    // in Tier 1, not Tier 2. The model must NOT use a praise phrase here.
+    id: "case12_praise_threshold_medium_question",
+    label: "弱い仮説 (枕詞 + domain 1語) では praise を発火させない",
+    critical: true,
+    turns: [
+      {
+        role: "user",
+        text: "住宅設備メーカーの営業事務ですと、品番確認とか、どこが負荷ですか？",
+      },
+    ],
+    passConditions: [
+      {
+        // The 4 Tier-2 praise phrases (and the older fallback "おっしゃる通り")
+        // must NOT appear — the user named only one domain term.
+        kind: "must_not_contain_any",
+        terms: [
+          "よくご存じ",
+          "その理解で近い",
+          "その理解でかなり近い",
+          "そこまで押さえていただける",
+          "まさにそのあたりが今回のポイント",
+          "おっしゃる通り",
+        ],
+        reason: "Tier 1 (枕詞 + domain 1語) では praise を出さない",
+      },
+      {
+        // A single 品番-cluster mention may naturally extend to 製品コード /
+        // 仕様違い (those are the same cluster and the spec example allows
+        // them). Forbid only the cross-cluster jumps — namely the
+        // delivery-cluster (施工日 / 引渡し) and the channel-cluster
+        // (代理店 / 工務店). Those would constitute the "Tier 2 leak" the
+        // praise-threshold rule is meant to gate.
+        kind: "must_not_contain_any",
+        terms: ["施工日", "引渡し", "代理店", "工務店"],
+        reason: "Tier 1 では別クラスタの domain hidden facts を出さない",
+      },
+      {
+        kind: "must_contain_any",
+        terms: ["そうですね", "品番", "受発注", "納期調整", "あります"],
+        reason: "中立的な短答 (partial agreement) を返す",
+      },
+      { kind: "max_sentences", max: 3, reason: "1〜2文" },
+    ],
+  },
+  {
+    // No stock followup suffix across 4 sequential single-fact questions.
+    // We assert the ban on each assistant turn separately.
+    id: "case13_no_stock_followup_suffix",
+    label: "通常応答末尾に定型語尾を付けない",
+    critical: true,
+    turns: [
+      { role: "user", text: "人数は何名ですか？" },
+      { role: "user", text: "請求単価はいくらですか？" },
+      { role: "user", text: "業務時間は？" },
+      { role: "user", text: "在宅勤務の運用は？" },
+    ],
+    passConditions: [
+      {
+        kind: "must_not_contain_in_turn",
+        turnIndex: 0,
+        terms: [
+          "何か他に確認したい点",
+          "ご質問があればお答え",
+          "次にどの点",
+          "何か特に詳しく",
+        ],
+        reason: "turn0 (人数) の末尾に定型語尾を付けない",
+      },
+      {
+        kind: "must_not_contain_in_turn",
+        turnIndex: 1,
+        terms: [
+          "何か他に確認したい点",
+          "ご質問があればお答え",
+          "次にどの点",
+          "何か特に詳しく",
+        ],
+        reason: "turn1 (単価) の末尾に定型語尾を付けない",
+      },
+      {
+        kind: "must_not_contain_in_turn",
+        turnIndex: 2,
+        terms: [
+          "何か他に確認したい点",
+          "ご質問があればお答え",
+          "次にどの点",
+          "何か特に詳しく",
+        ],
+        reason: "turn2 (業務時間) の末尾に定型語尾を付けない",
+      },
+      {
+        kind: "must_not_contain_in_turn",
+        turnIndex: 3,
+        terms: [
+          "何か他に確認したい点",
+          "ご質問があればお答え",
+          "次にどの点",
+          "何か特に詳しく",
+        ],
+        reason: "turn3 (在宅) の末尾に定型語尾を付けない",
+      },
+    ],
+  },
+  {
+    // Personal smalltalk — model must deflect, not fabricate private life.
+    id: "case14_personal_smalltalk_deflect",
+    label: "個人的な雑談は作話せず本題に戻す",
+    critical: true,
+    turns: [
+      { role: "user", text: "ところで、休日は何されてるんですか？" },
+    ],
+    passConditions: [
+      {
+        kind: "must_not_contain_any",
+        terms: [
+          "家族と過ごし",
+          "趣味の時間",
+          "週末は",
+          "休日はゆっくり",
+          "過ごしています",
+        ],
+        reason: "私生活の作話を出さない",
+      },
+      {
+        kind: "must_contain_any",
+        terms: ["要件", "募集", "業務", "派遣要件", "本題", "営業事務"],
+        reason: "本題へ戻す合図を出す",
+      },
+      { kind: "max_sentences", max: 3, reason: "短く受け流す" },
+    ],
+  },
+  {
+    // Rapid-fire compound question — must not narrate ("複合質問なので") and
+    // must not dump hidden facts even after the redirect.
+    id: "case15_rapid_fire_no_meta_and_no_detail",
+    label: "複合質問でメタ表現せず hidden facts も出さない",
+    critical: true,
+    turns: [
+      {
+        role: "user",
+        text:
+          "業務内容と人数と単価と開始日と残業と決裁者と競合状況を全部教えてください。",
+      },
+    ],
+    passConditions: [
+      {
+        kind: "must_not_contain_any",
+        terms: [
+          "複合質問",
+          "複数の質問",
+          "一つずつお答え",
+          "次にどの点からお聞き",
+        ],
+        reason: "メタ的な前置きを出さない",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: [
+          "六月一日",
+          "6月1日",
+          "1750",
+          "1900",
+          "千七百五十",
+          "千九百",
+          "10から15",
+          "十から十五",
+          "現場課長",
+          // Also bar the業務 list dump in the redirect turn.
+          "受発注入力",
+          "在庫確認",
+          "見積もり補助",
+        ],
+        reason: "redirect ターンでは具体値も付随業務リストも出さない",
+      },
+      {
+        kind: "must_contain_any",
+        terms: [
+          "まずは業務内容から",
+          "業務内容を先に",
+          "まず業務内容",
+          "まず優先順位",
+          "項目が多いので",
+          "一度に全部",
+        ],
+        reason: "1論点に絞る redirect 合図を出す",
+      },
+      { kind: "max_sentences", max: 3, reason: "短く redirect" },
+    ],
+  },
+  {
+    // AI identity — stay in persona, no AI/Grok name, no stock suffix.
+    id: "case16_identity_no_stock_suffix",
+    label: "AI 自己認識質問でもペルソナを維持し定型語尾を付けない",
+    critical: true,
+    turns: [{ role: "user", text: "あなたはAIですか？" }],
+    passConditions: [
+      {
+        kind: "must_not_contain_any",
+        terms: [
+          "AI",
+          "Grok",
+          "アシスタント",
+          "言語モデル",
+          "何か他に確認したい点",
+          "ご質問があればお答え",
+        ],
+        reason: "AI を名乗らず、定型語尾も付けない",
+      },
+      {
+        kind: "must_contain_any",
+        terms: ["人事課", "営業事務", "弊社", "私"],
+        reason: "ペルソナを維持して返す",
+      },
+      { kind: "max_sentences", max: 3, reason: "1〜2文" },
+    ],
+  },
 ];
 
 // ---------------- Bundle + instructions ----------------
@@ -555,7 +785,8 @@ async function loadBundle(): Promise<GrokVoiceScenarioBundle> {
     scenarioId: assets.scenarioId,
     textNormalisationType: "system_prompt",
     referenceTexts: [assets.agentSystemPrompt, assets.knowledgeBaseText],
-    maxEntries: 40,
+    // Match production scenarioLoader.ts cap (v2.1 quality patch).
+    maxEntries: 80,
   });
   const sha = (s: string) => createHash("sha256").update(s).digest("hex");
   return {

@@ -81,15 +81,16 @@ export async function loadGrokVoiceScenarioBundle(): Promise<GrokVoiceScenarioBu
   // tokens that actually appear in the prompt or knowledge base. This keeps
   // Grok's instruction body small while overriding TTS readings for the
   // housing-equipment + staffing-acronym terms it tends to mispronounce.
-  // The v2.1 scenario hits ~28 lexemes (Adecco brand variants + staffing
-  // acronyms + housing-equipment terms); raise the cap to 40 so future
-  // additions still surface without truncating "職場見学" / "CP" / "SK" at
-  // the end of the lexicon.
+  // v2.1 quality patch (2026-05-05): bumped from 40 → 80 so the new
+  // 見積もり補助 / 朝八時四十五分 / 夕方五時三十分 / 施工日に合わせて lexemes
+  // (appended at the end of the PLS file) make it past the relevance-filter
+  // cap. Joined-text matches are ~196; 80 covers the priority acronyms,
+  // housing-equipment vocabulary, and the new voice-friendly time forms.
   const pronunciationGuide = await buildLivePronunciationGuide({
     scenarioId: assets.scenarioId,
     textNormalisationType: "system_prompt",
     referenceTexts: [assets.agentSystemPrompt, assets.knowledgeBaseText],
-    maxEntries: 40,
+    maxEntries: 80,
   });
 
   cached = {

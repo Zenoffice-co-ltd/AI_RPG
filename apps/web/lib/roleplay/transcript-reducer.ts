@@ -5,6 +5,10 @@ import type { TranscriptMessage } from "./conversation-types";
 const LOCAL_ECHO_DEDUPE_MS = 5_000;
 const AGENT_DEDUPE_MS = 180_000;
 const AGENT_COMPETING_FINAL_MS = 3_000;
+// v2.1 quality patch: a same-text user STT result that arrives within this
+// window of an existing user message is treated as a duplicate (e.g., a
+// re-fire from xAI on reconnect or transcript settle).
+const USER_STT_DEDUPE_MS = 1_500;
 
 export type TranscriptAction =
   | { type: "reset"; messages?: TranscriptMessage[] }
@@ -119,10 +123,66 @@ export function mergeMessages(
       continue;
     }
 
-    merged.push(nextMessage);
+    const userDuplicateIndex = findUserSttDuplicateIndex(merged, nextMessage);
+    if (userDuplicateIndex >= 0) {
+      const currentMessage = merged[userDuplicateIndex];
+      if (currentMessage) {
+        merged[userDuplicateIndex] = mergeMessage(currentMessage, nextMessage);
+      }
+      continue;
+    }
+
+    merged.push(assignSeq(nextMessage, merged));
   }
 
   return orderMessages(merged);
+}
+
+function assignSeq(
+  message: TranscriptMessage,
+  existing: TranscriptMessage[]
+): TranscriptMessage {
+  if (typeof message.seq === "number") {
+    return message;
+  }
+  let max = 0;
+  for (const candidate of existing) {
+    if (typeof candidate.seq === "number" && candidate.seq > max) {
+      max = candidate.seq;
+    }
+  }
+  return { ...message, seq: max + 1 };
+}
+
+function findUserSttDuplicateIndex(
+  messages: TranscriptMessage[],
+  incoming: TranscriptMessage
+) {
+  // Only dedup SDK-sourced user STT events (not local echoes — those have
+  // their own dedup path via findLocalEchoIndex). The earlier sdkMessageId
+  // exact-match step already collapses re-fires that share an ID; this guards
+  // against the harder case where xAI re-emits the same transcript with a
+  // different ID after a brief reconnect or final-settlement.
+  if (incoming.role !== "user" || incoming.source !== "sdk") {
+    return -1;
+  }
+  const incomingText = normalizeComparableText(incoming.text);
+  if (incomingText.length === 0) {
+    return -1;
+  }
+  return messages.findIndex((message) => {
+    if (message.role !== "user" || message.source !== "sdk") {
+      return false;
+    }
+    if (message.sdkMessageId === incoming.sdkMessageId) {
+      // Already handled by the earlier sdkMessageId match path.
+      return false;
+    }
+    if (Math.abs(incoming.createdAt - message.createdAt) > USER_STT_DEDUPE_MS) {
+      return false;
+    }
+    return normalizeComparableText(message.text) === incomingText;
+  });
 }
 
 function findCanonicalAgentSdkIndex(
@@ -244,6 +304,21 @@ export function orderMessages(messages: TranscriptMessage[]) {
     if (left.createdAt !== right.createdAt) {
       return left.createdAt - right.createdAt;
     }
+    // Tie-break on the monotonic insertion sequence assigned by the reducer.
+    // This keeps user STT and assistant response.created in event-arrival
+    // order even when their wall-clock createdAt collides on the same ms.
+    // (v2.1 quality patch — manual-test fix.)
+    const leftSeq = left.seq;
+    const rightSeq = right.seq;
+    if (typeof leftSeq === "number" && typeof rightSeq === "number") {
+      if (leftSeq !== rightSeq) {
+        return leftSeq - rightSeq;
+      }
+    } else if (typeof leftSeq === "number") {
+      return -1;
+    } else if (typeof rightSeq === "number") {
+      return 1;
+    }
     return left.id.localeCompare(right.id);
   });
 }
@@ -259,6 +334,9 @@ function mergeMessage(
     clientMessageId: current.clientMessageId ?? incoming.clientMessageId,
     sdkMessageId: current.sdkMessageId ?? incoming.sdkMessageId,
     createdAt: Math.min(current.createdAt, incoming.createdAt),
+    // Preserve the seq the message had when it was first inserted so an
+    // interim → final upgrade never shifts its position in the transcript.
+    seq: current.seq ?? incoming.seq,
   };
 }
 
@@ -272,6 +350,7 @@ function replaceAgentMessage(
     id: current.id,
     clientMessageId: current.clientMessageId ?? incoming.clientMessageId,
     createdAt: Math.min(current.createdAt, incoming.createdAt),
+    seq: current.seq ?? incoming.seq,
   };
 }
 

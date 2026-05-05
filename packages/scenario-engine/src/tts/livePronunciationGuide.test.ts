@@ -31,6 +31,26 @@ describe("buildLivePronunciationGuide", () => {
     expect(guide).toContain("「SK」");
   });
 
+  it("includes v2.1 quality-patch lexemes (見積もり補助 / 時刻表現 / 施工日に合わせて) when referenced", async () => {
+    const guide = await buildLivePronunciationGuide({
+      scenarioId:
+        "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21",
+      textNormalisationType: "system_prompt",
+      referenceTexts: [
+        "見積もり補助も付随します。施工日に合わせて調整する必要があります。平日は朝八時四十五分から夕方五時三十分です。",
+      ],
+    });
+
+    expect(guide).toContain("「見積もり補助」");
+    expect(guide).toContain("ミツモリホジョ");
+    expect(guide).toContain("「施工日に合わせて」");
+    expect(guide).toContain("セコウビニアワセテ");
+    expect(guide).toContain("「夕方五時三十分」");
+    expect(guide).toContain("ユウガタゴジサンジュップン");
+    expect(guide).toContain("「朝八時四十五分」");
+    expect(guide).toContain("アサハチジヨンジュウゴフン");
+  });
+
   it("builds an accounting pronunciation guide from the local PLS for system_prompt mode", async () => {
     const guide = await buildLivePronunciationGuide({
       scenarioId: "accounting_clerk_enterprise_ap_busy_manager_medium",
