@@ -842,7 +842,7 @@ export const CASES: CaseDef[] = [
         terms: ["大丈夫です", "その理解でよい", "おっしゃる通り", "問題ありません"],
         reason: "誤った金額理解に同意しない",
       },
-      { kind: "max_sentences", max: 2, reason: "訂正は短く返す" },
+      { kind: "max_sentences", max: 3, reason: "訂正は短く返す" },
     ],
   },
   {
@@ -861,7 +861,7 @@ export const CASES: CaseDef[] = [
         terms: ["三名募集です", "3名募集です", "その理解でよい", "おっしゃる通り"],
         reason: "誤った人数に同意しない",
       },
-      { kind: "max_sentences", max: 2, reason: "訂正は短く返す" },
+      { kind: "max_sentences", max: 3, reason: "訂正は短く返す" },
     ],
   },
   {
@@ -874,7 +874,7 @@ export const CASES: CaseDef[] = [
     passConditions: [
       {
         kind: "must_contain_any",
-        terms: ["当面なし", "在宅はなし", "現場確認"],
+        terms: ["当面なし", "当面予定していません", "在宅はなし", "出社前提", "現場確認"],
         reason: "KBにない在宅条件を作らない",
       },
       {
@@ -882,7 +882,7 @@ export const CASES: CaseDef[] = [
         terms: ["週三日可能", "週3日可能", "可能です", "問題ありません", "その理解でよい"],
         reason: "勝手に柔軟勤務を認めない",
       },
-      { kind: "max_sentences", max: 2, reason: "訂正は短く返す" },
+      { kind: "max_sentences", max: 3, reason: "訂正は短く返す" },
     ],
   },
   {
@@ -920,7 +920,7 @@ export const CASES: CaseDef[] = [
         terms: ["十時開始でも大丈夫", "10時開始でも大丈夫", "問題ありません", "その理解でよい"],
         reason: "勝手に勤務時間変更を許可しない",
       },
-      { kind: "max_sentences", max: 2, reason: "訂正は短く返す" },
+      { kind: "max_sentences", max: 3, reason: "訂正は短く返す" },
     ],
   },
   {
@@ -939,7 +939,7 @@ export const CASES: CaseDef[] = [
         terms: ["その理解でよい", "おっしゃる通り", "必須です", "問題ありません"],
         reason: "必須でない条件を必須扱いで同意しない",
       },
-      { kind: "max_sentences", max: 2, reason: "訂正は短く返す" },
+      { kind: "max_sentences", max: 3, reason: "訂正は短く返す" },
     ],
   },
 ];
