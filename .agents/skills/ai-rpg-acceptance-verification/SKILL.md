@@ -26,6 +26,52 @@ Use this skill when the job is to prove that the repo is shippable.
 5. When a legacy scenario fails during a new-scenario task, compare the relevant generated scenario/assets and live test definition before calling it a regression. If needed, use a temporary clean worktree at the pre-task baseline to establish causality.
 6. Record concrete evidence, not just that scripts exist.
 
+## Grok Voice v2.1 PR58+ Release DOD
+
+Use this subsection when validating, deploying, or closing follow-up work for
+Grok Voice v2.1 on the Adecco manufacturer scenario.
+
+Completion is not "PR merged" alone. Treat the release as done only after:
+
+1. PR is merged to `main` and the merge commit is known.
+2. App Hosting backend `adecco-roleplay` is deployed to project `adecco-mendan`.
+3. Production smoke passes against the hosted URL and reports the expected
+   `promptVersion`, `guardrailVersion`, model, voice, and VAD values.
+4. Scenario E2E full regression passes:
+   `corepack pnpm exec tsx scripts/grok-voice-v21-scenario-e2e.ts --rounds 2 --critical-rounds 3`.
+5. New numeric/condition correction cases `case19` through `case24` pass in
+   either the full run or a focused run.
+6. Results are recorded on the PR as a follow-up comment, including the E2E
+   evidence directory under `out/grok_voice_v21_e2e/<timestamp>/`.
+
+Grok Voice v2.1 scope locks:
+
+- VAD A/B is excluded unless explicitly requested.
+- Do not change `threshold`, `silence_duration_ms`, or `prefix_padding_ms`.
+- Do not change model, voice, or scenario facts.
+- Do not relax existing PR57 E2E expectations to hide regressions.
+
+Voice E2E gate:
+
+- `scripts/grok-voice-v21-voice-e2e.ts --limit 5` is currently a harness gate:
+  executable, evidence saved, clear pass/fail.
+- Do not claim it is a 5/5 quality PASS gate unless that has been explicitly
+  promoted in the task. STT drift such as `施工日→施工費` or `単価→短歌`
+  should be reported separately from harness breakage.
+
+xAI realtime failures:
+
+- `429` can be balance-related or transient rate limiting. After top-up, wait a
+  short interval and rerun a focused case before retrying the full regression.
+- If a run fails only from `429`, do not call it a product regression.
+
+Windows smoke note:
+
+- `corepack pnpm exec tsx scripts/grok-voice-v21-prod-smoke.mjs` can print PASS
+  and then exit non-zero on Windows due to a Node handle assertion. Re-run the
+  `.mjs` directly with `node scripts/grok-voice-v21-prod-smoke.mjs` and use the
+  direct `node` exit code as the smoke result.
+
 ## Representative Commands
 
 ```bash
