@@ -165,6 +165,41 @@
     <grapheme>受発注</grapheme>
     <alias>ジュハッチュウ</alias>
   </lexeme>
+  <!-- v2.1 hardening (2026-05-06): relocate compound 受発注 forms + 人事 family
+       into the housing-equipment cluster so they survive the maxEntries=80
+       relevance filter (originally appended at file end where they were dropped). -->
+  <lexeme>
+    <grapheme>受発注入力</grapheme>
+    <alias>ジュハッチュウニュウリョク</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>受発注業務</grapheme>
+    <alias>ジュハッチュウギョウム</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>受発注経験</grapheme>
+    <alias>ジュハッチュウケイケン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>人事</grapheme>
+    <alias>ジンジ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>人事課</grapheme>
+    <alias>ジンジカ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>人事課主任</grapheme>
+    <alias>ジンジカシュニン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>人事窓口</grapheme>
+    <alias>ジンジマドグチ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>人事主導</grapheme>
+    <alias>ジンジシュドウ</alias>
+  </lexeme>
   <lexeme>
     <grapheme>納期調整</grapheme>
     <alias>ノウキチョウセイ</alias>
@@ -718,10 +753,6 @@
     <alias>エイギョウブモン</alias>
   </lexeme>
   <lexeme>
-    <grapheme>受発注入力</grapheme>
-    <alias>ジュハッチュウニュウリョク</alias>
-  </lexeme>
-  <lexeme>
     <grapheme>受注</grapheme>
     <alias>ジュチュウ</alias>
   </lexeme>
@@ -954,14 +985,6 @@
   <lexeme>
     <grapheme>現場課長</grapheme>
     <alias>ゲンバカチョウ</alias>
-  </lexeme>
-  <lexeme>
-    <grapheme>人事課主任</grapheme>
-    <alias>ジンジカシュニン</alias>
-  </lexeme>
-  <lexeme>
-    <grapheme>人事窓口</grapheme>
-    <alias>ジンジマドグチ</alias>
   </lexeme>
   <lexeme>
     <grapheme>比較軸</grapheme>

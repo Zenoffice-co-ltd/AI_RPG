@@ -92,12 +92,15 @@ if (body.scenarioId !== "staffing_order_hearing_adecco_manufacturer_busy_manager
 
 // 2. v2.1 sections + housing-equipment marker + earned-reveal phrases
 //    (v2.1 quality patch — 2026-05-05 added Tier ladder, No Stock Suffix,
-//     Personal Smalltalk Deflect, Voice-Friendly Phrasing.)
+//     Personal Smalltalk Deflect, Voice-Friendly Phrasing.
+//     Hardening — 2026-05-06 added STT Misrecognition Recovery, expanded
+//     stock-suffix ban list, strict Tier 2 4-condition gate.)
 const required = [
   "v2.1 Customer Attitude",
   "v2.1 Answer Budget",
   "v2.1 Housing Equipment Manufacturer Domain",
   "v2.1 Earned Reveal Policy",
+  "v2.1 STT Misrecognition Recovery",
   "v2.1 No Stock Suffix",
   "v2.1 Personal Smalltalk Deflect",
   "v2.1 Voice-Friendly Phrasing",
@@ -105,7 +108,23 @@ const required = [
   "住宅設備メーカー",
   "よくご存じですね",
   "その理解で近いです",
+  // hardening 2026-05-06: expanded stock-suffix ban list
+  "他の条件もご確認いただけますか",
+  "他に気になる点はありますか",
+  "ご質問があればお聞かせください",
 ];
+
+// 2b. promptVersion must reflect the v3 hardening bump.
+const expectedPromptVersionPrefix =
+  "compile-scenario@2026-05-06.v3.staffing-reference-adecco-v21-quality";
+if (
+  typeof body.promptVersion !== "string" ||
+  !body.promptVersion.startsWith(expectedPromptVersionPrefix)
+) {
+  failures.push(
+    `promptVersion mismatch: ${body.promptVersion} (expected to start with ${expectedPromptVersionPrefix})`
+  );
+}
 for (const s of required) {
   if (!body.instructions.includes(s)) {
     failures.push(`instructions missing: ${s}`);
@@ -123,9 +142,13 @@ if (!(kb < guide && guide < guard)) {
 }
 
 // 4. Required v21 vocabulary in Pronunciation Guide
-//    (v2.1 quality patch added: 見積もり補助 / 夕方五時三十分 / 朝八時四十五分)
+//    (v2.1 quality patch added: 見積もり補助 / 夕方五時三十分 / 朝八時四十五分.
+//     Hardening 2026-05-06 added: 受発注入力 / 受発注業務 / 人事 / 人事課 — these
+//     were previously past the maxEntries=80 cutoff or absent.)
 const requiredVocab = [
   "受発注",
+  "受発注入力",
+  "受発注業務",
   "納期調整",
   "在庫確認",
   "品番",
@@ -137,6 +160,8 @@ const requiredVocab = [
   "見積もり補助",
   "夕方五時三十分",
   "朝八時四十五分",
+  "人事",
+  "人事課",
 ];
 for (const term of requiredVocab) {
   if (!body.instructions.includes(`「${term}」`)) {

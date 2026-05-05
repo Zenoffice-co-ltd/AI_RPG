@@ -297,4 +297,95 @@ describe("transcriptReducer", () => {
 
     expect(merged).toHaveLength(3);
   });
+
+  it("dedupes a user STT transcript that re-fires within 1.5s with a different sdkMessageId", () => {
+    const original = createTranscriptMessage({
+      id: "user-stt-1",
+      sdkMessageId: "user-stt-session-1",
+      role: "user",
+      channel: "voice",
+      text: "募集背景を教えてください。",
+      status: "final",
+      source: "sdk",
+      createdAt: 10_000,
+    });
+
+    const refire = createTranscriptMessage({
+      id: "user-stt-2",
+      sdkMessageId: "user-stt-session-2",
+      role: "user",
+      channel: "voice",
+      text: "募集背景を教えてください。",
+      status: "final",
+      source: "sdk",
+      createdAt: 11_000,
+    });
+
+    const deduped = transcriptReducer([original], { type: "append", message: refire });
+    expect(deduped).toHaveLength(1);
+    expect(deduped[0]?.text).toBe("募集背景を教えてください。");
+  });
+
+  it("does NOT dedupe identical user STT transcripts when they arrive >1.5s apart", () => {
+    const first = createTranscriptMessage({
+      id: "user-stt-1",
+      sdkMessageId: "user-stt-session-1",
+      role: "user",
+      channel: "voice",
+      text: "人数は何名ですか？",
+      status: "final",
+      source: "sdk",
+      createdAt: 10_000,
+    });
+
+    const second = createTranscriptMessage({
+      id: "user-stt-2",
+      sdkMessageId: "user-stt-session-2",
+      role: "user",
+      channel: "voice",
+      text: "人数は何名ですか？",
+      status: "final",
+      source: "sdk",
+      createdAt: 12_000,
+    });
+
+    const merged = transcriptReducer([first], { type: "append", message: second });
+    expect(merged).toHaveLength(2);
+  });
+
+  it("orders user STT before assistant response.created when both share the same createdAt", () => {
+    // Race observed in production: assistant.response.created is dispatched on
+    // the WebSocket microtask immediately after speech_started fires the user
+    // STT final transcription. Both can land with the same Date.now() ms.
+    // The reducer must tie-break on insertion seq so the bubble order matches
+    // the user-perceived turn order (you spoke → AI replied).
+    const userFinal = createTranscriptMessage({
+      id: "user-stt-1",
+      sdkMessageId: "user-stt-session-1",
+      role: "user",
+      channel: "voice",
+      text: "業務時間は？",
+      status: "final",
+      source: "sdk",
+      createdAt: 5_000,
+    });
+
+    const agentInterim = createTranscriptMessage({
+      id: "agent-interim-1",
+      role: "agent",
+      channel: "voice",
+      text: "",
+      status: "interim",
+      source: "local",
+      clientMessageId: "agent-rt-session-1",
+      createdAt: 5_000,
+    });
+
+    const ordered = transcriptReducer([], {
+      type: "appendMany",
+      messages: [userFinal, agentInterim],
+    });
+
+    expect(ordered.map((m) => m.role)).toEqual(["user", "agent"]);
+  });
 });
