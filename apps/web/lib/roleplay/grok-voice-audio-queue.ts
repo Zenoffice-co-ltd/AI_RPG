@@ -143,6 +143,10 @@ export class GrokVoiceAudioQueue {
     this.nextStartAt = 0;
     this.playing = 0;
   }
+
+  async flush() {
+    await this.stop();
+  }
 }
 
 export function decodeBase64Pcm16(base64: string): Float32Array {

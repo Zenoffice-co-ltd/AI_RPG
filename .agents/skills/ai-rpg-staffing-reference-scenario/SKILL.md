@@ -25,6 +25,7 @@ Use this skill for staffing scenarios compiled directly from a checked-in refere
 - Keep `dictionaryRequired=false` for the Adecco staffing reference scenario unless the publish contract is intentionally redesigned.
 - Do not fabricate orb preview evidence. If Codex cannot perform the human orb conversation, leave blocker placeholders in the memo with the exact preview URL.
 - If a legacy staffing ConvAI test fails while validating Adecco, prove whether it is Adecco-caused by comparing legacy scenario/assets and test definitions; record non-Adecco blockers in `docs/OPERATIONS.md`.
+- For Grok Voice v2.1 quality patches, keep VAD values, model, voice, and scenario facts unchanged unless explicitly scoped. Runtime guardrail additions may bump `GROK_VOICE_GUARDRAIL_VERSION`, but should not rewrite hidden facts or relax existing E2E expectations.
 
 ## Representative Commands
 
@@ -32,6 +33,20 @@ Use this skill for staffing scenarios compiled directly from a checked-in refere
 pnpm compile:scenarios -- --family staffing_order_hearing --reference ./docs/references/adecco_manufacturer_order_hearing_reference.json
 pnpm publish:scenario -- --scenario staffing_order_hearing_adecco_manufacturer_busy_manager_medium
 ```
+
+For Grok Voice v2.1 Adecco regression work, the text-case source of truth is
+`scripts/grok-voice-v21-e2e-cases.ts` and the human-readable coverage map is
+`docs/GROK_VOICE_V21_E2E_MATRIX.md`. When adding, removing, or renaming a case,
+update both and run:
+
+```bash
+pnpm exec tsx scripts/check-grok-voice-e2e-matrix.ts
+pnpm exec tsx scripts/grok-voice-v21-scenario-e2e.ts --rounds 2 --critical-rounds 3
+```
+
+Use `scripts/grok-voice-v21-voice-e2e.ts --limit 5` for fixed-WAV audio-path
+evidence. It validates STT and assistant transcript separately and writes
+evidence under `out/grok_voice_v21_voice_e2e/<timestamp>/`.
 
 ## Expected Evidence (Auto Gate v2 — 2026-04-26 onwards)
 

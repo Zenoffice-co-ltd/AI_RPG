@@ -182,6 +182,14 @@ env:
     value: "500"
     availability:
       - RUNTIME
+  - variable: GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED
+    value: "false"
+    availability:
+      - RUNTIME
+  - variable: GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_MAX_CHARS
+    value: "200"
+    availability:
+      - RUNTIME
   - variable: XAI_API_KEY
     secret: XAI_API_KEY
   # Demo access gate token (existing secret stored as `demo-access-token` in

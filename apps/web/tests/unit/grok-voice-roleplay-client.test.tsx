@@ -62,7 +62,9 @@ function buildStubAudioQueue() {
 function buildFakeRealtime() {
   let onMessage: ((event: GrokVoiceServerEvent) => void) | null = null;
   let onOpen: (() => void) | null = null;
+  let onReady: (() => void) | null = null;
   const sent: Array<{ method: string; arg: unknown }> = [];
+  let ready = false;
 
   const realtime = {
     open: () => {
@@ -70,13 +72,17 @@ function buildFakeRealtime() {
       onOpen?.();
     },
     isOpen: () => true,
+    isReady: () => ready,
     sendSessionUpdate: (arg: unknown) => sent.push({ method: "sendSessionUpdate", arg }),
-    sendAssistantHistory: (arg: unknown) =>
-      sent.push({ method: "sendAssistantHistory", arg }),
+    sendAssistantHistory: (arg: unknown) => {
+      sent.push({ method: "sendAssistantHistory", arg });
+      ready = true;
+      onReady?.();
+    },
     sendUserText: (arg: unknown) => sent.push({ method: "sendUserText", arg }),
     appendAudio: (arg: unknown) => sent.push({ method: "appendAudio", arg }),
     commitAudio: () => undefined,
-    cancelResponse: () => undefined,
+    cancelResponse: () => sent.push({ method: "cancelResponse", arg: null }),
     close: () => undefined,
     wasClosedByUs: () => false,
   };
@@ -84,9 +90,11 @@ function buildFakeRealtime() {
   const ctor = (opts: {
     onMessage: (event: GrokVoiceServerEvent) => void;
     onOpen?: () => void;
+    onReady?: () => void;
   }) => {
     onMessage = opts.onMessage;
     onOpen = opts.onOpen ?? null;
+    onReady = opts.onReady ?? null;
     return realtime as unknown as InstanceType<
       typeof import("../../lib/roleplay/grok-voice-realtime").GrokVoiceRealtime
     >;
@@ -190,6 +198,49 @@ describe("useGrokVoiceConversation", () => {
     });
     expect(result.current.metricsLog[0]?.error).toBe("no_audio");
     expect(result.current.metricsLog[0]?.audioBytes).toBe(0);
+  });
+
+  it("cancels once and discards stale deltas on barge-in while the agent is speaking", async () => {
+    const fake = buildFakeRealtime();
+    const queue = buildStubAudioQueue();
+    const flushSpy = vi.spyOn(queue, "flush");
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => SESSION),
+      createAudioQueue: () => queue,
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      micEnabled: false,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await act(async () => {
+      await result.current.sendTextMessage("募集背景を教えてください");
+    });
+    act(() => {
+      fake.emit({ type: "response.created" });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: Buffer.from(new Uint8Array(48)).toString("base64"),
+        item_id: "old-item",
+      });
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "古い応答です",
+        item_id: "old-item",
+      });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: Buffer.from(new Uint8Array(48)).toString("base64"),
+        item_id: "old-item",
+      });
+    });
+    expect(fake.sent.filter((s) => s.method === "cancelResponse")).toHaveLength(1);
+    expect(flushSpy).toHaveBeenCalledTimes(1);
+    expect(result.current.messages.some((m) => m.text.includes("古い応答"))).toBe(false);
   });
 
   it("ignores sendTextMessage when mode is not live", async () => {

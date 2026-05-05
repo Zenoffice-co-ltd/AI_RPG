@@ -112,11 +112,13 @@ const required = [
   "他の条件もご確認いただけますか",
   "他に気になる点はありますか",
   "ご質問があればお聞かせください",
+  "Final Response Contract",
+  "現場確認が必要です",
 ];
 
-// 2b. promptVersion must reflect the v3.x hardening bump (v3 = initial
-// hardening; v3.1+ = incremental anchor reinforcements).
-const expectedPromptVersionPrefix = "compile-scenario@2026-05-06.v3";
+// 2b. promptVersion must reflect the v3.x hardening line and PR58 runtime
+// contract metadata bump.
+const expectedPromptVersionPrefix = "compile-scenario@2026-05-06.v3.2";
 if (
   typeof body.promptVersion !== "string" ||
   !body.promptVersion.startsWith(expectedPromptVersionPrefix)
@@ -129,6 +131,13 @@ for (const s of required) {
   if (!body.instructions.includes(s)) {
     failures.push(`instructions missing: ${s}`);
   }
+}
+
+const expectedGuardrailVersion = "gv-think-fast-v4-2026-05-06";
+if (body.guardrailVersion !== expectedGuardrailVersion) {
+  failures.push(
+    `guardrailVersion mismatch: ${body.guardrailVersion} (expected ${expectedGuardrailVersion})`
+  );
 }
 
 // 3. Section ordering: Pronunciation Guide between KB and Guardrail
@@ -182,6 +191,7 @@ if (td.prefix_padding_ms !== 333)
 console.log("");
 console.log(`[smoke] scenarioId: ${body.scenarioId}`);
 console.log(`[smoke] promptVersion: ${body.promptVersion}`);
+console.log(`[smoke] guardrailVersion: ${body.guardrailVersion}`);
 console.log(`[smoke] grokVoiceModel: ${body.grokVoiceModel}`);
 console.log(`[smoke] turnDetection: ${JSON.stringify(body.turnDetection)}`);
 console.log(`[smoke] instructions length: ${body.instructions.length} chars`);

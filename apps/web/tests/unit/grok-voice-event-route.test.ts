@@ -74,6 +74,63 @@ describe("grok-voice event route", () => {
     expect(sttLine!.vendorMs).toBe(140);
   });
 
+  it("drops transcript preview details from structured logs by default", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 1,
+            inputMode: "voice",
+            userTextLen: 12,
+            agentTextLen: 14,
+            userTextPreview: "ユーザー本文",
+            agentTextPreview: "エージェント本文",
+            instructions: "絶対にログしてはいけない指示全文",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    expect(JSON.stringify(lines)).not.toContain("ユーザー本文");
+    expect(JSON.stringify(lines)).not.toContain("エージェント本文");
+    expect(JSON.stringify(lines)).not.toContain("指示全文");
+  });
+
+  it("logs truncated transcript previews only when explicitly enabled", async () => {
+    vi.stubEnv("GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED", "true");
+    vi.stubEnv("GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_MAX_CHARS", "6");
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "stt.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 2,
+            textLen: 20,
+            sttTextPreview: "住宅設備メーカーの営業事務ですと",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const sttLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.stt"
+    ) as { sttTextPreview?: string } | undefined;
+    expect(sttLine?.sttTextPreview).toBe("住宅設備メー");
+    expect(JSON.stringify(lines)).not.toContain("カーの営業事務");
+  });
+
   it("emits a dedicated grokVoice.stt.skipped line for empty STT (補強案 #2)", async () => {
     const { POST } = await import("../../app/api/v3/event/route");
     const response = await POST(

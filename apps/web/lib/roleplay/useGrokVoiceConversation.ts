@@ -87,6 +87,11 @@ export function useGrokVoiceConversation(
   const micStateChangedAtRef = useRef<number>(Date.now());
   const isMutedRef = useRef(false);
   const conversationGenRef = useRef(0);
+  const agentSpeakingRef = useRef(false);
+  const bargeInCancelSentRef = useRef(false);
+  const discardStaleResponseDeltasRef = useRef(false);
+  const currentResponseItemIdRef = useRef<string | null>(null);
+  const staleResponseItemIdsRef = useRef(new Set<string>());
 
   // Per-turn streaming bookkeeping.
   const turnIndexRef = useRef(0);
@@ -97,6 +102,7 @@ export function useGrokVoiceConversation(
   const turnAccumulatedAudioBytesRef = useRef(0);
   const turnInputModeRef = useRef<"voice" | "text">("voice");
   const turnUserTextLenRef = useRef(0);
+  const turnUserTextPreviewRef = useRef("");
 
   useEffect(() => {
     sessionRef.current = session;
@@ -148,6 +154,20 @@ export function useGrokVoiceConversation(
     });
   }, []);
 
+  function isStaleResponseDelta(event: GrokVoiceServerEvent) {
+    const itemId = getEventItemId(event);
+    return (
+      discardStaleResponseDeltasRef.current ||
+      (itemId.length > 0 && staleResponseItemIdsRef.current.has(itemId))
+    );
+  }
+
+  function getEventItemId(event: GrokVoiceServerEvent) {
+    return "item_id" in event && typeof event.item_id === "string"
+      ? event.item_id
+      : "";
+  }
+
   const handleServerEvent = useCallback(
     (event: GrokVoiceServerEvent) => {
       const activeSession = sessionRef.current;
@@ -155,6 +175,28 @@ export function useGrokVoiceConversation(
 
       switch (event.type) {
         case "input_audio_buffer.speech_started": {
+          if (agentSpeakingRef.current && !bargeInCancelSentRef.current) {
+            void postGrokVoiceEvent("barge_in.detected", {
+              sessionId: activeSession.sessionId,
+              details: { turnIndex: turnIndexRef.current },
+            });
+            bargeInCancelSentRef.current = true;
+            discardStaleResponseDeltasRef.current = true;
+            if (currentResponseItemIdRef.current) {
+              staleResponseItemIdsRef.current.add(currentResponseItemIdRef.current);
+            }
+            realtimeRef.current?.cancelResponse();
+            void postGrokVoiceEvent("barge_in.cancel_sent", {
+              sessionId: activeSession.sessionId,
+              details: { turnIndex: turnIndexRef.current },
+            });
+            void audioQueueRef.current?.flush().finally(() => {
+              void postGrokVoiceEvent("audio.queue.flushed", {
+                sessionId: activeSession.sessionId,
+                details: { reason: "barge_in" },
+              });
+            });
+          }
           turnIndexRef.current += 1;
           turnInputModeRef.current = "voice";
           turnStartAtRef.current = Date.now();
@@ -162,6 +204,7 @@ export function useGrokVoiceConversation(
           turnAccumulatedTextRef.current = "";
           turnAccumulatedAudioBytesRef.current = 0;
           turnUserTextLenRef.current = 0;
+          turnUserTextPreviewRef.current = "";
           interimAgentClientIdRef.current = null;
           setStatus("listening");
           break;
@@ -174,6 +217,7 @@ export function useGrokVoiceConversation(
           const text = event.transcript ?? "";
           const trimmed = text.trim();
           turnUserTextLenRef.current = trimmed.length;
+          turnUserTextPreviewRef.current = trimmed;
           if (trimmed.length === 0) {
             void postGrokVoiceEvent("stt.skipped", {
               sessionId: activeSession.sessionId,
@@ -190,6 +234,7 @@ export function useGrokVoiceConversation(
               turnIndex: turnIndexRef.current,
               textLen: trimmed.length,
               confidence: null,
+              sttTextPreview: trimmed,
             },
           });
           dispatchMessages({
@@ -216,6 +261,10 @@ export function useGrokVoiceConversation(
           break;
         }
         case "response.created": {
+          discardStaleResponseDeltasRef.current = false;
+          currentResponseItemIdRef.current = null;
+          agentSpeakingRef.current = false;
+          bargeInCancelSentRef.current = false;
           if (turnStartAtRef.current === null) {
             // text input path — speech_started never fired for this turn.
             turnIndexRef.current += 1;
@@ -223,6 +272,7 @@ export function useGrokVoiceConversation(
             firstAudioAtRef.current = null;
             turnAccumulatedTextRef.current = "";
             turnAccumulatedAudioBytesRef.current = 0;
+            turnUserTextPreviewRef.current = "";
           }
           interimAgentClientIdRef.current = `agent-rt-${activeSession.sessionId}-${turnIndexRef.current}`;
           dispatchMessages({
@@ -242,6 +292,13 @@ export function useGrokVoiceConversation(
         case "response.text.delta":
         case "response.audio_transcript.delta":
         case "response.output_audio_transcript.delta": {
+          if (isStaleResponseDelta(event)) {
+            void postGrokVoiceEvent("barge_in.stale_delta_discarded", {
+              sessionId: activeSession.sessionId,
+              details: { type: event.type, itemId: getEventItemId(event) },
+            });
+            break;
+          }
           const delta = event.delta ?? "";
           if (delta.length === 0) break;
           turnAccumulatedTextRef.current += delta;
@@ -257,13 +314,22 @@ export function useGrokVoiceConversation(
           break;
         }
         case "response.output_audio.delta": {
+          if (isStaleResponseDelta(event)) {
+            void postGrokVoiceEvent("barge_in.stale_delta_discarded", {
+              sessionId: activeSession.sessionId,
+              details: { type: event.type, itemId: getEventItemId(event) },
+            });
+            break;
+          }
           const base64 = event.delta ?? "";
           if (base64.length === 0) break;
+          if (event.item_id) currentResponseItemIdRef.current = event.item_id;
           if (firstAudioAtRef.current === null) {
             firstAudioAtRef.current = Date.now();
           }
           // base64 length ≈ bytes * 4/3; rough but fine for telemetry.
           turnAccumulatedAudioBytesRef.current += Math.floor((base64.length * 3) / 4);
+          agentSpeakingRef.current = true;
           setStatus("speaking");
           ensureAudioQueue().enqueueBase64(base64);
           break;
@@ -311,6 +377,8 @@ export function useGrokVoiceConversation(
               firstAudioMs: metrics.firstAudioMs,
               doneMs: metrics.doneMs,
               audioBytes: metrics.audioBytes,
+              userTextPreview: turnUserTextPreviewRef.current,
+              agentTextPreview: turnAccumulatedTextRef.current,
               promptHash: metrics.promptHash,
               promptVersion: metrics.promptVersion,
               guardrailVersion: metrics.guardrailVersion,
@@ -325,7 +393,12 @@ export function useGrokVoiceConversation(
           turnAccumulatedTextRef.current = "";
           turnAccumulatedAudioBytesRef.current = 0;
           turnUserTextLenRef.current = 0;
+          turnUserTextPreviewRef.current = "";
           interimAgentClientIdRef.current = null;
+          agentSpeakingRef.current = false;
+          bargeInCancelSentRef.current = false;
+          discardStaleResponseDeltasRef.current = false;
+          currentResponseItemIdRef.current = null;
           setStatus("listening");
           break;
         }
@@ -470,6 +543,14 @@ export function useGrokVoiceConversation(
           // continues the conversation in character.
           realtimeRef.current?.sendAssistantHistory(next.firstMessage);
         },
+        onReady: () => {
+          setStatus("listening");
+          if (micEnabled) {
+            void startMicRecorder().catch(() => {
+              // mic permission denied / not available — text input still works
+            });
+          }
+        },
         onClose: ({ code, reason }) => {
           void postGrokVoiceEvent("ws.disconnected", {
             sessionId: next.sessionId,
@@ -484,21 +565,18 @@ export function useGrokVoiceConversation(
           setErrorMessage(RESPOND_ERROR);
           setStatus("error");
         },
+        onTelemetry: ({ kind, details }) => {
+          void postGrokVoiceEvent(kind as Parameters<typeof postGrokVoiceEvent>[0], {
+            sessionId: next.sessionId,
+            ...(details ? { details } : {}),
+          });
+        },
       };
       const realtime = createRealtime
         ? createRealtime(realtimeOptions)
         : new GrokVoiceRealtime(realtimeOptions);
       realtimeRef.current = realtime;
       realtime.open();
-
-      setStatus("listening");
-      if (micEnabled) {
-        try {
-          await startMicRecorder();
-        } catch {
-          // mic permission denied / not available — text input still works
-        }
-      }
     } catch (error) {
       console.warn("grokVoice session start failed", error);
       setErrorMessage(SAFE_ERROR);
@@ -532,6 +610,7 @@ export function useGrokVoiceConversation(
     firstAudioAtRef.current = null;
     turnAccumulatedTextRef.current = "";
     turnAccumulatedAudioBytesRef.current = 0;
+    turnUserTextPreviewRef.current = "";
     void postGrokVoiceEvent("session.cancelled");
   }, [stopMicRecorder]);
 
@@ -555,7 +634,7 @@ export function useGrokVoiceConversation(
         await startConversation();
         activeSession = sessionRef.current;
       }
-      if (!activeSession || !realtimeRef.current?.isOpen()) {
+      if (!activeSession || !realtimeRef.current?.isReady()) {
         setErrorMessage(SAFE_ERROR);
         return;
       }
@@ -577,6 +656,7 @@ export function useGrokVoiceConversation(
       // know not to expect speech_started.
       turnInputModeRef.current = "text";
       turnUserTextLenRef.current = trimmed.length;
+      turnUserTextPreviewRef.current = trimmed;
       turnIndexRef.current += 1;
       turnStartAtRef.current = Date.now();
       firstAudioAtRef.current = null;

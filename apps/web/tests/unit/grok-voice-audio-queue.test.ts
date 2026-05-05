@@ -138,4 +138,18 @@ describe("GrokVoiceAudioQueue", () => {
       expect(decoded[i]).toBeCloseTo(samples[i] ?? 0, 3);
     }
   });
+
+  it("flush closes the current context and clears playback state", async () => {
+    const fake = buildFakeContext();
+    const queue = new GrokVoiceAudioQueue({
+      sampleRate: 24_000,
+      // @ts-expect-error — test double
+      createAudioContext: () => fake.context,
+    });
+    queue.enqueueBase64(encodeFloat32ToPcm16Base64(new Float32Array(240)));
+    expect(queue.isPlaying()).toBe(true);
+    await queue.flush();
+    expect(fake.context.close).toHaveBeenCalledTimes(1);
+    expect(queue.isPlaying()).toBe(false);
+  });
 });

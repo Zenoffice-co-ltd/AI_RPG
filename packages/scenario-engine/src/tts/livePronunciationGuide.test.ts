@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { buildLivePronunciationGuide } from "./livePronunciationGuide";
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
 describe("buildLivePronunciationGuide", () => {
   it("returns an empty guide for elevenlabs normalization mode", async () => {
@@ -68,5 +73,47 @@ describe("buildLivePronunciationGuide", () => {
     expect(guide).toContain("「Oracle」");
     expect(guide).toContain("「ERP」");
     expect(guide).toContain("自然な区切り");
+  });
+
+  it("keeps critical staffing lexemes with maxEntries=80 regression coverage", async () => {
+    const assets = JSON.parse(
+      await readFile(
+        resolve(
+          REPO_ROOT,
+          "data/generated/scenarios/staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21.assets.json"
+        ),
+        "utf8"
+      )
+    ) as { agentSystemPrompt: string; knowledgeBaseText: string };
+    const guide = await buildLivePronunciationGuide({
+      scenarioId:
+        "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21",
+      textNormalisationType: "system_prompt",
+      referenceTexts: [assets.agentSystemPrompt, assets.knowledgeBaseText],
+      maxEntries: 80,
+    });
+    const critical = [
+      "受発注",
+      "受発注入力",
+      "受発注業務",
+      "受発注経験",
+      "人事",
+      "人事課",
+      "人事課主任",
+      "人事窓口",
+      "人事主導",
+      "品番",
+      "型番",
+      "施工日",
+      "納期調整",
+      "代理店",
+      "工務店",
+      "アデコ",
+    ];
+    for (const term of critical) {
+      expect(guide, `${term} dropped from maxEntries=80 guide`).toContain(
+        `「${term}」`
+      );
+    }
   });
 });

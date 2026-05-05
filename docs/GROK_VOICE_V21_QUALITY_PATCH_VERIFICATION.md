@@ -27,8 +27,8 @@ PR [#55](https://github.com/Zenoffice-co-ltd/AI_RPG/pull/55) (commit `a2f8bdf`) 
 
 | 領域 | パッチ前 | パッチ後 |
 |---|---|---|
-| `promptVersion` | `compile-scenario@2026-05-04.v1.staffing-reference-adecco-v21` | `compile-scenario@2026-05-06.v3.1.staffing-reference-adecco-v21-quality-2-anchor` |
-| `guardrailVersion` | `gv-think-fast-v1-2026-05-04` | `gv-think-fast-v3-2026-05-06` |
+| `promptVersion` | `compile-scenario@2026-05-04.v1.staffing-reference-adecco-v21` | `compile-scenario@2026-05-06.v3.2.staffing-reference-adecco-v21-pr58-runtime-contract` |
+| `guardrailVersion` | `gv-think-fast-v1-2026-05-04` | `gv-think-fast-v4-2026-05-06` |
 | 「よくご存じですね」発火 | 1 domain term + 枕詞でも発火 | **2+ domain terms + 業務負荷/人材像/定着 接続**だけ |
 | 「複合質問なので」のメタ前置き | 出る | 禁止 |
 | 「何か他に確認したい点はありますか」末尾 | 頻出 | 禁止 |
@@ -55,7 +55,16 @@ node scripts/grok-voice-v21-prod-smoke.mjs
 [smoke] PASS — production deploy serves v2.1 instructions.
 ```
 
-`promptVersion` が `compile-scenario@2026-05-06.v3` で始まっていない場合、デプロイがまだ反映されていない。**ここで止まったら以降をやらない**。
+`promptVersion` が `compile-scenario@2026-05-06.v3.2` で始まらない、または `guardrailVersion` が `gv-think-fast-v4-2026-05-06` でない場合、デプロイがまだ反映されていない。**ここで止まったら以降をやらない**。
+
+### 2.1.1 PR58 追加自動チェック
+
+```bash
+pnpm exec tsx scripts/check-grok-voice-e2e-matrix.ts
+pnpm exec tsx scripts/grok-voice-v21-voice-e2e.ts --limit 5
+```
+
+PR58では E2E matrix を追加し、text `CASES` の全件、voice input、Realtime stability、PLS maxEntries=80 regression を棚卸しする。VAD A/B、threshold、silence、prefix padding の変更は明示的にscope外。
 
 ### 2.2 ブラウザ準備
 
@@ -279,7 +288,9 @@ revert 後 `node scripts/grok-voice-v21-prod-smoke.mjs` を再実行し、`promp
 - マージ済 PR: [#55](https://github.com/Zenoffice-co-ltd/AI_RPG/pull/55)
 - パッチ commit: `a2f8bdf`
 - v2.1 全量 runbook: [GROK_VOICE_V21_MANUAL_TEST_RUNBOOK.md](GROK_VOICE_V21_MANUAL_TEST_RUNBOOK.md)
-- 自動 E2E: [scripts/grok-voice-v21-scenario-e2e.ts](../scripts/grok-voice-v21-scenario-e2e.ts) (品質パッチで case 12〜16 追加)
+- 自動 E2E: [scripts/grok-voice-v21-scenario-e2e.ts](../scripts/grok-voice-v21-scenario-e2e.ts) (PR58で case 19〜24 追加)
+- E2E matrix: [docs/GROK_VOICE_V21_E2E_MATRIX.md](GROK_VOICE_V21_E2E_MATRIX.md)
+- Voice E2E: [scripts/grok-voice-v21-voice-e2e.ts](../scripts/grok-voice-v21-voice-e2e.ts)
 - 本番 smoke: [scripts/grok-voice-v21-prod-smoke.mjs](../scripts/grok-voice-v21-prod-smoke.mjs)
 - v2.1 prompt 本体: [data/generated/scenarios/...v21.assets.json](../data/generated/scenarios/staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21.assets.json)
 - 改善された Tier ladder の仕様: 上記 prompt 内 `## v2.1 Earned Reveal Policy` セクション

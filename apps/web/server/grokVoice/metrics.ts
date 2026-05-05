@@ -49,6 +49,8 @@ export function logGrokVoiceTurnMetrics(payload: {
   doneMs: number | null;
   audioBytes: number;
   error: string | null;
+  userTextPreview?: string;
+  agentTextPreview?: string;
   provenance: GrokVoiceProvenance;
 }) {
   emit("grokVoice.turnMetrics", {
@@ -61,6 +63,8 @@ export function logGrokVoiceTurnMetrics(payload: {
     doneMs: payload.doneMs,
     audioBytes: payload.audioBytes,
     error: payload.error,
+    ...(payload.userTextPreview ? { userTextPreview: payload.userTextPreview } : {}),
+    ...(payload.agentTextPreview ? { agentTextPreview: payload.agentTextPreview } : {}),
     ...payload.provenance,
   });
 }
@@ -71,6 +75,7 @@ export function logGrokVoiceStt(payload: {
   textLen: number;
   confidence: number | null;
   vendorMs: number | null;
+  sttTextPreview?: string;
 }) {
   emit("grokVoice.stt", payload);
 }
