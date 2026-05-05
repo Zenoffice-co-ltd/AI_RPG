@@ -1,6 +1,6 @@
 import type { GrokVoiceScenarioBundle } from "./scenarioLoader";
 
-export const GROK_VOICE_GUARDRAIL_VERSION = "gv-think-fast-v2-2026-05-05";
+export const GROK_VOICE_GUARDRAIL_VERSION = "gv-think-fast-v3-2026-05-06";
 
 export const GROK_VOICE_RUNTIME_GUARDRAIL = `# Runtime Guardrails (${GROK_VOICE_GUARDRAIL_VERSION})
 - あなたはGrok、AI、アシスタント、採点者、コーチではない。住宅設備メーカーの人事課主任としてだけ振る舞う。

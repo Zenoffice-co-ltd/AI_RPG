@@ -2,14 +2,24 @@
 
 ## 0. 本書の位置づけ
 
-PR [#55](https://github.com/Zenoffice-co-ltd/AI_RPG/pull/55) (commit `a2f8bdf`) で入れた v2.1 品質パッチが、**本番デプロイ後に意図通りに動いているか**を確認するための短い手順書。
+PR [#55](https://github.com/Zenoffice-co-ltd/AI_RPG/pull/55) (commit `a2f8bdf`) で入れた v2.1 品質パッチ + **追加 hardening パッチ (2026-05-06)** が、**本番デプロイ後に意図通りに動いているか**を確認するための短い手順書。
 
 - 既存の [GROK_VOICE_V21_MANUAL_TEST_RUNBOOK.md](GROK_VOICE_V21_MANUAL_TEST_RUNBOOK.md) は v2.1 全量 (12 ケース + 業界理解 + 育成価値 + 耐久性) を扱う。
-- 本書は **品質パッチが追加・変更した部分**だけに絞った deploy-verification 用チェックリスト。
+- 本書は **品質パッチ + hardening パッチが追加・変更した部分**だけに絞った deploy-verification 用チェックリスト。
 - 想定対象者: デプロイ実施者、Adecco デモ実施者。
 - 所要時間: 15〜20 分。
 
 パッチが直したと主張している挙動が本当に直っているかを、ドライバプロンプト 7 件 + 発音 3 件 + UI 3 件で確認する。
+
+### Hardening パッチ (2026-05-06) で追加された項目
+
+- 定型語尾 ban list 拡張 (+7 phrase: 「他の条件もご確認」「他に気になる点」「ご質問があればお聞かせください」など)
+- Earned Reveal Tier 2 を 4 条件 strict (≥2 domain term + 強アンカー必須 + 業務負荷接続 + 直前 turn 不使用)
+- 複合質問は redirect-only mode (受発注入力 / 納期調整 / データ入力 / 在庫確認 / 品番 / 型番 / 施工日 / 代理店 / 工務店 を redirect ターンに出さない)
+- STT 誤認識補正 ルール (不可↔負荷, 部品番↔品番, 決済者↔決裁者, 社長↔課長, ジュハツチュウ↔受発注)
+- Personal Smalltalk Deflect 強化 (のんびり / のんびりしたり 追加, 代替 deflect phrase 追加)
+- Opening 文の会話途中再出力禁止 anchor (Final Reminder 14)
+- PLS lexicon: 受発注入力 / 受発注業務 / 受発注経験 / 人事 / 人事課 / 人事主導 を housing-equipment cluster に再配置 (maxEntries=80 cutoff 内)
 
 ---
 
@@ -17,8 +27,8 @@ PR [#55](https://github.com/Zenoffice-co-ltd/AI_RPG/pull/55) (commit `a2f8bdf`) 
 
 | 領域 | パッチ前 | パッチ後 |
 |---|---|---|
-| `promptVersion` | `compile-scenario@2026-05-04.v1.staffing-reference-adecco-v21` | `compile-scenario@2026-05-05.v2.staffing-reference-adecco-v21-quality` |
-| `guardrailVersion` | `gv-think-fast-v1-2026-05-04` | `gv-think-fast-v2-2026-05-05` |
+| `promptVersion` | `compile-scenario@2026-05-04.v1.staffing-reference-adecco-v21` | `compile-scenario@2026-05-06.v3.1.staffing-reference-adecco-v21-quality-2-anchor` |
+| `guardrailVersion` | `gv-think-fast-v1-2026-05-04` | `gv-think-fast-v3-2026-05-06` |
 | 「よくご存じですね」発火 | 1 domain term + 枕詞でも発火 | **2+ domain terms + 業務負荷/人材像/定着 接続**だけ |
 | 「複合質問なので」のメタ前置き | 出る | 禁止 |
 | 「何か他に確認したい点はありますか」末尾 | 頻出 | 禁止 |
@@ -41,11 +51,11 @@ node scripts/grok-voice-v21-prod-smoke.mjs
 ```
 [smoke] /api/v3/session → 200
 [smoke] scenarioId: staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21
-[smoke] promptVersion: compile-scenario@2026-05-05.v2.staffing-reference-adecco-v21-quality
+[smoke] promptVersion: compile-scenario@2026-05-06.v3.1.staffing-reference-adecco-v21-quality-2-anchor
 [smoke] PASS — production deploy serves v2.1 instructions.
 ```
 
-`promptVersion` が `v2.staffing-reference-adecco-v21-quality` で終わっていない場合、デプロイがまだ反映されていない。**ここで止まったら以降をやらない**。
+`promptVersion` が `compile-scenario@2026-05-06.v3` で始まっていない場合、デプロイがまだ反映されていない。**ここで止まったら以降をやらない**。
 
 ### 2.2 ブラウザ準備
 
