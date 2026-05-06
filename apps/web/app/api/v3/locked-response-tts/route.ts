@@ -4,7 +4,10 @@ import {
   hasDemoApiAccess,
   validateSameOrigin,
 } from "@/lib/roleplay/auth";
-import { getPr60LockedResponseForUser } from "@/lib/roleplay/grok-voice-pr60-shared";
+import {
+  getPr60LockedResponseForUser,
+  normalizeGrokVoiceDisplayText,
+} from "@/lib/roleplay/grok-voice-pr60-shared";
 import {
   assertGrokVoiceEnvForProduction,
   getGrokVoiceServerEnv,
@@ -56,6 +59,7 @@ export async function POST(request: NextRequest) {
   if (!text) {
     return safeError(400);
   }
+  const displayText = normalizeGrokVoiceDisplayText(text);
 
   try {
     const env = getGrokVoiceServerEnv();
@@ -69,6 +73,7 @@ export async function POST(request: NextRequest) {
     if (cached) {
       return NextResponse.json({
         text,
+        displayText,
         audioBase64: cached.audioBase64,
         mimeType: cached.mimeType,
         sampleRateHz: cached.sampleRateHz,
@@ -91,6 +96,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({
       text,
+      displayText,
       audioBase64: result.audio.toString("base64"),
       mimeType: result.mimeType,
       sampleRateHz: result.sampleRateHz,
@@ -122,4 +128,3 @@ function sanitizeServerError(error: unknown) {
   }
   return { name: "UnknownError" };
 }
-

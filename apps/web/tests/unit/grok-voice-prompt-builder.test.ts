@@ -50,7 +50,7 @@ describe("grok-voice prompt builder", () => {
 
   it("includes PR60 voice canonicalization, stock suffix ban, and skill budget", () => {
     const guardrail = GROK_VOICE_RUNTIME_GUARDRAIL;
-    expect(GROK_VOICE_GUARDRAIL_VERSION).toBe("gv-think-fast-v4.7-2026-05-06");
+    expect(GROK_VOICE_GUARDRAIL_VERSION).toBe("gv-think-fast-v4.8-2026-05-07");
     expect(guardrail).toContain("Voice-Friendly Date and Quantity Canonicalization");
     expect(guardrail).toContain("六月ついたち");
     expect(guardrail).toContain("ろっぴゃく件から、ななひゃっけん程度");
@@ -62,8 +62,10 @@ describe("grok-voice prompt builder", () => {
     expect(guardrail).toContain("PR60 Final Output Gate");
     expect(guardrail).toContain("指定文だけを出す");
     expect(guardrail).toContain("Voice-Friendly Business Term Canonicalization");
-    expect(guardrail).toContain("せんななひゃくごじゅう円から、せんきゅうひゃく円");
+    expect(guardrail).toContain("千七百五十円から、千九百円");
     expect(guardrail).toContain("自分のやり方");
+    expect(guardrail).toContain("周囲と合わせて進められるタイプ");
+    expect(guardrail).toContain("月のおわり");
     expect(guardrail).toContain("月の初め");
     expect(guardrail).toContain("アデコ");
     expect(guardrail).toContain("じんじ");

@@ -210,6 +210,12 @@ pnpm grok:warm-tts-cache
   `/api/v3/event` がサニタイズ済み発話を `*TextPreviewUtf8Base64` に
   サーバ生成で併記する。Cloud Logging 表示上の日本語が `????` になっても、
   評価は UTF-8 Base64 から復元した `transcript.md` を使う。
+- Grok Voice v3 は、音声用テキストと表示/評価用テキストを分離する。
+  音声・Realtime履歴には `たしゃ` / `六月ついたち` /
+  `周囲と合わせて進められるタイプ` などの読み安定表記を使い、UIと
+  `transcript.md` には `他社` / `六月一日` / `協調型` などの通常表記を出す。
+  prod logs では `Agent:` が表示/評価用、差分がある場合だけ
+  `Agent spoken:` が音声用テキスト。
 
 ## 既知制約 / Known limits
 
@@ -234,6 +240,12 @@ pnpm grok:warm-tts-cache
   復元できる。prompt / instructions / KB / hidden facts は引き続きログ対象外。
   取得スクリプトは `*TextPreviewUtf8Base64` を優先し、旧ログに残る `????`
   だけの preview は本文として扱わない。
+- 表示用の正規化は `normalizeGrokVoiceDisplayText()` に集約する。個別turnの
+  文字列パッチではなく、この shared rule に追加する。現在の代表ルール:
+  `たしゃ→他社`, `じんじ→人事`, `六月ついたち→六月一日`,
+  `月のおわり→月末`, `周囲と合わせて進められるタイプ→協調型`,
+  `ろっぴゃく件/ななひゃっけん→六百件/七百件`,
+  `せんななひゃくごじゅう円/せんきゅうひゃく円→千七百五十円/千九百円`。
 - `quality-latency-frontier.csv` への混入は今 PR 範囲外。混ぜる際は
   `backendCategory=native-voice / provider=xai / model=grok-voice-think-fast-1.0`
   を別 lane として明示。

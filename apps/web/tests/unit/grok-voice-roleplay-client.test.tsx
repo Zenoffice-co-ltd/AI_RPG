@@ -41,7 +41,7 @@ const GREETING: GrokVoiceGreeting = {
 };
 
 const LOCKED_RATE_TEXT =
-  "請求想定は経験により、せんななひゃくごじゅう円から、せんきゅうひゃく円程度です。";
+  "請求想定は経験により、千七百五十円から、千九百円程度です。";
 const LOCKED_TTS = {
   text: LOCKED_RATE_TEXT,
   audioBase64: Buffer.from(new Uint8Array(48)).toString("base64"),
@@ -319,6 +319,46 @@ describe("useGrokVoiceConversation", () => {
     );
     expect(result.current.metricsLog[0]?.audioBytes).toBeGreaterThan(0);
     expect(result.current.metricsLog[0]?.lockedResponse).toBe(true);
+  });
+
+  it("shows display text while syncing spoken text for locked voice-friendly terms", async () => {
+    const fake = buildFakeRealtime();
+    const fetchLockedResponseTts = vi.fn(async () => LOCKED_TTS);
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => SESSION),
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchLockedResponseTts,
+      createAudioQueue: () => buildStubAudioQueue(),
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      micEnabled: false,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe("listening");
+    });
+    await act(async () => {
+      await result.current.sendTextMessage("人柄については？");
+    });
+    await waitFor(() => {
+      expect(result.current.metricsLog).toHaveLength(1);
+    });
+    expect(
+      result.current.messages.some((m) =>
+        m.text.includes("協調型が合いやすく、自己流にこだわりすぎる方")
+      )
+    ).toBe(true);
+    expect(
+      fake.sent.some(
+        (s) =>
+          s.method === "sendAssistantHistoryMessage" &&
+          String(s.arg).includes("周囲と合わせて進められるタイプ")
+      )
+    ).toBe(true);
   });
 
   it("cancels late response.created and ignores realtime audio during a locked voice turn", async () => {

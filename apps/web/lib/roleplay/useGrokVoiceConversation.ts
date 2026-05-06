@@ -23,6 +23,7 @@ import {
 } from "./grok-voice-audio-queue";
 import {
   getPr60LockedResponseForUser,
+  normalizeGrokVoiceDisplayText,
   normalizePr60AssistantText,
   shouldStopAtPr60LockedResponse,
 } from "./grok-voice-pr60-output";
@@ -261,6 +262,9 @@ export function useGrokVoiceConversation(
       if (!activeSession || !realtime) return;
 
       const turnIndex = turnIndexRef.current;
+      const spokenAssistantText = input.assistantText;
+      const displayAssistantText =
+        normalizeGrokVoiceDisplayText(spokenAssistantText);
       lockedTurnActiveRef.current = true;
       suppressNextRealtimeResponseRef.current = true;
       lockedTurnIndexRef.current = turnIndex;
@@ -279,7 +283,7 @@ export function useGrokVoiceConversation(
         dispatchMessages({
           type: "updateTextAndStatus",
           clientMessageId: interimAgentClientIdRef.current,
-          text: input.assistantText,
+          text: displayAssistantText,
           status: "final",
         });
       } else {
@@ -288,7 +292,7 @@ export function useGrokVoiceConversation(
           message: createTranscriptMessage({
             role: "agent",
             channel: "voice",
-            text: input.assistantText,
+            text: displayAssistantText,
             status: "final",
             source: "local",
             clientMessageId: `agent-locked-${activeSession.sessionId}-${turnIndex}`,
@@ -319,7 +323,7 @@ export function useGrokVoiceConversation(
             turnIndex,
             inputMode: input.channel === "chat" ? "text" : "voice",
             userTextLen: input.userText.length,
-            agentTextLen: input.assistantText.length,
+            agentTextLen: spokenAssistantText.length,
           },
         });
         const tts = await fetchLockedResponseTts({
@@ -354,7 +358,7 @@ export function useGrokVoiceConversation(
         if (input.channel === "chat") {
           realtime.sendUserHistory(input.userText);
         }
-        realtime.sendAssistantHistoryMessage(input.assistantText);
+        realtime.sendAssistantHistoryMessage(spokenAssistantText);
 
         const doneMs = Date.now() - startedAt;
         const metrics: GrokVoiceTurnMetricsClient = {
@@ -362,7 +366,7 @@ export function useGrokVoiceConversation(
           turnIndex,
           inputMode: input.channel === "chat" ? "text" : "voice",
           userTextLen: input.userText.length,
-          agentTextLen: input.assistantText.length,
+          agentTextLen: displayAssistantText.length,
           firstAudioMs: firstAudioAt - startedAt,
           doneMs,
           audioBytes,
@@ -390,7 +394,8 @@ export function useGrokVoiceConversation(
             lockedResponse: true,
             lockedResponseSource: "client_tts",
             userTextPreview: input.userText,
-            agentTextPreview: input.assistantText,
+            agentTextPreview: displayAssistantText,
+            agentSpokenTextPreview: spokenAssistantText,
             promptHash: metrics.promptHash,
             promptVersion: metrics.promptVersion,
             guardrailVersion: metrics.guardrailVersion,
@@ -640,7 +645,7 @@ export function useGrokVoiceConversation(
             dispatchMessages({
               type: "updateTextAndStatus",
               clientMessageId: id,
-              text: turnAccumulatedTextRef.current,
+              text: normalizeGrokVoiceDisplayText(turnAccumulatedTextRef.current),
               status: "interim",
             });
           }
@@ -675,10 +680,11 @@ export function useGrokVoiceConversation(
             break;
           }
           const id = interimAgentClientIdRef.current;
-          const finalText = normalizePr60AssistantText(
+          const finalSpokenText = normalizePr60AssistantText(
             turnUserTextPreviewRef.current,
             turnAccumulatedTextRef.current
           );
+          const finalText = normalizeGrokVoiceDisplayText(finalSpokenText);
           if (id) {
             dispatchMessages({
               type: "updateTextAndStatus",
@@ -722,6 +728,7 @@ export function useGrokVoiceConversation(
               audioBytes: metrics.audioBytes,
               userTextPreview: turnUserTextPreviewRef.current,
               agentTextPreview: finalText,
+              agentSpokenTextPreview: finalSpokenText,
               promptHash: metrics.promptHash,
               promptVersion: metrics.promptVersion,
               guardrailVersion: metrics.guardrailVersion,

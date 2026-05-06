@@ -51,8 +51,10 @@ export function logGrokVoiceTurnMetrics(payload: {
   error: string | null;
   userTextPreview?: string;
   agentTextPreview?: string;
+  agentSpokenTextPreview?: string;
   userTextPreviewUtf8Base64?: string;
   agentTextPreviewUtf8Base64?: string;
+  agentSpokenTextPreviewUtf8Base64?: string;
   provenance: GrokVoiceProvenance;
 }) {
   emit("grokVoice.turnMetrics", {
@@ -67,11 +69,20 @@ export function logGrokVoiceTurnMetrics(payload: {
     error: payload.error,
     ...(payload.userTextPreview ? { userTextPreview: payload.userTextPreview } : {}),
     ...(payload.agentTextPreview ? { agentTextPreview: payload.agentTextPreview } : {}),
+    ...(payload.agentSpokenTextPreview
+      ? { agentSpokenTextPreview: payload.agentSpokenTextPreview }
+      : {}),
     ...(payload.userTextPreviewUtf8Base64
       ? { userTextPreviewUtf8Base64: payload.userTextPreviewUtf8Base64 }
       : {}),
     ...(payload.agentTextPreviewUtf8Base64
       ? { agentTextPreviewUtf8Base64: payload.agentTextPreviewUtf8Base64 }
+      : {}),
+    ...(payload.agentSpokenTextPreviewUtf8Base64
+      ? {
+          agentSpokenTextPreviewUtf8Base64:
+            payload.agentSpokenTextPreviewUtf8Base64,
+        }
       : {}),
     ...payload.provenance,
   });

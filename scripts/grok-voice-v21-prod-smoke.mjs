@@ -123,10 +123,12 @@ const required = [
   "何か他に確認したい点はありますか",
   "何か他にご確認したい点はありますか",
   "Voice-Friendly Business Term Canonicalization",
-  "せんななひゃくごじゅう円",
-  "せんきゅうひゃく円",
+  "千七百五十円",
+  "千九百円",
   "月の初め",
+  "月のおわり",
   "自分のやり方",
+  "周囲と合わせて進められるタイプ",
   "アデコ",
   "じんじ",
   "たしゃ",
@@ -140,7 +142,7 @@ const required = [
 
 // 2b. promptVersion must reflect the v3.x hardening line and PR58 DOD runtime
 // contract metadata bump.
-const expectedPromptVersionPrefix = "compile-scenario@2026-05-06.v3.9";
+const expectedPromptVersionPrefix = "compile-scenario@2026-05-07.v3.10";
 if (
   typeof body.promptVersion !== "string" ||
   !body.promptVersion.startsWith(expectedPromptVersionPrefix)
@@ -155,7 +157,7 @@ for (const s of required) {
   }
 }
 
-const expectedGuardrailVersion = "gv-think-fast-v4.7-2026-05-06";
+const expectedGuardrailVersion = "gv-think-fast-v4.8-2026-05-07";
 if (body.guardrailVersion !== expectedGuardrailVersion) {
   failures.push(
     `guardrailVersion mismatch: ${body.guardrailVersion} (expected ${expectedGuardrailVersion})`

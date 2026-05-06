@@ -257,14 +257,21 @@ function buildTranscript(entries) {
         const turn = ensureTurn(turns, turnIndex);
         const userPreview = readTranscriptPreview(payload, "userTextPreview");
         const agentPreview = readTranscriptPreview(payload, "agentTextPreview");
+        const agentSpokenPreview = readTranscriptPreview(
+          payload,
+          "agentSpokenTextPreview"
+        );
         decodedPreviewCount +=
           (userPreview.source === "utf8_base64" ? 1 : 0) +
-          (agentPreview.source === "utf8_base64" ? 1 : 0);
+          (agentPreview.source === "utf8_base64" ? 1 : 0) +
+          (agentSpokenPreview.source === "utf8_base64" ? 1 : 0);
         rawPreviewCount +=
           (userPreview.source === "raw" ? 1 : 0) +
-          (agentPreview.source === "raw" ? 1 : 0);
+          (agentPreview.source === "raw" ? 1 : 0) +
+          (agentSpokenPreview.source === "raw" ? 1 : 0);
         turn.user ||= userPreview.text;
         turn.agent ||= agentPreview.text;
+        turn.agentSpoken ||= agentSpokenPreview.text;
         turn.agentTimestamp ||= entry.timestamp;
         turn.metrics = {
           firstAudioMs: payload.firstAudioMs ?? null,
@@ -322,6 +329,7 @@ function ensureTurn(turns, turnIndex) {
     turnIndex,
     user: "",
     agent: "",
+    agentSpoken: "",
     userTimestamp: "",
     agentTimestamp: "",
     metrics: null,
@@ -368,6 +376,9 @@ function renderTranscriptMarkdown(transcript, summary) {
     lines.push(`### Turn ${turn.turnIndex}`, "");
     lines.push(`User: ${turn.user || "(text not logged)"}`, "");
     lines.push(`Agent: ${turn.agent || "(text not logged)"}`, "");
+    if (turn.agentSpoken && turn.agentSpoken !== turn.agent) {
+      lines.push(`Agent spoken: ${turn.agentSpoken}`, "");
+    }
   }
   lines.push("## Timeline", "");
   for (const event of transcript.timeline) {
