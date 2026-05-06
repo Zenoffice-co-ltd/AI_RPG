@@ -56,6 +56,7 @@ const allowedKinds = [
   "locked_response.playback.started",
   "locked_response.playback.completed",
   "locked_response.playback.failed",
+  "locked_response.mic_tail_ignored",
   "response.pr60_locked_cancelled",
 ] as const;
 
