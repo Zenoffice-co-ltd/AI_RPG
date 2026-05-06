@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { GrokVoiceRealtime } from "../../lib/roleplay/grok-voice-realtime";
 
 // A WebSocket-shaped class we can pass to the realtime wrapper. We capture
@@ -168,6 +168,60 @@ describe("GrokVoiceRealtime", () => {
       "募集背景を教えてください"
     );
     expect(sent.at(-1)!.type).toBe("response.create");
+  });
+
+  it("sendUserHistory creates a user item without response.create", () => {
+    const realtime = new GrokVoiceRealtime({
+      url: "wss://example",
+      ephemeralToken: "t",
+      onMessage: () => undefined,
+      WebSocketCtor: FakeWebSocketCtor,
+    });
+    realtime.open();
+    sockets[0]!.open();
+    realtime.sendSessionUpdate(SESSION_UPDATE);
+    realtime.sendAssistantHistory("お時間ありがとうございます。");
+    realtime.sendUserHistory("単価は？");
+    const sent = sockets[0]!.sent.map((s) => JSON.parse(s)) as Array<{
+      type: string;
+      item?: { role?: string; content?: Array<{ type: string; text: string }> };
+    }>;
+    const last = sent.at(-1)!;
+    expect(last.type).toBe("conversation.item.create");
+    expect(last.item?.role).toBe("user");
+    expect(last.item?.content?.[0]?.type).toBe("input_text");
+    expect(last.item?.content?.[0]?.text).toBe("単価は？");
+  });
+
+  it("sendAssistantHistoryMessage creates an assistant item without re-firing ready", () => {
+    const ready = vi.fn();
+    const telemetry: string[] = [];
+    const realtime = new GrokVoiceRealtime({
+      url: "wss://example",
+      ephemeralToken: "t",
+      onMessage: () => undefined,
+      onReady: ready,
+      onTelemetry: (event) => telemetry.push(event.kind),
+      WebSocketCtor: FakeWebSocketCtor,
+    });
+    realtime.open();
+    sockets[0]!.open();
+    realtime.sendSessionUpdate(SESSION_UPDATE);
+    realtime.sendAssistantHistory("お時間ありがとうございます。");
+    ready.mockClear();
+    telemetry.length = 0;
+    realtime.sendAssistantHistoryMessage("固定回答です。");
+    const sent = sockets[0]!.sent.map((s) => JSON.parse(s)) as Array<{
+      type: string;
+      item?: { role?: string; content?: Array<{ type: string; text: string }> };
+    }>;
+    const last = sent.at(-1)!;
+    expect(last.type).toBe("conversation.item.create");
+    expect(last.item?.role).toBe("assistant");
+    expect(last.item?.content?.[0]?.type).toBe("output_text");
+    expect(last.item?.content?.[0]?.text).toBe("固定回答です。");
+    expect(ready).not.toHaveBeenCalled();
+    expect(telemetry).not.toContain("session.ready");
   });
 
   it("parses and forwards typed server events", () => {

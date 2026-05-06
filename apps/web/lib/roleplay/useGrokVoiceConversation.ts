@@ -13,6 +13,7 @@ import {
 } from "./transcript-reducer";
 import {
   fetchGrokVoiceGreeting,
+  fetchGrokVoiceLockedResponseTts,
   fetchGrokVoiceSession,
   postGrokVoiceEvent,
 } from "./grok-voice-client";
@@ -22,6 +23,7 @@ import {
 } from "./grok-voice-audio-queue";
 import {
   containsVoiceStockSuffix,
+  getPr60LockedResponseForUser,
   normalizePr60AssistantText,
   shouldStopAtPr60LockedResponse,
 } from "./grok-voice-pr60-output";
@@ -40,6 +42,7 @@ const SAFE_ERROR =
 const RESPOND_ERROR = "応答生成に失敗しました。時間をおいて再試行してください。";
 const AUDIO_ERROR =
   "音声の再生に失敗しました。ページを再読み込みして再試行してください。";
+const LOCKED_REALTIME_DRAIN_MS = 5_000;
 
 export type GrokVoiceConversation = UseRoleplayConversationReturn & {
   mode: RoleplayMode;
@@ -58,6 +61,10 @@ export type UseGrokVoiceConversationDeps = {
     sessionId: string;
     text: string;
   }) => Promise<GrokVoiceGreeting>;
+  fetchLockedResponseTts?: (input: {
+    sessionId: string;
+    userText: string;
+  }) => Promise<import("./grok-voice-types").GrokVoiceLockedResponseTts>;
   audioQueueOptions?: GrokVoiceAudioQueueOptions;
   createAudioQueue?: (options: GrokVoiceAudioQueueOptions) => GrokVoiceAudioQueue;
   createRealtime?: (
@@ -106,6 +113,19 @@ export function useGrokVoiceConversation(
   const greetingPlaybackDoneRef = useRef(true);
   const realtimeReadyRef = useRef(false);
   const pr60LockCancelSentRef = useRef(false);
+  const responseActiveRef = useRef(false);
+  const realtimeAudioQueuedThisTurnRef = useRef(false);
+  const lockedTurnActiveRef = useRef(false);
+  const lockedTurnIndexRef = useRef<number | null>(null);
+  const lockedTurnUserTextRef = useRef("");
+  const lockedTurnTtsPlayingRef = useRef(false);
+  const pendingCancelOnResponseCreatedRef = useRef(false);
+  const suppressNextRealtimeResponseRef = useRef(false);
+  const lockedRealtimeDrainActiveRef = useRef(false);
+  const lockedRealtimeDrainTurnIndexRef = useRef<number | null>(null);
+  const lockedRealtimeDrainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   // Per-turn streaming bookkeeping.
   const turnIndexRef = useRef(0);
@@ -124,6 +144,8 @@ export function useGrokVoiceConversation(
 
   const fetchSession = deps.fetchSession ?? fetchGrokVoiceSession;
   const fetchGreeting = deps.fetchGreeting ?? fetchGrokVoiceGreeting;
+  const fetchLockedResponseTts =
+    deps.fetchLockedResponseTts ?? fetchGrokVoiceLockedResponseTts;
   const audioQueueOptions = deps.audioQueueOptions;
   const createAudioQueue = deps.createAudioQueue;
   const createRealtime = deps.createRealtime;
@@ -172,6 +194,8 @@ export function useGrokVoiceConversation(
   function isStaleResponseDelta(event: GrokVoiceServerEvent) {
     const itemId = getEventItemId(event);
     return (
+      lockedTurnActiveRef.current ||
+      lockedRealtimeDrainActiveRef.current ||
       discardStaleResponseDeltasRef.current ||
       (itemId.length > 0 && staleResponseItemIdsRef.current.has(itemId))
     );
@@ -182,6 +206,234 @@ export function useGrokVoiceConversation(
       ? event.item_id
       : "";
   }
+
+  const clearLockedRealtimeDrain = useCallback(() => {
+    if (lockedRealtimeDrainTimerRef.current) {
+      clearTimeout(lockedRealtimeDrainTimerRef.current);
+      lockedRealtimeDrainTimerRef.current = null;
+    }
+    lockedRealtimeDrainActiveRef.current = false;
+    lockedRealtimeDrainTurnIndexRef.current = null;
+  }, []);
+
+  const startLockedRealtimeDrain = useCallback(
+    (turnIndex: number) => {
+      clearLockedRealtimeDrain();
+      lockedRealtimeDrainActiveRef.current = true;
+      lockedRealtimeDrainTurnIndexRef.current = turnIndex;
+      lockedRealtimeDrainTimerRef.current = setTimeout(() => {
+        clearLockedRealtimeDrain();
+      }, LOCKED_REALTIME_DRAIN_MS);
+    },
+    [clearLockedRealtimeDrain]
+  );
+
+  const resetTurnBookkeeping = useCallback(() => {
+    turnInputModeRef.current = "voice";
+    turnStartAtRef.current = null;
+    firstAudioAtRef.current = null;
+    turnAccumulatedTextRef.current = "";
+    turnAccumulatedAudioBytesRef.current = 0;
+    turnUserTextLenRef.current = 0;
+    turnUserTextPreviewRef.current = "";
+    interimAgentClientIdRef.current = null;
+    agentSpeakingRef.current = false;
+    bargeInCancelSentRef.current = false;
+    discardStaleResponseDeltasRef.current = false;
+    currentResponseItemIdRef.current = null;
+    pr60LockCancelSentRef.current = false;
+    responseActiveRef.current = false;
+    realtimeAudioQueuedThisTurnRef.current = false;
+    lockedTurnActiveRef.current = false;
+    lockedTurnIndexRef.current = null;
+    lockedTurnUserTextRef.current = "";
+    lockedTurnTtsPlayingRef.current = false;
+    pendingCancelOnResponseCreatedRef.current = false;
+  }, []);
+
+  const playLockedResponse = useCallback(
+    async (input: {
+      userText: string;
+      assistantText: string;
+      channel: "voice" | "chat";
+    }) => {
+      const activeSession = sessionRef.current;
+      const realtime = realtimeRef.current;
+      if (!activeSession || !realtime) return;
+
+      const turnIndex = turnIndexRef.current;
+      lockedTurnActiveRef.current = true;
+      suppressNextRealtimeResponseRef.current = true;
+      lockedTurnIndexRef.current = turnIndex;
+      lockedTurnUserTextRef.current = input.userText;
+      discardStaleResponseDeltasRef.current = true;
+      if (currentResponseItemIdRef.current) {
+        staleResponseItemIdsRef.current.add(currentResponseItemIdRef.current);
+      }
+      if (responseActiveRef.current) {
+        realtime.cancelResponse();
+      } else {
+        pendingCancelOnResponseCreatedRef.current = true;
+      }
+
+      if (interimAgentClientIdRef.current) {
+        dispatchMessages({
+          type: "updateTextAndStatus",
+          clientMessageId: interimAgentClientIdRef.current,
+          text: input.assistantText,
+          status: "final",
+        });
+      } else {
+        dispatchMessages({
+          type: "append",
+          message: createTranscriptMessage({
+            role: "agent",
+            channel: "voice",
+            text: input.assistantText,
+            status: "final",
+            source: "local",
+            clientMessageId: `agent-locked-${activeSession.sessionId}-${turnIndex}`,
+          }),
+        });
+      }
+
+      const startedAt = turnStartAtRef.current ?? Date.now();
+      turnStartAtRef.current = startedAt;
+      micRecorderRef.current?.setEnabled(false);
+      setStatus("speaking");
+      agentSpeakingRef.current = true;
+
+      try {
+        const queue = ensureAudioQueue();
+        await queue.resume().catch(() => undefined);
+        if (realtimeAudioQueuedThisTurnRef.current) {
+          await queue.flush();
+          void postGrokVoiceEvent("audio.queue.flushed", {
+            sessionId: activeSession.sessionId,
+            details: { reason: "locked_response_preempt_realtime", turnIndex },
+          });
+        }
+
+        void postGrokVoiceEvent("locked_response.tts.requested", {
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex,
+            inputMode: input.channel === "chat" ? "text" : "voice",
+            userTextLen: input.userText.length,
+            agentTextLen: input.assistantText.length,
+          },
+        });
+        const tts = await fetchLockedResponseTts({
+          sessionId: activeSession.sessionId,
+          userText: input.userText,
+        });
+        const audioBytes = Math.floor((tts.audioBase64.length * 3) / 4);
+        void postGrokVoiceEvent("locked_response.tts.completed", {
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex,
+            textLen: tts.textLen,
+            audioBytes,
+            voiceId: tts.voiceId,
+            vendorMs: tts.vendorMs ?? null,
+            cacheStatus: tts.cacheStatus,
+          },
+        });
+        lockedTurnTtsPlayingRef.current = true;
+        const firstAudioAt = Date.now();
+        firstAudioAtRef.current = firstAudioAt;
+        void postGrokVoiceEvent("locked_response.playback.started", {
+          sessionId: activeSession.sessionId,
+          details: { turnIndex, audioBytes },
+        });
+        await queue.enqueueBase64AndWait(tts.audioBase64);
+        void postGrokVoiceEvent("locked_response.playback.completed", {
+          sessionId: activeSession.sessionId,
+          details: { turnIndex, audioBytes },
+        });
+
+        if (input.channel === "chat") {
+          realtime.sendUserHistory(input.userText);
+        }
+        realtime.sendAssistantHistoryMessage(input.assistantText);
+
+        const doneMs = Date.now() - startedAt;
+        const metrics: GrokVoiceTurnMetricsClient = {
+          sessionId: activeSession.sessionId,
+          turnIndex,
+          inputMode: input.channel === "chat" ? "text" : "voice",
+          userTextLen: input.userText.length,
+          agentTextLen: input.assistantText.length,
+          firstAudioMs: firstAudioAt - startedAt,
+          doneMs,
+          audioBytes,
+          error: null,
+          promptHash: activeSession.promptHash,
+          promptVersion: activeSession.promptVersion,
+          guardrailVersion: activeSession.guardrailVersion,
+          grokVoiceModel: activeSession.grokVoiceModel,
+          grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
+          lockedResponse: true,
+          lockedResponseSource: "client_tts",
+        };
+        setMetricsLog((current) => [...current, metrics]);
+        void postGrokVoiceEvent("turn.completed", {
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex: metrics.turnIndex,
+            inputMode: metrics.inputMode,
+            userTextLen: metrics.userTextLen,
+            agentTextLen: metrics.agentTextLen,
+            firstAudioMs: metrics.firstAudioMs,
+            doneMs: metrics.doneMs,
+            audioBytes: metrics.audioBytes,
+            error: metrics.error,
+            lockedResponse: true,
+            lockedResponseSource: "client_tts",
+            userTextPreview: input.userText,
+            agentTextPreview: input.assistantText,
+            promptHash: metrics.promptHash,
+            promptVersion: metrics.promptVersion,
+            guardrailVersion: metrics.guardrailVersion,
+            grokVoiceModel: metrics.grokVoiceModel,
+            grokVoiceVoiceId: metrics.grokVoiceVoiceId,
+          },
+        });
+      } catch (error) {
+        void postGrokVoiceEvent("locked_response.tts.failed", {
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex,
+            message: (error as Error)?.message ?? String(error),
+          },
+        });
+        void postGrokVoiceEvent("turn.error", {
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex,
+            errorScope: "locked_response_tts",
+            message: (error as Error)?.message ?? String(error),
+          },
+        });
+      } finally {
+        if (input.channel === "voice") {
+          startLockedRealtimeDrain(turnIndex);
+        }
+        resetTurnBookkeeping();
+        setStatus("listening");
+        if (micEnabled && !isMutedRef.current) {
+          micRecorderRef.current?.setEnabled(true);
+        }
+      }
+    },
+    [
+      ensureAudioQueue,
+      fetchLockedResponseTts,
+      micEnabled,
+      resetTurnBookkeeping,
+      startLockedRealtimeDrain,
+    ]
+  );
 
   const handleServerEvent = useCallback(
     (event: GrokVoiceServerEvent) => {
@@ -222,6 +474,14 @@ export function useGrokVoiceConversation(
           turnUserTextPreviewRef.current = "";
           interimAgentClientIdRef.current = null;
           pr60LockCancelSentRef.current = false;
+          responseActiveRef.current = false;
+          realtimeAudioQueuedThisTurnRef.current = false;
+          lockedTurnActiveRef.current = false;
+          lockedTurnIndexRef.current = null;
+          lockedTurnUserTextRef.current = "";
+          lockedTurnTtsPlayingRef.current = false;
+          pendingCancelOnResponseCreatedRef.current = false;
+          suppressNextRealtimeResponseRef.current = false;
           setStatus("listening");
           break;
         }
@@ -264,6 +524,14 @@ export function useGrokVoiceConversation(
               sdkMessageId: `user-stt-${activeSession.sessionId}-${turnIndexRef.current}`,
             }),
           });
+          const lockedText = getPr60LockedResponseForUser(trimmed);
+          if (lockedText) {
+            void playLockedResponse({
+              userText: trimmed,
+              assistantText: lockedText,
+              channel: "voice",
+            });
+          }
           break;
         }
         case "conversation.item.input_audio_transcription.failed": {
@@ -277,6 +545,31 @@ export function useGrokVoiceConversation(
           break;
         }
         case "response.created": {
+          responseActiveRef.current = true;
+          if (
+            lockedTurnActiveRef.current ||
+            lockedRealtimeDrainActiveRef.current ||
+            pendingCancelOnResponseCreatedRef.current ||
+            suppressNextRealtimeResponseRef.current
+          ) {
+            pendingCancelOnResponseCreatedRef.current = false;
+            suppressNextRealtimeResponseRef.current = false;
+            discardStaleResponseDeltasRef.current = true;
+            realtimeRef.current?.cancelResponse();
+            void postGrokVoiceEvent("response.pr60_locked_cancelled", {
+              sessionId: activeSession.sessionId,
+              details: {
+                turnIndex:
+                  lockedTurnIndexRef.current ??
+                  lockedRealtimeDrainTurnIndexRef.current ??
+                  turnIndexRef.current,
+                reason: "locked_response_preempt_realtime",
+                hadDeterministicTts: true,
+                audioBytesBeforeCancel: turnAccumulatedAudioBytesRef.current,
+              },
+            });
+            break;
+          }
           discardStaleResponseDeltasRef.current = false;
           currentResponseItemIdRef.current = null;
           agentSpeakingRef.current = false;
@@ -318,14 +611,34 @@ export function useGrokVoiceConversation(
           const delta = event.delta ?? "";
           if (delta.length === 0) break;
           turnAccumulatedTextRef.current += delta;
-          if (
-            !pr60LockCancelSentRef.current &&
-            (shouldStopAtPr60LockedResponse(
-                turnUserTextPreviewRef.current,
-                turnAccumulatedTextRef.current
-              ) ||
-              containsVoiceStockSuffix(turnAccumulatedTextRef.current))
-          ) {
+          const lockedResponseMatched = shouldStopAtPr60LockedResponse(
+            turnUserTextPreviewRef.current,
+            turnAccumulatedTextRef.current
+          );
+          const stockSuffixMatched = containsVoiceStockSuffix(
+            turnAccumulatedTextRef.current
+          );
+          if (!pr60LockCancelSentRef.current && lockedResponseMatched) {
+            pr60LockCancelSentRef.current = true;
+            turnAccumulatedTextRef.current = normalizePr60AssistantText(
+              turnUserTextPreviewRef.current,
+              turnAccumulatedTextRef.current
+            );
+            discardStaleResponseDeltasRef.current = true;
+            if (currentResponseItemIdRef.current) {
+              staleResponseItemIdsRef.current.add(currentResponseItemIdRef.current);
+            }
+            realtimeRef.current?.cancelResponse();
+            void postGrokVoiceEvent("response.pr60_locked_cancelled", {
+              sessionId: activeSession.sessionId,
+              details: {
+                turnIndex: turnIndexRef.current,
+                reason: "delta_locked_response_fallback",
+                hadDeterministicTts: lockedTurnActiveRef.current,
+                audioBytesBeforeCancel: turnAccumulatedAudioBytesRef.current,
+              },
+            });
+          } else if (!pr60LockCancelSentRef.current && stockSuffixMatched) {
             pr60LockCancelSentRef.current = true;
             turnAccumulatedTextRef.current = normalizePr60AssistantText(
               turnUserTextPreviewRef.current,
@@ -339,7 +652,12 @@ export function useGrokVoiceConversation(
             void audioQueueRef.current?.flush();
             void postGrokVoiceEvent("response.pr60_locked_cancelled", {
               sessionId: activeSession.sessionId,
-              details: { turnIndex: turnIndexRef.current },
+              details: {
+                turnIndex: turnIndexRef.current,
+                reason: "stock_suffix",
+                hadDeterministicTts: false,
+                audioBytesBeforeCancel: turnAccumulatedAudioBytesRef.current,
+              },
             });
           }
           const id = interimAgentClientIdRef.current;
@@ -369,12 +687,18 @@ export function useGrokVoiceConversation(
           }
           // base64 length ≈ bytes * 4/3; rough but fine for telemetry.
           turnAccumulatedAudioBytesRef.current += Math.floor((base64.length * 3) / 4);
+          realtimeAudioQueuedThisTurnRef.current = true;
           agentSpeakingRef.current = true;
           setStatus("speaking");
           ensureAudioQueue().enqueueBase64(base64);
           break;
         }
         case "response.done": {
+          responseActiveRef.current = false;
+          if (lockedTurnActiveRef.current || lockedRealtimeDrainActiveRef.current) {
+            clearLockedRealtimeDrain();
+            break;
+          }
           const id = interimAgentClientIdRef.current;
           const finalText = normalizePr60AssistantText(
             turnUserTextPreviewRef.current,
@@ -430,20 +754,7 @@ export function useGrokVoiceConversation(
               grokVoiceVoiceId: metrics.grokVoiceVoiceId,
             },
           });
-          // Reset turn bookkeeping.
-          turnInputModeRef.current = "voice";
-          turnStartAtRef.current = null;
-          firstAudioAtRef.current = null;
-          turnAccumulatedTextRef.current = "";
-          turnAccumulatedAudioBytesRef.current = 0;
-          turnUserTextLenRef.current = 0;
-          turnUserTextPreviewRef.current = "";
-          interimAgentClientIdRef.current = null;
-          agentSpeakingRef.current = false;
-          bargeInCancelSentRef.current = false;
-          discardStaleResponseDeltasRef.current = false;
-          currentResponseItemIdRef.current = null;
-          pr60LockCancelSentRef.current = false;
+          resetTurnBookkeeping();
           setStatus("listening");
           break;
         }
@@ -464,7 +775,7 @@ export function useGrokVoiceConversation(
           break;
       }
     },
-    [ensureAudioQueue]
+    [clearLockedRealtimeDrain, ensureAudioQueue, playLockedResponse, resetTurnBookkeeping]
   );
 
   const startMicRecorder = useCallback(async () => {
@@ -582,15 +893,36 @@ export function useGrokVoiceConversation(
 
       void (async () => {
         try {
-          void postGrokVoiceEvent("greeting.tts.requested", {
-            sessionId: next.sessionId,
-            details: { textLen: next.firstMessage.length },
-          });
           setStatus("speaking");
-          const greetingAudio = await fetchGreeting({
-            sessionId: next.sessionId,
-            text: next.firstMessage,
-          });
+          let greetingAudio: GrokVoiceGreeting;
+          let source: "session_cache" | "greet_route";
+          if (next.greetingAudio) {
+            source = "session_cache";
+            greetingAudio = next.greetingAudio;
+            void postGrokVoiceEvent("greeting.cache.hit", {
+              sessionId: next.sessionId,
+              details: {
+                cacheKeyHash: next.greetingAudio.cacheKeyHash,
+                audioBytes: Math.floor(
+                  (next.greetingAudio.audioBase64.length * 3) / 4
+                ),
+              },
+            });
+          } else {
+            source = "greet_route";
+            void postGrokVoiceEvent("greeting.cache.miss", {
+              sessionId: next.sessionId,
+              details: { textLen: next.firstMessage.length },
+            });
+            void postGrokVoiceEvent("greeting.tts.requested", {
+              sessionId: next.sessionId,
+              details: { textLen: next.firstMessage.length },
+            });
+            greetingAudio = await fetchGreeting({
+              sessionId: next.sessionId,
+              text: next.firstMessage,
+            });
+          }
           if (generation !== conversationGenRef.current) return;
           void postGrokVoiceEvent("greeting.tts.completed", {
             sessionId: next.sessionId,
@@ -599,6 +931,8 @@ export function useGrokVoiceConversation(
               audioBytes: Math.floor((greetingAudio.audioBase64.length * 3) / 4),
               voiceId: greetingAudio.voiceId,
               vendorMs: greetingAudio.vendorMs ?? null,
+              cacheStatus: greetingAudio.cacheStatus ?? "miss",
+              source,
             },
           });
           try {
@@ -729,8 +1063,17 @@ export function useGrokVoiceConversation(
     turnAccumulatedAudioBytesRef.current = 0;
     turnUserTextPreviewRef.current = "";
     pr60LockCancelSentRef.current = false;
+    responseActiveRef.current = false;
+    realtimeAudioQueuedThisTurnRef.current = false;
+    lockedTurnActiveRef.current = false;
+    lockedTurnIndexRef.current = null;
+    lockedTurnUserTextRef.current = "";
+    lockedTurnTtsPlayingRef.current = false;
+    pendingCancelOnResponseCreatedRef.current = false;
+    suppressNextRealtimeResponseRef.current = false;
+    clearLockedRealtimeDrain();
     void postGrokVoiceEvent("session.cancelled");
-  }, [stopMicRecorder]);
+  }, [clearLockedRealtimeDrain, stopMicRecorder]);
 
   const startNewConversation = useCallback(async () => {
     await endConversation();
@@ -782,6 +1125,8 @@ export function useGrokVoiceConversation(
       firstAudioAtRef.current = null;
       turnAccumulatedTextRef.current = "";
       turnAccumulatedAudioBytesRef.current = 0;
+      realtimeAudioQueuedThisTurnRef.current = false;
+      suppressNextRealtimeResponseRef.current = false;
 
       try {
         const queue = ensureAudioQueue();
@@ -791,10 +1136,19 @@ export function useGrokVoiceConversation(
       }
       // Pause the mic while Grok is generating to avoid feedback.
       micRecorderRef.current?.setEnabled(false);
+      const lockedText = getPr60LockedResponseForUser(trimmed);
+      if (lockedText) {
+        void playLockedResponse({
+          userText: trimmed,
+          assistantText: lockedText,
+          channel: "chat",
+        });
+        return;
+      }
       realtimeRef.current.sendUserText(trimmed);
       setStatus("thinking");
     },
-    [ensureAudioQueue, isInteractive, startConversation]
+    [ensureAudioQueue, isInteractive, playLockedResponse, startConversation]
   );
 
   const toggleMute = useCallback(async () => {

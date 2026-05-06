@@ -44,6 +44,7 @@ describe("grok-voice session route", () => {
     vi.stubEnv("GROK_VOICE_TURN_DETECTION_THRESHOLD", "0.5");
     vi.stubEnv("GROK_VOICE_TURN_DETECTION_SILENCE_MS", "500");
     vi.stubEnv("GROK_VOICE_TURN_DETECTION_PREFIX_PADDING_MS", "333");
+    vi.stubEnv("GROK_VOICE_TTS_CACHE_DISABLE_FIRESTORE", "true");
   });
 
   afterEach(() => {
@@ -189,6 +190,62 @@ describe("grok-voice session route", () => {
       (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.body as string
     ) as Record<string, unknown>;
     expect(sentBody).toEqual({ expires_after: { seconds: 300 } });
+    expect(body["greetingAudio"]).toBeUndefined();
+  });
+
+  it("returns cached greeting audio on memory cache hit without calling xAI TTS", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            value: "xai-realtime-client-secret-test-value",
+            expires_at: 1747_000_000,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      );
+    const { loadGrokVoiceScenarioBundle } = await import(
+      "../../server/grokVoice/scenarioLoader"
+    );
+    const {
+      buildGrokVoiceTtsCacheKey,
+      seedGrokVoiceTtsMemoryCache,
+    } = await import("../../server/grokVoice/ttsCache");
+    const bundle = await loadGrokVoiceScenarioBundle();
+    const audioBase64 = Buffer.from([0, 1, 2, 3]).toString("base64");
+    const key = buildGrokVoiceTtsCacheKey({
+      text: bundle.firstMessage,
+      voiceId: "rex",
+      sampleRateHz: 24_000,
+      purpose: "greeting",
+    });
+    seedGrokVoiceTtsMemoryCache({
+      cacheKey: key.cacheKey,
+      cacheKeyHash: key.cacheKeyHash,
+      textHash: key.textHash,
+      voiceId: "rex",
+      sampleRateHz: 24_000,
+      codec: "pcm",
+      language: "ja",
+      mimeType: "audio/pcm",
+      audioBase64,
+      audioBytes: 4,
+      createdAt: new Date().toISOString(),
+      vendorMs: 123,
+      xaiTtsRequestShapeVersion: "xai-tts-rest-v2026-05-06-pcm24k-optlat1",
+    });
+
+    const { POST } = await import("../../app/api/v3/session/route");
+    const response = await POST(validRequest());
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+    const greetingAudio = body["greetingAudio"] as Record<string, unknown>;
+    expect(greetingAudio["audioBase64"]).toBe(audioBase64);
+    expect(greetingAudio["cacheStatus"]).toBe("hit");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(String(requestInit?.body)).toContain("expires_after");
   });
 
   // Gate 4 — verify the staffing PLS lexicon registers every vocabulary the

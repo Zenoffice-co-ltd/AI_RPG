@@ -72,6 +72,26 @@ Windows smoke note:
   `.mjs` directly with `node scripts/grok-voice-v21-prod-smoke.mjs` and use the
   direct `node` exit code as the smoke result.
 
+Grok Voice audio-fix closure gate:
+
+- Before calling a Grok Voice audio PR merge-ready, check active PR review
+  threads with GraphQL and resolve any non-outdated P1/P0 thread. A green
+  browser smoke does not override an unresolved race-condition review thread.
+- For locked-response audio fixes, include browser WebAudio evidence from the
+  production route, not only API responses. Minimum evidence is
+  `greeting.playback.completed`, `locked_response.playback.completed`,
+  `turn.completed` with `lockedResponse=true`, `audioBytes > 0`,
+  `error=null`, and `audio.queue.flushed` absent except for `barge_in` or
+  `locked_response_preempt_realtime`.
+- For voice locked-response races, unit coverage must prove that late
+  `response.created` / audio delta / `response.done` after deterministic TTS is
+  cancelled or discarded and does not emit a second `turn.completed` or
+  `no_audio` metric.
+- After the final code commit, redeploy App Hosting and rerun at least:
+  `node scripts/grok-voice-v21-prod-smoke.mjs`, one production browser
+  locked-response smoke, and `node scripts/grok-voice-v21-prod-logs.mjs
+  --session <sessionId>` for that browser session.
+
 ## Representative Commands
 
 ```bash

@@ -1,6 +1,10 @@
 "use client";
 
-import type { GrokVoiceGreeting, GrokVoiceSession } from "./grok-voice-types";
+import type {
+  GrokVoiceGreeting,
+  GrokVoiceLockedResponseTts,
+  GrokVoiceSession,
+} from "./grok-voice-types";
 
 export async function fetchGrokVoiceSession(): Promise<GrokVoiceSession> {
   const response = await fetch("/api/v3/session", {
@@ -29,6 +33,21 @@ export async function fetchGrokVoiceGreeting(input: {
   return (await response.json()) as GrokVoiceGreeting;
 }
 
+export async function fetchGrokVoiceLockedResponseTts(input: {
+  sessionId: string;
+  userText: string;
+}): Promise<GrokVoiceLockedResponseTts> {
+  const response = await fetch("/api/v3/locked-response-tts", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error(`grok voice locked response tts failed: ${response.status}`);
+  }
+  return (await response.json()) as GrokVoiceLockedResponseTts;
+}
+
 export type GrokVoiceEventKind =
   | "ws.connected"
   | "ws.disconnected"
@@ -52,12 +71,20 @@ export type GrokVoiceEventKind =
   | "barge_in.detected"
   | "barge_in.cancel_sent"
   | "barge_in.stale_delta_discarded"
+  | "greeting.cache.hit"
+  | "greeting.cache.miss"
   | "greeting.tts.requested"
   | "greeting.tts.completed"
   | "greeting.tts.failed"
   | "greeting.playback.started"
   | "greeting.playback.completed"
   | "greeting.playback.failed"
+  | "locked_response.tts.requested"
+  | "locked_response.tts.completed"
+  | "locked_response.tts.failed"
+  | "locked_response.playback.started"
+  | "locked_response.playback.completed"
+  | "locked_response.playback.failed"
   | "response.pr60_locked_cancelled";
 
 export function postGrokVoiceEvent(

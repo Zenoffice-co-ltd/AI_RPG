@@ -35,6 +35,7 @@
     "benchmark:quality-latency": "tsx scripts/tts/compare-quality-latency.ts",
     "chat:orb": "tsx scripts/chat-orb.ts",
     "chat:orb:web": "tsx scripts/chat-orb-server.ts",
+    "grok:warm-tts-cache": "tsx scripts/grok-voice-warm-tts-cache.ts",
     "grok:prod-logs": "node scripts/grok-voice-v21-prod-logs.mjs",
     "review:summarize:ja": "tsx scripts/elevenlabs/summarize-ja-voice-review.ts",
     "smoke:eleven": "tsx scripts/smoke-eleven.ts",

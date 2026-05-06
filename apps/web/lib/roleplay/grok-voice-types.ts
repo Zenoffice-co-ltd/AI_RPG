@@ -34,6 +34,10 @@ export type GrokVoiceSession = {
   turnDetection: GrokVoiceTurnDetectionConfig;
   instructions: string;
   firstMessage: string;
+  greetingAudio?: GrokVoiceGreeting & {
+    cacheStatus: "hit";
+    cacheKeyHash: string;
+  };
 };
 
 export type GrokVoiceGreeting = {
@@ -43,6 +47,13 @@ export type GrokVoiceGreeting = {
   textLen: number;
   voiceId: string;
   vendorMs?: number;
+  cacheStatus?: "hit" | "miss";
+  cacheKeyHash?: string;
+};
+
+export type GrokVoiceLockedResponseTts = GrokVoiceGreeting & {
+  text: string;
+  cacheStatus: "hit" | "miss";
 };
 
 export type GrokVoiceTurnMetricsClient = {
@@ -60,6 +71,8 @@ export type GrokVoiceTurnMetricsClient = {
   guardrailVersion: string;
   grokVoiceModel: string;
   grokVoiceVoiceId: string;
+  lockedResponse?: boolean;
+  lockedResponseSource?: "client_tts";
 };
 
 // Subset of xAI Voice Agent server → client events that we react to.

@@ -4,26 +4,24 @@ import {
   hasDemoApiAccess,
   validateSameOrigin,
 } from "@/lib/roleplay/auth";
+import { getPr60LockedResponseForUser } from "@/lib/roleplay/grok-voice-pr60-shared";
 import {
   assertGrokVoiceEnvForProduction,
   getGrokVoiceServerEnv,
   isGrokVoiceRoleplayEnabled,
 } from "@/lib/roleplay/server-env";
-import { synthesizeGrokVoiceGreeting } from "@/server/grokVoice/greetTts";
-import { loadGrokVoiceScenarioBundle } from "@/server/grokVoice/scenarioLoader";
+import { synthesizeGrokVoiceTts } from "@/server/grokVoice/tts";
 import {
   getCachedGrokVoiceTts,
   saveGrokVoiceTtsCache,
 } from "@/server/grokVoice/ttsCache";
 
 const SAFE_ERROR =
-  "初回音声の生成に失敗しました。テキスト表示のまま会話を続行してください。";
-const MAX_GREETING_TEXT_CHARS = 500;
+  "固定応答音声の生成に失敗しました。テキスト表示のまま会話を続行してください。";
 
 const requestSchema = z.object({
   sessionId: z.string().min(1).max(128),
-  text: z.string().min(1).max(MAX_GREETING_TEXT_CHARS),
-  voiceId: z.string().max(128).optional(),
+  userText: z.string().min(1).max(1_000),
 });
 
 export async function POST(request: NextRequest) {
@@ -54,40 +52,45 @@ export async function POST(request: NextRequest) {
     return safeError(400);
   }
 
+  const text = getPr60LockedResponseForUser(parsed.data.userText);
+  if (!text) {
+    return safeError(400);
+  }
+
   try {
-    const bundle = await loadGrokVoiceScenarioBundle();
-    if (parsed.data.text !== bundle.firstMessage) {
-      return safeError(400);
-    }
     const env = getGrokVoiceServerEnv();
     const cached = await getCachedGrokVoiceTts({
-      text: bundle.firstMessage,
+      text,
       voiceId: env.GROK_VOICE_VOICE_ID,
       sampleRateHz: env.GROK_VOICE_SAMPLE_RATE,
-      purpose: "greeting",
+      purpose: "locked_response",
       firestoreTimeoutMs: 250,
     });
     if (cached) {
       return NextResponse.json({
+        text,
         audioBase64: cached.audioBase64,
         mimeType: cached.mimeType,
         sampleRateHz: cached.sampleRateHz,
-        textLen: bundle.firstMessage.length,
+        textLen: text.length,
         voiceId: cached.voiceId,
         vendorMs: cached.vendorMs ?? undefined,
         cacheStatus: "hit",
         cacheKeyHash: cached.cacheKeyHash,
       });
     }
-    const result = await synthesizeGrokVoiceGreeting({
-      text: bundle.firstMessage,
+
+    const result = await synthesizeGrokVoiceTts({
+      text,
+      purpose: "locked_response",
     });
     saveGrokVoiceTtsCache({
-      text: bundle.firstMessage,
-      purpose: "greeting",
+      text,
+      purpose: "locked_response",
       result,
     });
     return NextResponse.json({
+      text,
       audioBase64: result.audio.toString("base64"),
       mimeType: result.mimeType,
       sampleRateHz: result.sampleRateHz,
@@ -97,7 +100,7 @@ export async function POST(request: NextRequest) {
       cacheStatus: "miss",
     });
   } catch (error) {
-    console.error("grokVoice greet failed", sanitizeServerError(error));
+    console.error("grokVoice locked response tts failed", sanitizeServerError(error));
     return safeError(502);
   }
 }
@@ -119,3 +122,4 @@ function sanitizeServerError(error: unknown) {
   }
   return { name: "UnknownError" };
 }
+

@@ -40,6 +40,19 @@ const GREETING: GrokVoiceGreeting = {
   vendorMs: 100,
 };
 
+const LOCKED_RATE_TEXT =
+  "請求想定は経験により、せんななひゃくごじゅう円から、せんきゅうひゃく円程度です。";
+const LOCKED_TTS = {
+  text: LOCKED_RATE_TEXT,
+  audioBase64: Buffer.from(new Uint8Array(48)).toString("base64"),
+  mimeType: "audio/pcm" as const,
+  sampleRateHz: 24_000,
+  textLen: LOCKED_RATE_TEXT.length,
+  voiceId: "rex",
+  vendorMs: 120,
+  cacheStatus: "miss" as const,
+};
+
 function buildDeferred() {
   let resolve!: () => void;
   const promise = new Promise<void>((r) => {
@@ -104,6 +117,9 @@ function buildFakeRealtime(opts: { autoReady?: boolean } = {}) {
       }
     },
     sendUserText: (arg: unknown) => sent.push({ method: "sendUserText", arg }),
+    sendUserHistory: (arg: unknown) => sent.push({ method: "sendUserHistory", arg }),
+    sendAssistantHistoryMessage: (arg: unknown) =>
+      sent.push({ method: "sendAssistantHistoryMessage", arg }),
     appendAudio: (arg: unknown) => sent.push({ method: "appendAudio", arg }),
     commitAudio: () => undefined,
     cancelResponse: () => sent.push({ method: "cancelResponse", arg: null }),
@@ -169,10 +185,10 @@ describe("useGrokVoiceConversation", () => {
     });
     // Now simulate a turn: user types, Grok responds.
     await act(async () => {
-      await result.current.sendTextMessage("募集背景を教えてください");
+      await result.current.sendTextMessage("今日の進め方を教えてください");
     });
     const userTextSent = fake.sent.find((s) => s.method === "sendUserText");
-    expect(userTextSent?.arg).toBe("募集背景を教えてください");
+    expect(userTextSent?.arg).toBe("今日の進め方を教えてください");
 
     act(() => {
       fake.emit({ type: "response.created" });
@@ -236,6 +252,138 @@ describe("useGrokVoiceConversation", () => {
     expect(result.current.metricsLog[0]?.audioBytes).toBe(0);
   });
 
+  it("uses session cached greeting audio without calling fetchGreeting", async () => {
+    const fake = buildFakeRealtime();
+    const fetchGreeting = vi.fn(async () => GREETING);
+    const sessionWithGreeting: GrokVoiceSession = {
+      ...SESSION,
+      greetingAudio: {
+        ...GREETING,
+        cacheStatus: "hit",
+        cacheKeyHash: "cache-key-hash",
+      },
+    };
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => sessionWithGreeting),
+      fetchGreeting,
+      createAudioQueue: () => buildStubAudioQueue(),
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      micEnabled: false,
+    };
+
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe("listening");
+    });
+    expect(fetchGreeting).not.toHaveBeenCalled();
+  });
+
+  it("routes locked text input through deterministic TTS and history sync without sendUserText", async () => {
+    const fake = buildFakeRealtime();
+    const fetchLockedResponseTts = vi.fn(async () => LOCKED_TTS);
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => SESSION),
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchLockedResponseTts,
+      createAudioQueue: () => buildStubAudioQueue(),
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      micEnabled: false,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe("listening");
+    });
+    await act(async () => {
+      await result.current.sendTextMessage("単価を教えてください");
+    });
+    await waitFor(() => {
+      expect(result.current.metricsLog).toHaveLength(1);
+    });
+    expect(fake.sent.some((s) => s.method === "sendUserText")).toBe(false);
+    expect(fake.sent.some((s) => s.method === "sendUserHistory")).toBe(true);
+    expect(fake.sent.some((s) => s.method === "sendAssistantHistoryMessage")).toBe(
+      true
+    );
+    expect(result.current.messages.some((m) => m.text === LOCKED_RATE_TEXT)).toBe(
+      true
+    );
+    expect(result.current.metricsLog[0]?.audioBytes).toBeGreaterThan(0);
+    expect(result.current.metricsLog[0]?.lockedResponse).toBe(true);
+  });
+
+  it("cancels late response.created and ignores realtime audio during a locked voice turn", async () => {
+    const fake = buildFakeRealtime();
+    const queue = buildStubAudioQueue();
+    const enqueueSpy = vi.spyOn(queue, "enqueueBase64");
+    const fetchLockedResponseTts = vi.fn(async () => LOCKED_TTS);
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => SESSION),
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchLockedResponseTts,
+      createAudioQueue: () => queue,
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      micEnabled: false,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe("listening");
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({ type: "input_audio_buffer.speech_stopped" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "請求はいくらですか？",
+      });
+      fake.emit({ type: "response.created" });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: Buffer.from(new Uint8Array(48)).toString("base64"),
+        item_id: "late-item",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.metricsLog).toHaveLength(1);
+    });
+    expect(fake.sent.filter((s) => s.method === "cancelResponse")).toHaveLength(1);
+    expect(enqueueSpy).not.toHaveBeenCalledWith(LOCKED_TTS.audioBase64);
+    expect(result.current.metricsLog[0]?.lockedResponse).toBe(true);
+    expect(result.current.messages.some((m) => m.text === LOCKED_RATE_TEXT)).toBe(
+      true
+    );
+
+    act(() => {
+      fake.emit({ type: "response.created" });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: Buffer.from(new Uint8Array(48)).toString("base64"),
+        item_id: "late-after-tts",
+      });
+      fake.emit({ type: "response.done" });
+    });
+
+    expect(fake.sent.filter((s) => s.method === "cancelResponse")).toHaveLength(2);
+    expect(enqueueSpy).not.toHaveBeenCalled();
+    expect(result.current.metricsLog).toHaveLength(1);
+  });
+
   it("cancels once and discards stale deltas on barge-in while the agent is speaking", async () => {
     const fake = buildFakeRealtime();
     const queue = buildStubAudioQueue();
@@ -257,7 +405,7 @@ describe("useGrokVoiceConversation", () => {
       expect(result.current.status).toBe("listening");
     });
     await act(async () => {
-      await result.current.sendTextMessage("募集背景を教えてください");
+      await result.current.sendTextMessage("今日の進め方を教えてください");
     });
     act(() => {
       fake.emit({ type: "response.created" });
