@@ -129,6 +129,28 @@ describe("GrokVoiceAudioQueue", () => {
     expect(fake.sources).toHaveLength(0);
   });
 
+  it("enqueueBase64AndWait resolves after the scheduled source ends", async () => {
+    const fake = buildFakeContext();
+    const queue = new GrokVoiceAudioQueue({
+      sampleRate: 24_000,
+      // @ts-expect-error — test double
+      createAudioContext: () => fake.context,
+    });
+    const done = queue.enqueueBase64AndWait(
+      encodeFloat32ToPcm16Base64(new Float32Array(240))
+    );
+    expect(fake.sources).toHaveLength(1);
+    let resolved = false;
+    void done.then(() => {
+      resolved = true;
+    });
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+    fake.sources[0]?.onended?.();
+    await done;
+    expect(resolved).toBe(true);
+  });
+
   it("decodeBase64Pcm16 round-trips through encodeFloat32ToPcm16Base64", () => {
     const samples = new Float32Array([0, 0.5, -0.5, 1, -1, 0.25]);
     const base64 = encodeFloat32ToPcm16Base64(samples);

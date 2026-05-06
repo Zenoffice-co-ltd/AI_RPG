@@ -17,6 +17,7 @@ import { WebSocket as WsClient } from "ws";
 import { buildLivePronunciationGuide } from "../packages/scenario-engine/src/tts/livePronunciationGuide";
 import { buildGrokVoiceSystemPrompt } from "../apps/web/server/grokVoice/promptBuilder";
 import type { GrokVoiceScenarioBundle } from "../apps/web/server/grokVoice/scenarioLoader";
+import { normalizePr60AssistantText } from "../apps/web/lib/roleplay/grok-voice-pr60-output";
 
 function getArg(flag: string, fallback?: string): string | undefined {
   const idx = process.argv.findIndex((v) => v === flag);
@@ -255,6 +256,10 @@ async function runVoiceCase(
   });
 
   outcome.latencyMs = Date.now() - startedAt;
+  outcome.assistantTranscript = normalizePr60AssistantText(
+    outcome.sttTranscript,
+    outcome.assistantTranscript
+  );
   evaluateVoiceCase(voiceCase, outcome);
   return outcome;
 }

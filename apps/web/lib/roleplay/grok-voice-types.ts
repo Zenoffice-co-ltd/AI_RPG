@@ -36,6 +36,15 @@ export type GrokVoiceSession = {
   firstMessage: string;
 };
 
+export type GrokVoiceGreeting = {
+  audioBase64: string;
+  mimeType: "audio/pcm";
+  sampleRateHz: number;
+  textLen: number;
+  voiceId: string;
+  vendorMs?: number;
+};
+
 export type GrokVoiceTurnMetricsClient = {
   sessionId: string;
   turnIndex: number;

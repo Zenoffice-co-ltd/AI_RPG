@@ -1,6 +1,6 @@
 "use client";
 
-import type { GrokVoiceSession } from "./grok-voice-types";
+import type { GrokVoiceGreeting, GrokVoiceSession } from "./grok-voice-types";
 
 export async function fetchGrokVoiceSession(): Promise<GrokVoiceSession> {
   const response = await fetch("/api/v3/session", {
@@ -12,6 +12,21 @@ export async function fetchGrokVoiceSession(): Promise<GrokVoiceSession> {
     throw new Error(`grok voice session bootstrap failed: ${response.status}`);
   }
   return (await response.json()) as GrokVoiceSession;
+}
+
+export async function fetchGrokVoiceGreeting(input: {
+  sessionId: string;
+  text: string;
+}): Promise<GrokVoiceGreeting> {
+  const response = await fetch("/api/v3/greet", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error(`grok voice greeting tts failed: ${response.status}`);
+  }
+  return (await response.json()) as GrokVoiceGreeting;
 }
 
 export type GrokVoiceEventKind =
@@ -36,7 +51,14 @@ export type GrokVoiceEventKind =
   | "session.prime.failed"
   | "barge_in.detected"
   | "barge_in.cancel_sent"
-  | "barge_in.stale_delta_discarded";
+  | "barge_in.stale_delta_discarded"
+  | "greeting.tts.requested"
+  | "greeting.tts.completed"
+  | "greeting.tts.failed"
+  | "greeting.playback.started"
+  | "greeting.playback.completed"
+  | "greeting.playback.failed"
+  | "response.pr60_locked_cancelled";
 
 export function postGrokVoiceEvent(
   kind: GrokVoiceEventKind,

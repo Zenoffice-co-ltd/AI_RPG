@@ -12,6 +12,7 @@ import {
   transcriptReducer,
 } from "./transcript-reducer";
 import {
+  fetchGrokVoiceGreeting,
   fetchGrokVoiceSession,
   postGrokVoiceEvent,
 } from "./grok-voice-client";
@@ -19,10 +20,15 @@ import {
   GrokVoiceAudioQueue,
   type GrokVoiceAudioQueueOptions,
 } from "./grok-voice-audio-queue";
+import {
+  normalizePr60AssistantText,
+  shouldStopAtPr60LockedResponse,
+} from "./grok-voice-pr60-output";
 import { GrokVoiceMicRecorder } from "./grok-voice-mic-recorder";
 import { GrokVoiceRealtime } from "./grok-voice-realtime";
 import type {
   GrokVoiceMicState,
+  GrokVoiceGreeting,
   GrokVoiceServerEvent,
   GrokVoiceSession,
   GrokVoiceTurnMetricsClient,
@@ -47,6 +53,10 @@ export type GrokVoiceConversation = UseRoleplayConversationReturn & {
 
 export type UseGrokVoiceConversationDeps = {
   fetchSession?: () => Promise<GrokVoiceSession>;
+  fetchGreeting?: (input: {
+    sessionId: string;
+    text: string;
+  }) => Promise<GrokVoiceGreeting>;
   audioQueueOptions?: GrokVoiceAudioQueueOptions;
   createAudioQueue?: (options: GrokVoiceAudioQueueOptions) => GrokVoiceAudioQueue;
   createRealtime?: (
@@ -92,6 +102,9 @@ export function useGrokVoiceConversation(
   const discardStaleResponseDeltasRef = useRef(false);
   const currentResponseItemIdRef = useRef<string | null>(null);
   const staleResponseItemIdsRef = useRef(new Set<string>());
+  const greetingPlaybackDoneRef = useRef(true);
+  const realtimeReadyRef = useRef(false);
+  const pr60LockCancelSentRef = useRef(false);
 
   // Per-turn streaming bookkeeping.
   const turnIndexRef = useRef(0);
@@ -109,6 +122,7 @@ export function useGrokVoiceConversation(
   }, [session]);
 
   const fetchSession = deps.fetchSession ?? fetchGrokVoiceSession;
+  const fetchGreeting = deps.fetchGreeting ?? fetchGrokVoiceGreeting;
   const audioQueueOptions = deps.audioQueueOptions;
   const createAudioQueue = deps.createAudioQueue;
   const createRealtime = deps.createRealtime;
@@ -206,6 +220,7 @@ export function useGrokVoiceConversation(
           turnUserTextLenRef.current = 0;
           turnUserTextPreviewRef.current = "";
           interimAgentClientIdRef.current = null;
+          pr60LockCancelSentRef.current = false;
           setStatus("listening");
           break;
         }
@@ -302,6 +317,28 @@ export function useGrokVoiceConversation(
           const delta = event.delta ?? "";
           if (delta.length === 0) break;
           turnAccumulatedTextRef.current += delta;
+          if (
+            !pr60LockCancelSentRef.current &&
+            shouldStopAtPr60LockedResponse(
+              turnUserTextPreviewRef.current,
+              turnAccumulatedTextRef.current
+            )
+          ) {
+            pr60LockCancelSentRef.current = true;
+            turnAccumulatedTextRef.current = normalizePr60AssistantText(
+              turnUserTextPreviewRef.current,
+              turnAccumulatedTextRef.current
+            );
+            discardStaleResponseDeltasRef.current = true;
+            if (currentResponseItemIdRef.current) {
+              staleResponseItemIdsRef.current.add(currentResponseItemIdRef.current);
+            }
+            realtimeRef.current?.cancelResponse();
+            void postGrokVoiceEvent("response.pr60_locked_cancelled", {
+              sessionId: activeSession.sessionId,
+              details: { turnIndex: turnIndexRef.current },
+            });
+          }
           const id = interimAgentClientIdRef.current;
           if (id) {
             dispatchMessages({
@@ -336,11 +373,15 @@ export function useGrokVoiceConversation(
         }
         case "response.done": {
           const id = interimAgentClientIdRef.current;
+          const finalText = normalizePr60AssistantText(
+            turnUserTextPreviewRef.current,
+            turnAccumulatedTextRef.current
+          );
           if (id) {
             dispatchMessages({
               type: "updateTextAndStatus",
               clientMessageId: id,
-              text: turnAccumulatedTextRef.current,
+              text: finalText,
               status: "final",
             });
           }
@@ -355,7 +396,7 @@ export function useGrokVoiceConversation(
             turnIndex: turnIndexRef.current,
             inputMode: turnInputModeRef.current,
             userTextLen: turnUserTextLenRef.current,
-            agentTextLen: turnAccumulatedTextRef.current.length,
+            agentTextLen: finalText.length,
             firstAudioMs,
             doneMs,
             audioBytes: turnAccumulatedAudioBytesRef.current,
@@ -378,7 +419,7 @@ export function useGrokVoiceConversation(
               doneMs: metrics.doneMs,
               audioBytes: metrics.audioBytes,
               userTextPreview: turnUserTextPreviewRef.current,
-              agentTextPreview: turnAccumulatedTextRef.current,
+              agentTextPreview: finalText,
               promptHash: metrics.promptHash,
               promptVersion: metrics.promptVersion,
               guardrailVersion: metrics.guardrailVersion,
@@ -399,6 +440,7 @@ export function useGrokVoiceConversation(
           bargeInCancelSentRef.current = false;
           discardStaleResponseDeltasRef.current = false;
           currentResponseItemIdRef.current = null;
+          pr60LockCancelSentRef.current = false;
           setStatus("listening");
           break;
         }
@@ -489,6 +531,18 @@ export function useGrokVoiceConversation(
     }
   }, []);
 
+  const maybeStartMicAfterGreeting = useCallback(() => {
+    if (!realtimeReadyRef.current) return;
+    if (!greetingPlaybackDoneRef.current) return;
+    if (!sessionRef.current) return;
+    setStatus("listening");
+    if (micEnabled) {
+      void startMicRecorder().catch(() => {
+        // mic permission denied / not available — text input still works
+      });
+    }
+  }, [micEnabled, startMicRecorder]);
+
   const startConversation = useCallback(async () => {
     if (!isInteractive) return;
     if (sessionRef.current) {
@@ -496,6 +550,9 @@ export function useGrokVoiceConversation(
       return;
     }
     conversationGenRef.current += 1;
+    const generation = conversationGenRef.current;
+    realtimeReadyRef.current = false;
+    greetingPlaybackDoneRef.current = false;
     setStatus("connecting");
     setErrorMessage(null);
     try {
@@ -519,6 +576,65 @@ export function useGrokVoiceConversation(
       } catch {
         // user gesture might be required; will retry on first audio
       }
+
+      void (async () => {
+        try {
+          void postGrokVoiceEvent("greeting.tts.requested", {
+            sessionId: next.sessionId,
+            details: { textLen: next.firstMessage.length },
+          });
+          setStatus("speaking");
+          const greetingAudio = await fetchGreeting({
+            sessionId: next.sessionId,
+            text: next.firstMessage,
+          });
+          if (generation !== conversationGenRef.current) return;
+          void postGrokVoiceEvent("greeting.tts.completed", {
+            sessionId: next.sessionId,
+            details: {
+              textLen: greetingAudio.textLen,
+              audioBytes: Math.floor((greetingAudio.audioBase64.length * 3) / 4),
+              voiceId: greetingAudio.voiceId,
+              vendorMs: greetingAudio.vendorMs ?? null,
+            },
+          });
+          try {
+            void postGrokVoiceEvent("greeting.playback.started", {
+              sessionId: next.sessionId,
+              details: {
+                audioBytes: Math.floor((greetingAudio.audioBase64.length * 3) / 4),
+              },
+            });
+            await queue.enqueueBase64AndWait(greetingAudio.audioBase64);
+            if (generation !== conversationGenRef.current) return;
+            void postGrokVoiceEvent("greeting.playback.completed", {
+              sessionId: next.sessionId,
+            });
+          } catch (error) {
+            if (generation !== conversationGenRef.current) return;
+            void postGrokVoiceEvent("greeting.playback.failed", {
+              sessionId: next.sessionId,
+              details: {
+                message: (error as Error)?.message ?? String(error),
+              },
+            });
+          }
+        } catch (error) {
+          if (generation !== conversationGenRef.current) return;
+          console.warn("grokVoice greeting tts failed", error);
+          void postGrokVoiceEvent("greeting.tts.failed", {
+            sessionId: next.sessionId,
+            details: {
+              textLen: next.firstMessage.length,
+              message: (error as Error)?.message ?? String(error),
+            },
+          });
+        } finally {
+          if (generation !== conversationGenRef.current) return;
+          greetingPlaybackDoneRef.current = true;
+          maybeStartMicAfterGreeting();
+        }
+      })();
 
       // Open the realtime WebSocket.
       const realtimeOptions: ConstructorParameters<typeof GrokVoiceRealtime>[0] = {
@@ -544,12 +660,8 @@ export function useGrokVoiceConversation(
           realtimeRef.current?.sendAssistantHistory(next.firstMessage);
         },
         onReady: () => {
-          setStatus("listening");
-          if (micEnabled) {
-            void startMicRecorder().catch(() => {
-              // mic permission denied / not available — text input still works
-            });
-          }
+          realtimeReadyRef.current = true;
+          maybeStartMicAfterGreeting();
         },
         onClose: ({ code, reason }) => {
           void postGrokVoiceEvent("ws.disconnected", {
@@ -586,16 +698,18 @@ export function useGrokVoiceConversation(
     createRealtime,
     ensureAudioQueue,
     fetchSession,
+    fetchGreeting,
     handleServerEvent,
     isInteractive,
-    micEnabled,
-    startMicRecorder,
+    maybeStartMicAfterGreeting,
   ]);
 
   const endConversation = useCallback(async () => {
     realtimeRef.current?.close();
     realtimeRef.current = null;
     sessionRef.current = null;
+    realtimeReadyRef.current = false;
+    greetingPlaybackDoneRef.current = true;
     setSession(null);
     await stopMicRecorder();
     if (audioQueueRef.current) {
@@ -611,6 +725,7 @@ export function useGrokVoiceConversation(
     turnAccumulatedTextRef.current = "";
     turnAccumulatedAudioBytesRef.current = 0;
     turnUserTextPreviewRef.current = "";
+    pr60LockCancelSentRef.current = false;
     void postGrokVoiceEvent("session.cancelled");
   }, [stopMicRecorder]);
 
@@ -635,7 +750,9 @@ export function useGrokVoiceConversation(
         activeSession = sessionRef.current;
       }
       if (!activeSession || !realtimeRef.current?.isReady()) {
-        setErrorMessage(SAFE_ERROR);
+        return;
+      }
+      if (!greetingPlaybackDoneRef.current) {
         return;
       }
 

@@ -2,14 +2,22 @@
 
 ## 0. 本書の位置づけ
 
-PR [#55](https://github.com/Zenoffice-co-ltd/AI_RPG/pull/55) (commit `a2f8bdf`) で入れた v2.1 品質パッチ + **追加 hardening パッチ (2026-05-06)** が、**本番デプロイ後に意図通りに動いているか**を確認するための短い手順書。
+PR60 で入れる v2.1 音声出力品質パッチ + 初回発話TTS化が、**本番デプロイ後に意図通りに動いているか**を確認するための短い手順書。
 
 - 既存の [GROK_VOICE_V21_MANUAL_TEST_RUNBOOK.md](GROK_VOICE_V21_MANUAL_TEST_RUNBOOK.md) は v2.1 全量 (12 ケース + 業界理解 + 育成価値 + 耐久性) を扱う。
-- 本書は **品質パッチ + hardening パッチが追加・変更した部分**だけに絞った deploy-verification 用チェックリスト。
+- 本書は **PR60 が追加・変更した部分**だけに絞った deploy-verification 用チェックリスト。
 - 想定対象者: デプロイ実施者、Adecco デモ実施者。
 - 所要時間: 15〜20 分。
 
-パッチが直したと主張している挙動が本当に直っているかを、ドライバプロンプト 7 件 + 発音 3 件 + UI 3 件で確認する。
+パッチが直したと主張している挙動が本当に直っているかを、text E2E、voice harness、prod smoke、manual voice smokeで確認する。
+
+### PR60 で追加された項目
+
+- `六月一日` ではなく `六月ついたち` と出力する。
+- `六百から七百件` ではなく `ろっぴゃく件から、ななひゃっけん程度` と出力する。
+- 「何か他に確認したい点はありますか」系の stock suffix を全turnで禁止する。
+- 初回の広いスキル質問では `受発注経験` と `対外調整の経験` だけに留める。
+- `firstMessage` を xAI TTS 固定文として初回再生し、再生完了後に mic start する。
 
 ### Hardening パッチ (2026-05-06) で追加された項目
 
@@ -27,8 +35,8 @@ PR [#55](https://github.com/Zenoffice-co-ltd/AI_RPG/pull/55) (commit `a2f8bdf`) 
 
 | 領域 | パッチ前 | パッチ後 |
 |---|---|---|
-| `promptVersion` | `compile-scenario@2026-05-04.v1.staffing-reference-adecco-v21` | `compile-scenario@2026-05-06.v3.7.staffing-reference-adecco-v21-pr58-dod-contract` |
-| `guardrailVersion` | `gv-think-fast-v1-2026-05-04` | `gv-think-fast-v4.5-2026-05-06` |
+| `promptVersion` | `compile-scenario@2026-05-04.v1.staffing-reference-adecco-v21` | `compile-scenario@2026-05-06.v3.8.staffing-reference-adecco-v21-voice-output-budget` |
+| `guardrailVersion` | `gv-think-fast-v1-2026-05-04` | `gv-think-fast-v4.6-2026-05-06` |
 | 「よくご存じですね」発火 | 1 domain term + 枕詞でも発火 | **2+ domain terms + 業務負荷/人材像/定着 接続**だけ |
 | 「複合質問なので」のメタ前置き | 出る | 禁止 |
 | 「何か他に確認したい点はありますか」末尾 | 頻出 | 禁止 |
@@ -51,20 +59,84 @@ node scripts/grok-voice-v21-prod-smoke.mjs
 ```
 [smoke] /api/v3/session → 200
 [smoke] scenarioId: staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v21
-[smoke] promptVersion: compile-scenario@2026-05-06.v3.1.staffing-reference-adecco-v21-quality-2-anchor
+[smoke] promptVersion: compile-scenario@2026-05-06.v3.8.staffing-reference-adecco-v21-voice-output-budget
+[smoke] guardrailVersion: gv-think-fast-v4.6-2026-05-06
 [smoke] PASS — production deploy serves v2.1 instructions.
 ```
 
-`promptVersion` が `compile-scenario@2026-05-06.v3.7` で始まらない、または `guardrailVersion` が `gv-think-fast-v4.5-2026-05-06` でない場合、デプロイがまだ反映されていない。**ここで止まったら以降をやらない**。
+`promptVersion` が `compile-scenario@2026-05-06.v3.8` で始まらない、または `guardrailVersion` が `gv-think-fast-v4.6-2026-05-06` でない場合、デプロイがまだ反映されていない。**ここで止まったら以降をやらない**。
 
 ### 2.1.1 PR58 追加自動チェック
 
 ```bash
 pnpm exec tsx scripts/check-grok-voice-e2e-matrix.ts
+pnpm exec tsx scripts/grok-voice-v21-scenario-e2e.ts --cases 25,26,27,28,29,30,31,32,33,34 --rounds 3 --critical-rounds 3
+pnpm exec tsx scripts/grok-voice-v21-scenario-e2e.ts --rounds 2 --critical-rounds 3
 pnpm exec tsx scripts/grok-voice-v21-voice-e2e.ts --limit 5
 ```
 
-PR58では E2E matrix を追加し、text `CASES` の全件、voice input、Realtime stability、PLS maxEntries=80 regression を棚卸しする。VAD A/B、threshold、silence、prefix padding の変更は明示的にscope外。
+PR60では case25〜case34 を追加し、text `CASES` の全件、voice input、Realtime stability、PLS maxEntries=80 regression を棚卸しする。VAD A/B、threshold、silence、prefix padding の変更は明示的にscope外。
+
+PR60 実施証跡:
+
+```text
+Local:
+- corepack pnpm -r typecheck: PASS
+- corepack pnpm -r test: PASS
+- corepack pnpm exec tsx scripts/check-grok-voice-e2e-matrix.ts: PASS
+
+Scenario E2E:
+- focused case25-case34: PASS
+  C:\dev\AI_RPG\out\grok_voice_v21_e2e\20260505T084606Z
+- full regression: PASS
+  C:\dev\AI_RPG\out\grok_voice_v21_e2e\20260505T084951Z
+
+Voice E2E harness:
+- executed, evidence saved, pass/fail clear
+  C:\dev\AI_RPG\out\grok_voice_v21_voice_e2e\20260505T090518Z
+- overall: FAIL due to STT drift in fixtures
+  - voice_case2: 「施工日」→「施工費」
+  - voice_case4: 「単価」→「短歌」
+  - PR60 shallow background output lock is PASS after normalization
+
+Deploy / prod smoke:
+- App Hosting deploy: completed
+- corepack pnpm exec tsx scripts/grok-voice-v21-prod-smoke.mjs: PASS
+- live promptVersion: compile-scenario@2026-05-06.v3.8.staffing-reference-adecco-v21-voice-output-budget
+- live guardrailVersion: gv-think-fast-v4.6-2026-05-06
+- live VAD: threshold=0.5 / silence_duration_ms=500 / prefix_padding_ms=333
+```
+
+xAI Voice Agent implementation notes:
+
+- Realtime uses the xAI Voice Agent pattern with `session.update`, ephemeral token WebSocket auth, server VAD, and PCM 24 kHz audio.
+- Initial greeting TTS uses xAI TTS separately from Realtime generation and keeps `firstMessage` as assistant history.
+- References:
+  - https://docs.x.ai/developers/model-capabilities/audio/voice
+  - https://docs.x.ai/developers/model-capabilities/audio/voice-agent
+
+### 2.1.2 PR60 manual production voice smoke
+
+本番デプロイ後、`/demo/adecco-roleplay-v3` で以下を手動確認する。
+
+| prompt | expected |
+|---|---|
+| 時期的にはいつぐらいですかね？ | `開始は六月ついたちを希望しています。` が自然に聞こえ、stock suffixなし |
+| 受注件数は月にどのくらいですか？ | `月あたり、ろっぴゃく件から、ななひゃっけん程度です。` が自然に聞こえ、stock suffixなし |
+| 繁忙時期はいつになりますか？ | 件数を自発的に出さず、時期だけ答える |
+| 候補者のスキルで言うとどういうスキルがあるといいんですか？ | 受発注経験と対外調整だけ。正確性/協調性/メーカー経験を先出ししない |
+| そういうことですね。 | `はい。` または短い自然な受け止め。stock suffixなし |
+
+PRコメント記録欄:
+
+```text
+Manual voice smoke:
+- start date: NOT RUN by Codex (requires human listening)
+- monthly volume pronunciation: NOT RUN by Codex (requires human listening)
+- busy period no volume leak: NOT RUN by Codex (requires human listening)
+- skill minimal disclosure: NOT RUN by Codex (requires human listening)
+- low-info acknowledgement no suffix: NOT RUN by Codex (requires human listening)
+```
 
 ### 2.2 ブラウザ準備
 
@@ -288,7 +360,7 @@ revert 後 `node scripts/grok-voice-v21-prod-smoke.mjs` を再実行し、`promp
 - マージ済 PR: [#55](https://github.com/Zenoffice-co-ltd/AI_RPG/pull/55)
 - パッチ commit: `a2f8bdf`
 - v2.1 全量 runbook: [GROK_VOICE_V21_MANUAL_TEST_RUNBOOK.md](GROK_VOICE_V21_MANUAL_TEST_RUNBOOK.md)
-- 自動 E2E: [scripts/grok-voice-v21-scenario-e2e.ts](../scripts/grok-voice-v21-scenario-e2e.ts) (PR58で case 19〜24 追加)
+- 自動 E2E: [scripts/grok-voice-v21-scenario-e2e.ts](../scripts/grok-voice-v21-scenario-e2e.ts) (PR60で case 25〜34 追加)
 - E2E matrix: [docs/GROK_VOICE_V21_E2E_MATRIX.md](GROK_VOICE_V21_E2E_MATRIX.md)
 - Voice E2E: [scripts/grok-voice-v21-voice-e2e.ts](../scripts/grok-voice-v21-voice-e2e.ts)
 - 本番 smoke: [scripts/grok-voice-v21-prod-smoke.mjs](../scripts/grok-voice-v21-prod-smoke.mjs)

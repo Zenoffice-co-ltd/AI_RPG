@@ -7,6 +7,7 @@ import {
 } from "../../lib/roleplay/useGrokVoiceConversation";
 import { GrokVoiceAudioQueue } from "../../lib/roleplay/grok-voice-audio-queue";
 import type {
+  GrokVoiceGreeting,
   GrokVoiceServerEvent,
   GrokVoiceSession,
 } from "../../lib/roleplay/grok-voice-types";
@@ -30,8 +31,25 @@ const SESSION: GrokVoiceSession = {
   firstMessage: "お時間ありがとうございます。",
 };
 
-function buildStubAudioQueue() {
-  return new GrokVoiceAudioQueue({
+const GREETING: GrokVoiceGreeting = {
+  audioBase64: Buffer.from(new Uint8Array(48)).toString("base64"),
+  mimeType: "audio/pcm",
+  sampleRateHz: 24_000,
+  textLen: SESSION.firstMessage.length,
+  voiceId: "rex",
+  vendorMs: 100,
+};
+
+function buildDeferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+function buildStubAudioQueue(opts?: { greetingPlayback?: Promise<void> }) {
+  const queue = new GrokVoiceAudioQueue({
     sampleRate: 24_000,
     createAudioContext: () =>
       ({
@@ -57,9 +75,13 @@ function buildStubAudioQueue() {
         close: async () => undefined,
       }) as unknown as AudioContext,
   });
+  vi.spyOn(queue, "enqueueBase64AndWait").mockImplementation(async () => {
+    await opts?.greetingPlayback;
+  });
+  return queue;
 }
 
-function buildFakeRealtime() {
+function buildFakeRealtime(opts: { autoReady?: boolean } = {}) {
   let onMessage: ((event: GrokVoiceServerEvent) => void) | null = null;
   let onOpen: (() => void) | null = null;
   let onReady: (() => void) | null = null;
@@ -76,8 +98,10 @@ function buildFakeRealtime() {
     sendSessionUpdate: (arg: unknown) => sent.push({ method: "sendSessionUpdate", arg }),
     sendAssistantHistory: (arg: unknown) => {
       sent.push({ method: "sendAssistantHistory", arg });
-      ready = true;
-      onReady?.();
+      if (opts.autoReady !== false) {
+        ready = true;
+        onReady?.();
+      }
     },
     sendUserText: (arg: unknown) => sent.push({ method: "sendUserText", arg }),
     appendAudio: (arg: unknown) => sent.push({ method: "appendAudio", arg }),
@@ -101,7 +125,11 @@ function buildFakeRealtime() {
   };
 
   const emit = (event: GrokVoiceServerEvent) => onMessage?.(event);
-  return { realtime, sent, ctor, emit };
+  const markReady = () => {
+    ready = true;
+    onReady?.();
+  };
+  return { realtime, sent, ctor, emit, markReady };
 }
 
 describe("useGrokVoiceConversation", () => {
@@ -110,6 +138,7 @@ describe("useGrokVoiceConversation", () => {
     const fake = buildFakeRealtime();
     const deps: UseGrokVoiceConversationDeps = {
       fetchSession,
+      fetchGreeting: vi.fn(async () => GREETING),
       createAudioQueue: () => buildStubAudioQueue(),
       createRealtime: fake.ctor as unknown as NonNullable<
         UseGrokVoiceConversationDeps["createRealtime"]
@@ -135,6 +164,9 @@ describe("useGrokVoiceConversation", () => {
     expect(methods).toContain("sendSessionUpdate");
     expect(methods).toContain("sendAssistantHistory");
 
+    await waitFor(() => {
+      expect(result.current.status).toBe("listening");
+    });
     // Now simulate a turn: user types, Grok responds.
     await act(async () => {
       await result.current.sendTextMessage("募集背景を教えてください");
@@ -175,6 +207,7 @@ describe("useGrokVoiceConversation", () => {
     const fake = buildFakeRealtime();
     const deps: UseGrokVoiceConversationDeps = {
       fetchSession: vi.fn(async () => SESSION),
+      fetchGreeting: vi.fn(async () => GREETING),
       createAudioQueue: () => buildStubAudioQueue(),
       createRealtime: fake.ctor as unknown as NonNullable<
         UseGrokVoiceConversationDeps["createRealtime"]
@@ -184,6 +217,9 @@ describe("useGrokVoiceConversation", () => {
     const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
     await act(async () => {
       await result.current.startConversation();
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe("listening");
     });
     await act(async () => {
       await result.current.sendTextMessage("hello");
@@ -206,6 +242,7 @@ describe("useGrokVoiceConversation", () => {
     const flushSpy = vi.spyOn(queue, "flush");
     const deps: UseGrokVoiceConversationDeps = {
       fetchSession: vi.fn(async () => SESSION),
+      fetchGreeting: vi.fn(async () => GREETING),
       createAudioQueue: () => queue,
       createRealtime: fake.ctor as unknown as NonNullable<
         UseGrokVoiceConversationDeps["createRealtime"]
@@ -215,6 +252,9 @@ describe("useGrokVoiceConversation", () => {
     const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
     await act(async () => {
       await result.current.startConversation();
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe("listening");
     });
     await act(async () => {
       await result.current.sendTextMessage("募集背景を教えてください");
@@ -248,6 +288,7 @@ describe("useGrokVoiceConversation", () => {
     const fake = buildFakeRealtime();
     const deps: UseGrokVoiceConversationDeps = {
       fetchSession: fetchSession as unknown as () => Promise<GrokVoiceSession>,
+      fetchGreeting: vi.fn(async () => GREETING),
       createAudioQueue: () => buildStubAudioQueue(),
       createRealtime: fake.ctor as unknown as NonNullable<
         UseGrokVoiceConversationDeps["createRealtime"]
@@ -259,5 +300,96 @@ describe("useGrokVoiceConversation", () => {
     });
     expect(fetchSession).not.toHaveBeenCalled();
     expect(fake.sent).toHaveLength(0);
+  });
+
+  it("waits for both realtime ready and greeting playback before starting the mic", async () => {
+    const playback = buildDeferred();
+    const fake = buildFakeRealtime();
+    const start = vi.fn(async () => undefined);
+    const setEnabled = vi.fn();
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => SESSION),
+      fetchGreeting: vi.fn(async () => GREETING),
+      createAudioQueue: () => buildStubAudioQueue({ greetingPlayback: playback.promise }),
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      createMicRecorder: () =>
+        ({
+          start,
+          stop: vi.fn(async () => undefined),
+          setEnabled,
+          getInputVolume: () => 0,
+        }) as unknown as ReturnType<NonNullable<UseGrokVoiceConversationDeps["createMicRecorder"]>>,
+      micEnabled: true,
+    };
+
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    expect(start).not.toHaveBeenCalled();
+
+    await act(async () => {
+      playback.resolve();
+      await playback.promise;
+    });
+    await waitFor(() => {
+      expect(start).toHaveBeenCalledTimes(1);
+    });
+    expect(setEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("skips greeting playback and still starts the mic when greeting TTS fails", async () => {
+    const fake = buildFakeRealtime();
+    const start = vi.fn(async () => undefined);
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => SESSION),
+      fetchGreeting: vi.fn(async () => {
+        throw new Error("tts failed");
+      }),
+      createAudioQueue: () => buildStubAudioQueue(),
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      createMicRecorder: () =>
+        ({
+          start,
+          stop: vi.fn(async () => undefined),
+          setEnabled: vi.fn(),
+          getInputVolume: () => 0,
+        }) as unknown as ReturnType<NonNullable<UseGrokVoiceConversationDeps["createMicRecorder"]>>,
+      micEnabled: true,
+    };
+
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => {
+      expect(start).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("does not send user text before realtime ready even if greeting already completed", async () => {
+    const fake = buildFakeRealtime({ autoReady: false });
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => SESSION),
+      fetchGreeting: vi.fn(async () => GREETING),
+      createAudioQueue: () => buildStubAudioQueue(),
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      micEnabled: false,
+    };
+
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await act(async () => {
+      await result.current.sendTextMessage("募集背景を教えてください");
+    });
+    expect(fake.sent.some((s) => s.method === "sendUserText")).toBe(false);
   });
 });

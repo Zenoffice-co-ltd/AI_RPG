@@ -24,6 +24,19 @@ export type PassCondition =
       reason: string;
     };
 
+const STOCK_SUFFIX_TERMS = [
+  "何か他にご確認したい点",
+  "何か他に確認したい点",
+  "他に確認したい点",
+  "他にご確認したい点",
+  "何か他に気になる点",
+  "ご質問があれば",
+  "ご不明点",
+  "いつでもお気軽に",
+  "何かございましたら",
+  "他の条件もご確認",
+] as const;
+
 export const CASES: CaseDef[] = [
   {
     id: "case1_shallow_background",
@@ -54,6 +67,7 @@ export const CASES: CaseDef[] = [
           "他社",
           "大手",
           "声をかけ",
+          ...STOCK_SUFFIX_TERMS,
         ],
         reason: "深掘り情報を勝手に出さない",
       },
@@ -241,7 +255,13 @@ export const CASES: CaseDef[] = [
       { kind: "max_sentences", max: 3, reason: "雑談を膨らませない" },
       {
         kind: "must_not_contain_any",
-        terms: ["趣味", "週末", "天気予報", "暑くて何"],
+        terms: [
+          "趣味",
+          "週末",
+          "天気予報",
+          "暑くて何",
+          ...STOCK_SUFFIX_TERMS,
+        ],
         reason: "雑談を広げすぎない",
       },
     ],
@@ -281,6 +301,10 @@ export const CASES: CaseDef[] = [
           "来週後半",
           "二から三営業日",
           "交通費",
+          "六月ついたち",
+          "ろっぴゃく件",
+          "ななひゃっけん",
+          "何か他に確認したい点",
         ],
         reason: "全部を一括開示しない",
       },
@@ -940,6 +964,258 @@ export const CASES: CaseDef[] = [
         reason: "必須でない条件を必須扱いで同意しない",
       },
       { kind: "max_sentences", max: 3, reason: "訂正は短く返す" },
+    ],
+  },
+  {
+    id: "case25_start_date_voice_friendly_no_suffix",
+    label: "開始日は六月ついたちで読み上げやすく、定型語尾を付けない",
+    critical: true,
+    turns: [{ role: "user", text: "時期的にはいつぐらいですかね？" }],
+    passConditions: [
+      {
+        kind: "must_contain_at_least",
+        n: 1,
+        terms: ["六月ついたち"],
+        reason: "開始日をTTS安定表記にする",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: ["六月一日", "6月1日", ...STOCK_SUFFIX_TERMS],
+        reason: "不自然な日付表記とstock suffixを出さない",
+      },
+      { kind: "max_sentences", max: 1, reason: "開始日回答は一文で終える" },
+    ],
+  },
+  {
+    id: "case26_monthly_volume_voice_friendly_no_suffix",
+    label: "月間受注件数はろっぴゃく件から、ななひゃっけん程度で読む",
+    critical: true,
+    turns: [{ role: "user", text: "受注件数は月にどのくらいですか？" }],
+    passConditions: [
+      {
+        kind: "must_contain_at_least",
+        n: 2,
+        terms: ["ろっぴゃく件", "ななひゃっけん", "月あたり", "程度"],
+        reason: "件数レンジを音声優先表記にする",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: [
+          "六百から七百件",
+          "600から700件",
+          "六百〜七百件",
+          ...STOCK_SUFFIX_TERMS,
+        ],
+        reason: "不安定な件数レンジ表記とstock suffixを出さない",
+      },
+      { kind: "max_sentences", max: 1, reason: "件数回答は一文で終える" },
+    ],
+  },
+  {
+    id: "case27_busy_period_only_no_volume_leak",
+    label: "繁忙時期質問では件数を漏らさない",
+    critical: true,
+    turns: [{ role: "user", text: "繁忙時期はいつになりますか？" }],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: ["月末", "月初", "月の初め", "月曜日", "商品", "切り替わる", "切替"],
+        reason: "時期だけに答える",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: [
+          "六百",
+          "七百",
+          "ろっぴゃく",
+          "ななひゃっけん",
+          "件",
+          ...STOCK_SUFFIX_TERMS,
+        ],
+        reason: "件数とstock suffixを出さない",
+      },
+      { kind: "max_sentences", max: 2, reason: "繁忙時期回答は短く返す" },
+    ],
+  },
+  {
+    id: "case28_no_stock_suffix_after_shallow_background",
+    label: "浅い募集背景回答の後に定型語尾を付けない",
+    critical: true,
+    turns: [
+      { role: "user", text: "簡単に募集背景をお伺いしてよろしいでしょうか？" },
+    ],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: ["増員", "受注", "処理"],
+        reason: "浅い背景を短く示す",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: [
+          ...STOCK_SUFFIX_TERMS,
+          "業務内容と合わせて",
+          "現場の状況も絡む",
+        ],
+        reason: "浅い背景にstock suffixや深掘り誘導を足さない",
+      },
+      { kind: "max_sentences", max: 2, reason: "浅い背景は2文まで" },
+    ],
+  },
+  {
+    id: "case29_no_stock_suffix_after_low_information_ack",
+    label: "低情報量の相槌には短く受け止め、定型語尾で埋めない",
+    critical: true,
+    turns: [
+      { role: "user", text: "繁忙時期はいつになりますか？" },
+      { role: "user", text: "そういうことですね。" },
+    ],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: ["はい", "そうですね"],
+        reason: "短い受け止めに留める",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: [...STOCK_SUFFIX_TERMS],
+        reason: "相槌後に確認質問で埋めない",
+      },
+      { kind: "max_sentences", max: 1, reason: "相槌応答は一文" },
+    ],
+  },
+  {
+    id: "case30_skill_question_minimal_disclosure",
+    label: "初回スキル質問は受発注経験と対外調整だけに留める",
+    critical: true,
+    turns: [
+      {
+        role: "user",
+        text: "候補者のスキルで言うとどういうスキルがあるといいんですか？",
+      },
+    ],
+    passConditions: [
+      {
+        kind: "must_contain_at_least",
+        n: 1,
+        terms: ["受発注"],
+        reason: "第一階層の受発注経験を答える",
+      },
+      {
+        kind: "must_contain_any",
+        terms: ["対外調整", "社外対応", "調整経験"],
+        reason: "第一階層の対外調整経験を答える",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: [
+          "正確に処理",
+          "正確性",
+          "協調性",
+          "メーカー経験",
+          "プラス",
+          "必須ではありません",
+          "住宅設備業界そのもの",
+          "自己流",
+          "指揮命令者",
+          "課長",
+          "納期調整で営業や物流",
+          ...STOCK_SUFFIX_TERMS,
+        ],
+        reason: "聞かれていないsoft skillやメーカー経験を先出ししない",
+      },
+      { kind: "max_sentences", max: 2, reason: "スキル回答は短く返す" },
+    ],
+  },
+  {
+    id: "case31_skill_accuracy_followup_allowed",
+    label: "正確性は聞かれた場合だけ具体化できる",
+    critical: true,
+    turns: [{ role: "user", text: "正確性というのは具体的にどういうことですか？" }],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: ["品番", "納期", "取り違え", "指示", "正確", "確認"],
+        reason: "正確性の具体論を答える",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: ["メーカー経験はプラス", "必須ではありません", ...STOCK_SUFFIX_TERMS],
+        reason: "別条件やstock suffixを足さない",
+      },
+      { kind: "max_sentences", max: 2, reason: "正確性follow-upは短く返す" },
+    ],
+  },
+  {
+    id: "case32_skill_cooperation_followup_allowed",
+    label: "協調性は聞かれた場合だけ具体化できる",
+    critical: true,
+    turns: [{ role: "user", text: "協調性をもう少し具体的に聞いてもいいですか？" }],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: ["営業", "物流", "連携", "確認", "抱え込まず"],
+        reason: "協調性の具体論を答える",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: [
+          "過去にうまくいかなかった",
+          "うまくいった例",
+          "自己流で進めて",
+          "納期調整では特に",
+          ...STOCK_SUFFIX_TERMS,
+        ],
+        reason: "聞かれていない深掘りやstock suffixを足さない",
+      },
+      { kind: "max_sentences", max: 2, reason: "協調性follow-upは短く返す" },
+    ],
+  },
+  {
+    id: "case33_manufacturer_experience_followup_allowed",
+    label: "メーカー経験の必須/非必須は聞かれた場合だけ答える",
+    critical: true,
+    turns: [{ role: "user", text: "メーカー経験がない場合は厳しいですか？" }],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: ["必須ではありません", "業界未経験でも", "検討できます"],
+        reason: "メーカー経験は必須ではないと答える",
+      },
+      {
+        kind: "must_contain_any",
+        terms: ["受発注", "対外調整", "社外対応"],
+        reason: "代替判断軸を短く添える",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: [...STOCK_SUFFIX_TERMS],
+        reason: "stock suffixを出さない",
+      },
+      { kind: "max_sentences", max: 2, reason: "メーカー経験follow-upは短く返す" },
+    ],
+  },
+  {
+    id: "case34_final_closing_no_customer_support_suffix",
+    label: "終盤挨拶にカスタマーサポート風語尾を付けない",
+    critical: true,
+    turns: [{ role: "user", text: "わかりました。よろしくお願いします。" }],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: ["こちらこそ", "よろしくお願いします"],
+        reason: "自然な挨拶で返す",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: [
+          "ご不明点が出てきましたら",
+          "ご連絡ください",
+          ...STOCK_SUFFIX_TERMS,
+        ],
+        reason: "カスタマーサポート風の末尾にしない",
+      },
+      { kind: "max_sentences", max: 1, reason: "終盤挨拶は一文" },
     ],
   },
 ];

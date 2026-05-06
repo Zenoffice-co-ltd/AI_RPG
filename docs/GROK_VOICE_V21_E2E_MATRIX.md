@@ -33,6 +33,16 @@ VAD A/B, `threshold`, `silence_duration_ms`, and `prefix_padding_ms` are out of 
 | `case22_hourly_rate_correction` | 単価上振れの誤認には範囲で返す | yes | 二千円以上確認 | レンジ/限定的上振れ/現場確認 | SoT | SoT | SoT | hourly rate correction | PR58-C |
 | `case23_working_hours_correction` | 勤務時間の誤認には安易に同意しない | yes | 十時開始確認 | 既存勤務時間へ訂正/現場確認 | SoT | SoT | SoT | working hours correction | PR58-C |
 | `case24_must_have_condition_correction` | 受発注経験の必須/優先を混同しない | yes | 受発注経験必須確認 | 必須/優先の違いを訂正 | SoT | SoT | SoT | must-have correction | PR58-C |
+| `case25_start_date_voice_friendly_no_suffix` | 開始日は六月ついたちで読み上げやすく、定型語尾を付けない | yes | 時期的にはいつぐらい | `六月ついたち` の一文回答、stock suffixなし | 六月ついたち | 六月一日, 6月1日, stock suffix | 1 | date pronunciation + suffix | PR60 manual voice feedback |
+| `case26_monthly_volume_voice_friendly_no_suffix` | 月間受注件数はろっぴゃく件から、ななひゃっけん程度で読む | yes | 受注件数 | 音声優先の件数レンジ一文回答 | ろっぴゃく件, ななひゃっけん, 月あたり, 程度 | 六百から七百件, 600から700件, stock suffix | 1 | quantity pronunciation + suffix | PR60 manual voice feedback |
+| `case27_busy_period_only_no_volume_leak` | 繁忙時期質問では件数を漏らさない | yes | 繁忙時期 | 時期だけ答え、件数は出さない | 月末, 月初, 月曜日, 商品切替 | 六百, 七百, 件, stock suffix | 2 | over-disclosure by intent | PR60 manual voice feedback |
+| `case28_no_stock_suffix_after_shallow_background` | 浅い募集背景回答の後に定型語尾を付けない | yes | 簡単な募集背景 | 表層背景のみ、誘導語尾なし | 増員, 受注, 処理 | stock suffix, 業務内容と合わせて, 現場の状況も絡む | 2 | shallow background suffix | PR60 manual voice feedback |
+| `case29_no_stock_suffix_after_low_information_ack` | 低情報量の相槌には短く受け止め、定型語尾で埋めない | yes | 繁忙時期 → そういうことですね | 短い受け止めだけ | はい, そうですね | stock suffix | 1 | low-info ack suffix | PR60 manual voice feedback |
+| `case30_skill_question_minimal_disclosure` | 初回スキル質問は受発注経験と対外調整だけに留める | yes | 候補者スキル | 第一階層のみ答える | 受発注 + 対外調整/社外対応/調整経験 | 正確性, 協調性, メーカー経験, 必須ではありません | 2 | skill over-disclosure | PR60 manual voice feedback |
+| `case31_skill_accuracy_followup_allowed` | 正確性は聞かれた場合だけ具体化できる | yes | 正確性とは | 正確性の具体論だけ答える | 品番, 納期, 取り違え, 指示, 正確, 確認 | メーカー経験はプラス, 必須ではありません, stock suffix | 2 | progressive disclosure | PR60 manual voice feedback |
+| `case32_skill_cooperation_followup_allowed` | 協調性は聞かれた場合だけ具体化できる | yes | 協調性follow-up | 連携の具体論だけ答える | 営業, 物流, 連携, 確認, 抱え込まず | 過去例, 自己流, 納期調整では特に, stock suffix | 2 | progressive disclosure | PR60 manual voice feedback |
+| `case33_manufacturer_experience_followup_allowed` | メーカー経験の必須/非必須は聞かれた場合だけ答える | yes | メーカー経験なし | 必須ではないことと代替経験 | 必須ではありません/業界未経験でも/検討できます + 受発注/対外調整/社外対応 | stock suffix | 2 | progressive disclosure | PR60 manual voice feedback |
+| `case34_final_closing_no_customer_support_suffix` | 終盤挨拶にカスタマーサポート風語尾を付けない | yes | よろしくお願いします | 自然な一文挨拶 | こちらこそ, よろしくお願いします | ご不明点, いつでもお気軽に, ご連絡ください, stock suffix | 1 | customer-support suffix | PR60 manual voice feedback |
 
 ## Voice Input E2E
 

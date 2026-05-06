@@ -42,6 +42,13 @@ const allowedKinds = [
   "barge_in.detected",
   "barge_in.cancel_sent",
   "barge_in.stale_delta_discarded",
+  "greeting.tts.requested",
+  "greeting.tts.completed",
+  "greeting.tts.failed",
+  "greeting.playback.started",
+  "greeting.playback.completed",
+  "greeting.playback.failed",
+  "response.pr60_locked_cancelled",
 ] as const;
 
 const requestSchema = z.object({

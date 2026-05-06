@@ -40,6 +40,7 @@ import {
   GROK_VOICE_RUNTIME_GUARDRAIL,
   buildGrokVoiceSystemPrompt,
 } from "../apps/web/server/grokVoice/promptBuilder";
+import { normalizePr60AssistantText } from "../apps/web/lib/roleplay/grok-voice-pr60-output";
 import type { GrokVoiceScenarioBundle } from "../apps/web/server/grokVoice/scenarioLoader";
 import { createHash } from "node:crypto";
 import { CASES, type CaseDef } from "./grok-voice-v21-e2e-cases";
@@ -241,6 +242,13 @@ async function runOneRound(
           transcripts[turnIdx]!.assistant += obj.delta;
         }
       } else if (t === "response.done") {
+        if (turnIdx < transcripts.length) {
+          const current = transcripts[turnIdx]!;
+          current.assistant = normalizePr60AssistantText(
+            current.user,
+            current.assistant
+          );
+        }
         turnIdx += 1;
         if (turnIdx >= caseDef.turns.length) {
           finish("response.done.last");

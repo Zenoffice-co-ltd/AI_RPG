@@ -39,6 +39,38 @@ describe("grok-voice event route", () => {
     expect((clientEventLine as { kind?: string }).kind).toBe("ws.connected");
   });
 
+  it("accepts greeting telemetry kinds without logging prompt or transcript body by default", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "greeting.tts.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            textLen: 72,
+            audioBytes: 12345,
+            voiceId: "rex",
+            vendorMs: 320,
+            agentTextPreview: "初回発話本文",
+            instructions: "絶対にログしない指示全文",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const clientEventLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.clientEvent"
+    ) as { kind?: string; details?: Record<string, unknown> } | undefined;
+    expect(clientEventLine?.kind).toBe("greeting.tts.completed");
+    expect(clientEventLine?.details?.["textLen"]).toBe(72);
+    expect(JSON.stringify(lines)).not.toContain("初回発話本文");
+    expect(JSON.stringify(lines)).not.toContain("指示全文");
+  });
+
   it("emits dedicated grokVoice.stt + clientEvent lines for stt.completed (補強案 #1)", async () => {
     const { POST } = await import("../../app/api/v3/event/route");
     const response = await POST(
