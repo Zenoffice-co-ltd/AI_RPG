@@ -68,7 +68,13 @@ export async function getCachedGrokVoiceTts(input: {
     return null;
   }
   try {
-    const firestoreEntry = await withTimeout(readFirestoreCache(cacheKeyHash), timeoutMs);
+    const firestoreRead = readFirestoreCache(cacheKeyHash);
+    void firestoreRead.then((entry) => {
+      if (entry) {
+        memoryCache.set(cacheKeyHash, entry);
+      }
+    }, () => undefined);
+    const firestoreEntry = await withTimeout(firestoreRead, timeoutMs);
     if (!firestoreEntry) return null;
     memoryCache.set(cacheKeyHash, firestoreEntry);
     return firestoreEntry;
