@@ -82,38 +82,26 @@ export function saveGrokVoiceTtsCache(input: {
   purpose: GrokVoiceTtsPurpose;
   result: GrokVoiceTtsResult;
 }): void {
-  const audioBase64 = input.result.audio.toString("base64");
-  const audioBytes = input.result.audio.byteLength;
-  const { cacheKey, cacheKeyHash, textHash } = buildGrokVoiceTtsCacheKey({
-    text: input.text,
-    voiceId: input.result.voiceId,
-    sampleRateHz: input.result.sampleRateHz,
-    purpose: input.purpose,
-  });
-  const entry: GrokVoiceTtsCacheEntry = {
-    cacheKey,
-    cacheKeyHash,
-    textHash,
-    voiceId: input.result.voiceId,
-    sampleRateHz: input.result.sampleRateHz,
-    codec: input.result.codec,
-    language: input.result.language,
-    mimeType: input.result.mimeType,
-    audioBase64,
-    audioBytes,
-    createdAt: new Date().toISOString(),
-    vendorMs: input.result.vendorMs,
-    xaiTtsRequestShapeVersion: input.result.xaiTtsRequestShapeVersion,
-  };
-  memoryCache.set(cacheKeyHash, entry);
+  const entry = buildCacheEntry(input);
+  memoryCache.set(entry.cacheKeyHash, entry);
 
-  if (JSON.stringify(entry).length > FIRESTORE_DOC_SIZE_CAP_BYTES) {
-    return;
-  }
-  if (process.env["GROK_VOICE_TTS_CACHE_DISABLE_FIRESTORE"] === "true") {
+  if (!canWriteFirestoreEntry(entry)) {
     return;
   }
   void writeFirestoreCache(entry).catch(() => undefined);
+}
+
+export async function saveGrokVoiceTtsCacheAndWait(input: {
+  text: string;
+  purpose: GrokVoiceTtsPurpose;
+  result: GrokVoiceTtsResult;
+}): Promise<GrokVoiceTtsCacheEntry> {
+  const entry = buildCacheEntry(input);
+  memoryCache.set(entry.cacheKeyHash, entry);
+  if (canWriteFirestoreEntry(entry)) {
+    await writeFirestoreCache(entry);
+  }
+  return entry;
 }
 
 export function clearGrokVoiceTtsMemoryCache() {
@@ -138,6 +126,43 @@ async function readFirestoreCache(
 async function writeFirestoreCache(entry: GrokVoiceTtsCacheEntry) {
   const db = getTtsCacheFirestore();
   await db.collection(COLLECTION).doc(entry.cacheKeyHash).set(entry, { merge: true });
+}
+
+function buildCacheEntry(input: {
+  text: string;
+  purpose: GrokVoiceTtsPurpose;
+  result: GrokVoiceTtsResult;
+}): GrokVoiceTtsCacheEntry {
+  const audioBase64 = input.result.audio.toString("base64");
+  const audioBytes = input.result.audio.byteLength;
+  const { cacheKey, cacheKeyHash, textHash } = buildGrokVoiceTtsCacheKey({
+    text: input.text,
+    voiceId: input.result.voiceId,
+    sampleRateHz: input.result.sampleRateHz,
+    purpose: input.purpose,
+  });
+  return {
+    cacheKey,
+    cacheKeyHash,
+    textHash,
+    voiceId: input.result.voiceId,
+    sampleRateHz: input.result.sampleRateHz,
+    codec: input.result.codec,
+    language: input.result.language,
+    mimeType: input.result.mimeType,
+    audioBase64,
+    audioBytes,
+    createdAt: new Date().toISOString(),
+    vendorMs: input.result.vendorMs,
+    xaiTtsRequestShapeVersion: input.result.xaiTtsRequestShapeVersion,
+  };
+}
+
+function canWriteFirestoreEntry(entry: GrokVoiceTtsCacheEntry) {
+  return (
+    process.env["GROK_VOICE_TTS_CACHE_DISABLE_FIRESTORE"] !== "true" &&
+    JSON.stringify(entry).length <= FIRESTORE_DOC_SIZE_CAP_BYTES
+  );
 }
 
 function getTtsCacheFirestore() {

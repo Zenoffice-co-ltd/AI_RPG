@@ -10,7 +10,7 @@ import {
   synthesizeGrokVoiceTts,
   type GrokVoiceTtsPurpose,
 } from "../apps/web/server/grokVoice/tts";
-import { saveGrokVoiceTtsCache } from "../apps/web/server/grokVoice/ttsCache";
+import { saveGrokVoiceTtsCacheAndWait } from "../apps/web/server/grokVoice/ttsCache";
 
 async function main() {
   ensureEnvLoaded();
@@ -35,7 +35,7 @@ async function main() {
       `  ${purpose.padEnd(15)} len=${String(text.length).padStart(3)} ... `
     );
     const result = await synthesizeWithRetry({ text, purpose });
-    saveGrokVoiceTtsCache({ text, purpose, result });
+    await saveGrokVoiceTtsCacheAndWait({ text, purpose, result });
     console.info(`ok audioBytes=${result.audio.byteLength} vendorMs=${result.vendorMs}`);
   }
 }
