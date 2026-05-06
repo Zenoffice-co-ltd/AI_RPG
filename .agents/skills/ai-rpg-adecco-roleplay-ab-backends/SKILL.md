@@ -210,6 +210,10 @@ The hook in `useGrokVoiceConversation.ts` and the wrapper in
   stale-drain guard after deterministic TTS so late `response.created`, audio
   deltas, and `response.done` cannot create double playback or bogus
   `no_audio` metrics.
+- Voice locked turns can also receive a delayed `speech_started` from the tail of
+  the same user utterance after deterministic TTS starts. Ignore that short mic
+  tail window; otherwise the browser may log `barge_in`, flush the deterministic
+  TTS, and sound like it stops after 1-2 seconds.
 - `audioQueue.flush()` remains valid for barge-in. Locked-response deterministic
   playback should only flush before playback if stale Realtime audio already
   reached the queue, with reason `locked_response_preempt_realtime`.
