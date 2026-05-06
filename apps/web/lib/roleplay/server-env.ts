@@ -193,7 +193,7 @@ export function getGrokVoiceTranscriptPreviewMaxChars() {
   const raw = process.env["GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_MAX_CHARS"];
   const parsed = Number(raw ?? "200");
   if (!Number.isFinite(parsed)) return 200;
-  return Math.max(1, Math.min(1_000, Math.trunc(parsed)));
+  return Math.max(1, Math.min(4_000, Math.trunc(parsed)));
 }
 
 export function assertGrokVoiceEnvForProduction() {
