@@ -5,6 +5,7 @@
 //   node scripts/grok-voice-v21-prod-logs.mjs
 //   node scripts/grok-voice-v21-prod-logs.mjs --minutes 10
 //   node scripts/grok-voice-v21-prod-logs.mjs --session gv_sess_...
+//   node scripts/grok-voice-v21-prod-logs.mjs --input fixtures/cloud-logs.json
 
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -26,6 +27,7 @@ const limit = numberArg(args.limit, DEFAULT_LIMIT);
 const sessionArg = stringArg(args.session, "latest");
 const outRoot = stringArg(args.out, "");
 const sinceArg = stringArg(args.since, "");
+const inputArg = stringArg(args.input, "");
 const since = sinceArg ? new Date(sinceArg) : new Date(Date.now() - minutes * 60_000);
 
 if (Number.isNaN(since.getTime())) {
@@ -40,7 +42,9 @@ const filter = [
 ].join(" AND ");
 
 const freshnessMinutes = Math.max(1, Math.ceil((Date.now() - since.getTime()) / 60_000));
-const entries = readCloudLogs({ project, filter, limit, freshnessMinutes });
+const entries = inputArg
+  ? JSON.parse(readFileSync(inputArg, "utf8"))
+  : readCloudLogs({ project, filter, limit, freshnessMinutes });
 const payloadEntries = entries
   .map(toPayloadEntry)
   .filter((entry) => !entry.timestamp || new Date(entry.timestamp) >= since)
@@ -89,10 +93,15 @@ const summary = {
   selectedSession: selected,
   sessions,
   textAvailable,
+  transcriptTextSource: transcript.textSource,
   notes: textAvailable
-    ? []
+    ? transcript.textSource === "utf8_base64"
+      ? [
+          "Transcript text was decoded from UTF-8 Base64 structured-log fields to avoid Cloud Logging Unicode display loss.",
+        ]
+      : []
     : [
-        "Transcript text was not present in the selected logs. Ensure GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true is deployed before the demo run.",
+        "Transcript text was not present in a recoverable form. Ensure GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true is deployed and the UTF-8 Base64 preview fields are present before the demo run.",
       ],
 };
 
@@ -221,6 +230,8 @@ function summarizeSessions(entries) {
 function buildTranscript(entries) {
   const turns = new Map();
   const timeline = [];
+  let decodedPreviewCount = 0;
+  let rawPreviewCount = 0;
   for (const entry of entries) {
     const payload = entry.payload;
     timeline.push({
@@ -233,7 +244,10 @@ function buildTranscript(entries) {
       const turnIndex = numberOr(payload.turnIndex, null);
       if (turnIndex !== null) {
         const turn = ensureTurn(turns, turnIndex);
-        turn.user ||= stringOr(payload.sttTextPreview, "");
+        const preview = readTranscriptPreview(payload, "sttTextPreview");
+        decodedPreviewCount += preview.source === "utf8_base64" ? 1 : 0;
+        rawPreviewCount += preview.source === "raw" ? 1 : 0;
+        turn.user ||= preview.text;
         turn.userTimestamp ||= entry.timestamp;
       }
     }
@@ -241,8 +255,16 @@ function buildTranscript(entries) {
       const turnIndex = numberOr(payload.turnIndex, null);
       if (turnIndex !== null) {
         const turn = ensureTurn(turns, turnIndex);
-        turn.user ||= stringOr(payload.userTextPreview, "");
-        turn.agent ||= stringOr(payload.agentTextPreview, "");
+        const userPreview = readTranscriptPreview(payload, "userTextPreview");
+        const agentPreview = readTranscriptPreview(payload, "agentTextPreview");
+        decodedPreviewCount +=
+          (userPreview.source === "utf8_base64" ? 1 : 0) +
+          (agentPreview.source === "utf8_base64" ? 1 : 0);
+        rawPreviewCount +=
+          (userPreview.source === "raw" ? 1 : 0) +
+          (agentPreview.source === "raw" ? 1 : 0);
+        turn.user ||= userPreview.text;
+        turn.agent ||= agentPreview.text;
         turn.agentTimestamp ||= entry.timestamp;
         turn.metrics = {
           firstAudioMs: payload.firstAudioMs ?? null,
@@ -258,7 +280,39 @@ function buildTranscript(entries) {
     firstMessage: readFirstMessage(),
     turns: [...turns.values()].sort((a, b) => a.turnIndex - b.turnIndex),
     timeline,
+    textSource:
+      decodedPreviewCount > 0
+        ? "utf8_base64"
+        : rawPreviewCount > 0
+          ? "raw"
+          : "missing",
   };
+}
+
+function readTranscriptPreview(payload, rawKey) {
+  const decoded = decodeUtf8Base64Preview(payload[`${rawKey}Utf8Base64`]);
+  if (decoded) return { text: decoded, source: "utf8_base64" };
+  const raw = stringOr(payload[rawKey], "");
+  if (raw && !isQuestionMarkPlaceholder(raw)) {
+    return { text: raw, source: "raw" };
+  }
+  return { text: "", source: "missing" };
+}
+
+function decodeUtf8Base64Preview(value) {
+  if (typeof value !== "string" || value.length === 0) return "";
+  try {
+    const decoded = Buffer.from(value, "base64").toString("utf8");
+    if (!decoded || isQuestionMarkPlaceholder(decoded)) return "";
+    return decoded;
+  } catch {
+    return "";
+  }
+}
+
+function isQuestionMarkPlaceholder(value) {
+  const compact = String(value).replace(/\s+/g, "");
+  return compact.length > 0 && /^\?+$/.test(compact);
 }
 
 function ensureTurn(turns, turnIndex) {
@@ -297,6 +351,7 @@ function renderTranscriptMarkdown(transcript, summary) {
     `- firstTimestamp: ${summary.selectedSession.firstTimestamp}`,
     `- lastTimestamp: ${summary.selectedSession.lastTimestamp}`,
     `- textAvailable: ${summary.textAvailable}`,
+    `- transcriptTextSource: ${summary.transcriptTextSource}`,
     "",
   ];
   if (!summary.textAvailable) {

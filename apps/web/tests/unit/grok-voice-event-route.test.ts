@@ -134,7 +134,7 @@ describe("grok-voice event route", () => {
     expect(JSON.stringify(lines)).not.toContain("指示全文");
   });
 
-  it("logs truncated transcript previews only when explicitly enabled", async () => {
+  it("logs truncated transcript previews plus UTF-8 Base64 only when explicitly enabled", async () => {
     vi.stubEnv("GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED", "true");
     vi.stubEnv("GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_MAX_CHARS", "6");
     const { POST } = await import("../../app/api/v3/event/route");
@@ -158,9 +158,67 @@ describe("grok-voice event route", () => {
     const sttLine = lines.find(
       (line: Record<string, unknown>) =>
         (line as { scope?: string }).scope === "grokVoice.stt"
-    ) as { sttTextPreview?: string } | undefined;
+    ) as
+      | { sttTextPreview?: string; sttTextPreviewUtf8Base64?: string }
+      | undefined;
     expect(sttLine?.sttTextPreview).toBe("住宅設備メー");
+    expect(
+      Buffer.from(sttLine?.sttTextPreviewUtf8Base64 ?? "", "base64").toString(
+        "utf8"
+      )
+    ).toBe("住宅設備メー");
     expect(JSON.stringify(lines)).not.toContain("カーの営業事務");
+  });
+
+  it("does not trust client-provided transcript Base64 fields", async () => {
+    vi.stubEnv("GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED", "true");
+    vi.stubEnv("GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_MAX_CHARS", "20");
+    const { POST } = await import("../../app/api/v3/event/route");
+    const spoofed = Buffer.from("偽装された発話", "utf8").toString("base64");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 2,
+            inputMode: "text",
+            userTextLen: 8,
+            agentTextLen: 9,
+            userTextPreview: "正しいユーザー発話",
+            userTextPreviewUtf8Base64: spoofed,
+            agentTextPreview: "正しいAI発話",
+            agentTextPreviewUtf8Base64: spoofed,
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as
+      | {
+          userTextPreviewUtf8Base64?: string;
+          agentTextPreviewUtf8Base64?: string;
+        }
+      | undefined;
+    expect(
+      Buffer.from(
+        metricsLine?.userTextPreviewUtf8Base64 ?? "",
+        "base64"
+      ).toString("utf8")
+    ).toBe("正しいユーザー発話");
+    expect(
+      Buffer.from(
+        metricsLine?.agentTextPreviewUtf8Base64 ?? "",
+        "base64"
+      ).toString("utf8")
+    ).toBe("正しいAI発話");
+    expect(JSON.stringify(lines)).not.toContain(spoofed);
   });
 
   it("emits a dedicated grokVoice.stt.skipped line for empty STT (補強案 #2)", async () => {
