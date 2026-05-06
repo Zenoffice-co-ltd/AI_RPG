@@ -1,4 +1,4 @@
-import { getGrokVoiceServerEnv } from "@/lib/roleplay/server-env";
+import { getGrokVoiceServerEnv } from "../../lib/roleplay/server-env";
 
 export const GROK_VOICE_TTS_LANGUAGE = "ja";
 export const GROK_VOICE_TTS_CODEC = "pcm";
@@ -76,4 +76,3 @@ export class GrokVoiceTtsError extends Error {
     this.name = "GrokVoiceTtsError";
   }
 }
-
