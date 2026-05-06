@@ -146,11 +146,17 @@ export function POST(request: NextRequest) {
             const agentTextPreview = stringOrUndefined(
               trimmedDetails["agentTextPreview"]
             );
+            const agentSpokenTextPreview = stringOrUndefined(
+              trimmedDetails["agentSpokenTextPreview"]
+            );
             const userTextPreviewUtf8Base64 = stringOrUndefined(
               trimmedDetails["userTextPreviewUtf8Base64"]
             );
             const agentTextPreviewUtf8Base64 = stringOrUndefined(
               trimmedDetails["agentTextPreviewUtf8Base64"]
+            );
+            const agentSpokenTextPreviewUtf8Base64 = stringOrUndefined(
+              trimmedDetails["agentSpokenTextPreviewUtf8Base64"]
             );
             logGrokVoiceTurnMetrics({
               sessionId,
@@ -167,11 +173,15 @@ export function POST(request: NextRequest) {
               error: stringOrNull(trimmedDetails["error"]),
               ...(userTextPreview ? { userTextPreview } : {}),
               ...(agentTextPreview ? { agentTextPreview } : {}),
+              ...(agentSpokenTextPreview ? { agentSpokenTextPreview } : {}),
               ...(userTextPreviewUtf8Base64
                 ? { userTextPreviewUtf8Base64 }
                 : {}),
               ...(agentTextPreviewUtf8Base64
                 ? { agentTextPreviewUtf8Base64 }
+                : {}),
+              ...(agentSpokenTextPreviewUtf8Base64
+                ? { agentSpokenTextPreviewUtf8Base64 }
                 : {}),
               provenance: {
                 promptVersion: stringOr(
@@ -244,18 +254,21 @@ const TRANSCRIPT_PREVIEW_KEYS = new Set([
   "sttTextPreview",
   "userTextPreview",
   "agentTextPreview",
+  "agentSpokenTextPreview",
 ]);
 
 const TRANSCRIPT_PREVIEW_ENCODED_KEYS = new Set([
   "sttTextPreviewUtf8Base64",
   "userTextPreviewUtf8Base64",
   "agentTextPreviewUtf8Base64",
+  "agentSpokenTextPreviewUtf8Base64",
 ]);
 
 const TRANSCRIPT_PREVIEW_ENCODED_KEY_BY_RAW_KEY: Record<string, string> = {
   sttTextPreview: "sttTextPreviewUtf8Base64",
   userTextPreview: "userTextPreviewUtf8Base64",
   agentTextPreview: "agentTextPreviewUtf8Base64",
+  agentSpokenTextPreview: "agentSpokenTextPreviewUtf8Base64",
 };
 
 const NEVER_LOG_DETAIL_KEYS = new Set([

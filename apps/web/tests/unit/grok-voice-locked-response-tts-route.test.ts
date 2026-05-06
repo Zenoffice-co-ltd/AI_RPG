@@ -40,7 +40,10 @@ describe("grok-voice locked-response-tts route", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as Record<string, unknown>;
     expect(body["text"]).toBe(
-      "請求想定は経験により、せんななひゃくごじゅう円から、せんきゅうひゃく円程度です。"
+      "請求想定は経験により、千七百五十円から、千九百円程度です。"
+    );
+    expect(body["displayText"]).toBe(
+      "請求想定は経験により、千七百五十円から、千九百円程度です。"
     );
     expect(body["audioBase64"]).toBe(Buffer.from([0, 1, 2, 3]).toString("base64"));
     expect(body["mimeType"]).toBe("audio/pcm");
@@ -80,7 +83,7 @@ describe("grok-voice locked-response-tts route", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as Record<string, unknown>;
     expect(body["text"]).toBe(
-      "請求想定は経験により、せんななひゃくごじゅう円から、せんきゅうひゃく円程度です。"
+      "請求想定は経験により、千七百五十円から、千九百円程度です。"
     );
   });
 
@@ -135,4 +138,3 @@ function validRequest({
     body: JSON.stringify(body),
   });
 }
-

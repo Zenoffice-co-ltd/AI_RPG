@@ -26,7 +26,7 @@ const PR60_LOCKED_RESPONSES: Array<{
   {
     userPatterns: [/繁忙時期/, /忙しい時期/, /ピーク/, /繁忙.*いつ/],
     response:
-      "月末と月の初め、月曜日の午前中、商品が切り替わる時期に負荷が上がります。",
+      "月のおわりと月の初め、月曜日の午前中、商品が切り替わる時期に負荷が上がります。",
   },
   {
     userPatterns: [/募集背景/, /背景を/, /背景.*伺/],
@@ -56,7 +56,7 @@ const PR60_LOCKED_RESPONSES: Array<{
   {
     userPatterns: [/人柄/, /合う.*人/, /人物面/, /性格/],
     response:
-      "協調型が合いやすく、自分のやり方にこだわりすぎる方は合いにくいです。",
+      "周囲と合わせて進められるタイプが合いやすく、自分のやり方にこだわりすぎる方は合いにくいです。",
   },
   {
     userPatterns: [/協調性.*具体/, /協調性.*聞/, /協調性.*もう少し/],
@@ -66,7 +66,7 @@ const PR60_LOCKED_RESPONSES: Array<{
   {
     userPatterns: [/単価/, /請求/, /時給/],
     response:
-      "請求想定は経験により、せんななひゃくごじゅう円から、せんきゅうひゃく円程度です。",
+      "請求想定は経験により、千七百五十円から、千九百円程度です。",
   },
   {
     userPatterns: [/最終決定/, /誰になります/, /決定.*誰/, /決裁者/],
@@ -166,15 +166,34 @@ export function normalizeVoiceFriendlyTerms(text: string): string {
     .replace(/アデッコ/g, "アデコ")
     .replace(/他社/g, "たしゃ")
     .replace(/人事/g, "じんじ")
+    .replace(/月末/g, "月のおわり")
     .replace(/月初/g, "月の初め")
+    .replace(/協調型/g, "周囲と合わせて進められるタイプ")
     .replace(/自己流/g, "自分のやり方")
+    .replace(/6月1日/g, "六月ついたち")
+    .replace(/六月一日/g, "六月ついたち")
     .replace(
       /千七百五十円から千九百円/g,
-      "せんななひゃくごじゅう円から、せんきゅうひゃく円"
+      "千七百五十円から、千九百円"
     )
     .replace(
       /千七百五十円から、千九百円/g,
-      "せんななひゃくごじゅう円から、せんきゅうひゃく円"
+      "千七百五十円から、千九百円"
     );
 }
 
+export function normalizeGrokVoiceDisplayText(text: string): string {
+  return text
+    .replace(/じんじ課/g, "人事課")
+    .replace(/じんじ/g, "人事")
+    .replace(/たしゃ/g, "他社")
+    .replace(/月のおわり/g, "月末")
+    .replace(/月の初め/g, "月初")
+    .replace(/周囲と合わせて進められるタイプ/g, "協調型")
+    .replace(/自分のやり方/g, "自己流")
+    .replace(/六月ついたち/g, "六月一日")
+    .replace(/ろっぴゃく件/g, "六百件")
+    .replace(/ななひゃっけん/g, "七百件")
+    .replace(/せんななひゃくごじゅう円/g, "千七百五十円")
+    .replace(/せんきゅうひゃく円/g, "千九百円");
+}

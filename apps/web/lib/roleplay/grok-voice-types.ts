@@ -53,6 +53,7 @@ export type GrokVoiceGreeting = {
 
 export type GrokVoiceLockedResponseTts = GrokVoiceGreeting & {
   text: string;
+  displayText?: string;
   cacheStatus: "hit" | "miss";
 };
 

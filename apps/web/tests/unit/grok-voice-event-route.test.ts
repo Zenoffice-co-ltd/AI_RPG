@@ -189,6 +189,8 @@ describe("grok-voice event route", () => {
             userTextPreviewUtf8Base64: spoofed,
             agentTextPreview: "正しいAI発話",
             agentTextPreviewUtf8Base64: spoofed,
+            agentSpokenTextPreview: "正しいAI音声発話",
+            agentSpokenTextPreviewUtf8Base64: spoofed,
           },
         },
       })
@@ -201,10 +203,11 @@ describe("grok-voice event route", () => {
       (line: Record<string, unknown>) =>
         (line as { scope?: string }).scope === "grokVoice.turnMetrics"
     ) as
-      | {
-          userTextPreviewUtf8Base64?: string;
-          agentTextPreviewUtf8Base64?: string;
-        }
+        | {
+            userTextPreviewUtf8Base64?: string;
+            agentTextPreviewUtf8Base64?: string;
+            agentSpokenTextPreviewUtf8Base64?: string;
+          }
       | undefined;
     expect(
       Buffer.from(
@@ -218,6 +221,12 @@ describe("grok-voice event route", () => {
         "base64"
       ).toString("utf8")
     ).toBe("正しいAI発話");
+    expect(
+      Buffer.from(
+        metricsLine?.agentSpokenTextPreviewUtf8Base64 ?? "",
+        "base64"
+      ).toString("utf8")
+    ).toBe("正しいAI音声発話");
     expect(JSON.stringify(lines)).not.toContain(spoofed);
   });
 

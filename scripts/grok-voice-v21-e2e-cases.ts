@@ -1061,7 +1061,7 @@ export const CASES: CaseDef[] = [
     passConditions: [
       {
         kind: "must_contain_any",
-        terms: ["月末", "月の初め", "月曜日", "商品", "切り替わる", "切替"],
+        terms: ["月のおわり", "月の初め", "月曜日", "商品", "切り替わる", "切替"],
         reason: "時期だけに答える",
       },
       {
@@ -1072,6 +1072,7 @@ export const CASES: CaseDef[] = [
           "ろっぴゃく",
           "ななひゃっけん",
           "件",
+          "月末",
           "月初",
           ...STOCK_SUFFIX_TERMS,
         ],
@@ -1263,20 +1264,27 @@ export const CASES: CaseDef[] = [
   },
   {
     id: "case35_rate_voice_friendly_pronunciation",
-    label: "請求単価は音声優先の円レンジで読み上げる",
+    label: "請求単価は漢数字の円レンジで安定して読み上げる",
     critical: true,
     turns: [{ role: "user", text: "あ、請求単価もう一回お願いします。" }],
     passConditions: [
       {
         kind: "must_contain_at_least",
         n: 2,
-        terms: ["せんななひゃくごじゅう円", "せんきゅうひゃく円", "程度"],
-        reason: "円レンジをTTS安定表記にする",
+        terms: ["千七百五十円", "千九百円", "程度"],
+        reason: "円レンジを漢数字のTTS安定表記にする",
       },
       {
         kind: "must_not_contain_any",
-        terms: ["千七百五十", "千九百", "チナナ", "1750", "1900", ...STOCK_SUFFIX_TERMS],
-        reason: "不安定な金額表記とstock suffixを出さない",
+        terms: [
+          "せんななひゃくごじゅう",
+          "せんきゅうひゃく",
+          "チナナ",
+          "1750",
+          "1900",
+          ...STOCK_SUFFIX_TERMS,
+        ],
+        reason: "不安定なひらがな金額表記とstock suffixを出さない",
       },
       { kind: "max_sentences", max: 1, reason: "単価回答は一文で終える" },
     ],
@@ -1308,13 +1316,13 @@ export const CASES: CaseDef[] = [
     passConditions: [
       {
         kind: "must_contain_any",
-        terms: ["自分のやり方", "協調型"],
+        terms: ["自分のやり方", "周囲と合わせて進められるタイプ"],
         reason: "人柄はTTS安定表記で答える",
       },
       {
         kind: "must_not_contain_any",
-        terms: ["自己流", "自己流で", ...STOCK_SUFFIX_TERMS],
-        reason: "自己流の誤読とstock suffixを出さない",
+        terms: ["自己流", "自己流で", "協調型", ...STOCK_SUFFIX_TERMS],
+        reason: "自己流/協調型の誤読とstock suffixを出さない",
       },
       { kind: "max_sentences", max: 2, reason: "人柄回答は短く返す" },
     ],
