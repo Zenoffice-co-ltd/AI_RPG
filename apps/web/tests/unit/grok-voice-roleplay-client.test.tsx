@@ -384,6 +384,61 @@ describe("useGrokVoiceConversation", () => {
     expect(result.current.metricsLog).toHaveLength(1);
   });
 
+  it("does not cancel or flush normal realtime audio when a stock suffix appears", async () => {
+    const fake = buildFakeRealtime();
+    const queue = buildStubAudioQueue();
+    const enqueueSpy = vi.spyOn(queue, "enqueueBase64").mockImplementation(() => undefined);
+    const flushSpy = vi.spyOn(queue, "flush");
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => SESSION),
+      fetchGreeting: vi.fn(async () => GREETING),
+      createAudioQueue: () => queue,
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      micEnabled: false,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe("listening");
+    });
+    await act(async () => {
+      await result.current.sendTextMessage("今日の進め方を教えてください");
+    });
+    act(() => {
+      fake.emit({ type: "response.created" });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "受発注経験の確認から進めます。何か他にご質問ありますか。",
+        item_id: "stock-suffix-item",
+      });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: Buffer.from(new Uint8Array(48)).toString("base64"),
+        item_id: "stock-suffix-item",
+      });
+      fake.emit({ type: "response.done" });
+    });
+
+    await waitFor(() => {
+      expect(result.current.metricsLog).toHaveLength(1);
+    });
+    expect(fake.sent.filter((s) => s.method === "cancelResponse")).toHaveLength(0);
+    expect(flushSpy).not.toHaveBeenCalled();
+    expect(enqueueSpy).toHaveBeenCalledTimes(1);
+    expect(result.current.messages.some((m) => m.text.includes("何か他に"))).toBe(
+      false
+    );
+    expect(
+      result.current.messages.some((m) => m.text === "受発注経験の確認から進めます。")
+    ).toBe(true);
+    expect(result.current.metricsLog[0]?.audioBytes).toBeGreaterThan(0);
+    expect(result.current.metricsLog[0]?.error).toBeNull();
+  });
+
   it("cancels once and discards stale deltas on barge-in while the agent is speaking", async () => {
     const fake = buildFakeRealtime();
     const queue = buildStubAudioQueue();
