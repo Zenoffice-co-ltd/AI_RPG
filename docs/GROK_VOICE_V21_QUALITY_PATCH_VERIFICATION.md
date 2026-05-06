@@ -76,7 +76,33 @@ node scripts/grok-voice-v21-prod-smoke.mjs
 
 `promptVersion` が `compile-scenario@2026-05-06.v3.9` で始まらない、または `guardrailVersion` が `gv-think-fast-v4.7-2026-05-06` でない場合、デプロイがまだ反映されていない。**ここで止まったら以降をやらない**。
 
-### 2.1.1 PR58 追加自動チェック
+### 2.1.1 本番デモ会話ログの自動取得
+
+PR62後の本番では、Grok Voiceの `turn.completed` / `stt.completed` 構造化ログにデモ会話本文を保存する。手動デモ直後に以下を実行すると、直近セッションを Cloud Logging から取得し、`summary.json` / `events.json` / `transcript.md` を保存する。
+
+```bash
+pnpm grok:prod-logs -- --minutes 10
+```
+
+特定セッションを指定する場合:
+
+```bash
+pnpm grok:prod-logs -- --session gv_sess_xxx --minutes 60
+```
+
+出力先:
+
+```text
+out/grok_voice_v21_prod_logs/<timestamp>_<sessionId>/
+```
+
+注意:
+
+- `GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` がデプロイされた後の会話だけ本文復元できる。過去に `false` で実施した本番デモは、turn lengthやlatencyは取れるが本文は復元できない。
+- prompt / instructions / KB はログしない。保存対象はユーザーSTT本文と最終assistant transcriptのみ。
+- Cloud Logging 取得には `gcloud` で `adecco-mendan` のログ閲覧権限が必要。
+
+### 2.1.2 PR58 追加自動チェック
 
 ```bash
 pnpm exec tsx scripts/check-grok-voice-e2e-matrix.ts
@@ -123,7 +149,7 @@ xAI Voice Agent implementation notes:
   - https://docs.x.ai/developers/model-capabilities/audio/voice
   - https://docs.x.ai/developers/model-capabilities/audio/voice-agent
 
-### 2.1.2 PR60 manual production voice smoke
+### 2.1.3 PR60 manual production voice smoke
 
 本番デプロイ後、`/demo/adecco-roleplay-v3` で以下を手動確認する。
 
