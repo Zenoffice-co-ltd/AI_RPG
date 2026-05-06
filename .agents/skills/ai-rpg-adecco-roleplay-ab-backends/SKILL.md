@@ -280,6 +280,10 @@ pnpm exec tsx scripts/grok-voice-v21-prod-smoke.mjs
 
 For production audio-fix evidence, also run a browser smoke on
 `/demo/adecco-roleplay-v3?debugMetrics=1` and capture `/api/v3/event` posts.
+In voice mode, the smoke script pads the fake mic WAV with trailing silence
+before passing it to Chrome. Keep that behavior on; short
+`--use-file-for-fake-audio-capture` WAVs can loop while the mic is still enabled
+and make xAI STT look like it heard the same utterance twice.
 The pass condition is browser-side playback completion, not just route success:
 `greeting.cache.hit`, `greeting.playback.completed`,
 `locked_response.tts.completed`, `locked_response.playback.completed`,

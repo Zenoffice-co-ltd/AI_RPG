@@ -205,6 +205,10 @@ pnpm grok:warm-tts-cache
 - `locked_response.playback.started` / `locked_response.playback.completed`
 - 単価系 turn の `grokVoice.turnMetrics.audioBytes > 0` かつ `error=null`
 - `audio.queue.flushed` は `barge_in` または `locked_response_preempt_realtime` のみ
+- Browser voice smoke は短尺 WAV が Chrome fake mic でループしないよう、
+  実行時に trailing silence 付きの一時 WAV を生成して
+  `--use-file-for-fake-audio-capture` に渡す。`summary.json` の
+  `inputs.voiceFixturePrepared` で元 fixture と生成後 duration を確認する。
 - 評価用 transcript は `pnpm grok:prod-logs -- --session <gv_sess_...>` で
   復元する。`GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` の時だけ、
   `/api/v3/event` がサニタイズ済み発話を `*TextPreviewUtf8Base64` に

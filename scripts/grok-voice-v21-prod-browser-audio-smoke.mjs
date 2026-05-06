@@ -7,7 +7,7 @@
 
 import { spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
 
@@ -18,9 +18,12 @@ const MODE = process.env.GROK_BROWSER_SMOKE_MODE ?? "text";
 const NORMAL_TEXT = process.env.GROK_BROWSER_SMOKE_NORMAL_TEXT ?? "人数は何名ですか";
 const LOCKED_TEXT =
   process.env.GROK_BROWSER_SMOKE_LOCKED_TEXT ?? "単価を教えてください";
-const VOICE_FIXTURE = resolve(
+const VOICE_FIXTURE_SOURCE = resolve(
   process.env.GROK_BROWSER_SMOKE_VOICE_FIXTURE ??
     "test/fixtures/audio/grok-voice-v21/voice_case3_headcount.wav"
+);
+const VOICE_FIXTURE_TRAILING_SILENCE_MS = Number(
+  process.env.GROK_BROWSER_SMOKE_VOICE_TRAILING_SILENCE_MS ?? "8000"
 );
 const STAMP = compactTimestamp(new Date());
 const OUT_DIR =
@@ -58,6 +61,16 @@ if (!demoToken) {
 }
 
 mkdirSync(OUT_DIR, { recursive: true });
+
+const preparedVoiceFixture =
+  MODE === "voice"
+    ? prepareVoiceFixtureWithTrailingSilence({
+        sourcePath: VOICE_FIXTURE_SOURCE,
+        outDir: OUT_DIR,
+        trailingSilenceMs: VOICE_FIXTURE_TRAILING_SILENCE_MS,
+      })
+    : null;
+const VOICE_FIXTURE = preparedVoiceFixture?.path ?? VOICE_FIXTURE_SOURCE;
 
 const base = new URL(BASE_URL);
 const signature = createHmac("sha256", demoToken).update(demoToken).digest("hex");
@@ -261,7 +274,13 @@ try {
     pass: failures.length === 0,
     failures,
     mode: MODE,
-    inputs: { normalText: NORMAL_TEXT, lockedText: LOCKED_TEXT, voiceFixture: VOICE_FIXTURE },
+    inputs: {
+      normalText: NORMAL_TEXT,
+      lockedText: LOCKED_TEXT,
+      voiceFixture: VOICE_FIXTURE,
+      voiceFixtureSource: VOICE_FIXTURE_SOURCE,
+      voiceFixturePrepared: preparedVoiceFixture,
+    },
     greetingCompleted,
     sttCompleted,
     normalTurn,
@@ -360,4 +379,104 @@ function summarizeApiBody(body) {
 
 function compactTimestamp(date) {
   return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+function prepareVoiceFixtureWithTrailingSilence({
+  sourcePath,
+  outDir,
+  trailingSilenceMs,
+}) {
+  if (!(trailingSilenceMs > 0)) {
+    return {
+      path: sourcePath,
+      sourcePath,
+      trailingSilenceMs: 0,
+      prepared: false,
+    };
+  }
+
+  const wav = readFileSync(sourcePath);
+  const parsed = parsePcm16Wav(wav, sourcePath);
+  const silenceBytes = Math.round(
+    (trailingSilenceMs / 1000) *
+      parsed.sampleRate *
+      parsed.channels *
+      (parsed.bitsPerSample / 8)
+  );
+  const preparedPath = resolve(outDir, "voice-fixture-with-trailing-silence.wav");
+  const output = Buffer.concat([wav, Buffer.alloc(silenceBytes)]);
+  output.writeUInt32LE(output.length - 8, 4);
+  output.writeUInt32LE(parsed.dataSize + silenceBytes, parsed.dataSizeOffset);
+  writeFileSync(preparedPath, output);
+  return {
+    path: preparedPath,
+    sourcePath,
+    trailingSilenceMs,
+    prepared: true,
+    sourceDurationMs: Math.round(parsed.durationSec * 1000),
+    preparedDurationMs: Math.round(
+      ((parsed.dataSize + silenceBytes) /
+        (parsed.sampleRate * parsed.channels * (parsed.bitsPerSample / 8))) *
+        1000
+    ),
+    sampleRate: parsed.sampleRate,
+    channels: parsed.channels,
+    bitsPerSample: parsed.bitsPerSample,
+  };
+}
+
+function parsePcm16Wav(wav, sourcePath) {
+  if (
+    wav.toString("ascii", 0, 4) !== "RIFF" ||
+    wav.toString("ascii", 8, 12) !== "WAVE"
+  ) {
+    throw new Error(`voice fixture is not a RIFF/WAVE file: ${sourcePath}`);
+  }
+
+  let offset = 12;
+  let audioFormat = 0;
+  let channels = 0;
+  let sampleRate = 0;
+  let bitsPerSample = 0;
+  let dataSize = 0;
+  let dataSizeOffset = -1;
+
+  while (offset + 8 <= wav.length) {
+    const id = wav.toString("ascii", offset, offset + 4);
+    const size = wav.readUInt32LE(offset + 4);
+    const start = offset + 8;
+    if (id === "fmt ") {
+      audioFormat = wav.readUInt16LE(start);
+      channels = wav.readUInt16LE(start + 2);
+      sampleRate = wav.readUInt32LE(start + 4);
+      bitsPerSample = wav.readUInt16LE(start + 14);
+    } else if (id === "data") {
+      dataSize = size;
+      dataSizeOffset = offset + 4;
+      break;
+    }
+    offset = start + size + (size % 2);
+  }
+
+  if (
+    audioFormat !== 1 ||
+    channels !== 1 ||
+    sampleRate !== 24_000 ||
+    bitsPerSample !== 16 ||
+    dataSize <= 0 ||
+    dataSizeOffset < 0
+  ) {
+    throw new Error(
+      `voice fixture must be PCM16 mono 24kHz (format=${audioFormat}, channels=${channels}, rate=${sampleRate}, bits=${bitsPerSample}, dataBytes=${dataSize})`
+    );
+  }
+
+  return {
+    channels,
+    sampleRate,
+    bitsPerSample,
+    dataSize,
+    dataSizeOffset,
+    durationSec: dataSize / (sampleRate * channels * (bitsPerSample / 8)),
+  };
 }
