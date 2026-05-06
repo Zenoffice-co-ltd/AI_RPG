@@ -13,7 +13,7 @@ const PR60_LOCKED_RESPONSES: Array<{
   },
   {
     userPatterns: [/どういう業務/, /業務.*具体/, /具体的.*業務/],
-    response: "受発注や納期調整まわりの営業事務です。",
+    response: "じゅはっちゅうや納期調整まわりの営業事務です。",
   },
   {
     userPatterns: [/時期的にはいつ/, /開始時期/, /いつから/, /就業開始/],
@@ -21,7 +21,7 @@ const PR60_LOCKED_RESPONSES: Array<{
   },
   {
     userPatterns: [/受注件数/, /月にどのくらい/, /月何件/, /件数/, /処理量/],
-    response: "月あたり、ろっぴゃく件から、ななひゃっけん程度です。",
+    response: "つきあたり、ろっぴゃく件から、ななひゃっけん程度です。",
   },
   {
     userPatterns: [/繁忙時期/, /忙しい時期/, /ピーク/, /繁忙.*いつ/],
@@ -51,7 +51,7 @@ const PR60_LOCKED_RESPONSES: Array<{
       /スキル.*望ましい/,
     ],
     response:
-      "受発注経験と対外調整の経験がある方を優先的に見ています。",
+      "じゅはっちゅう経験と対外調整の経験がある方を優先的に見ています。",
   },
   {
     userPatterns: [/人柄/, /合う.*人/, /人物面/, /性格/],
@@ -168,8 +168,11 @@ export function normalizeVoiceFriendlyTerms(text: string): string {
     .replace(/人事/g, "じんじ")
     .replace(/月末/g, "月のおわり")
     .replace(/月初/g, "月の初め")
+    .replace(/月あたり/g, "つきあたり")
     .replace(/協調型/g, "周囲と合わせて進められるタイプ")
     .replace(/自己流/g, "自分のやり方")
+    .replace(/受発注/g, "じゅはっちゅう")
+    .replace(/朝八時四十五分/g, "朝八時よんじゅうごふん")
     .replace(/6月1日/g, "六月ついたち")
     .replace(/六月一日/g, "六月ついたち")
     .replace(
@@ -189,8 +192,11 @@ export function normalizeGrokVoiceDisplayText(text: string): string {
     .replace(/たしゃ/g, "他社")
     .replace(/月のおわり/g, "月末")
     .replace(/月の初め/g, "月初")
+    .replace(/つきあたり/g, "月あたり")
     .replace(/周囲と合わせて進められるタイプ/g, "協調型")
     .replace(/自分のやり方/g, "自己流")
+    .replace(/じゅはっちゅう/g, "受発注")
+    .replace(/朝八時よんじゅうごふん/g, "朝八時四十五分")
     .replace(/六月ついたち/g, "六月一日")
     .replace(/ろっぴゃく件/g, "六百件")
     .replace(/ななひゃっけん/g, "七百件")

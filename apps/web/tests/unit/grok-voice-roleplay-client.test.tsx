@@ -424,6 +424,83 @@ describe("useGrokVoiceConversation", () => {
     expect(result.current.metricsLog).toHaveLength(1);
   });
 
+  it("does not let locked-response drain cancel the next legitimate voice turn", async () => {
+    const fake = buildFakeRealtime();
+    const queue = buildStubAudioQueue();
+    const enqueueSpy = vi.spyOn(queue, "enqueueBase64");
+    const fetchLockedResponseTts = vi.fn(async () => LOCKED_TTS);
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => SESSION),
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchLockedResponseTts,
+      createAudioQueue: () => queue,
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      micEnabled: false,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe("listening");
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({ type: "input_audio_buffer.speech_stopped" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "単価はどのくらいですか",
+      });
+      fake.emit({ type: "response.created", response: { id: "locked-late-r1" } });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: Buffer.from(new Uint8Array(48)).toString("base64"),
+        item_id: "locked-late-item",
+      });
+      fake.emit({ type: "response.done", response: { id: "locked-late-r1" } });
+    });
+    await waitFor(() => {
+      expect(result.current.metricsLog).toHaveLength(1);
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({ type: "input_audio_buffer.speech_stopped" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "業務時間は？",
+      });
+      fake.emit({ type: "response.created", response: { id: "business-hours-r1" } });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "平日は朝八時よんじゅうごふんから夕方五時三十分です。",
+        item_id: "business-hours-item",
+      });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: Buffer.from(new Uint8Array(48)).toString("base64"),
+        item_id: "business-hours-item",
+      });
+      fake.emit({ type: "response.done", response: { id: "business-hours-r1" } });
+    });
+
+    await waitFor(() => {
+      expect(result.current.metricsLog).toHaveLength(2);
+    });
+    expect(fake.sent.filter((s) => s.method === "cancelResponse")).toHaveLength(1);
+    expect(enqueueSpy).toHaveBeenCalledTimes(1);
+    expect(result.current.metricsLog[1]?.audioBytes).toBeGreaterThan(0);
+    expect(result.current.metricsLog[1]?.error).toBeNull();
+    expect(
+      result.current.messages.some((m) =>
+        m.text.includes("平日は朝八時四十五分から夕方五時三十分です。")
+      )
+    ).toBe(true);
+  });
+
   it("ignores voice locked-turn mic tail after deterministic TTS starts", async () => {
     const fake = buildFakeRealtime();
     const queue = buildStubAudioQueue();

@@ -110,6 +110,8 @@ export function useGrokVoiceConversation(
   const bargeInCancelSentRef = useRef(false);
   const discardStaleResponseDeltasRef = useRef(false);
   const currentResponseItemIdRef = useRef<string | null>(null);
+  const currentResponseIdRef = useRef<string | null>(null);
+  const ignoredResponseIdsRef = useRef(new Set<string>());
   const staleResponseItemIdsRef = useRef(new Set<string>());
   const greetingPlaybackDoneRef = useRef(true);
   const realtimeReadyRef = useRef(false);
@@ -209,6 +211,14 @@ export function useGrokVoiceConversation(
       : "";
   }
 
+  function getEventResponseId(event: GrokVoiceServerEvent) {
+    if (!("response" in event)) return "";
+    const response = event.response;
+    if (!response || typeof response !== "object") return "";
+    const id = (response as { id?: unknown }).id;
+    return typeof id === "string" ? id : "";
+  }
+
   const clearLockedRealtimeDrain = useCallback(() => {
     if (lockedRealtimeDrainTimerRef.current) {
       clearTimeout(lockedRealtimeDrainTimerRef.current);
@@ -243,6 +253,7 @@ export function useGrokVoiceConversation(
     bargeInCancelSentRef.current = false;
     discardStaleResponseDeltasRef.current = false;
     currentResponseItemIdRef.current = null;
+    currentResponseIdRef.current = null;
     pr60LockCancelSentRef.current = false;
     responseActiveRef.current = false;
     realtimeAudioQueuedThisTurnRef.current = false;
@@ -469,6 +480,7 @@ export function useGrokVoiceConversation(
             });
             break;
           }
+          clearLockedRealtimeDrain();
           if (agentSpeakingRef.current && !bargeInCancelSentRef.current) {
             void postGrokVoiceEvent("barge_in.detected", {
               sessionId: activeSession.sessionId,
@@ -574,6 +586,7 @@ export function useGrokVoiceConversation(
         }
         case "response.created": {
           responseActiveRef.current = true;
+          const responseId = getEventResponseId(event);
           if (
             lockedTurnActiveRef.current ||
             lockedRealtimeDrainActiveRef.current ||
@@ -583,6 +596,9 @@ export function useGrokVoiceConversation(
             pendingCancelOnResponseCreatedRef.current = false;
             suppressNextRealtimeResponseRef.current = false;
             discardStaleResponseDeltasRef.current = true;
+            if (responseId) {
+              ignoredResponseIdsRef.current.add(responseId);
+            }
             realtimeRef.current?.cancelResponse();
             void postGrokVoiceEvent("response.pr60_locked_cancelled", {
               sessionId: activeSession.sessionId,
@@ -600,6 +616,7 @@ export function useGrokVoiceConversation(
           }
           discardStaleResponseDeltasRef.current = false;
           currentResponseItemIdRef.current = null;
+          currentResponseIdRef.current = responseId || null;
           agentSpeakingRef.current = false;
           bargeInCancelSentRef.current = false;
           if (turnStartAtRef.current === null) {
@@ -699,6 +716,25 @@ export function useGrokVoiceConversation(
         }
         case "response.done": {
           responseActiveRef.current = false;
+          const responseId = getEventResponseId(event);
+          if (
+            (responseId && ignoredResponseIdsRef.current.has(responseId)) ||
+            (currentResponseIdRef.current &&
+              responseId &&
+              responseId !== currentResponseIdRef.current)
+          ) {
+            if (responseId) {
+              ignoredResponseIdsRef.current.delete(responseId);
+            }
+            void postGrokVoiceEvent("response.done.stale_discarded", {
+              sessionId: activeSession.sessionId,
+              details: {
+                turnIndex: turnIndexRef.current,
+                responseId: responseId || null,
+              },
+            });
+            break;
+          }
           if (lockedTurnActiveRef.current || lockedRealtimeDrainActiveRef.current) {
             clearLockedRealtimeDrain();
             break;
