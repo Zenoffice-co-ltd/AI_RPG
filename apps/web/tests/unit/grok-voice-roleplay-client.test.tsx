@@ -368,6 +368,20 @@ describe("useGrokVoiceConversation", () => {
     expect(result.current.messages.some((m) => m.text === LOCKED_RATE_TEXT)).toBe(
       true
     );
+
+    act(() => {
+      fake.emit({ type: "response.created" });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: Buffer.from(new Uint8Array(48)).toString("base64"),
+        item_id: "late-after-tts",
+      });
+      fake.emit({ type: "response.done" });
+    });
+
+    expect(fake.sent.filter((s) => s.method === "cancelResponse")).toHaveLength(2);
+    expect(enqueueSpy).not.toHaveBeenCalled();
+    expect(result.current.metricsLog).toHaveLength(1);
   });
 
   it("cancels once and discards stale deltas on barge-in while the agent is speaking", async () => {

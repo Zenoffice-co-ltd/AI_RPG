@@ -42,6 +42,7 @@ const SAFE_ERROR =
 const RESPOND_ERROR = "応答生成に失敗しました。時間をおいて再試行してください。";
 const AUDIO_ERROR =
   "音声の再生に失敗しました。ページを再読み込みして再試行してください。";
+const LOCKED_REALTIME_DRAIN_MS = 5_000;
 
 export type GrokVoiceConversation = UseRoleplayConversationReturn & {
   mode: RoleplayMode;
@@ -120,6 +121,11 @@ export function useGrokVoiceConversation(
   const lockedTurnTtsPlayingRef = useRef(false);
   const pendingCancelOnResponseCreatedRef = useRef(false);
   const suppressNextRealtimeResponseRef = useRef(false);
+  const lockedRealtimeDrainActiveRef = useRef(false);
+  const lockedRealtimeDrainTurnIndexRef = useRef<number | null>(null);
+  const lockedRealtimeDrainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   // Per-turn streaming bookkeeping.
   const turnIndexRef = useRef(0);
@@ -189,6 +195,7 @@ export function useGrokVoiceConversation(
     const itemId = getEventItemId(event);
     return (
       lockedTurnActiveRef.current ||
+      lockedRealtimeDrainActiveRef.current ||
       discardStaleResponseDeltasRef.current ||
       (itemId.length > 0 && staleResponseItemIdsRef.current.has(itemId))
     );
@@ -199,6 +206,27 @@ export function useGrokVoiceConversation(
       ? event.item_id
       : "";
   }
+
+  const clearLockedRealtimeDrain = useCallback(() => {
+    if (lockedRealtimeDrainTimerRef.current) {
+      clearTimeout(lockedRealtimeDrainTimerRef.current);
+      lockedRealtimeDrainTimerRef.current = null;
+    }
+    lockedRealtimeDrainActiveRef.current = false;
+    lockedRealtimeDrainTurnIndexRef.current = null;
+  }, []);
+
+  const startLockedRealtimeDrain = useCallback(
+    (turnIndex: number) => {
+      clearLockedRealtimeDrain();
+      lockedRealtimeDrainActiveRef.current = true;
+      lockedRealtimeDrainTurnIndexRef.current = turnIndex;
+      lockedRealtimeDrainTimerRef.current = setTimeout(() => {
+        clearLockedRealtimeDrain();
+      }, LOCKED_REALTIME_DRAIN_MS);
+    },
+    [clearLockedRealtimeDrain]
+  );
 
   const resetTurnBookkeeping = useCallback(() => {
     turnInputModeRef.current = "voice";
@@ -388,6 +416,9 @@ export function useGrokVoiceConversation(
           },
         });
       } finally {
+        if (input.channel === "voice") {
+          startLockedRealtimeDrain(turnIndex);
+        }
         resetTurnBookkeeping();
         setStatus("listening");
         if (micEnabled && !isMutedRef.current) {
@@ -395,7 +426,13 @@ export function useGrokVoiceConversation(
         }
       }
     },
-    [ensureAudioQueue, fetchLockedResponseTts, micEnabled, resetTurnBookkeeping]
+    [
+      ensureAudioQueue,
+      fetchLockedResponseTts,
+      micEnabled,
+      resetTurnBookkeeping,
+      startLockedRealtimeDrain,
+    ]
   );
 
   const handleServerEvent = useCallback(
@@ -511,6 +548,7 @@ export function useGrokVoiceConversation(
           responseActiveRef.current = true;
           if (
             lockedTurnActiveRef.current ||
+            lockedRealtimeDrainActiveRef.current ||
             pendingCancelOnResponseCreatedRef.current ||
             suppressNextRealtimeResponseRef.current
           ) {
@@ -521,7 +559,10 @@ export function useGrokVoiceConversation(
             void postGrokVoiceEvent("response.pr60_locked_cancelled", {
               sessionId: activeSession.sessionId,
               details: {
-                turnIndex: lockedTurnIndexRef.current ?? turnIndexRef.current,
+                turnIndex:
+                  lockedTurnIndexRef.current ??
+                  lockedRealtimeDrainTurnIndexRef.current ??
+                  turnIndexRef.current,
                 reason: "locked_response_preempt_realtime",
                 hadDeterministicTts: true,
                 audioBytesBeforeCancel: turnAccumulatedAudioBytesRef.current,
@@ -654,7 +695,8 @@ export function useGrokVoiceConversation(
         }
         case "response.done": {
           responseActiveRef.current = false;
-          if (lockedTurnActiveRef.current) {
+          if (lockedTurnActiveRef.current || lockedRealtimeDrainActiveRef.current) {
+            clearLockedRealtimeDrain();
             break;
           }
           const id = interimAgentClientIdRef.current;
@@ -733,7 +775,7 @@ export function useGrokVoiceConversation(
           break;
       }
     },
-    [ensureAudioQueue, playLockedResponse, resetTurnBookkeeping]
+    [clearLockedRealtimeDrain, ensureAudioQueue, playLockedResponse, resetTurnBookkeeping]
   );
 
   const startMicRecorder = useCallback(async () => {
@@ -1029,8 +1071,9 @@ export function useGrokVoiceConversation(
     lockedTurnTtsPlayingRef.current = false;
     pendingCancelOnResponseCreatedRef.current = false;
     suppressNextRealtimeResponseRef.current = false;
+    clearLockedRealtimeDrain();
     void postGrokVoiceEvent("session.cancelled");
-  }, [stopMicRecorder]);
+  }, [clearLockedRealtimeDrain, stopMicRecorder]);
 
   const startNewConversation = useCallback(async () => {
     await endConversation();
