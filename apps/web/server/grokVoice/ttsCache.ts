@@ -127,7 +127,7 @@ export function seedGrokVoiceTtsMemoryCache(entry: GrokVoiceTtsCacheEntry) {
 async function readFirestoreCache(
   cacheKeyHash: string
 ): Promise<GrokVoiceTtsCacheEntry | null> {
-  const db = getFirestoreAdmin();
+  const db = getTtsCacheFirestore();
   const snap = await db.collection(COLLECTION).doc(cacheKeyHash).get();
   if (!snap.exists) return null;
   const data = snap.data() as Partial<GrokVoiceTtsCacheEntry> | undefined;
@@ -136,8 +136,20 @@ async function readFirestoreCache(
 }
 
 async function writeFirestoreCache(entry: GrokVoiceTtsCacheEntry) {
-  const db = getFirestoreAdmin();
+  const db = getTtsCacheFirestore();
   await db.collection(COLLECTION).doc(entry.cacheKeyHash).set(entry, { merge: true });
+}
+
+function getTtsCacheFirestore() {
+  return getFirestoreAdmin({
+    ...(process.env["FIREBASE_PROJECT_ID"]
+      ? { projectId: process.env["FIREBASE_PROJECT_ID"] }
+      : process.env["GOOGLE_CLOUD_PROJECT"]
+        ? { projectId: process.env["GOOGLE_CLOUD_PROJECT"] }
+        : process.env["GCLOUD_PROJECT"]
+          ? { projectId: process.env["GCLOUD_PROJECT"] }
+          : {}),
+  });
 }
 
 function isCacheEntry(value: Partial<GrokVoiceTtsCacheEntry> | undefined): value is GrokVoiceTtsCacheEntry {
