@@ -107,6 +107,9 @@ export function POST(request: NextRequest) {
           const sttTextPreview = stringOrUndefined(
             trimmedDetails["sttTextPreview"]
           );
+          const sttTextPreviewUtf8Base64 = stringOrUndefined(
+            trimmedDetails["sttTextPreviewUtf8Base64"]
+          );
           logGrokVoiceStt({
             sessionId,
             turnIndex: numberOrNull(trimmedDetails["turnIndex"]),
@@ -114,6 +117,7 @@ export function POST(request: NextRequest) {
             confidence: numberOrNull(trimmedDetails["confidence"]),
             vendorMs: numberOrNull(trimmedDetails["vendorMs"]),
             ...(sttTextPreview ? { sttTextPreview } : {}),
+            ...(sttTextPreviewUtf8Base64 ? { sttTextPreviewUtf8Base64 } : {}),
           });
           break;
         }
@@ -142,6 +146,12 @@ export function POST(request: NextRequest) {
             const agentTextPreview = stringOrUndefined(
               trimmedDetails["agentTextPreview"]
             );
+            const userTextPreviewUtf8Base64 = stringOrUndefined(
+              trimmedDetails["userTextPreviewUtf8Base64"]
+            );
+            const agentTextPreviewUtf8Base64 = stringOrUndefined(
+              trimmedDetails["agentTextPreviewUtf8Base64"]
+            );
             logGrokVoiceTurnMetrics({
               sessionId,
               turnIndex: numberOr(trimmedDetails["turnIndex"], 0),
@@ -157,6 +167,12 @@ export function POST(request: NextRequest) {
               error: stringOrNull(trimmedDetails["error"]),
               ...(userTextPreview ? { userTextPreview } : {}),
               ...(agentTextPreview ? { agentTextPreview } : {}),
+              ...(userTextPreviewUtf8Base64
+                ? { userTextPreviewUtf8Base64 }
+                : {}),
+              ...(agentTextPreviewUtf8Base64
+                ? { agentTextPreviewUtf8Base64 }
+                : {}),
               provenance: {
                 promptVersion: stringOr(
                   trimmedDetails["promptVersion"],
@@ -230,6 +246,18 @@ const TRANSCRIPT_PREVIEW_KEYS = new Set([
   "agentTextPreview",
 ]);
 
+const TRANSCRIPT_PREVIEW_ENCODED_KEYS = new Set([
+  "sttTextPreviewUtf8Base64",
+  "userTextPreviewUtf8Base64",
+  "agentTextPreviewUtf8Base64",
+]);
+
+const TRANSCRIPT_PREVIEW_ENCODED_KEY_BY_RAW_KEY: Record<string, string> = {
+  sttTextPreview: "sttTextPreviewUtf8Base64",
+  userTextPreview: "userTextPreviewUtf8Base64",
+  agentTextPreview: "agentTextPreviewUtf8Base64",
+};
+
 const NEVER_LOG_DETAIL_KEYS = new Set([
   "prompt",
   "instructions",
@@ -244,9 +272,13 @@ function sanitizeEventDetails(details: Record<string, unknown>) {
   const sanitized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(details)) {
     if (NEVER_LOG_DETAIL_KEYS.has(key)) continue;
+    if (TRANSCRIPT_PREVIEW_ENCODED_KEYS.has(key)) continue;
     if (TRANSCRIPT_PREVIEW_KEYS.has(key)) {
       if (!previewEnabled || typeof value !== "string") continue;
-      sanitized[key] = buildTranscriptPreview(value, previewMaxChars);
+      const preview = buildTranscriptPreview(value, previewMaxChars);
+      sanitized[key] = preview;
+      sanitized[TRANSCRIPT_PREVIEW_ENCODED_KEY_BY_RAW_KEY[key] ?? key] =
+        encodeUtf8Base64(preview);
       continue;
     }
     if (typeof value === "string" && value.length > 200) {
@@ -266,4 +298,8 @@ function redactTranscriptPreview(value: string) {
   // Dedicated hook for future PII redaction. Today we only normalize
   // whitespace so structured logs stay compact and queryable.
   return value.replace(/\s+/g, " ").trim();
+}
+
+function encodeUtf8Base64(value: string) {
+  return Buffer.from(value, "utf8").toString("base64");
 }

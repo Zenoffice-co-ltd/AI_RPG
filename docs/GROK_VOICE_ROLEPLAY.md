@@ -205,6 +205,11 @@ pnpm grok:warm-tts-cache
 - `locked_response.playback.started` / `locked_response.playback.completed`
 - 単価系 turn の `grokVoice.turnMetrics.audioBytes > 0` かつ `error=null`
 - `audio.queue.flushed` は `barge_in` または `locked_response_preempt_realtime` のみ
+- 評価用 transcript は `pnpm grok:prod-logs -- --session <gv_sess_...>` で
+  復元する。`GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` の時だけ、
+  `/api/v3/event` がサニタイズ済み発話を `*TextPreviewUtf8Base64` に
+  サーバ生成で併記する。Cloud Logging 表示上の日本語が `????` になっても、
+  評価は UTF-8 Base64 から復元した `transcript.md` を使う。
 
 ## 既知制約 / Known limits
 
@@ -225,6 +230,10 @@ pnpm grok:warm-tts-cache
   `response.done` 時に strip するが、Realtime 音声を途中 cancel/flush しない。
   mid-turn flush は 1-2 秒だけ発話して停止する UX 事故につながるため、
   `audio.queue.flushed` は barge-in または deterministic locked-response の事前退避に限定する。
+- 評価用のユーザー/AI発話本文は debug preview logging が有効なセッションだけ
+  復元できる。prompt / instructions / KB / hidden facts は引き続きログ対象外。
+  取得スクリプトは `*TextPreviewUtf8Base64` を優先し、旧ログに残る `????`
+  だけの preview は本文として扱わない。
 - `quality-latency-frontier.csv` への混入は今 PR 範囲外。混ぜる際は
   `backendCategory=native-voice / provider=xai / model=grok-voice-think-fast-1.0`
   を別 lane として明示。

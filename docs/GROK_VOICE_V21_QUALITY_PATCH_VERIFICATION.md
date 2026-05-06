@@ -99,6 +99,10 @@ out/grok_voice_v21_prod_logs/<timestamp>_<sessionId>/
 注意:
 
 - `GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` がデプロイされた後の会話だけ本文復元できる。過去に `false` で実施した本番デモは、turn lengthやlatencyは取れるが本文は復元できない。
+- 評価用 transcript は `sttTextPreviewUtf8Base64` /
+  `userTextPreviewUtf8Base64` / `agentTextPreviewUtf8Base64` を優先して
+  UTF-8 復元する。Cloud Logging の raw preview が `????` に見える場合でも、
+  Base64 フィールドがあるセッションは `transcript.md` に正確な日本語を出力できる。
 - prompt / instructions / KB はログしない。保存対象はユーザーSTT本文と最終assistant transcriptのみ。
 - Cloud Logging 取得には `gcloud` で `adecco-mendan` のログ閲覧権限が必要。
 
