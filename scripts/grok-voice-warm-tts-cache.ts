@@ -6,7 +6,10 @@ import {
   getEnvOrSecret,
 } from "../apps/web/server/secrets";
 import { loadGrokVoiceScenarioBundle } from "../apps/web/server/grokVoice/scenarioLoader";
-import { synthesizeGrokVoiceTts } from "../apps/web/server/grokVoice/tts";
+import {
+  synthesizeGrokVoiceTts,
+  type GrokVoiceTtsPurpose,
+} from "../apps/web/server/grokVoice/tts";
 import { saveGrokVoiceTtsCache } from "../apps/web/server/grokVoice/ttsCache";
 
 async function main() {
@@ -31,10 +34,29 @@ async function main() {
     process.stdout.write(
       `  ${purpose.padEnd(15)} len=${String(text.length).padStart(3)} ... `
     );
-    const result = await synthesizeGrokVoiceTts({ text, purpose });
+    const result = await synthesizeWithRetry({ text, purpose });
     saveGrokVoiceTtsCache({ text, purpose, result });
     console.info(`ok audioBytes=${result.audio.byteLength} vendorMs=${result.vendorMs}`);
   }
+}
+
+async function synthesizeWithRetry(input: {
+  text: string;
+  purpose: GrokVoiceTtsPurpose;
+}) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await synthesizeGrokVoiceTts(input);
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) {
+        process.stdout.write(`retry${attempt} `);
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1_500));
+      }
+    }
+  }
+  throw lastError;
 }
 
 main().catch((error) => {
@@ -42,4 +64,3 @@ main().catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 });
-
