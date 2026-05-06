@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  containsVoiceStockSuffix,
   getPr60LockedResponseForUser,
   normalizePr60AssistantText,
+  normalizeVoiceFriendlyTerms,
   shouldStopAtPr60LockedResponse,
+  stripVoiceStockSuffixSentences,
 } from "../../lib/roleplay/grok-voice-pr60-output";
 
 describe("grok voice PR60 output locks", () => {
@@ -25,6 +28,21 @@ describe("grok voice PR60 output locks", () => {
     ).toBe(
       "営業や物流と確認しながら進める場面が多いので、抱え込まずに連携できる方が合います。"
     );
+    expect(getPr60LockedResponseForUser("人柄については？")).toBe(
+      "協調型が合いやすく、自分のやり方にこだわりすぎる方は合いにくいです。"
+    );
+    expect(getPr60LockedResponseForUser("単価とかはいくらでしょうね？")).toBe(
+      "請求想定は経験により、せんななひゃくごじゅう円から、せんきゅうひゃく円程度です。"
+    );
+    expect(getPr60LockedResponseForUser("具体的に、どういう業務になりますかね？")).toBe(
+      "受発注や納期調整まわりの営業事務です。"
+    );
+    expect(getPr60LockedResponseForUser("なるほどですね。")).toBe("はい。");
+    expect(
+      getPr60LockedResponseForUser("わかりました。じゃあ水曜までにメールしますね。")
+    ).toBe(
+      "はい、お願いします。ちなみに、アデコさんの派遣の特徴や、たしゃさんとの違いはどのあたりでしょうか。"
+    );
   });
 
   it("trims unsolicited second sentences after a locked response", () => {
@@ -40,5 +58,24 @@ describe("grok voice PR60 output locks", () => {
         "こちらこそよろしくお願いします。何かございましたら"
       )
     ).toBe(true);
+  });
+
+  it("strips stock suffix sentences even outside exact locks", () => {
+    expect(containsVoiceStockSuffix("何か他にご質問ありますか。")).toBe(true);
+    expect(
+      stripVoiceStockSuffixSentences(
+        "受発注や納期調整まわりの営業事務です。詳しく知りたい点があれば教えてください。業務内容のイメージはつかめましたか。折り返しご連絡します。共有させていただきます。こちらで確認して、現場の意見も伺います。"
+      )
+    ).toBe("受発注や納期調整まわりの営業事務です。");
+  });
+
+  it("normalizes voice-sensitive business terms before display and metrics", () => {
+    expect(
+      normalizeVoiceFriendlyTerms(
+        "Adeccoさんと他社さんの違いです。人事課は月初に自己流を避けます。請求想定は千七百五十円から千九百円程度です。"
+      )
+    ).toBe(
+      "アデコさんとたしゃさんの違いです。じんじ課は月の初めに自分のやり方を避けます。請求想定はせんななひゃくごじゅう円から、せんきゅうひゃく円程度です。"
+    );
   });
 });

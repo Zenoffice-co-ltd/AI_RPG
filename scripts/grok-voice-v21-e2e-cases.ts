@@ -31,10 +31,26 @@ const STOCK_SUFFIX_TERMS = [
   "他にご確認したい点",
   "何か他に気になる点",
   "ご質問があれば",
+  "ご質問ありますか",
+  "ご質問があればお答え",
+  "ご質問があればお聞かせ",
   "ご不明点",
   "いつでもお気軽に",
   "何かございましたら",
   "他の条件もご確認",
+  "詳しく知りたい点",
+  "イメージはつかめましたか",
+  "つかめましたか",
+  "追加で確認",
+  "お知らせください",
+  "ご連絡します",
+  "折り返し",
+  "共有させていただきます",
+  "させていただきます",
+  "こちらで確認",
+  "現場の意見",
+  "お聞きください",
+  "順番にお聞き",
 ] as const;
 
 export const CASES: CaseDef[] = [
@@ -65,6 +81,7 @@ export const CASES: CaseDef[] = [
           "比較",
           "新しい派遣会社",
           "他社",
+          "たしゃ",
           "大手",
           "声をかけ",
           ...STOCK_SUFFIX_TERMS,
@@ -175,6 +192,8 @@ export const CASES: CaseDef[] = [
         terms: [
           "供給力",
           "アデコさんは強み",
+          "アデコの強み",
+          "アデコさんの強み",
           "Adeccoの強み",
           // PR #52 Blocker 3 — customer must NOT echo / accept the pitch.
           "人材が豊富",
@@ -228,6 +247,7 @@ export const CASES: CaseDef[] = [
           "調整",
           "長く",
           "自己流",
+          "自分のやり方",
           "協調",
           "落ち着",
           // The model often condenses the priority补足 into "重視" /
@@ -286,6 +306,7 @@ export const CASES: CaseDef[] = [
           "現行ベンダー",
           "比較軸は",
           "決裁者は人事",
+          "決裁者はじんじ",
           // PR #52 Blocker 4 — concrete values must not leak in a
           // compound question. Cover both kanji- and digit-form numerals.
           "六月一日",
@@ -296,6 +317,8 @@ export const CASES: CaseDef[] = [
           "1750",
           "千九百",
           "1900",
+          "せんななひゃくごじゅう",
+          "せんきゅうひゃく",
           "現場課長",
           "職場見学",
           "来週後半",
@@ -323,7 +346,7 @@ export const CASES: CaseDef[] = [
           "重要なところから",
           "まず優先順位",
           "順番にお答え",
-          "順番にお聞き",
+          "一つずつ",
           "先に確認",
         ],
         reason: "整理して 1 つに絞り直す合図を要求",
@@ -332,7 +355,7 @@ export const CASES: CaseDef[] = [
   },
   {
     id: "case8_late_kickback_question",
-    label: "終盤だけAdecco差別化質問を出す",
+    label: "終盤だけアデコ差別化質問を出す",
     critical: false,
     turns: [
       { role: "user", text: "募集背景を教えてください。" },
@@ -356,7 +379,7 @@ export const CASES: CaseDef[] = [
       {
         kind: "must_not_contain_in_turn",
         turnIndex: 0,
-        terms: ["他社", "違い", "Adecco", "アデコ", "強み"],
+        terms: ["他社", "たしゃ", "違い", "Adecco", "アデコ", "強み"],
         reason: "序盤では逆質問しない",
       },
       {
@@ -366,13 +389,19 @@ export const CASES: CaseDef[] = [
         // markers ("他社", "Adeccoの強み", "Adeccoさんの").
         kind: "must_not_contain_in_turn",
         turnIndex: 1,
-        terms: ["他社", "Adeccoの強み", "Adeccoさんの強み", "アデコさんの強み"],
-        reason: "中盤でAdecco差別化質問を出さない",
+        terms: [
+          "他社",
+          "たしゃ",
+          "Adeccoの強み",
+          "Adeccoさんの強み",
+          "アデコさんの強み",
+        ],
+        reason: "中盤でアデコ差別化質問を出さない",
       },
       {
         kind: "must_contain_in_turn",
         turnIndex: 4,
-        terms: ["特徴", "違い", "強み"],
+        terms: ["たしゃ", "特徴", "違い", "強み"],
         reason: "終盤で一度だけ逆質問する",
       },
     ],
@@ -761,7 +790,7 @@ export const CASES: CaseDef[] = [
       },
       {
         kind: "must_contain_any",
-        terms: ["人事課", "営業事務", "弊社", "私"],
+        terms: ["じんじ課", "人事課", "営業事務", "弊社", "私"],
         reason: "ペルソナを維持して返す",
       },
       { kind: "max_sentences", max: 3, reason: "1〜2文" },
@@ -858,7 +887,13 @@ export const CASES: CaseDef[] = [
     passConditions: [
       {
         kind: "must_contain_any",
-        terms: ["千七百五十", "千九百", "現場確認"],
+        terms: [
+          "せんななひゃくごじゅう",
+          "せんきゅうひゃく",
+          "千七百五十",
+          "千九百",
+          "現場確認",
+        ],
         reason: "KBの請求単価レンジに訂正するか、確認が必要と返す",
       },
       {
@@ -917,7 +952,14 @@ export const CASES: CaseDef[] = [
     passConditions: [
       {
         kind: "must_contain_any",
-        terms: ["千七百五十", "千九百", "上振れ", "現場確認"],
+        terms: [
+          "せんななひゃくごじゅう",
+          "せんきゅうひゃく",
+          "千七百五十",
+          "千九百",
+          "上振れ",
+          "現場確認",
+        ],
         reason: "既存レンジか限定的な上振れ相談として返す",
       },
       {
@@ -1019,7 +1061,7 @@ export const CASES: CaseDef[] = [
     passConditions: [
       {
         kind: "must_contain_any",
-        terms: ["月末", "月初", "月の初め", "月曜日", "商品", "切り替わる", "切替"],
+        terms: ["月末", "月の初め", "月曜日", "商品", "切り替わる", "切替"],
         reason: "時期だけに答える",
       },
       {
@@ -1030,6 +1072,7 @@ export const CASES: CaseDef[] = [
           "ろっぴゃく",
           "ななひゃっけん",
           "件",
+          "月初",
           ...STOCK_SUFFIX_TERMS,
         ],
         reason: "件数とstock suffixを出さない",
@@ -1216,6 +1259,151 @@ export const CASES: CaseDef[] = [
         reason: "カスタマーサポート風の末尾にしない",
       },
       { kind: "max_sentences", max: 1, reason: "終盤挨拶は一文" },
+    ],
+  },
+  {
+    id: "case35_rate_voice_friendly_pronunciation",
+    label: "請求単価は音声優先の円レンジで読み上げる",
+    critical: true,
+    turns: [{ role: "user", text: "あ、請求単価もう一回お願いします。" }],
+    passConditions: [
+      {
+        kind: "must_contain_at_least",
+        n: 2,
+        terms: ["せんななひゃくごじゅう円", "せんきゅうひゃく円", "程度"],
+        reason: "円レンジをTTS安定表記にする",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: ["千七百五十", "千九百", "チナナ", "1750", "1900", ...STOCK_SUFFIX_TERMS],
+        reason: "不安定な金額表記とstock suffixを出さない",
+      },
+      { kind: "max_sentences", max: 1, reason: "単価回答は一文で終える" },
+    ],
+  },
+  {
+    id: "case36_mission_jinji_pronunciation",
+    label: "人事はじんじとして読み上げる",
+    critical: true,
+    turns: [{ role: "user", text: "ご担当様のミッションは何でしょうか？" }],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: ["じんじ課", "じんじ"],
+        reason: "人事を音声優先表記にする",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: ["人事課では", "人事が", "ヒトジン", ...STOCK_SUFFIX_TERMS],
+        reason: "ヒトジン誤読につながる表記とstock suffixを出さない",
+      },
+      { kind: "max_sentences", max: 2, reason: "ミッション回答は短く返す" },
+    ],
+  },
+  {
+    id: "case37_personality_no_jikoryu_pronunciation",
+    label: "自己流は自分のやり方として読み上げる",
+    critical: true,
+    turns: [{ role: "user", text: "人柄については？" }],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: ["自分のやり方", "協調型"],
+        reason: "人柄はTTS安定表記で答える",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: ["自己流", "自己流で", ...STOCK_SUFFIX_TERMS],
+        reason: "自己流の誤読とstock suffixを出さない",
+      },
+      { kind: "max_sentences", max: 2, reason: "人柄回答は短く返す" },
+    ],
+  },
+  {
+    id: "case38_late_adeco_tasha_pronunciation",
+    label: "終盤の差別化質問はアデコ/たしゃで読み上げる",
+    critical: true,
+    turns: [
+      { role: "user", text: "募集背景を教えてください。" },
+      { role: "user", text: "受発注の業務内容を分解して教えてください。" },
+      {
+        role: "user",
+        text:
+          "住宅設備メーカーの営業事務ですと、品番確認や納期調整、代理店対応の比重が高そうですよね？",
+      },
+      {
+        role: "user",
+        text:
+          "整理させてください。今回は受発注経験よりも、納期調整と社外対応に抵抗がない方を優先、で合っていますか？",
+      },
+      {
+        role: "user",
+        text: "次回は来週水曜にメールで候補者像をお送りします。よろしいですか？",
+      },
+    ],
+    passConditions: [
+      {
+        kind: "must_contain_in_turn",
+        turnIndex: 4,
+        terms: ["アデコさん", "アデコ"],
+        reason: "終盤逆質問で社名をTTS安定表記にする",
+      },
+      {
+        kind: "must_contain_in_turn",
+        turnIndex: 4,
+        terms: ["たしゃさん", "たしゃ", "違い", "特徴"],
+        reason: "終盤逆質問で比較語をTTS安定表記にする",
+      },
+      {
+        kind: "must_not_contain_in_turn",
+        turnIndex: 4,
+        terms: ["Adecco", "アデッコ", "他社", "ホカシャ", ...STOCK_SUFFIX_TERMS],
+        reason: "社名/他社の誤読表記とstock suffixを出さない",
+      },
+      { kind: "max_sentences", max: 2, reason: "終盤逆質問は短く返す" },
+    ],
+  },
+  {
+    id: "case39_no_stock_suffix_manual_ack_variants",
+    label: "なるほど/うん等の相槌に定型語尾を付けない",
+    critical: true,
+    turns: [{ role: "user", text: "なるほどですね。" }],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: ["はい", "そうですね", "わかりました"],
+        reason: "相槌には短い受け止めで返す",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: [...STOCK_SUFFIX_TERMS],
+        reason: "相槌後に確認質問や案内語尾で埋めない",
+      },
+      { kind: "max_sentences", max: 1, reason: "相槌応答は一文" },
+    ],
+  },
+  {
+    id: "case40_job_detail_no_teach_me_suffix",
+    label: "業務内容回答に詳しく知りたい点があれば教えてくださいを付けない",
+    critical: true,
+    turns: [{ role: "user", text: "具体的に、どういう業務になりますかね？" }],
+    passConditions: [
+      {
+        kind: "must_contain_any",
+        terms: ["受発注", "納期調整", "営業事務"],
+        reason: "聞かれた業務内容に答える",
+      },
+      {
+        kind: "must_not_contain_any",
+        terms: [
+          "詳しく知りたい点",
+          "教えてください",
+          "気になる点があれば",
+          ...STOCK_SUFFIX_TERMS,
+        ],
+        reason: "業務内容回答の後に案内語尾を付けない",
+      },
+      { kind: "max_sentences", max: 2, reason: "業務内容回答は短く返す" },
     ],
   },
 ];
