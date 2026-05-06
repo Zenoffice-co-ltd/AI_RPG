@@ -43,6 +43,7 @@ const RESPOND_ERROR = "応答生成に失敗しました。時間をおいて再
 const AUDIO_ERROR =
   "音声の再生に失敗しました。ページを再読み込みして再試行してください。";
 const LOCKED_REALTIME_DRAIN_MS = 5_000;
+const LOCKED_TURN_MIC_TAIL_IGNORE_MS = 1_500;
 
 export type GrokVoiceConversation = UseRoleplayConversationReturn & {
   mode: RoleplayMode;
@@ -119,6 +120,7 @@ export function useGrokVoiceConversation(
   const lockedTurnIndexRef = useRef<number | null>(null);
   const lockedTurnUserTextRef = useRef("");
   const lockedTurnTtsPlayingRef = useRef(false);
+  const lockedTurnMicTailIgnoreUntilRef = useRef(0);
   const pendingCancelOnResponseCreatedRef = useRef(false);
   const suppressNextRealtimeResponseRef = useRef(false);
   const lockedRealtimeDrainActiveRef = useRef(false);
@@ -248,6 +250,7 @@ export function useGrokVoiceConversation(
     lockedTurnIndexRef.current = null;
     lockedTurnUserTextRef.current = "";
     lockedTurnTtsPlayingRef.current = false;
+    lockedTurnMicTailIgnoreUntilRef.current = 0;
     pendingCancelOnResponseCreatedRef.current = false;
   }, []);
 
@@ -269,6 +272,10 @@ export function useGrokVoiceConversation(
       suppressNextRealtimeResponseRef.current = true;
       lockedTurnIndexRef.current = turnIndex;
       lockedTurnUserTextRef.current = input.userText;
+      lockedTurnMicTailIgnoreUntilRef.current =
+        input.channel === "voice"
+          ? Date.now() + LOCKED_TURN_MIC_TAIL_IGNORE_MS
+          : 0;
       discardStaleResponseDeltasRef.current = true;
       if (currentResponseItemIdRef.current) {
         staleResponseItemIdsRef.current.add(currentResponseItemIdRef.current);
@@ -343,6 +350,10 @@ export function useGrokVoiceConversation(
           },
         });
         lockedTurnTtsPlayingRef.current = true;
+        if (input.channel === "voice") {
+          lockedTurnMicTailIgnoreUntilRef.current =
+            Date.now() + LOCKED_TURN_MIC_TAIL_IGNORE_MS;
+        }
         const firstAudioAt = Date.now();
         firstAudioAtRef.current = firstAudioAt;
         void postGrokVoiceEvent("locked_response.playback.started", {
@@ -446,6 +457,18 @@ export function useGrokVoiceConversation(
 
       switch (event.type) {
         case "input_audio_buffer.speech_started": {
+          if (
+            lockedTurnActiveRef.current &&
+            Date.now() < lockedTurnMicTailIgnoreUntilRef.current
+          ) {
+            void postGrokVoiceEvent("locked_response.mic_tail_ignored", {
+              sessionId: activeSession.sessionId,
+              details: {
+                turnIndex: lockedTurnIndexRef.current ?? turnIndexRef.current,
+              },
+            });
+            break;
+          }
           if (agentSpeakingRef.current && !bargeInCancelSentRef.current) {
             void postGrokVoiceEvent("barge_in.detected", {
               sessionId: activeSession.sessionId,
@@ -484,6 +507,7 @@ export function useGrokVoiceConversation(
           lockedTurnIndexRef.current = null;
           lockedTurnUserTextRef.current = "";
           lockedTurnTtsPlayingRef.current = false;
+          lockedTurnMicTailIgnoreUntilRef.current = 0;
           pendingCancelOnResponseCreatedRef.current = false;
           suppressNextRealtimeResponseRef.current = false;
           setStatus("listening");
@@ -1051,6 +1075,7 @@ export function useGrokVoiceConversation(
     lockedTurnIndexRef.current = null;
     lockedTurnUserTextRef.current = "";
     lockedTurnTtsPlayingRef.current = false;
+    lockedTurnMicTailIgnoreUntilRef.current = 0;
     pendingCancelOnResponseCreatedRef.current = false;
     suppressNextRealtimeResponseRef.current = false;
     clearLockedRealtimeDrain();

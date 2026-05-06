@@ -424,6 +424,66 @@ describe("useGrokVoiceConversation", () => {
     expect(result.current.metricsLog).toHaveLength(1);
   });
 
+  it("ignores voice locked-turn mic tail after deterministic TTS starts", async () => {
+    const fake = buildFakeRealtime();
+    const queue = buildStubAudioQueue();
+    const flushSpy = vi.spyOn(queue, "flush");
+    const enqueueAndWaitSpy = vi.spyOn(queue, "enqueueBase64AndWait");
+    const fetchLockedResponseTts = vi.fn(async () => LOCKED_TTS);
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => SESSION),
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchLockedResponseTts,
+      createAudioQueue: () => queue,
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      micEnabled: false,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe("listening");
+    });
+
+    let finishLockedPlayback: () => void = () => undefined;
+    enqueueAndWaitSpy.mockImplementationOnce(
+      async () =>
+        new Promise<void>((resolve) => {
+          finishLockedPlayback = resolve;
+        })
+    );
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({ type: "input_audio_buffer.speech_stopped" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "単価はどのくらいですか",
+      });
+    });
+
+    await waitFor(() => {
+      expect(enqueueAndWaitSpy).toHaveBeenCalledTimes(2);
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+    });
+    expect(flushSpy).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishLockedPlayback();
+    });
+    await waitFor(() => {
+      expect(result.current.metricsLog).toHaveLength(1);
+    });
+    expect(result.current.metricsLog[0]?.lockedResponse).toBe(true);
+    expect(result.current.metricsLog[0]?.audioBytes).toBeGreaterThan(0);
+  });
+
   it("does not cancel or flush normal realtime audio when a stock suffix appears", async () => {
     const fake = buildFakeRealtime();
     const queue = buildStubAudioQueue();

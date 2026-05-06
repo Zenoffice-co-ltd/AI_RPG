@@ -232,6 +232,9 @@ pnpm grok:warm-tts-cache
 - PR60 locked responses (`単価` / `請求` / `時給` など) は Realtime 音声を途中
   cancel して使わず、`/api/v3/locked-response-tts` の deterministic server-side
   TTS を再生し、その後 Realtime へ履歴同期する。
+- Voice の locked response では、deterministic TTS 開始直後の短い
+  `speech_started` は同じユーザー発話の tail として無視する。ここを
+  barge-in 扱いすると、固定回答の音声が 1-2 秒で flush される。
 - Stock suffix (`何か他にご質問ありますか` など) は final transcript では
   `response.done` 時に strip するが、Realtime 音声を途中 cancel/flush しない。
   mid-turn flush は 1-2 秒だけ発話して停止する UX 事故につながるため、
