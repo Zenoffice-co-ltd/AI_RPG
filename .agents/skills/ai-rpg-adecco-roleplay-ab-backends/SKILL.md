@@ -192,6 +192,28 @@ that bit during the Grok integration:
 The hook in `useGrokVoiceConversation.ts` and the wrapper in
 `grok-voice-realtime.ts` already handle all of these.
 
+### Grok Voice audio-fix patterns
+
+- Keep the xAI API key server-only. Browser Realtime auth uses ephemeral tokens;
+  REST TTS is called only from server routes.
+- `/api/v3/session` may include cached greeting PCM only on cache hit. Never
+  synchronously call xAI TTS from the session route on cache miss; fall back to
+  `/api/v3/greet`.
+- TTS cache uses module Map first, then Firestore. Session cache reads must have
+  a short timeout budget and failures are misses. If a Firestore read times out,
+  let the read warm the module Map in the background for later sessions.
+- Deterministic PR60 locked responses (`単価` / `請求` / `時給`) must use
+  server-side TTS via `/api/v3/locked-response-tts`, then sync Realtime history
+  with `conversation.item.create`. Do not send `response.create` for text
+  locked turns.
+- For voice locked turns, cancelling Realtime is asynchronous. Keep a short
+  stale-drain guard after deterministic TTS so late `response.created`, audio
+  deltas, and `response.done` cannot create double playback or bogus
+  `no_audio` metrics.
+- `audioQueue.flush()` remains valid for barge-in. Locked-response deterministic
+  playback should only flush before playback if stale Realtime audio already
+  reached the queue, with reason `locked_response_preempt_realtime`.
+
 ## Logging scopes (canonical query templates)
 
 Cloud Logging filter to see all per-backend telemetry:
@@ -229,6 +251,18 @@ pnpm exec tsx scripts/check-grok-voice-e2e-matrix.ts
 pnpm exec tsx scripts/grok-voice-v21-scenario-e2e.ts --rounds 2 --critical-rounds 3
 pnpm exec tsx scripts/grok-voice-v21-voice-e2e.ts --limit 5
 pnpm exec tsx scripts/grok-voice-v21-prod-smoke.mjs
+```
+
+For production audio-fix evidence, also run a browser smoke on
+`/demo/adecco-roleplay-v3?debugMetrics=1` and capture `/api/v3/event` posts.
+The pass condition is browser-side playback completion, not just route success:
+`greeting.cache.hit`, `greeting.playback.completed`,
+`locked_response.tts.completed`, `locked_response.playback.completed`,
+`turn.completed` with `audioBytes > 0`, and no disallowed
+`audio.queue.flushed`. Then fetch Cloud Logging for the same `sessionId` with:
+
+```bash
+node scripts/grok-voice-v21-prod-logs.mjs --minutes 30 --limit 1000 --session <gv_sess_...>
 ```
 
 PR58 added `docs/GROK_VOICE_V21_E2E_MATRIX.md` as the coverage map. The source
