@@ -48,6 +48,21 @@ describe("grok-voice prompt builder", () => {
     expect(guardrail).toContain("一応答は原則1〜2文");
   });
 
+  it("includes PR60 voice canonicalization, stock suffix ban, and skill budget", () => {
+    const guardrail = GROK_VOICE_RUNTIME_GUARDRAIL;
+    expect(GROK_VOICE_GUARDRAIL_VERSION).toBe("gv-think-fast-v4.6-2026-05-06");
+    expect(guardrail).toContain("Voice-Friendly Date and Quantity Canonicalization");
+    expect(guardrail).toContain("六月ついたち");
+    expect(guardrail).toContain("ろっぴゃく件から、ななひゃっけん程度");
+    expect(guardrail).toContain("No Stock Suffix");
+    expect(guardrail).toContain("何か他に確認したい点はありますか");
+    expect(guardrail).toContain("Skill Question Disclosure Budget");
+    expect(guardrail).toContain("受発注経験");
+    expect(guardrail).toContain("対外調整の経験");
+    expect(guardrail).toContain("PR60 Final Output Gate");
+    expect(guardrail).toContain("指定文だけを出す");
+  });
+
   it("does not concat publish-artifact promptSections (avoids duplicating compiled prompt)", () => {
     const prompt = buildGrokVoiceSystemPrompt(fixture);
     expect(prompt).not.toMatch(/"promptSections"/);

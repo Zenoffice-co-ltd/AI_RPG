@@ -110,7 +110,22 @@ export class GrokVoiceAudioQueue {
     }
   }
 
-  private scheduleSamples(samples: Float32Array) {
+  async enqueueBase64AndWait(base64: string): Promise<void> {
+    try {
+      const samples = decodeBase64Pcm16(base64);
+      if (samples.length === 0) {
+        return;
+      }
+      await new Promise<void>((resolve) => {
+        this.scheduleSamples(samples, resolve);
+      });
+    } catch (error) {
+      this.onError(error);
+      throw error;
+    }
+  }
+
+  private scheduleSamples(samples: Float32Array, onEnded?: () => void) {
     const { context, gain } = this.ensureContext();
     const buffer = context.createBuffer(1, samples.length, this.sampleRate);
     // copyToChannel may not exist on the test double; fall back to channelData write.
@@ -127,6 +142,7 @@ export class GrokVoiceAudioQueue {
     this.playing += 1;
     source.onended = () => {
       this.playing = Math.max(0, this.playing - 1);
+      onEnded?.();
     };
   }
 

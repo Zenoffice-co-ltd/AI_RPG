@@ -114,11 +114,19 @@ const required = [
   "ご質問があればお聞かせください",
   "Final Response Contract",
   "現場確認が必要です",
+  "Voice-Friendly Date and Quantity Canonicalization",
+  "六月ついたち",
+  "ろっぴゃく件",
+  "ななひゃっけん",
+  "Skill Question Disclosure Budget",
+  "受発注経験と対外調整",
+  "何か他に確認したい点はありますか",
+  "何か他にご確認したい点はありますか",
 ];
 
 // 2b. promptVersion must reflect the v3.x hardening line and PR58 DOD runtime
 // contract metadata bump.
-const expectedPromptVersionPrefix = "compile-scenario@2026-05-06.v3.7";
+const expectedPromptVersionPrefix = "compile-scenario@2026-05-06.v3.8";
 if (
   typeof body.promptVersion !== "string" ||
   !body.promptVersion.startsWith(expectedPromptVersionPrefix)
@@ -133,7 +141,7 @@ for (const s of required) {
   }
 }
 
-const expectedGuardrailVersion = "gv-think-fast-v4.5-2026-05-06";
+const expectedGuardrailVersion = "gv-think-fast-v4.6-2026-05-06";
 if (body.guardrailVersion !== expectedGuardrailVersion) {
   failures.push(
     `guardrailVersion mismatch: ${body.guardrailVersion} (expected ${expectedGuardrailVersion})`
