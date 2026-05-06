@@ -743,6 +743,18 @@ Cloud Logging では `jsonPayload.scope=~"^grokVoice\\."` で集約可能。
 
 Manual smoke (10 発話) と既知制約は [docs/GROK_VOICE_ROLEPLAY.md](./GROK_VOICE_ROLEPLAY.md) 参照。
 
+2026-05-06 以降、Grok Voice v3 は初回 greeting TTS と PR60 locked response TTS
+を server-side cache 対象にしている。demo 前に warm する場合は:
+
+```bash
+pnpm grok:warm-tts-cache
+```
+
+単価/請求/時給系の locked response は Realtime 音声を途中 cancel して使わず、
+`/api/v3/locked-response-tts` で生成した deterministic PCM を再生する。prod logs
+では `greeting.cache.hit|miss`, `locked_response.tts.completed`,
+`locked_response.playback.completed`, `turn.completed audioBytes>0 error=null` を確認する。
+
 Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 `/demo/adecco-roleplay-v3` は ServiceUnavailable、`/api/v3/*`
 は 503。既存 `/demo/adecco-roleplay` / `/demo/adecco-roleplay-haiku-fish` は

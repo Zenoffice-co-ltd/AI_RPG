@@ -169,6 +169,28 @@ export class GrokVoiceRealtime {
     this.send({ type: "response.create" }, { gate: "ready" });
   }
 
+  sendUserHistory(text: string): void {
+    this.send({
+      type: "conversation.item.create",
+      item: {
+        type: "message",
+        role: "user",
+        content: [{ type: "input_text", text }],
+      },
+    }, { gate: "ready" });
+  }
+
+  sendAssistantHistoryMessage(text: string): void {
+    this.send({
+      type: "conversation.item.create",
+      item: {
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text }],
+      },
+    }, { gate: "ready" });
+  }
+
   appendAudio(base64Pcm16: string): void {
     this.send(
       { type: "input_audio_buffer.append", audio: base64Pcm16 },

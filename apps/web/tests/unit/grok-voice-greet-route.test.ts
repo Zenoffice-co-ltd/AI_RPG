@@ -33,6 +33,7 @@ describe("grok-voice greet route", () => {
     vi.stubEnv("XAI_API_KEY", "xai-test-key");
     vi.stubEnv("GROK_VOICE_VOICE_ID", "rex");
     vi.stubEnv("GROK_VOICE_SAMPLE_RATE", "24000");
+    vi.stubEnv("GROK_VOICE_TTS_CACHE_DISABLE_FIRESTORE", "true");
     mocks.loadGrokVoiceScenarioBundle.mockResolvedValue(VALID_BUNDLE);
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(Buffer.from([0, 1, 2, 3]), {
@@ -66,6 +67,7 @@ describe("grok-voice greet route", () => {
     expect(body["sampleRateHz"]).toBe(24_000);
     expect(body["textLen"]).toBe(VALID_BUNDLE.firstMessage.length);
     expect(body["voiceId"]).toBe("rex");
+    expect(body["cacheStatus"]).toBe("miss");
     expect(JSON.stringify(body)).not.toContain("System prompt");
     expect(JSON.stringify(body)).not.toContain("Knowledge base");
     expect(JSON.stringify(body)).not.toContain("xai-test-key");
@@ -89,6 +91,7 @@ describe("grok-voice greet route", () => {
       voice_id: "rex",
       language: "ja",
       output_format: { codec: "pcm", sample_rate: 24_000 },
+      optimize_streaming_latency: 1,
     });
   });
 

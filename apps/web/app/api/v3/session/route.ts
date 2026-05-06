@@ -24,6 +24,7 @@ import {
   issueGrokEphemeralToken,
 } from "@/server/grokVoice/ephemeralToken";
 import { logGrokVoiceSessionCreated } from "@/server/grokVoice/metrics";
+import { getCachedGrokVoiceTts } from "@/server/grokVoice/ttsCache";
 
 const SAFE_ERROR =
   "セッションの開始に失敗しました。時間をおいて再試行してください。";
@@ -119,6 +120,14 @@ export async function POST(request: NextRequest) {
     provenance,
   });
 
+  const greetingAudio = await getCachedGrokVoiceTts({
+    text: bundle.firstMessage,
+    voiceId: env.GROK_VOICE_VOICE_ID,
+    sampleRateHz: env.GROK_VOICE_SAMPLE_RATE,
+    purpose: "greeting",
+    firestoreTimeoutMs: 250,
+  });
+
   return NextResponse.json({
     sessionId,
     scenarioId: bundle.scenarioId,
@@ -135,6 +144,20 @@ export async function POST(request: NextRequest) {
     turnDetection,
     instructions,
     firstMessage: bundle.firstMessage,
+    ...(greetingAudio
+      ? {
+          greetingAudio: {
+            audioBase64: greetingAudio.audioBase64,
+            mimeType: greetingAudio.mimeType,
+            sampleRateHz: greetingAudio.sampleRateHz,
+            textLen: bundle.firstMessage.length,
+            voiceId: greetingAudio.voiceId,
+            vendorMs: greetingAudio.vendorMs ?? undefined,
+            cacheStatus: "hit",
+            cacheKeyHash: greetingAudio.cacheKeyHash,
+          },
+        }
+      : {}),
   });
 }
 

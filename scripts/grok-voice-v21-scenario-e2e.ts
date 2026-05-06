@@ -436,6 +436,9 @@ async function main(): Promise<void> {
     // mid-id token directly ("3b", "9", "11"). The previous startsWith
     // form skipped Case 3b because "case3b_" doesn't match "case3_".
     return ONLY_CASES.some((s) => {
+      if (s.startsWith("case")) {
+        return c.id === s || c.id.startsWith(`${s}_`);
+      }
       const prefix = `case${s}_`;
       return c.id.startsWith(prefix) || c.id === `case${s}`;
     });
