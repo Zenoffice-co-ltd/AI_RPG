@@ -21,6 +21,7 @@ import {
   type GrokVoiceAudioQueueOptions,
 } from "./grok-voice-audio-queue";
 import {
+  containsVoiceStockSuffix,
   normalizePr60AssistantText,
   shouldStopAtPr60LockedResponse,
 } from "./grok-voice-pr60-output";
@@ -319,10 +320,11 @@ export function useGrokVoiceConversation(
           turnAccumulatedTextRef.current += delta;
           if (
             !pr60LockCancelSentRef.current &&
-            shouldStopAtPr60LockedResponse(
-              turnUserTextPreviewRef.current,
-              turnAccumulatedTextRef.current
-            )
+            (shouldStopAtPr60LockedResponse(
+                turnUserTextPreviewRef.current,
+                turnAccumulatedTextRef.current
+              ) ||
+              containsVoiceStockSuffix(turnAccumulatedTextRef.current))
           ) {
             pr60LockCancelSentRef.current = true;
             turnAccumulatedTextRef.current = normalizePr60AssistantText(
@@ -334,6 +336,7 @@ export function useGrokVoiceConversation(
               staleResponseItemIdsRef.current.add(currentResponseItemIdRef.current);
             }
             realtimeRef.current?.cancelResponse();
+            void audioQueueRef.current?.flush();
             void postGrokVoiceEvent("response.pr60_locked_cancelled", {
               sessionId: activeSession.sessionId,
               details: { turnIndex: turnIndexRef.current },

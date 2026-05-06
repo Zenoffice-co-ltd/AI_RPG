@@ -122,11 +122,25 @@ const required = [
   "受発注経験と対外調整",
   "何か他に確認したい点はありますか",
   "何か他にご確認したい点はありますか",
+  "Voice-Friendly Business Term Canonicalization",
+  "せんななひゃくごじゅう円",
+  "せんきゅうひゃく円",
+  "月の初め",
+  "自分のやり方",
+  "アデコ",
+  "じんじ",
+  "たしゃ",
+  "詳しく知りたい点があれば教えてください",
+  "業務内容のイメージはつかめましたか",
+  "追加で確認したい点があればお知らせください",
+  "折り返しご連絡します",
+  "共有させていただきます",
+  "こちらで確認",
 ];
 
 // 2b. promptVersion must reflect the v3.x hardening line and PR58 DOD runtime
 // contract metadata bump.
-const expectedPromptVersionPrefix = "compile-scenario@2026-05-06.v3.8";
+const expectedPromptVersionPrefix = "compile-scenario@2026-05-06.v3.9";
 if (
   typeof body.promptVersion !== "string" ||
   !body.promptVersion.startsWith(expectedPromptVersionPrefix)
@@ -141,7 +155,7 @@ for (const s of required) {
   }
 }
 
-const expectedGuardrailVersion = "gv-think-fast-v4.6-2026-05-06";
+const expectedGuardrailVersion = "gv-think-fast-v4.7-2026-05-06";
 if (body.guardrailVersion !== expectedGuardrailVersion) {
   failures.push(
     `guardrailVersion mismatch: ${body.guardrailVersion} (expected ${expectedGuardrailVersion})`
@@ -160,8 +174,8 @@ if (!(kb < guide && guide < guard)) {
 
 // 4. Required v21 vocabulary in Pronunciation Guide
 //    (v2.1 quality patch added: 見積もり補助 / 夕方五時三十分 / 朝八時四十五分.
-//     Hardening 2026-05-06 added: 受発注入力 / 受発注業務 / 人事 / 人事課 — these
-//     were previously past the maxEntries=80 cutoff or absent.)
+//     Hardening 2026-05-06 added: 受発注入力 / 受発注業務. PR61 moves live
+//     utterances to じんじ, so the old 人事 family is no longer required here.)
 const requiredVocab = [
   "受発注",
   "受発注入力",
@@ -177,8 +191,6 @@ const requiredVocab = [
   "見積もり補助",
   "夕方五時三十分",
   "朝八時四十五分",
-  "人事",
-  "人事課",
 ];
 for (const term of requiredVocab) {
   if (!body.instructions.includes(`「${term}」`)) {

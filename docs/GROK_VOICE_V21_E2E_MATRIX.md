@@ -16,7 +16,7 @@ VAD A/B, `threshold`, `silence_duration_ms`, and `prefix_padding_ms` are out of 
 | `case5_cp_handoff_summary` | CP共有前提の要約に反応する | yes | CP共有要約 | 候補者要件理解に肯定し優先人材像を補足 | SoT | SoT | SoT | CP-ready summary | PR52 |
 | `case6_icebreak` | アイスブレイクは1往復で本題へ | no | 雑談 | 短く受けて本題へ戻す | SoT | SoT | SoT | smalltalk drift | PR52 |
 | `case7_rapid_fire` | 質問攻めには答えすぎない (answerBudget) | yes | 複数質問 | 最重要だけ短く返す | SoT | SoT | SoT | answer budget | PR52 |
-| `case8_late_kickback_question` | 終盤だけAdecco差別化質問を出す | no | multi-turn深掘り | 終盤のみ逆質問 | SoT | SoT | SoT | premature kickback | PR52 |
+| `case8_late_kickback_question` | 終盤だけアデコ差別化質問を出す | no | multi-turn深掘り | 終盤のみ逆質問 | SoT | SoT | SoT | premature kickback | PR52 |
 | `case9_negative_info_prebriefing` | ネガティブ情報の事前共有提案に応える | yes | 定着リスク共有 | ギャップ事前共有に応える | SoT | SoT | SoT | fit-risk reveal | PR52 |
 | `case10_sk_confirmation_loop` | SK を確認・深掘りの場として位置づける提案を受ける | no | SK活用 | 次回精度向上の場として受ける | SoT | SoT | SoT | SK loop | PR52 |
 | `case11_best_to_minimum_line` | ベスト条件と最低ラインを分けて返す | yes | ベスト/最低ライン | 条件を段階化する | SoT | SoT | SoT | candidate quality line | PR52 |
@@ -35,7 +35,7 @@ VAD A/B, `threshold`, `silence_duration_ms`, and `prefix_padding_ms` are out of 
 | `case24_must_have_condition_correction` | 受発注経験の必須/優先を混同しない | yes | 受発注経験必須確認 | 必須/優先の違いを訂正 | SoT | SoT | SoT | must-have correction | PR58-C |
 | `case25_start_date_voice_friendly_no_suffix` | 開始日は六月ついたちで読み上げやすく、定型語尾を付けない | yes | 時期的にはいつぐらい | `六月ついたち` の一文回答、stock suffixなし | 六月ついたち | 六月一日, 6月1日, stock suffix | 1 | date pronunciation + suffix | PR60 manual voice feedback |
 | `case26_monthly_volume_voice_friendly_no_suffix` | 月間受注件数はろっぴゃく件から、ななひゃっけん程度で読む | yes | 受注件数 | 音声優先の件数レンジ一文回答 | ろっぴゃく件, ななひゃっけん, 月あたり, 程度 | 六百から七百件, 600から700件, stock suffix | 1 | quantity pronunciation + suffix | PR60 manual voice feedback |
-| `case27_busy_period_only_no_volume_leak` | 繁忙時期質問では件数を漏らさない | yes | 繁忙時期 | 時期だけ答え、件数は出さない | 月末, 月初, 月曜日, 商品切替 | 六百, 七百, 件, stock suffix | 2 | over-disclosure by intent | PR60 manual voice feedback |
+| `case27_busy_period_only_no_volume_leak` | 繁忙時期質問では件数を漏らさない | yes | 繁忙時期 | 時期だけ答え、件数は出さない | 月末, 月の初め, 月曜日, 商品切替 | 六百, 七百, 件, stock suffix | 2 | over-disclosure by intent | PR60 manual voice feedback |
 | `case28_no_stock_suffix_after_shallow_background` | 浅い募集背景回答の後に定型語尾を付けない | yes | 簡単な募集背景 | 表層背景のみ、誘導語尾なし | 増員, 受注, 処理 | stock suffix, 業務内容と合わせて, 現場の状況も絡む | 2 | shallow background suffix | PR60 manual voice feedback |
 | `case29_no_stock_suffix_after_low_information_ack` | 低情報量の相槌には短く受け止め、定型語尾で埋めない | yes | 繁忙時期 → そういうことですね | 短い受け止めだけ | はい, そうですね | stock suffix | 1 | low-info ack suffix | PR60 manual voice feedback |
 | `case30_skill_question_minimal_disclosure` | 初回スキル質問は受発注経験と対外調整だけに留める | yes | 候補者スキル | 第一階層のみ答える | 受発注 + 対外調整/社外対応/調整経験 | 正確性, 協調性, メーカー経験, 必須ではありません | 2 | skill over-disclosure | PR60 manual voice feedback |
@@ -43,6 +43,12 @@ VAD A/B, `threshold`, `silence_duration_ms`, and `prefix_padding_ms` are out of 
 | `case32_skill_cooperation_followup_allowed` | 協調性は聞かれた場合だけ具体化できる | yes | 協調性follow-up | 連携の具体論だけ答える | 営業, 物流, 連携, 確認, 抱え込まず | 過去例, 自己流, 納期調整では特に, stock suffix | 2 | progressive disclosure | PR60 manual voice feedback |
 | `case33_manufacturer_experience_followup_allowed` | メーカー経験の必須/非必須は聞かれた場合だけ答える | yes | メーカー経験なし | 必須ではないことと代替経験 | 必須ではありません/業界未経験でも/検討できます + 受発注/対外調整/社外対応 | stock suffix | 2 | progressive disclosure | PR60 manual voice feedback |
 | `case34_final_closing_no_customer_support_suffix` | 終盤挨拶にカスタマーサポート風語尾を付けない | yes | よろしくお願いします | 自然な一文挨拶 | こちらこそ, よろしくお願いします | ご不明点, いつでもお気軽に, ご連絡ください, stock suffix | 1 | customer-support suffix | PR60 manual voice feedback |
+| `case35_rate_voice_friendly_pronunciation` | 請求単価は音声優先の円レンジで読み上げる | yes | 請求単価もう一回 | 円レンジをTTS安定表記で一文回答 | せんななひゃくごじゅう円, せんきゅうひゃく円, 程度 | 千七百五十, 千九百, stock suffix | 1 | rate pronunciation | PR61 manual voice feedback |
+| `case36_mission_jinji_pronunciation` | 人事はじんじとして読み上げる | yes | ミッション | 人事をじんじ表記で答える | じんじ課, じんじ | 人事課では, ヒトジン, stock suffix | 2 | business term pronunciation | PR61 manual voice feedback |
+| `case37_personality_no_jikoryu_pronunciation` | 自己流は自分のやり方として読み上げる | yes | 人柄 | 人柄をTTS安定表記で短く答える | 自分のやり方, 協調型 | 自己流, stock suffix | 2 | personality pronunciation | PR61 manual voice feedback |
+| `case38_late_adeco_tasha_pronunciation` | 終盤の差別化質問はアデコ/たしゃで読み上げる | yes | 水曜までにメール | 終盤逆質問で社名/他社をTTS安定表記にする | アデコさん, たしゃさん, 違い, 特徴 | Adecco, アデッコ, 他社, stock suffix | 2 | brand/comparison pronunciation | PR61 manual voice feedback |
+| `case39_no_stock_suffix_manual_ack_variants` | なるほど/うん等の相槌に定型語尾を付けない | yes | なるほどですね | 短い受け止めだけ | はい, そうですね, わかりました | stock suffix | 1 | low-info ack suffix | PR61 manual voice feedback |
+| `case40_job_detail_no_teach_me_suffix` | 業務内容回答に詳しく知りたい点があれば教えてくださいを付けない | yes | どういう業務 | 業務内容だけ答え、誘導語尾を足さない | 受発注, 納期調整, 営業事務 | 詳しく知りたい点, 教えてください, stock suffix | 2 | job detail suffix | PR61 manual voice feedback |
 
 ## Voice Input E2E
 
@@ -68,4 +74,4 @@ VAD A/B, `threshold`, `silence_duration_ms`, and `prefix_padding_ms` are out of 
 
 | case id | expected behavior | critical lexemes | quality risk | background |
 |---|---|---|---|---|
-| `pls_maxEntries80_critical_lexeme_regression` | `buildLivePronunciationGuide(... maxEntries: 80)` includes all critical lexemes | 受発注, 受発注入力, 受発注業務, 受発注経験, 人事, 人事課, 人事課主任, 人事窓口, 人事主導, 品番, 型番, 施工日, 納期調整, 代理店, 工務店, アデコ | PLS silent drop | PR58-C |
+| `pls_maxEntries80_critical_lexeme_regression` | `buildLivePronunciationGuide(... maxEntries: 80)` includes all critical lexemes | 受発注, 受発注入力, 受発注業務, 受発注経験, 品番, 型番, 施工日, 納期調整, 代理店, 工務店, アデコ | PLS silent drop | PR58-C |
