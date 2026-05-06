@@ -213,6 +213,10 @@ The hook in `useGrokVoiceConversation.ts` and the wrapper in
 - `audioQueue.flush()` remains valid for barge-in. Locked-response deterministic
   playback should only flush before playback if stale Realtime audio already
   reached the queue, with reason `locked_response_preempt_realtime`.
+- Stock-suffix cleanup must not cancel a live Realtime response or flush the
+  audio queue mid-turn. Let the audio finish and strip stock suffix text at
+  `response.done`; otherwise production can sound like it speaks for 1-2
+  seconds and then stops.
 
 ## Logging scopes (canonical query templates)
 

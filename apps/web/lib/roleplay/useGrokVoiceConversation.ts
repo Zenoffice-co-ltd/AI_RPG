@@ -22,7 +22,6 @@ import {
   type GrokVoiceAudioQueueOptions,
 } from "./grok-voice-audio-queue";
 import {
-  containsVoiceStockSuffix,
   getPr60LockedResponseForUser,
   normalizePr60AssistantText,
   shouldStopAtPr60LockedResponse,
@@ -615,9 +614,6 @@ export function useGrokVoiceConversation(
             turnUserTextPreviewRef.current,
             turnAccumulatedTextRef.current
           );
-          const stockSuffixMatched = containsVoiceStockSuffix(
-            turnAccumulatedTextRef.current
-          );
           if (!pr60LockCancelSentRef.current && lockedResponseMatched) {
             pr60LockCancelSentRef.current = true;
             turnAccumulatedTextRef.current = normalizePr60AssistantText(
@@ -635,27 +631,6 @@ export function useGrokVoiceConversation(
                 turnIndex: turnIndexRef.current,
                 reason: "delta_locked_response_fallback",
                 hadDeterministicTts: lockedTurnActiveRef.current,
-                audioBytesBeforeCancel: turnAccumulatedAudioBytesRef.current,
-              },
-            });
-          } else if (!pr60LockCancelSentRef.current && stockSuffixMatched) {
-            pr60LockCancelSentRef.current = true;
-            turnAccumulatedTextRef.current = normalizePr60AssistantText(
-              turnUserTextPreviewRef.current,
-              turnAccumulatedTextRef.current
-            );
-            discardStaleResponseDeltasRef.current = true;
-            if (currentResponseItemIdRef.current) {
-              staleResponseItemIdsRef.current.add(currentResponseItemIdRef.current);
-            }
-            realtimeRef.current?.cancelResponse();
-            void audioQueueRef.current?.flush();
-            void postGrokVoiceEvent("response.pr60_locked_cancelled", {
-              sessionId: activeSession.sessionId,
-              details: {
-                turnIndex: turnIndexRef.current,
-                reason: "stock_suffix",
-                hadDeterministicTts: false,
                 audioBytesBeforeCancel: turnAccumulatedAudioBytesRef.current,
               },
             });
