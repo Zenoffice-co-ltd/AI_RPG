@@ -68,6 +68,11 @@ describe("grok voice PR60 output locks", () => {
         "受発注や納期調整まわりの営業事務です。詳しく知りたい点があれば教えてください。業務内容のイメージはつかめましたか。折り返しご連絡します。共有させていただきます。こちらで確認して、現場の意見も伺います。"
       )
     ).toBe("受発注や納期調整まわりの営業事務です。");
+    expect(
+      stripVoiceStockSuffixSentences(
+        "まずは営業事務を一名お願いしたい相談です。他の条件もお聞きいただければと思います。"
+      )
+    ).toBe("まずは営業事務を一名お願いしたい相談です。");
   });
 
   it("normalizes voice-sensitive business terms before display and metrics", () => {
