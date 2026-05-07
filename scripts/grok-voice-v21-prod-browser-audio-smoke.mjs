@@ -18,6 +18,7 @@ const MODE = process.env.GROK_BROWSER_SMOKE_MODE ?? "text";
 const NORMAL_TEXT = process.env.GROK_BROWSER_SMOKE_NORMAL_TEXT ?? "人数は何名ですか";
 const LOCKED_TEXT =
   process.env.GROK_BROWSER_SMOKE_LOCKED_TEXT ?? "単価を教えてください";
+const POST_LOCKED_TEXT = process.env.GROK_BROWSER_SMOKE_POST_LOCKED_TEXT ?? "";
 const VOICE_FIXTURE_SOURCE = resolve(
   process.env.GROK_BROWSER_SMOKE_VOICE_FIXTURE ??
     "test/fixtures/audio/grok-voice-v21/voice_case3_headcount.wav"
@@ -216,6 +217,10 @@ try {
       : await waitForTurn((event) => {
           return event.details?.lockedResponse === true && event.details?.inputMode === "text";
         }, 10_000);
+  const postLockedTurn =
+    MODE === "voice" || POST_LOCKED_TEXT.trim().length === 0
+      ? null
+      : await runPostLockedTextTurn(page, lockedTurn);
   await waitForAudioSettled(page, 12_000).catch(() => undefined);
 
   const audioProbe = await page.evaluate(() => window.__grokAudioProbe);
@@ -253,6 +258,16 @@ try {
     if (lockedTurn?.details?.error) {
       failures.push(`locked turn error=${lockedTurn.details.error}`);
     }
+    if (POST_LOCKED_TEXT.trim().length > 0) {
+      if (!(postLockedTurn?.details?.audioBytes > 0)) {
+        failures.push(
+          `post-locked turn audioBytes=${postLockedTurn?.details?.audioBytes ?? "missing"}`
+        );
+      }
+      if (postLockedTurn?.details?.error) {
+        failures.push(`post-locked turn error=${postLockedTurn.details.error}`);
+      }
+    }
   }
   if (stockSuffixCancels.length > 0) {
     failures.push(`stock_suffix cancels observed=${stockSuffixCancels.length}`);
@@ -277,6 +292,7 @@ try {
     inputs: {
       normalText: NORMAL_TEXT,
       lockedText: LOCKED_TEXT,
+      postLockedText: POST_LOCKED_TEXT || null,
       voiceFixture: VOICE_FIXTURE,
       voiceFixtureSource: VOICE_FIXTURE_SOURCE,
       voiceFixturePrepared: preparedVoiceFixture,
@@ -286,6 +302,7 @@ try {
     normalTurn,
     lockedPlayback,
     lockedTurn,
+    postLockedTurn,
     stockSuffixCancels,
     flushEvents,
     consoleErrors,
@@ -326,6 +343,20 @@ async function runLockedTextTurn(page) {
   return waitForEvent("locked_response.playback.completed", {
     timeoutMs: 45_000,
   });
+}
+
+async function runPostLockedTextTurn(page, lockedTurn) {
+  const minTurnIndex = lockedTurn?.details?.turnIndex ?? 0;
+  await sendText(page, POST_LOCKED_TEXT);
+  const turn = await waitForTurn((event) => {
+    return (
+      event.details?.lockedResponse !== true &&
+      event.details?.inputMode === "text" &&
+      (event.details?.turnIndex ?? 0) > minTurnIndex
+    );
+  }, 45_000);
+  await waitForAudioSettled(page, 12_000).catch(() => undefined);
+  return turn;
 }
 
 function waitForEvent(kind, { timeoutMs }) {

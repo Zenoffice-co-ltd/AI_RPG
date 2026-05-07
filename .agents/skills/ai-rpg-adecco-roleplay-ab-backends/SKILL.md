@@ -284,6 +284,16 @@ In voice mode, the smoke script pads the fake mic WAV with trailing silence
 before passing it to Chrome. Keep that behavior on; short
 `--use-file-for-fake-audio-capture` WAVs can loop while the mic is still enabled
 and make xAI STT look like it heard the same utterance twice.
+For locked-response fixes, set `GROK_BROWSER_SMOKE_POST_LOCKED_TEXT` to run a
+normal text turn after deterministic locked TTS; this catches the regression
+where a locked-turn Realtime drain cancels the next legitimate response:
+
+```bash
+GROK_BROWSER_SMOKE_LOCKED_TEXT="単価を教えてください" \
+GROK_BROWSER_SMOKE_POST_LOCKED_TEXT="業務時間は？" \
+node scripts/grok-voice-v21-prod-browser-audio-smoke.mjs
+```
+
 The pass condition is browser-side playback completion, not just route success:
 `greeting.cache.hit`, `greeting.playback.completed`,
 `locked_response.tts.completed`, `locked_response.playback.completed`,
