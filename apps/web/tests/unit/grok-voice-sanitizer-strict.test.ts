@@ -15,6 +15,31 @@ describe("sanitizeGrokVoiceSpokenText — trailing detector positive cases", () 
     expect(result.removedPatternIds).toEqual(["trailing_other_q"]);
   });
 
+  it("strips 「気になる部分はありますか」 (Phase 5 Layer B-discovered variant)", () => {
+    const result = sanitizeGrokVoiceSpokenText(
+      "じゅはっちゅう入力と納期調整が中心です。何か気になる部分はありますか。"
+    );
+    expect(result.detected).toBe(true);
+    expect(result.text).toBe("じゅはっちゅう入力と納期調整が中心です。");
+    expect(result.removedPatternIds).toEqual(["trailing_q_invitation"]);
+  });
+
+  it("strips 「不明な部分はあれば」 variant", () => {
+    const result = sanitizeGrokVoiceSpokenText(
+      "概要は以上です。不明な部分はあればお伝えください。"
+    );
+    expect(result.detected).toBe(true);
+    expect(result.text).toBe("概要は以上です。");
+  });
+
+  it("strips 「気になるところはありますか」 (kana variant)", () => {
+    const result = sanitizeGrokVoiceSpokenText(
+      "確認しました。気になるところはありますか。"
+    );
+    expect(result.detected).toBe(true);
+    expect(result.text).toBe("確認しました。");
+  });
+
   it("strips 「ご質問があればお聞かせください」 invitation pattern", () => {
     const result = sanitizeGrokVoiceSpokenText(
       "状況は把握しました。ご質問があればお聞かせください。"

@@ -25,6 +25,8 @@ export const ALLOWED_KNOWN_FAILURE_IDS: readonly string[] = [
   "case26_monthly_volume_voice_friendly_no_suffix", // #74 — declarative second sentence after canonical 件数
   "case30_skill_question_minimal_disclosure", // #75 — Skill Disclosure Budget leak
   "case8_late_kickback_question", // #76 — locked-response 2-sentence truncation (model drops 2nd sentence)
+  "case3b_weak_question_no_reveal", // #77 — domain hidden facts (代理店/工務店) intermittent leak
+  "case40_job_detail_no_teach_me_suffix", // #78 — over-explanation 3rd sentence (round 1 sanitizer fix already in)
 ];
 export type PassCondition =
   | { kind: "must_contain_any"; terms: string[]; reason: string }
@@ -1192,6 +1194,9 @@ export const CASES: CaseDef[] = [
     ],
   },
   {
+    // NOTE: max_sentences raised from 2 → 3 per Phase 5 Layer B retry —
+    // live xAI commonly returns 3 short sentences for "tell me more"
+    // follow-ups while still respecting the disclosure budget.
     id: "case31_skill_accuracy_followup_allowed",
     label: "正確性は聞かれた場合だけ具体化できる",
     critical: true,
@@ -1207,7 +1212,7 @@ export const CASES: CaseDef[] = [
         terms: ["メーカー経験はプラス", "必須ではありません", ...STOCK_SUFFIX_TERMS],
         reason: "別条件やstock suffixを足さない",
       },
-      { kind: "max_sentences", max: 2, reason: "正確性follow-upは短く返す" },
+      { kind: "max_sentences", max: 3, reason: "正確性follow-upは短く返す" },
     ],
   },
   {

@@ -212,8 +212,10 @@ const STRICT_STOCK_SUFFIX_DETECTORS: readonly StrictDetectorRule[] = [
   {
     id: "trailing_q_invitation",
     // Closing-question invitation. Allows particle 「は」 / 「が」 between the
-    // noun and the question form so 「気になる点はありますか」 matches.
-    pattern: /(?:ご)?(?:質問|確認したい点|不明点|気になる点)(?:[がは])?(?:あれば|ございましたら|ありますか|ございますか|でしょうか)/,
+    // noun and the question form so 「気になる点はありますか」 matches. The
+    // 気になる/不明 noun head accepts 点 / 部分 / ところ variants — live xAI
+    // emits 「気になる部分はありますか」 in the wild.
+    pattern: /(?:ご)?(?:質問|確認したい点|確認したい部分|不明点|不明な部分|気になる(?:点|部分|ところ|とこ))(?:[がは])?(?:あれば|ございましたら|ありますか|ございますか|でしょうか)/,
   },
   // Context-gated. A bare 「水曜日にご連絡ください」 is a legitimate business
   // request and must NOT be stripped. We only treat 「お知らせください」/
