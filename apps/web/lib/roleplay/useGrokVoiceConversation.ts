@@ -178,9 +178,17 @@ export function useGrokVoiceConversation(
   };
   const spokenHistoryRef = useRef<SpokenHistoryEntry[]>([]);
   // sessionTaintedRef = "the prior assistant turn contained a stock suffix
-  // and we failed to reseed; the next user-turn entry must retry reseed
-  // before sending."
+  // and we either failed to reseed, refused to reseed (sanitized_to_empty /
+  // unverified_audio_suppressed), or the sanitized-TTS call failed. Either
+  // way the old realtime session memory still carries the raw suffix turn,
+  // so the next user-turn entry MUST retry reseed before sending."
   const sessionTaintedRef = useRef(false);
+  // Synchronous "drop mic chunks NOW" flag. Set the same instant we close
+  // the tainted socket so any frame already in flight from the recorder is
+  // discarded at onChunk before it can become an appendAudio call.
+  const dropMicChunksWhileTaintedRef = useRef(false);
+  // Guards re-entrant reseed retries from concurrent voice/text entries.
+  const reseedRetryInFlightRef = useRef(false);
   const reseedMsRef = useRef<number | null>(null);
   const parentSessionIdForTurnRef = useRef<string | null>(null);
 
@@ -326,6 +334,39 @@ export function useGrokVoiceConversation(
     ((event: GrokVoiceServerEvent) => void) | null
   >(null);
 
+  // P1A: mark the current realtime session as tainted (prior assistant turn
+  // is contaminated with raw suffix or unverifiable audio). Closes the socket
+  // immediately so no later code path can accidentally appendAudio /
+  // sendUserText into a poisoned context. The next user-turn entry will
+  // bootstrap a fresh session via reseed.
+  const markSessionTainted = useCallback(
+    (
+      reason:
+        | "sanitized_tts_failed"
+        | "sanitized_to_empty"
+        | "unverified_audio_suppressed"
+        | "reseed_failed_after_play",
+      parentSessionId: string
+    ) => {
+      sessionTaintedRef.current = true;
+      parentSessionIdForTurnRef.current = parentSessionId;
+      dropMicChunksWhileTaintedRef.current = true;
+      micRecorderRef.current?.setEnabled(false);
+      try {
+        realtimeRef.current?.close();
+      } catch {
+        // best effort; we are already in an error path
+      }
+      realtimeRef.current = null;
+      realtimeReadyRef.current = false;
+      void postGrokVoiceEvent("realtime.session_tainted", {
+        sessionId: parentSessionId,
+        details: { reason, parentSessionId },
+      });
+    },
+    []
+  );
+
   // Strict sanitized playback reseed. Closes the tainted socket, requests a
   // fresh session marked as a reseed (relaxed rate-limit bucket), opens a new
   // socket, re-primes the assistant history with the original firstMessage,
@@ -459,6 +500,51 @@ export function useGrokVoiceConversation(
     [createRealtime, fetchSession]
   );
 
+  // P1B: text- and voice-input-shared gate that retries reseed before any
+  // user-turn side effect can hit a tainted socket. Returns true when the
+  // socket is safe to send/append into.
+  //
+  // - `text`: called from sendTextMessage() head.
+  // - `voice`: called from STT completion AND from input_audio_buffer.
+  //   speech_started. Mic onChunk uses dropMicChunksWhileTaintedRef
+  //   synchronously — it does NOT call this helper per-frame.
+  const ensureUntaintedRealtimeBeforeUserTurn = useCallback(
+    async (inputMode: "text" | "voice"): Promise<boolean> => {
+      if (!sessionTaintedRef.current) return true;
+      micRecorderRef.current?.setEnabled(false);
+      dropMicChunksWhileTaintedRef.current = true;
+      if (reseedRetryInFlightRef.current) {
+        // Another caller is already retrying. Surface as soft fail — the
+        // caller will refuse the turn rather than queue behind the retry.
+        return false;
+      }
+      reseedRetryInFlightRef.current = true;
+      try {
+        const retry = await reseedRealtimeWithSanitizedHistory();
+        if (!retry.ok) {
+          setErrorMessage(RESPOND_ERROR);
+          void postGrokVoiceEvent("realtime.reseed.failed", {
+            ...(sessionRef.current?.sessionId
+              ? { sessionId: sessionRef.current.sessionId }
+              : {}),
+            details: { inputMode, reason: "tainted_retry_failed" },
+          });
+          return false;
+        }
+        // reseedRealtimeWithSanitizedHistory clears sessionTaintedRef on
+        // success. Mirror the mic-side flag so onChunk stops dropping.
+        dropMicChunksWhileTaintedRef.current = false;
+        if (inputMode === "voice" && micEnabled && !isMutedRef.current) {
+          micRecorderRef.current?.setEnabled(true);
+        }
+        return true;
+      } finally {
+        reseedRetryInFlightRef.current = false;
+      }
+    },
+    [micEnabled, reseedRealtimeWithSanitizedHistory]
+  );
+
   // Strict sanitized playback finalize step. Runs after response.done in
   // strict mode. Caller has already gated on stale-response and locked-turn
   // cases. We OWN the playback decision and the per-turn metrics emission for
@@ -517,6 +603,12 @@ export function useGrokVoiceConversation(
             audioBytesBuffered: bufferedBytes,
           },
         });
+        // P1A: the assistant turn whose audio we just dropped IS still in
+        // the realtime session memory — taint it.
+        markSessionTainted(
+          "unverified_audio_suppressed",
+          activeSession.sessionId
+        );
       } else if (sanitized.detected) {
         // Suffix found. Drop ALL buffered raw audio — under no circumstance
         // play it; that would defeat the entire strict-playback goal.
@@ -535,6 +627,8 @@ export function useGrokVoiceConversation(
         if (sanitized.sanitizedToEmpty) {
           outcome = "sanitized_to_empty";
           error = "sanitized_to_empty";
+          // P1A: the raw suffix-only assistant turn is still in xAI memory.
+          markSessionTainted("sanitized_to_empty", activeSession.sessionId);
         } else {
           // Try sanitized-TTS. On failure, NEVER fall back to raw audio.
           sanitizedTurnInFlightRef.current = true;
@@ -591,6 +685,14 @@ export function useGrokVoiceConversation(
             if (!reseedResult.ok) {
               outcome = "reseed_failed_after_play";
               error = "reseed_failed_after_play";
+              // P1A: belt-and-suspenders. reseedRealtimeWithSanitizedHistory
+              // already sets sessionTaintedRef=true on its own catch path,
+              // but we re-emit through markSessionTainted so the typed event
+              // fires and the mic-drop flag is set consistently.
+              markSessionTainted(
+                "reseed_failed_after_play",
+                activeSession.sessionId
+              );
             }
           } catch (e) {
             sanitizedTtsMsRef.current = Date.now() - startedAt;
@@ -610,6 +712,12 @@ export function useGrokVoiceConversation(
               role: "agent",
               text: sanitized.text,
             });
+            // P1A: the raw suffix turn is still in xAI session memory and we
+            // never reseeded — the next user turn must not enter this socket.
+            markSessionTainted(
+              "sanitized_tts_failed",
+              activeSession.sessionId
+            );
           } finally {
             sanitizedTurnInFlightRef.current = false;
           }
@@ -750,6 +858,7 @@ export function useGrokVoiceConversation(
     [
       ensureAudioQueue,
       fetchSanitizedResponseTts,
+      markSessionTainted,
       reseedRealtimeWithSanitizedHistory,
       resetTurnBookkeeping,
     ]
@@ -966,6 +1075,26 @@ export function useGrokVoiceConversation(
 
       switch (event.type) {
         case "input_audio_buffer.speech_started": {
+          // P1B: synchronous freeze before any per-turn state advance when
+          // the socket is tainted. Do NOT advance turnIndex, do NOT touch
+          // buffered audio or pending response state. The "turn" never
+          // starts until reseed succeeds.
+          if (sessionTaintedRef.current) {
+            micRecorderRef.current?.setEnabled(false);
+            dropMicChunksWhileTaintedRef.current = true;
+            void postGrokVoiceEvent("realtime.session_tainted", {
+              sessionId: activeSession.sessionId,
+              details: {
+                inputMode: "voice",
+                reason: "speech_started_while_tainted",
+              },
+            });
+            void (async () => {
+              const ok = await ensureUntaintedRealtimeBeforeUserTurn("voice");
+              if (ok) dropMicChunksWhileTaintedRef.current = false;
+            })();
+            break;
+          }
           if (
             lockedTurnActiveRef.current &&
             Date.now() < lockedTurnMicTailIgnoreUntilRef.current
@@ -1050,6 +1179,28 @@ export function useGrokVoiceConversation(
                 reason: "empty",
               },
             });
+            break;
+          }
+          // P1B: refuse the entire voice turn before ANY side effect when
+          // the socket is tainted. Do NOT append to UI transcript, do NOT
+          // push to spoken history, do NOT dispatch locked response. A
+          // tainted-then-failed turn must not enter reseed-replay history.
+          if (sessionTaintedRef.current) {
+            void postGrokVoiceEvent("stt.skipped", {
+              sessionId: activeSession.sessionId,
+              details: {
+                turnIndex: turnIndexRef.current,
+                reason: "tainted_socket",
+              },
+            });
+            void (async () => {
+              const ok = await ensureUntaintedRealtimeBeforeUserTurn("voice");
+              if (ok) {
+                dropMicChunksWhileTaintedRef.current = false;
+              }
+              // On failure: soft error is already on the hook state; the
+              // user can speak again to retry.
+            })();
             break;
           }
           void postGrokVoiceEvent("stt.completed", {
@@ -1377,25 +1528,35 @@ export function useGrokVoiceConversation(
   const startMicRecorder = useCallback(async () => {
     if (!micEnabled) return;
     if (micRecorderRef.current) return;
+    // P1B last-line defense: synchronous drop while the realtime socket is
+    // tainted. The async reseed retry is started by speech_started / STT
+    // handlers; this is the belt-and-suspenders guard for any frame that
+    // slipped past the recorder's setEnabled(false) call.
+    const sendChunkIfUntainted = (chunk: string) => {
+      if (
+        sessionTaintedRef.current ||
+        dropMicChunksWhileTaintedRef.current
+      ) {
+        return; // synchronous drop, no telemetry per-frame
+      }
+      realtimeRef.current?.appendAudio(chunk);
+    };
     const recorder =
-      createMicRecorder?.(
-        (chunk) => realtimeRef.current?.appendAudio(chunk),
-        {
-          onError: (error) => {
-            console.warn("grokVoice mic recorder error", error);
-            void postGrokVoiceEvent("mic.permission.denied", {
-              ...(sessionRef.current?.sessionId
-                ? { sessionId: sessionRef.current.sessionId }
-                : {}),
-              details: { message: error.message },
-            });
-          },
-          onStateChange: (next) => emitMicStateChange(next),
-        }
-      ) ??
+      createMicRecorder?.(sendChunkIfUntainted, {
+        onError: (error) => {
+          console.warn("grokVoice mic recorder error", error);
+          void postGrokVoiceEvent("mic.permission.denied", {
+            ...(sessionRef.current?.sessionId
+              ? { sessionId: sessionRef.current.sessionId }
+              : {}),
+            details: { message: error.message },
+          });
+        },
+        onStateChange: (next) => emitMicStateChange(next),
+      }) ??
       new GrokVoiceMicRecorder({
         targetSampleRate: sessionRef.current?.audio.sampleRate ?? 24_000,
-        onChunk: (chunk) => realtimeRef.current?.appendAudio(chunk),
+        onChunk: sendChunkIfUntainted,
         onError: (error) => {
           console.warn("grokVoice mic recorder error", error);
           void postGrokVoiceEvent("mic.permission.denied", {
@@ -1683,6 +1844,8 @@ export function useGrokVoiceConversation(
     sanitizedTtsMsRef.current = null;
     spokenHistoryRef.current = [];
     sessionTaintedRef.current = false;
+    dropMicChunksWhileTaintedRef.current = false;
+    reseedRetryInFlightRef.current = false;
     reseedMsRef.current = null;
     parentSessionIdForTurnRef.current = null;
     clearLockedRealtimeDrain();
@@ -1709,17 +1872,15 @@ export function useGrokVoiceConversation(
         await startConversation();
         activeSession = sessionRef.current;
       }
-      // Tainted-socket retry: a previous turn's reseed failed, so the
-      // realtime socket still carries a stock-suffix-laden assistant turn in
-      // its memory (or was closed and never re-opened). Try the reseed again
-      // BEFORE the readiness gate — the prior failure left realtimeRef null
-      // so the gate would otherwise drop us out without retrying.
-      if (activeSession && sessionTaintedRef.current) {
-        const retry = await reseedRealtimeWithSanitizedHistory();
-        if (!retry.ok) {
-          // Still tainted. Surface a soft error and refuse to send. The user
-          // can retry; the next attempt will drive another reseed try.
-          setErrorMessage(RESPOND_ERROR);
+      // P1B: shared tainted-recovery gate for text and voice. Refuse the
+      // turn if the socket is poisoned and reseed retry fails — we never
+      // send into a tainted context.
+      if (activeSession) {
+        const ok = await ensureUntaintedRealtimeBeforeUserTurn("text");
+        if (!ok) {
+          // Soft error already surfaced; user message NOT appended to UI
+          // or to spoken history (the appends below the readiness gate
+          // never run).
           return;
         }
         activeSession = sessionRef.current;
@@ -1780,9 +1941,9 @@ export function useGrokVoiceConversation(
     },
     [
       ensureAudioQueue,
+      ensureUntaintedRealtimeBeforeUserTurn,
       isInteractive,
       playLockedResponse,
-      reseedRealtimeWithSanitizedHistory,
       startConversation,
     ]
   );

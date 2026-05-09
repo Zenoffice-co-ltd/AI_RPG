@@ -162,7 +162,43 @@ function buildRealtimeFactory() {
   return { fakes, ctor };
 }
 
+// Fake mic recorder that records setEnabled toggles and exposes a manual
+// pushChunk() so tests can simulate frames arriving from the recorder. The
+// onChunk callback the hook passes us is the same place the synchronous
+// drop guard runs, so pushChunk is the test's view into "would this frame
+// reach realtime.appendAudio?".
+function buildFakeMicRecorder() {
+  type State = "idle" | "listening" | "speaking" | "paused";
+  const setEnabledCalls: boolean[] = [];
+  let onChunk: ((b64: string) => void) | null = null;
+  const recorder = {
+    start: vi.fn(async () => {}),
+    stop: vi.fn(async () => {}),
+    setEnabled: vi.fn((enabled: boolean) => {
+      setEnabledCalls.push(enabled);
+    }),
+    getInputVolume: () => 0,
+  } as const;
+  function attach(
+    cb: (chunk: string) => void,
+    _callbacks: {
+      onError: (error: Error) => void;
+      onStateChange: (state: State) => void;
+    }
+  ) {
+    onChunk = cb;
+    return recorder as unknown as import("../../lib/roleplay/grok-voice-mic-recorder").GrokVoiceMicRecorder;
+  }
+  return {
+    recorder,
+    setEnabledCalls,
+    pushChunk: (b64: string) => onChunk?.(b64),
+    factory: attach as NonNullable<UseGrokVoiceConversationDeps["createMicRecorder"]>,
+  };
+}
+
 const PCM_CHUNK = Buffer.from(new Uint8Array(48)).toString("base64");
+const MIC_CHUNK = Buffer.from(new Uint8Array(64)).toString("base64");
 
 describe("strict sanitized playback — reseed", () => {
   it("after stock_suffix_detected: closes old socket, fetches reseed session, replays sanitized history", async () => {
@@ -381,5 +417,478 @@ describe("strict sanitized playback — reseed", () => {
         (s) => s.method === "sendUserText" && s.arg === "業務時間は？"
       )
     ).toBe(true);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Phase 5: P1A failure-path tainting (close socket + disable mic on every
+  // non-clean outcome). One test per failure path that asserts the tainted
+  // socket was closed AND the mic was disabled.
+  // ---------------------------------------------------------------------------
+
+  it("sanitized_tts_failed: closes the tainted socket immediately and disables mic", async () => {
+    const factory = buildRealtimeFactory();
+    const queue = buildStubAudioQueue();
+    const mic = buildFakeMicRecorder();
+    const fetchSession = vi
+      .fn<NonNullable<UseGrokVoiceConversationDeps["fetchSession"]>>()
+      .mockImplementationOnce(async () => FIRST_SESSION);
+    const fetchSanitizedResponseTts = vi.fn(async () => {
+      throw new Error("502 Bad Gateway");
+    });
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession,
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchSanitizedResponseTts,
+      createAudioQueue: () => queue,
+      createRealtime: factory.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      createMicRecorder: mic.factory,
+      micEnabled: true,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => expect(result.current.status).toBe("listening"));
+
+    await act(async () => {
+      await result.current.sendTextMessage("今日の進め方を教えてください");
+    });
+    const firstFake = factory.fakes[0]!;
+    await act(async () => {
+      firstFake.emit({ type: "response.created", response: { id: "ttf-1" } });
+      firstFake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "受発注経験の確認から進めます。何か他にご質問ありますか。",
+        item_id: "ttf-item",
+      });
+      firstFake.emit({
+        type: "response.output_audio.delta",
+        delta: PCM_CHUNK,
+        item_id: "ttf-item",
+      });
+      firstFake.emit({ type: "response.done", response: { id: "ttf-1" } });
+    });
+    await waitFor(() => expect(result.current.metricsLog).toHaveLength(1));
+
+    // P1A: tainted socket closed; mic disabled; sessionTainted in metric.
+    expect(firstFake.sent.some((s) => s.method === "close")).toBe(true);
+    expect(mic.setEnabledCalls).toContain(false);
+    expect(result.current.metricsLog[0]?.sessionTainted).toBe(true);
+    expect(result.current.metricsLog[0]?.outcome).toBe("sanitized_tts_failed");
+  });
+
+  it("sanitized_to_empty: closes the tainted socket and disables mic", async () => {
+    const factory = buildRealtimeFactory();
+    const queue = buildStubAudioQueue();
+    const mic = buildFakeMicRecorder();
+    const fetchSession = vi
+      .fn<NonNullable<UseGrokVoiceConversationDeps["fetchSession"]>>()
+      .mockImplementationOnce(async () => FIRST_SESSION);
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession,
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchSanitizedResponseTts: vi.fn(async () => SANITIZED_TTS),
+      createAudioQueue: () => queue,
+      createRealtime: factory.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      createMicRecorder: mic.factory,
+      micEnabled: true,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => expect(result.current.status).toBe("listening"));
+
+    await act(async () => {
+      await result.current.sendTextMessage("今日の進め方を教えてください");
+    });
+    const firstFake = factory.fakes[0]!;
+    await act(async () => {
+      firstFake.emit({ type: "response.created", response: { id: "ste-1" } });
+      firstFake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "他に何か質問はありますか。",
+        item_id: "ste-item",
+      });
+      firstFake.emit({
+        type: "response.output_audio.delta",
+        delta: PCM_CHUNK,
+        item_id: "ste-item",
+      });
+      firstFake.emit({ type: "response.done", response: { id: "ste-1" } });
+    });
+    await waitFor(() => expect(result.current.metricsLog).toHaveLength(1));
+
+    expect(firstFake.sent.some((s) => s.method === "close")).toBe(true);
+    expect(mic.setEnabledCalls).toContain(false);
+    expect(result.current.metricsLog[0]?.sessionTainted).toBe(true);
+    expect(result.current.metricsLog[0]?.outcome).toBe("sanitized_to_empty");
+  });
+
+  it("unverified_audio_suppressed: closes the tainted socket and disables mic", async () => {
+    const factory = buildRealtimeFactory();
+    const queue = buildStubAudioQueue();
+    const mic = buildFakeMicRecorder();
+    const fetchSession = vi
+      .fn<NonNullable<UseGrokVoiceConversationDeps["fetchSession"]>>()
+      .mockImplementationOnce(async () => FIRST_SESSION);
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession,
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchSanitizedResponseTts: vi.fn(async () => SANITIZED_TTS),
+      createAudioQueue: () => queue,
+      createRealtime: factory.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      createMicRecorder: mic.factory,
+      micEnabled: true,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => expect(result.current.status).toBe("listening"));
+
+    await act(async () => {
+      await result.current.sendTextMessage("今日の進め方を教えてください");
+    });
+    const firstFake = factory.fakes[0]!;
+    await act(async () => {
+      // Audio bytes arrive but no transcript delta — unverifiable.
+      firstFake.emit({ type: "response.created", response: { id: "uns-1" } });
+      firstFake.emit({
+        type: "response.output_audio.delta",
+        delta: PCM_CHUNK,
+        item_id: "uns-item",
+      });
+      firstFake.emit({ type: "response.done", response: { id: "uns-1" } });
+    });
+    await waitFor(() => expect(result.current.metricsLog).toHaveLength(1));
+
+    expect(firstFake.sent.some((s) => s.method === "close")).toBe(true);
+    expect(mic.setEnabledCalls).toContain(false);
+    expect(result.current.metricsLog[0]?.sessionTainted).toBe(true);
+    expect(result.current.metricsLog[0]?.outcome).toBe(
+      "unverified_audio_suppressed"
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Phase 5: P1B voice-turn tainted recovery. The mic-driven path must trigger
+  // reseed before any chunk reaches realtime.appendAudio, and STT completion
+  // while tainted must not append user history.
+  // ---------------------------------------------------------------------------
+
+  it("voice turn (speech_started while tainted): retries reseed and never appendAudio's into the tainted socket", async () => {
+    const factory = buildRealtimeFactory();
+    const queue = buildStubAudioQueue();
+    const mic = buildFakeMicRecorder();
+    const fetchSession = vi
+      .fn<NonNullable<UseGrokVoiceConversationDeps["fetchSession"]>>()
+      .mockImplementationOnce(async () => FIRST_SESSION)
+      .mockImplementationOnce(async () => RESEEDED_SESSION);
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession,
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchSanitizedResponseTts: vi.fn(async () => {
+        throw new Error("502");
+      }),
+      createAudioQueue: () => queue,
+      createRealtime: factory.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      createMicRecorder: mic.factory,
+      micEnabled: true,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => expect(result.current.status).toBe("listening"));
+
+    // Drive a stock-suffix turn → sanitized TTS fails → tainted.
+    await act(async () => {
+      await result.current.sendTextMessage("今日の進め方を教えてください");
+    });
+    const firstFake = factory.fakes[0]!;
+    await act(async () => {
+      firstFake.emit({ type: "response.created", response: { id: "v-1" } });
+      firstFake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "受発注経験の確認から進めます。何か他にご質問ありますか。",
+        item_id: "v-item",
+      });
+      firstFake.emit({
+        type: "response.output_audio.delta",
+        delta: PCM_CHUNK,
+        item_id: "v-item",
+      });
+      firstFake.emit({ type: "response.done", response: { id: "v-1" } });
+    });
+    await waitFor(() =>
+      expect(result.current.metricsLog[0]?.sessionTainted).toBe(true)
+    );
+
+    // Mic chunk arriving NOW must be dropped synchronously even before the
+    // speech_started event fires (recorder might still flush a frame).
+    const firstFakeAppendCountBefore = firstFake.sent.filter(
+      (s) => s.method === "appendAudio"
+    ).length;
+    mic.pushChunk(MIC_CHUNK);
+    expect(
+      firstFake.sent.filter((s) => s.method === "appendAudio").length
+    ).toBe(firstFakeAppendCountBefore);
+
+    // User speaks. speech_started arriving on the OLD socket triggers reseed
+    // retry; we don't have an event source for the new socket yet (it'll be
+    // created during the retry).
+    await act(async () => {
+      firstFake.emit({ type: "input_audio_buffer.speech_started" });
+    });
+    // Wait for retry to complete (reseed succeeds with the second mock).
+    await waitFor(() => expect(factory.fakes.length).toBe(2));
+    const secondFake = factory.fakes[1]!;
+    expect(
+      secondFake.sent.some((s) => s.method === "sendAssistantHistory")
+    ).toBe(true);
+    // After successful retry, mic is re-enabled and chunks now route to the
+    // new socket.
+    await waitFor(() => expect(mic.setEnabledCalls.at(-1)).toBe(true));
+    mic.pushChunk(MIC_CHUNK);
+    expect(
+      secondFake.sent.filter(
+        (s) => s.method === "appendAudio" && s.arg === MIC_CHUNK
+      ).length
+    ).toBe(1);
+    // The OLD fake never received our mic chunk.
+    expect(
+      firstFake.sent.filter(
+        (s) => s.method === "appendAudio" && s.arg === MIC_CHUNK
+      ).length
+    ).toBe(0);
+  });
+
+  it("voice turn: reseed retry failure keeps mic disabled and no audio is appended", async () => {
+    const factory = buildRealtimeFactory();
+    const queue = buildStubAudioQueue();
+    const mic = buildFakeMicRecorder();
+    const fetchSession = vi
+      .fn<NonNullable<UseGrokVoiceConversationDeps["fetchSession"]>>()
+      .mockImplementationOnce(async () => FIRST_SESSION)
+      .mockImplementationOnce(async () => {
+        throw new Error("429 rate-limited");
+      });
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession,
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchSanitizedResponseTts: vi.fn(async () => {
+        throw new Error("502");
+      }),
+      createAudioQueue: () => queue,
+      createRealtime: factory.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      createMicRecorder: mic.factory,
+      micEnabled: true,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => expect(result.current.status).toBe("listening"));
+
+    await act(async () => {
+      await result.current.sendTextMessage("今日の進め方を教えてください");
+    });
+    const firstFake = factory.fakes[0]!;
+    await act(async () => {
+      firstFake.emit({ type: "response.created", response: { id: "vf-1" } });
+      firstFake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "受発注経験の確認から進めます。何か他にご質問ありますか。",
+        item_id: "vf-item",
+      });
+      firstFake.emit({
+        type: "response.output_audio.delta",
+        delta: PCM_CHUNK,
+        item_id: "vf-item",
+      });
+      firstFake.emit({ type: "response.done", response: { id: "vf-1" } });
+    });
+    await waitFor(() =>
+      expect(result.current.metricsLog[0]?.sessionTainted).toBe(true)
+    );
+
+    // Speech started → reseed retry fires but fails.
+    await act(async () => {
+      firstFake.emit({ type: "input_audio_buffer.speech_started" });
+    });
+    // Wait for the retry attempt to complete (fetchSession called a second time).
+    await waitFor(() => expect(fetchSession).toHaveBeenCalledTimes(2));
+
+    // No new realtime opened; mic still disabled (last setEnabled call was
+    // false from markSessionTainted, and the failed retry didn't re-enable).
+    expect(factory.fakes.length).toBe(1);
+    expect(mic.setEnabledCalls.at(-1)).toBe(false);
+    // soft error surfaced
+    expect(result.current.errorMessage).not.toBeNull();
+    // Subsequent mic chunk is still dropped — synchronous guard.
+    const appendsBefore = firstFake.sent.filter(
+      (s) => s.method === "appendAudio"
+    ).length;
+    mic.pushChunk(MIC_CHUNK);
+    expect(
+      firstFake.sent.filter((s) => s.method === "appendAudio").length
+    ).toBe(appendsBefore);
+  });
+
+  it("STT completion while tainted: refuses the turn — no UI append, no spoken history, soft retry triggered", async () => {
+    const factory = buildRealtimeFactory();
+    const queue = buildStubAudioQueue();
+    const mic = buildFakeMicRecorder();
+    const fetchSession = vi
+      .fn<NonNullable<UseGrokVoiceConversationDeps["fetchSession"]>>()
+      .mockImplementationOnce(async () => FIRST_SESSION)
+      .mockImplementationOnce(async () => RESEEDED_SESSION);
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession,
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchSanitizedResponseTts: vi.fn(async () => {
+        throw new Error("502");
+      }),
+      createAudioQueue: () => queue,
+      createRealtime: factory.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      createMicRecorder: mic.factory,
+      micEnabled: true,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => expect(result.current.status).toBe("listening"));
+
+    await act(async () => {
+      await result.current.sendTextMessage("今日の進め方を教えてください");
+    });
+    const firstFake = factory.fakes[0]!;
+    await act(async () => {
+      firstFake.emit({ type: "response.created", response: { id: "stt-1" } });
+      firstFake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "受発注経験の確認から進めます。何か他にご質問ありますか。",
+        item_id: "stt-item",
+      });
+      firstFake.emit({
+        type: "response.output_audio.delta",
+        delta: PCM_CHUNK,
+        item_id: "stt-item",
+      });
+      firstFake.emit({ type: "response.done", response: { id: "stt-1" } });
+    });
+    await waitFor(() =>
+      expect(result.current.metricsLog[0]?.sessionTainted).toBe(true)
+    );
+
+    const messagesBefore = result.current.messages.length;
+    // The first text turn already produced a sendUserText on the original
+    // socket — capture the pre-STT state so the post-STT assertion only
+    // catches NEW calls.
+    const firstFakeSentBefore = firstFake.sent.length;
+    // STT result arrives on the (now-orphaned) original socket while tainted.
+    await act(async () => {
+      firstFake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "業務時間は？",
+      });
+    });
+    // Refused: no new user message in UI.
+    expect(result.current.messages.length).toBe(messagesBefore);
+    // No new sendUserText / sendUserHistory / appendAudio reached the
+    // tainted socket as a result of the STT event.
+    const newSendsOnFirstFake = firstFake.sent
+      .slice(firstFakeSentBefore)
+      .filter(
+        (s) =>
+          s.method === "sendUserText" ||
+          s.method === "sendUserHistory" ||
+          s.method === "appendAudio"
+      );
+    expect(newSendsOnFirstFake.length).toBe(0);
+    // The refusal also triggered an async reseed retry.
+    await waitFor(() => expect(factory.fakes.length).toBe(2));
+  });
+
+  it("text turn: tainted retry success — sendTextMessage proceeds onto the NEW socket", async () => {
+    // Sanity coverage for the text path matched against the voice path above.
+    const factory = buildRealtimeFactory();
+    const queue = buildStubAudioQueue();
+    const mic = buildFakeMicRecorder();
+    const fetchSession = vi
+      .fn<NonNullable<UseGrokVoiceConversationDeps["fetchSession"]>>()
+      .mockImplementationOnce(async () => FIRST_SESSION)
+      .mockImplementationOnce(async () => RESEEDED_SESSION);
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession,
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchSanitizedResponseTts: vi.fn(async () => {
+        throw new Error("502");
+      }),
+      createAudioQueue: () => queue,
+      createRealtime: factory.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      createMicRecorder: mic.factory,
+      micEnabled: true,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => expect(result.current.status).toBe("listening"));
+
+    await act(async () => {
+      await result.current.sendTextMessage("今日の進め方を教えてください");
+    });
+    const firstFake = factory.fakes[0]!;
+    await act(async () => {
+      firstFake.emit({ type: "response.created", response: { id: "tts-1" } });
+      firstFake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "受発注経験の確認から進めます。何か他にご質問ありますか。",
+        item_id: "tts-item",
+      });
+      firstFake.emit({
+        type: "response.output_audio.delta",
+        delta: PCM_CHUNK,
+        item_id: "tts-item",
+      });
+      firstFake.emit({ type: "response.done", response: { id: "tts-1" } });
+    });
+    await waitFor(() =>
+      expect(result.current.metricsLog[0]?.sessionTainted).toBe(true)
+    );
+
+    // Next text turn: gate retries reseed before sending.
+    await act(async () => {
+      await result.current.sendTextMessage("業務時間は？");
+    });
+    expect(factory.fakes.length).toBe(2);
+    const secondFake = factory.fakes[1]!;
+    expect(
+      secondFake.sent.some(
+        (s) => s.method === "sendUserText" && s.arg === "業務時間は？"
+      )
+    ).toBe(true);
+    expect(
+      firstFake.sent.some(
+        (s) => s.method === "sendUserText" && s.arg === "業務時間は？"
+      )
+    ).toBe(false);
   });
 });

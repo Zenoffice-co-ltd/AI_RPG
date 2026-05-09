@@ -69,6 +69,7 @@ const allowedKinds = [
   "realtime.reseed.started",
   "realtime.reseed.completed",
   "realtime.reseed.failed",
+  "realtime.session_tainted",
 ] as const;
 
 const requestSchema = z.object({

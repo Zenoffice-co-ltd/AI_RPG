@@ -121,7 +121,8 @@ export type GrokVoiceEventKind =
   | "sanitized_response.playback.completed"
   | "realtime.reseed.started"
   | "realtime.reseed.completed"
-  | "realtime.reseed.failed";
+  | "realtime.reseed.failed"
+  | "realtime.session_tainted";
 
 export function postGrokVoiceEvent(
   kind: GrokVoiceEventKind,

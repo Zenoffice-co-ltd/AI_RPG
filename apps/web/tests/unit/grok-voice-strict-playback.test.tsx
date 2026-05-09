@@ -336,6 +336,8 @@ describe("strict sanitized playback — stock suffix detected", () => {
     expect(m.outcome).toBe("sanitized_tts_failed");
     expect(m.error).toBe("sanitized_tts_failed");
     expect(m.audioBytes).toBe(0);
+    // P1A: the failed turn left the raw suffix in xAI memory; session is tainted.
+    expect(m.sessionTainted).toBe(true);
   });
 
   it("sanitized-to-empty: no TTS request, no audio, error='sanitized_to_empty'", async () => {
@@ -370,6 +372,8 @@ describe("strict sanitized playback — stock suffix detected", () => {
     expect(m.outcome).toBe("sanitized_to_empty");
     expect(m.error).toBe("sanitized_to_empty");
     expect(m.audioBytes).toBe(0);
+    // P1A: a wholly-suffix turn poisons the realtime session.
+    expect(m.sessionTainted).toBe(true);
   });
 
   it("audio without transcript: suppresses audio as unverifiable", async () => {
@@ -396,6 +400,8 @@ describe("strict sanitized playback — stock suffix detected", () => {
     expect(m.outcome).toBe("unverified_audio_suppressed");
     expect(m.error).toBe("unverified_audio_suppressed");
     expect(m.audioBytes).toBe(0);
+    // P1A: unverifiable assistant audio in xAI session memory taints the socket.
+    expect(m.sessionTainted).toBe(true);
   });
 
   it("stock suffix split across multiple text deltas is still detected at response.done", async () => {
@@ -436,5 +442,65 @@ describe("strict sanitized playback — stock suffix detected", () => {
       sessionId: STRICT_SESSION.sessionId,
       text: "受発注経験の確認から進めます。",
     });
+  });
+
+  it("non-clean failure paths post realtime.session_tainted with reason and parentSessionId", async () => {
+    // Spy on /api/v3/event posts to check the typed event fires with the
+    // right `reason` discriminator on each non-clean outcome.
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input) => {
+        const url = typeof input === "string" ? input : (input as Request).url;
+        if (url.endsWith("/api/v3/event")) {
+          return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response("not used", { status: 200 });
+      });
+
+    const fetchSanitizedResponseTts = vi.fn(async () => {
+      throw new Error("502 Bad Gateway");
+    });
+    const { result, fake } = await startStrictHook({ fetchSanitizedResponseTts });
+    await act(async () => {
+      await result.current.sendTextMessage("今日の進め方を教えてください");
+    });
+    await act(async () => {
+      fake.emit({ type: "response.created", response: { id: "tttf-r1" } });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "受発注経験の確認から進めます。何か他にご質問ありますか。",
+        item_id: "tttf-item",
+      });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: PCM_CHUNK,
+        item_id: "tttf-item",
+      });
+      fake.emit({ type: "response.done", response: { id: "tttf-r1" } });
+    });
+    await waitFor(() => expect(result.current.metricsLog).toHaveLength(1));
+
+    // Find the realtime.session_tainted POST.
+    const eventCalls = fetchSpy.mock.calls
+      .filter((c) => {
+        const url = typeof c[0] === "string" ? c[0] : (c[0] as Request).url;
+        return url.endsWith("/api/v3/event");
+      })
+      .map((c) => {
+        const body = (c[1] as RequestInit | undefined)?.body;
+        return JSON.parse(String(body)) as Record<string, unknown>;
+      });
+    const taintedPosts = eventCalls.filter(
+      (b) => b["kind"] === "realtime.session_tainted"
+    );
+    expect(taintedPosts.length).toBeGreaterThanOrEqual(1);
+    const last = taintedPosts.at(-1)!;
+    const details = last["details"] as Record<string, unknown>;
+    expect(details["reason"]).toBe("sanitized_tts_failed");
+    expect(details["parentSessionId"]).toBe(STRICT_SESSION.sessionId);
+    fetchSpy.mockRestore();
   });
 });
