@@ -191,6 +191,27 @@ describe("grok-voice session route", () => {
     ) as Record<string, unknown>;
     expect(sentBody).toEqual({ expires_after: { seconds: 300 } });
     expect(body["greetingAudio"]).toBeUndefined();
+    // Strict sanitized playback flag defaults to true and is surfaced in the
+    // session payload so the client doesn't need a separate config fetch.
+    expect(body["strictSanitizedPlayback"]).toBe(true);
+  });
+
+  it("surfaces strictSanitizedPlayback=false when env flag is disabled", async () => {
+    vi.stubEnv("GROK_VOICE_STRICT_SANITIZED_PLAYBACK", "false");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          value: "xai-realtime-client-secret-test-value",
+          expires_at: 1747_000_000,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    const { POST } = await import("../../app/api/v3/session/route");
+    const response = await POST(validRequest());
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body["strictSanitizedPlayback"]).toBe(false);
   });
 
   it("returns cached greeting audio on memory cache hit without calling xAI TTS", async () => {
@@ -312,5 +333,47 @@ describe("grok-voice session route", () => {
     const limited = await POST(validRequest());
     expect(limited.status).toBe(429);
     expect(limited.headers.get("Retry-After")).toBeTruthy();
+  });
+
+  it("reseed bucket: reseedFromSessionId requests use a separate, more permissive quota", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({ value: "xai-test-token", expires_at: 1 }),
+          { status: 200 }
+        )
+      )
+    );
+    const { POST } = await import("../../app/api/v3/session/route");
+    // Burn the fresh-session quota first (3 calls per minute).
+    for (let i = 0; i < 3; i += 1) {
+      const ok = await POST(validRequest());
+      expect(ok.status).toBe(200);
+    }
+    expect((await POST(validRequest())).status).toBe(429);
+    // A reseed call from the same caller still succeeds because it pulls
+    // from the relaxed bucket.
+    const reseed = await POST(
+      validRequest({
+        body: { reseedFromSessionId: "gv_sess_parent" },
+      })
+    );
+    expect(reseed.status).toBe(200);
+    const reseedBody = (await reseed.json()) as Record<string, unknown>;
+    expect(reseedBody["parentSessionId"]).toBe("gv_sess_parent");
+  });
+
+  it("rejects reseedFromSessionId that doesn't match the gv_sess_ format", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({ value: "xai-test-token", expires_at: 1 }),
+        { status: 200 }
+      )
+    );
+    const { POST } = await import("../../app/api/v3/session/route");
+    const response = await POST(
+      validRequest({ body: { reseedFromSessionId: "not-a-session-id" } })
+    );
+    expect(response.status).toBe(400);
   });
 });

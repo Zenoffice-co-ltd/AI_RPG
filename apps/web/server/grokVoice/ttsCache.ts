@@ -37,6 +37,25 @@ const FIRESTORE_DOC_SIZE_CAP_BYTES = 900_000;
 const DEFAULT_FIRESTORE_READ_TIMEOUT_MS = 250;
 const memoryCache = new Map<string, GrokVoiceTtsCacheEntry>();
 
+// The shared TTS cache is keyed by (textHash + voiceId + sampleRate +
+// requestShapeVersion). For greeting / locked_response the text set is
+// bounded — caching is a net win. For sanitized_response the text set is
+// unbounded free-form Grok output that we'd never re-hit; caching it would
+// pollute Firestore with one-shot entries and obscure cache-hit metrics.
+//
+// This guard is defensive: any caller that drifts into "let me also cache the
+// sanitized response" should fail loudly here rather than silently degrading
+// the cache.
+export function assertCacheableGrokVoiceTtsPurpose(
+  purpose: GrokVoiceTtsPurpose
+): void {
+  if (purpose === "sanitized_response") {
+    throw new Error(
+      "sanitized_response must not use shared TTS cache (unbounded text cardinality)"
+    );
+  }
+}
+
 export function buildGrokVoiceTtsCacheKey(input: GrokVoiceTtsCacheInput) {
   const textHash = hash(input.text);
   const cacheKey = JSON.stringify({
@@ -58,6 +77,7 @@ export async function getCachedGrokVoiceTts(input: {
   purpose: GrokVoiceTtsPurpose;
   firestoreTimeoutMs?: number;
 }): Promise<GrokVoiceTtsCacheEntry | null> {
+  assertCacheableGrokVoiceTtsPurpose(input.purpose);
   const { cacheKeyHash } = buildGrokVoiceTtsCacheKey(input);
   const memoryHit = memoryCache.get(cacheKeyHash);
   if (memoryHit) return memoryHit;
@@ -88,6 +108,7 @@ export function saveGrokVoiceTtsCache(input: {
   purpose: GrokVoiceTtsPurpose;
   result: GrokVoiceTtsResult;
 }): void {
+  assertCacheableGrokVoiceTtsPurpose(input.purpose);
   const entry = buildCacheEntry(input);
   memoryCache.set(entry.cacheKeyHash, entry);
 
@@ -102,6 +123,7 @@ export async function saveGrokVoiceTtsCacheAndWait(input: {
   purpose: GrokVoiceTtsPurpose;
   result: GrokVoiceTtsResult;
 }): Promise<GrokVoiceTtsCacheEntry> {
+  assertCacheableGrokVoiceTtsPurpose(input.purpose);
   const entry = buildCacheEntry(input);
   memoryCache.set(entry.cacheKeyHash, entry);
   if (canWriteFirestoreEntry(entry)) {

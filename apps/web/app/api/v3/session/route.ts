@@ -5,14 +5,17 @@ import {
   hasDemoApiAccess,
   validateSameOrigin,
 } from "@/lib/roleplay/auth";
+import { z } from "zod";
 import {
   buildRateLimitKey,
+  checkSessionReseedRateLimit,
   checkSessionTokenRateLimit,
 } from "@/lib/roleplay/rate-limit";
 import {
   assertGrokVoiceEnvForProduction,
   getGrokVoiceServerEnv,
   isGrokVoiceRoleplayEnabled,
+  isGrokVoiceStrictSanitizedPlaybackEnabled,
 } from "@/lib/roleplay/server-env";
 import {
   buildGrokVoicePromptManifest,
@@ -28,6 +31,23 @@ import { getCachedGrokVoiceTts } from "@/server/grokVoice/ttsCache";
 
 const SAFE_ERROR =
   "セッションの開始に失敗しました。時間をおいて再試行してください。";
+
+const requestSchema = z
+  .object({
+    // Strict sanitized playback reseed continuity. When present, this session
+    // is being created to replace a tainted realtime socket whose previous
+    // assistant turn contained a stock suffix. We use a separate, more
+    // permissive rate-limit bucket for these so a model in a closing-suffix
+    // loop can recover without exhausting the per-IP fresh-session quota.
+    reseedFromSessionId: z
+      .string()
+      .min(1)
+      .max(128)
+      .regex(/^gv_sess_/)
+      .optional(),
+  })
+  .strict()
+  .optional();
 
 export async function POST(request: NextRequest) {
   if (!isGrokVoiceRoleplayEnabled()) {
@@ -46,9 +66,27 @@ export async function POST(request: NextRequest) {
     return safeError(401);
   }
 
+  // Body parse: tolerate empty body for backwards compat with the no-arg call,
+  // accept { reseedFromSessionId } for strict-playback reseeds.
+  let parsedBody: { reseedFromSessionId?: string | undefined } | undefined;
+  try {
+    const text = await request.text();
+    if (text.length > 0) {
+      const parsed = requestSchema.safeParse(JSON.parse(text));
+      if (!parsed.success) return safeError(400);
+      parsedBody = parsed.data;
+    }
+  } catch {
+    return safeError(400);
+  }
+  const reseedFromSessionId = parsedBody?.reseedFromSessionId;
+
   const ip = resolveClientIp(request);
   const signature = request.cookies.get(DEMO_API_ACCESS_COOKIE)?.value;
-  const rateLimit = checkSessionTokenRateLimit(buildRateLimitKey(ip, signature));
+  const rateLimitKey = buildRateLimitKey(ip, signature);
+  const rateLimit = reseedFromSessionId
+    ? checkSessionReseedRateLimit(rateLimitKey)
+    : checkSessionTokenRateLimit(rateLimitKey);
   if (!rateLimit.allowed) {
     return safeError(429, {
       "Retry-After": String(rateLimit.retryAfterSeconds),
@@ -144,6 +182,8 @@ export async function POST(request: NextRequest) {
     turnDetection,
     instructions,
     firstMessage: bundle.firstMessage,
+    strictSanitizedPlayback: isGrokVoiceStrictSanitizedPlaybackEnabled(),
+    ...(reseedFromSessionId ? { parentSessionId: reseedFromSessionId } : {}),
     ...(greetingAudio
       ? {
           greetingAudio: {

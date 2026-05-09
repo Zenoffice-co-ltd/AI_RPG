@@ -162,6 +162,136 @@ export function stripVoiceStockSuffixSentences(text: string): string {
   return kept.join("").trimStart();
 }
 
+// ---------------------------------------------------------------------------
+// Strict sanitizer for the realtime audio gate.
+//
+// The detector below is intentionally tighter than STOCK_SUFFIX_PATTERNS — it
+// targets only the trailing closing-question / closing-courtesy patterns that
+// must never reach user audio. STOCK_SUFFIX_PATTERNS is preserved for the
+// existing transcript-display normalization (normalizePr60AssistantText) so we
+// don't regress that path while introducing the audio gate.
+//
+// "Trailing-only" means: walk from the end of the text and strip sentences
+// that match any detector. Stop at the first sentence that does not match (or
+// matches the locked-response allowlist). A sentence appearing earlier in the
+// turn that happens to look like a stock suffix is left alone — the goal is to
+// drop the closing tail, not to rewrite the body.
+// ---------------------------------------------------------------------------
+
+type StrictDetectorRule = { id: string; pattern: RegExp };
+
+// Order matters: more specific rules are listed first so the first-match
+// telemetry attribution stays interpretable for operators triaging strips.
+const STRICT_STOCK_SUFFIX_DETECTORS: readonly StrictDetectorRule[] = [
+  {
+    id: "trailing_additional_check",
+    pattern: /追加で(?:確認|聞|お聞き)/,
+  },
+  {
+    id: "trailing_more_curious",
+    pattern: /(?:詳しく|もっと)(?:知りたい|聞きたい|伺いたい)/,
+  },
+  {
+    id: "trailing_okigaru_ni",
+    pattern: /(?:いつでも)?お気軽に/,
+  },
+  {
+    id: "trailing_anything_arose",
+    pattern: /何かございましたら/,
+  },
+  {
+    id: "trailing_again_later",
+    pattern: /また(?:後ほど|改めて|お聞き)/,
+  },
+  {
+    id: "trailing_other_q",
+    // Matches 「他に何か〜質問」 / 「何か他に〜質問」 / 「他に〜質問」 / 「何か〜聞きたい」 etc.
+    // Either order of (他に|ほかに|ほか) and (何か|なにか) is accepted.
+    pattern: /(?:(?:他に|ほかに|ほか).{0,6}[何な]か|[何な]か.{0,6}(?:他に|ほかに|ほか)|(?:他に|ほかに|ほか)[\s\S]{0,3}(?:ご)?(?:質問|確認|不明|聞[きい]))/,
+  },
+  {
+    id: "trailing_q_invitation",
+    // Closing-question invitation. Allows particle 「は」 / 「が」 between the
+    // noun and the question form so 「気になる点はありますか」 matches.
+    pattern: /(?:ご)?(?:質問|確認したい点|不明点|気になる点)(?:[がは])?(?:あれば|ございましたら|ありますか|ございますか|でしょうか)/,
+  },
+  // Context-gated. A bare 「水曜日にご連絡ください」 is a legitimate business
+  // request and must NOT be stripped. We only treat 「お知らせください」/
+  // 「ご連絡ください」 as a stock suffix when it co-occurs in the same sentence
+  // with one of the closing-context tokens below.
+  {
+    id: "trailing_contact_with_closing_context",
+    pattern: /(?:何か|他に|追加で|ご質問|不明点|確認したい点|気になる点)[\s\S]{0,20}(?:お知らせ|ご連絡)ください/,
+  },
+];
+
+export type SanitizeGrokVoiceSpokenTextResult = {
+  /** May be empty when sanitizedToEmpty is true. Callers MUST NOT fall back to original text. */
+  text: string;
+  detected: boolean;
+  removedSentences: string[];
+  removedPatternIds: string[];
+  sanitizedToEmpty: boolean;
+};
+
+export function sanitizeGrokVoiceSpokenText(
+  text: string
+): SanitizeGrokVoiceSpokenTextResult {
+  if (typeof text !== "string" || text.length === 0) {
+    return {
+      text: "",
+      detected: false,
+      removedSentences: [],
+      removedPatternIds: [],
+      sanitizedToEmpty: false,
+    };
+  }
+
+  const sentences = text.match(/[^。！？!?]+[。！？!?]?/g) ?? [text];
+  const removed: string[] = [];
+  const removedIds: string[] = [];
+  const allowlist = getAllPr60LockedResponses();
+
+  let cutIndex = sentences.length;
+  for (let i = sentences.length - 1; i >= 0; i--) {
+    const raw = sentences[i] ?? "";
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) {
+      cutIndex = i;
+      continue;
+    }
+    if (allowlist.includes(trimmed)) {
+      // Locked-response allowlist sentence — never strip this.
+      break;
+    }
+    const hit = STRICT_STOCK_SUFFIX_DETECTORS.find((d) =>
+      d.pattern.test(trimmed)
+    );
+    if (hit) {
+      removed.unshift(raw);
+      removedIds.unshift(hit.id);
+      cutIndex = i;
+      continue;
+    }
+    break;
+  }
+
+  const cleaned = sentences.slice(0, cutIndex).join("").trimStart();
+  const detected = removed.length > 0;
+  const sanitizedToEmpty = detected && cleaned.length === 0;
+
+  return {
+    // Important: when sanitizedToEmpty we return "" — never the original text.
+    // Returning the original would re-emit the forbidden phrase through
+    // downstream UI / TTS.
+    text: cleaned,
+    detected,
+    removedSentences: removed,
+    removedPatternIds: removedIds,
+    sanitizedToEmpty,
+  };
+}
+
 export function normalizeVoiceFriendlyTerms(text: string): string {
   return text
     .replace(/Adecco/g, "アデコ")

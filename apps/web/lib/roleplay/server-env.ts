@@ -188,6 +188,18 @@ export function isGrokVoiceTranscriptPreviewLoggingEnabled() {
   return value === "true" || value === "1";
 }
 
+// Strict sanitized playback gates raw realtime audio behind a transcript-level
+// stock-suffix detector. Default is ON in every environment; set this to
+// "false"/"0" to fall back to the legacy immediate-enqueue path. The env value
+// is surfaced to the client via the /api/v3/session payload so the conversation
+// hook can branch without a separate config fetch.
+export function isGrokVoiceStrictSanitizedPlaybackEnabled() {
+  ensureEnvLoaded();
+  const value = process.env["GROK_VOICE_STRICT_SANITIZED_PLAYBACK"];
+  if (value === undefined || value === null || value === "") return true;
+  return value !== "false" && value !== "0";
+}
+
 export function getGrokVoiceTranscriptPreviewMaxChars() {
   ensureEnvLoaded();
   const raw = process.env["GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_MAX_CHARS"];

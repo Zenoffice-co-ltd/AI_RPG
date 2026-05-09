@@ -50,7 +50,7 @@ describe("grok-voice prompt builder", () => {
 
   it("includes PR60 voice canonicalization, stock suffix ban, and skill budget", () => {
     const guardrail = GROK_VOICE_RUNTIME_GUARDRAIL;
-    expect(GROK_VOICE_GUARDRAIL_VERSION).toBe("gv-think-fast-v4.8-2026-05-07");
+    expect(GROK_VOICE_GUARDRAIL_VERSION).toBe("gv-think-fast-v4.9-2026-05-09");
     expect(guardrail).toContain("Voice-Friendly Date and Quantity Canonicalization");
     expect(guardrail).toContain("六月ついたち");
     expect(guardrail).toContain("ろっぴゃく件から、ななひゃっけん程度");
@@ -72,6 +72,16 @@ describe("grok-voice prompt builder", () => {
     expect(guardrail).toContain("たしゃ");
     expect(guardrail).toContain("詳しく知りたい点があれば教えてください");
     expect(guardrail).toContain("追加で確認したい点があればお知らせください");
+  });
+
+  it("v4.9 tightens the End Question loophole and adds the closing-turn ban", () => {
+    const guardrail = GROK_VOICE_RUNTIME_GUARDRAIL;
+    expect(guardrail).toContain("終盤ターンで端的に締めるときも、確認質問を加えない");
+    expect(guardrail).toContain(
+      "汎用的な end question（「他に何か」「ご質問」「ご不明点」「お気軽に」など）は v2.1 End Question 条件が揃っていても出さない"
+    );
+    // The legacy "End Question の3条件がすべて揃った" loophole is gone.
+    expect(guardrail).not.toContain("End Question の3条件がすべて揃った");
   });
 
   it("does not concat publish-artifact promptSections (avoids duplicating compiled prompt)", () => {

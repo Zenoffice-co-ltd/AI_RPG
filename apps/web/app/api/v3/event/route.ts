@@ -59,6 +59,16 @@ const allowedKinds = [
   "locked_response.mic_tail_ignored",
   "response.done.stale_discarded",
   "response.pr60_locked_cancelled",
+  "response.stock_suffix_detected",
+  "response.unverified_audio_suppressed",
+  "sanitized_response.tts.requested",
+  "sanitized_response.tts.completed",
+  "sanitized_response.tts.failed",
+  "sanitized_response.playback.started",
+  "sanitized_response.playback.completed",
+  "realtime.reseed.started",
+  "realtime.reseed.completed",
+  "realtime.reseed.failed",
 ] as const;
 
 const requestSchema = z.object({
@@ -279,6 +289,11 @@ const NEVER_LOG_DETAIL_KEYS = new Set([
   "knowledgeBase",
   "knowledgeBaseText",
   "agentSystemPrompt",
+  // Strict sanitized playback: removed stock-suffix sentences are raw model
+  // output and must never appear in logs. The client sends the count and
+  // pattern IDs; if a future caller passes the raw array by mistake, we drop
+  // it here.
+  "removedSentences",
 ]);
 
 function sanitizeEventDetails(details: Record<string, unknown>) {
