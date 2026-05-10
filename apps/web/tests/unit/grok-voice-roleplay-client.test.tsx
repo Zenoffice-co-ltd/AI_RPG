@@ -30,6 +30,7 @@ const SESSION: GrokVoiceSession = {
   instructions: "You are a roleplay agent.",
   firstMessage: "お時間ありがとうございます。",
   strictSanitizedPlayback: false,
+  strictPlaybackMode: "monitor_only",
 };
 
 const GREETING: GrokVoiceGreeting = {

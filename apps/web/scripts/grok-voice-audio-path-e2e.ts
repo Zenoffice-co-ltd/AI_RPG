@@ -94,6 +94,7 @@ const FIRST_SESSION: GrokVoiceSession = {
   instructions: "You are a roleplay agent.",
   firstMessage: "お時間ありがとうございます。",
   strictSanitizedPlayback: true,
+  strictPlaybackMode: "all_turns",
 };
 const RESEED_SESSION: GrokVoiceSession = {
   ...FIRST_SESSION,

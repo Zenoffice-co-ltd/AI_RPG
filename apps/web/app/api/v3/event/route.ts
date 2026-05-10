@@ -184,6 +184,9 @@ export function POST(request: NextRequest) {
             const cacheStatusRaw = stringOrUndefined(
               trimmedDetails["cacheStatus"]
             );
+            const strictPlaybackModeRaw = stringOrUndefined(
+              trimmedDetails["strictPlaybackMode"]
+            );
             logGrokVoiceTurnMetrics({
               sessionId,
               turnIndex: numberOr(trimmedDetails["turnIndex"], 0),
@@ -289,6 +292,24 @@ export function POST(request: NextRequest) {
                 stringOrUndefinedFromDetails(trimmedDetails, "parentSessionId")
               ),
               ...(cloudRunRevision ? { cloudRunRevision } : {}),
+              // PR D — risk-based strict playback fields. Same
+              // sparse-schema discipline as PR A: MISSING → omit,
+              // EXPLICIT null → preserve (only meaningful for the
+              // reason string; the booleans should never be null in
+              // practice).
+              ...(isStrictPlaybackMode(strictPlaybackModeRaw)
+                ? { strictPlaybackMode: strictPlaybackModeRaw }
+                : {}),
+              ...(typeof trimmedDetails["strictGateApplied"] === "boolean"
+                ? { strictGateApplied: trimmedDetails["strictGateApplied"] }
+                : {}),
+              ...whenDefined(
+                "strictGateReason",
+                stringOrUndefinedFromDetails(trimmedDetails, "strictGateReason")
+              ),
+              ...(typeof trimmedDetails["streamingBeforeDone"] === "boolean"
+                ? { streamingBeforeDone: trimmedDetails["streamingBeforeDone"] }
+                : {}),
               provenance: {
                 promptVersion: stringOr(
                   trimmedDetails["promptVersion"],
@@ -364,6 +385,14 @@ const ROUTE_PATHS = new Set([
   "rt_voice",
   "unknown",
 ]);
+function isStrictPlaybackMode(
+  value: string | undefined
+): value is "all_turns" | "risk_based" | "monitor_only" {
+  return (
+    value === "all_turns" || value === "risk_based" || value === "monitor_only"
+  );
+}
+
 function isRoutePath(
   value: string
 ): value is

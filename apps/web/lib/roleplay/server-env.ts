@@ -200,6 +200,39 @@ export function isGrokVoiceStrictSanitizedPlaybackEnabled() {
   return value !== "false" && value !== "0";
 }
 
+// PR D — risk-based strict playback. The all-turn buffer of the legacy
+// `strictSanitizedPlayback` flag adds ~1.6s to every realtime voice turn
+// (verified on Cloud Logging: `firstAudibleAudioMs − firstAudioMs ≈
+// sanitizerDelayMs ≈ 1,603ms`). This new env replaces the boolean with
+// a tri-state that lets normal business-factual turns stream while
+// suffix-risk turns (acks, final closings, identity probes) keep the
+// buffered sanitize-then-play path.
+//
+//   all_turns     — legacy: buffer every realtime turn until response.done
+//   risk_based    — new default: per-turn classification via
+//                   `shouldStrictGateTurn` decides buffer vs stream
+//   monitor_only  — fastest: never buffer, only detect+log stock suffix
+//                   leaks for evidence collection. Not recommended in
+//                   production with live customers; safe for development.
+//
+// If the value is unset, blank, or unrecognized, we default to
+// `risk_based`. Setting the value to "all_turns" is the safety rollback
+// for PR D (no client redeploy required — the env var is surfaced via
+// /api/v3/session.strictPlaybackMode and the client honors it per-turn).
+export type GrokVoiceStrictPlaybackMode =
+  | "all_turns"
+  | "risk_based"
+  | "monitor_only";
+
+export function getGrokVoiceStrictPlaybackMode(): GrokVoiceStrictPlaybackMode {
+  ensureEnvLoaded();
+  const raw = process.env["GROK_VOICE_STRICT_PLAYBACK_MODE"];
+  if (raw === "all_turns" || raw === "risk_based" || raw === "monitor_only") {
+    return raw;
+  }
+  return "risk_based";
+}
+
 export function getGrokVoiceTranscriptPreviewMaxChars() {
   ensureEnvLoaded();
   const raw = process.env["GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_MAX_CHARS"];
