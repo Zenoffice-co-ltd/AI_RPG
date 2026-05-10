@@ -16,6 +16,7 @@ import {
   getGrokVoiceServerEnv,
   isGrokVoiceRoleplayEnabled,
   isGrokVoiceStrictSanitizedPlaybackEnabled,
+  getGrokVoiceStrictPlaybackMode,
 } from "@/lib/roleplay/server-env";
 import {
   buildGrokVoicePromptManifest,
@@ -182,7 +183,16 @@ export async function POST(request: NextRequest) {
     turnDetection,
     instructions,
     firstMessage: bundle.firstMessage,
-    strictSanitizedPlayback: isGrokVoiceStrictSanitizedPlaybackEnabled(),
+    // PR D — `strictSanitizedPlayback` (boolean) is kept for legacy
+    // client backwards compatibility: it is the lowest-common-denominator
+    // ("buffer everything unless explicitly disabled"). New clients
+    // read `strictPlaybackMode` for the three-state classification.
+    // The boolean is set true unless the new env explicitly opts into
+    // `monitor_only`, so a legacy client always buffers and is safe.
+    strictSanitizedPlayback:
+      isGrokVoiceStrictSanitizedPlaybackEnabled() &&
+      getGrokVoiceStrictPlaybackMode() !== "monitor_only",
+    strictPlaybackMode: getGrokVoiceStrictPlaybackMode(),
     ...(reseedFromSessionId ? { parentSessionId: reseedFromSessionId } : {}),
     ...(greetingAudio
       ? {

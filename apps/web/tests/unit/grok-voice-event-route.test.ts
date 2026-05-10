@@ -596,6 +596,125 @@ describe("grok-voice event route", () => {
     }
   });
 
+  // PR D — risk-based strict playback observability. The typed log
+  // scope must distinguish "gated buffered turn" from "streamed turn"
+  // so the dashboard can compare sanitizerDelayMs before/after PR D.
+  it("forwards risk-based strict playback fields to grokVoice.turnMetrics (PR D)", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 5,
+            inputMode: "voice",
+            userTextLen: 8,
+            agentTextLen: 24,
+            firstAudioMs: 2658,
+            firstAudibleAudioMs: 2658,
+            doneMs: 4500,
+            audioBytes: 200000,
+            routePath: "rt_voice",
+            strictPlaybackMode: "risk_based",
+            strictGateApplied: false,
+            strictGateReason: null,
+            streamingBeforeDone: true,
+            outcome: "clean",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    expect(metricsLine!["strictPlaybackMode"]).toBe("risk_based");
+    expect(metricsLine!["strictGateApplied"]).toBe(false);
+    expect(metricsLine!["strictGateReason"]).toBeNull();
+    expect(metricsLine!["streamingBeforeDone"]).toBe(true);
+  });
+
+  it("forwards gated turn strict playback fields to grokVoice.turnMetrics (PR D)", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 6,
+            inputMode: "voice",
+            userTextLen: 9,
+            agentTextLen: 20,
+            firstAudioMs: 2658,
+            firstAudibleAudioMs: 4261,
+            sanitizerDelayMs: 1603,
+            doneMs: 6800,
+            audioBytes: 180000,
+            routePath: "rt_voice",
+            strictPlaybackMode: "risk_based",
+            strictGateApplied: true,
+            strictGateReason: "ack_prefix:なるほど",
+            streamingBeforeDone: false,
+            outcome: "clean",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    expect(metricsLine!["strictPlaybackMode"]).toBe("risk_based");
+    expect(metricsLine!["strictGateApplied"]).toBe(true);
+    expect(metricsLine!["strictGateReason"]).toBe("ack_prefix:なるほど");
+    expect(metricsLine!["streamingBeforeDone"]).toBe(false);
+    // Sanity: the sanitizerDelayMs we'd remove with PR D is still in
+    // the log line for before/after comparison.
+    expect(metricsLine!["sanitizerDelayMs"]).toBe(1603);
+  });
+
+  it("rejects an invalid strictPlaybackMode value", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 1,
+            inputMode: "voice",
+            firstAudioMs: 100,
+            doneMs: 200,
+            audioBytes: 1024,
+            strictPlaybackMode: "totally_made_up_mode",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    expect(metricsLine!["strictPlaybackMode"]).toBeUndefined();
+  });
+
   it("rejects an invalid routePath value rather than passing garbage through", async () => {
     const { POST } = await import("../../app/api/v3/event/route");
     const response = await POST(

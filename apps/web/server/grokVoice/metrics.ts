@@ -104,6 +104,11 @@ export function logGrokVoiceTurnMetrics(payload: {
   sessionTainted?: boolean;
   parentSessionId?: string | null;
   cloudRunRevision?: string;
+  // PR D — risk-based strict playback observability.
+  strictPlaybackMode?: "all_turns" | "risk_based" | "monitor_only";
+  strictGateApplied?: boolean;
+  strictGateReason?: string | null;
+  streamingBeforeDone?: boolean;
 }) {
   emit("grokVoice.turnMetrics", {
     sessionId: payload.sessionId,
@@ -177,6 +182,18 @@ export function logGrokVoiceTurnMetrics(payload: {
       ? { parentSessionId: payload.parentSessionId }
       : {}),
     ...(payload.cloudRunRevision ? { cloudRunRevision: payload.cloudRunRevision } : {}),
+    ...(payload.strictPlaybackMode !== undefined
+      ? { strictPlaybackMode: payload.strictPlaybackMode }
+      : {}),
+    ...(payload.strictGateApplied !== undefined
+      ? { strictGateApplied: payload.strictGateApplied }
+      : {}),
+    ...(payload.strictGateReason !== undefined
+      ? { strictGateReason: payload.strictGateReason }
+      : {}),
+    ...(payload.streamingBeforeDone !== undefined
+      ? { streamingBeforeDone: payload.streamingBeforeDone }
+      : {}),
     ...payload.provenance,
   });
 }

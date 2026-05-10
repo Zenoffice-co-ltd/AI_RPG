@@ -29,6 +29,11 @@ import {
   sanitizeGrokVoiceSpokenText,
   shouldStopAtPr60LockedResponse,
 } from "./grok-voice-pr60-output";
+import {
+  shouldBufferForTurn,
+  shouldStrictGateTurn,
+  type StrictGateDecision,
+} from "./grok-voice-strict-playback";
 import { GrokVoiceMicRecorder } from "./grok-voice-mic-recorder";
 import { GrokVoiceRealtime } from "./grok-voice-realtime";
 import type {
@@ -149,6 +154,22 @@ export function useGrokVoiceConversation(
   const turnInputModeRef = useRef<"voice" | "text">("voice");
   const turnUserTextLenRef = useRef(0);
   const turnUserTextPreviewRef = useRef("");
+  // PR D — risk-based strict playback. `turnStrictGateRef` is computed
+  // once per turn from the finalized user text (STT-confirmed for voice,
+  // input-submit for text). The audio routing then reads it to decide
+  // whether to buffer (gated) or stream (ungated) realtime audio.
+  // Defaults to apply=true so that any turn whose user-input phase never
+  // populated it (a defensive corner case) falls back to the safe path.
+  const turnStrictGateRef = useRef<StrictGateDecision>({
+    apply: true,
+    reason: "uninitialized_defaulting_to_safe",
+  });
+  const streamingBeforeDoneRef = useRef(false);
+  // Tracks whether the IMMEDIATELY PREVIOUS turn ended with a sanitizer
+  // rewrite or a session reseed. The recovery turn after either signal
+  // is conservatively gated so the model has one buffered turn to
+  // settle before we resume streaming.
+  const previousTurnSanitizerOrReseedRef = useRef(false);
 
   // Strict sanitized playback bookkeeping.
   // pendingRealtimeAudioChunksRef holds raw base64 chunks from
@@ -300,6 +321,14 @@ export function useGrokVoiceConversation(
     turnAccumulatedAudioBytesRef.current = 0;
     turnUserTextLenRef.current = 0;
     turnUserTextPreviewRef.current = "";
+    // PR D — reset the gate decision to the safe default for the next
+    // turn. The `previousTurnSanitizerOrReseedRef` survives this reset
+    // because it captures inter-turn state.
+    turnStrictGateRef.current = {
+      apply: true,
+      reason: "uninitialized_defaulting_to_safe",
+    };
+    streamingBeforeDoneRef.current = false;
     interimAgentClientIdRef.current = null;
     agentSpeakingRef.current = false;
     bargeInCancelSentRef.current = false;
@@ -800,6 +829,15 @@ export function useGrokVoiceConversation(
       // emit `rt_*` here.
       const routePath: GrokVoiceTurnMetricsClient["routePath"] =
         turnInputModeRef.current === "text" ? "rt_text" : "rt_voice";
+      // PR D — strict-gate decision was computed once at user-input
+      // finalization. The buffered (strict) path went through the
+      // sanitizer; the streaming path did not. Both report the same
+      // gate decision for dashboards to group by.
+      const strictGate = turnStrictGateRef.current;
+      const usedBufferedPath = shouldBufferForTurn({
+        mode: finalSession.strictPlaybackMode,
+        gateDecision: strictGate,
+      });
       const metrics: GrokVoiceTurnMetricsClient = {
         sessionId: finalSession.sessionId,
         turnIndex: turnIndexRef.current,
@@ -828,8 +866,20 @@ export function useGrokVoiceConversation(
           null,
         routePath,
         localLockedAudioHit: false,
+        strictPlaybackMode: finalSession.strictPlaybackMode,
+        strictGateApplied: usedBufferedPath,
+        strictGateReason: strictGate.reason,
+        streamingBeforeDone: streamingBeforeDoneRef.current,
       };
       setMetricsLog((current) => [...current, metrics]);
+      // PR D — capture inter-turn signal for the NEXT turn's gate
+      // decision. If this turn ended with sanitizer activity or a
+      // reseed, the immediately following turn is conservatively
+      // gated regardless of its user-text shape.
+      previousTurnSanitizerOrReseedRef.current =
+        outcome !== "clean" ||
+        sanitizedTtsMsRef.current !== null ||
+        reseedMsRef.current !== null;
       void postGrokVoiceEvent("turn.completed", {
         sessionId: activeSession.sessionId,
         details: {
@@ -851,6 +901,10 @@ export function useGrokVoiceConversation(
           parentSessionId: metrics.parentSessionId,
           routePath: metrics.routePath,
           localLockedAudioHit: metrics.localLockedAudioHit,
+          strictPlaybackMode: metrics.strictPlaybackMode,
+          strictGateApplied: metrics.strictGateApplied,
+          strictGateReason: metrics.strictGateReason,
+          streamingBeforeDone: metrics.streamingBeforeDone,
           userTextPreview: turnUserTextPreviewRef.current,
           agentTextPreview: displayForUi,
           agentSpokenTextPreview: spokenForHistory,
@@ -1049,7 +1103,16 @@ export function useGrokVoiceConversation(
           cacheLookupMs: tts.cacheLookupMs ?? null,
           ttsVendorMsAtCreation: tts.ttsVendorMsAtCreation ?? null,
           networkTtsMs,
+          // PR D — lock turns never traverse the realtime audio gate.
+          // Emit `strictPlaybackMode` for dashboard grouping, but leave
+          // `strictGateApplied` / `strictGateReason` / `streamingBeforeDone`
+          // undefined: the gate decision is structurally not applicable.
+          strictPlaybackMode: activeSession.strictPlaybackMode,
         };
+        // PR D — lock turns are "clean" in the sanitizer sense (no
+        // unsanitized model audio reached the user). The next turn
+        // does not need conservative gating from a lock.
+        previousTurnSanitizerOrReseedRef.current = false;
         setMetricsLog((current) => [...current, metrics]);
         void postGrokVoiceEvent("turn.completed", {
           sessionId: activeSession.sessionId,
@@ -1072,6 +1135,7 @@ export function useGrokVoiceConversation(
             cacheLookupMs: metrics.cacheLookupMs,
             ttsVendorMsAtCreation: metrics.ttsVendorMsAtCreation,
             networkTtsMs: metrics.networkTtsMs,
+            strictPlaybackMode: metrics.strictPlaybackMode,
             userTextPreview: input.userText,
             agentTextPreview: displayAssistantText,
             agentSpokenTextPreview: spokenAssistantText,
@@ -1221,6 +1285,16 @@ export function useGrokVoiceConversation(
           const trimmed = text.trim();
           turnUserTextLenRef.current = trimmed.length;
           turnUserTextPreviewRef.current = trimmed;
+          // PR D — capture the strict-gate decision once STT is final
+          // and BEFORE any audio delta arrives. Voice latency benefits
+          // require this decision to be ready in the
+          // response.output_audio.delta handler.
+          turnStrictGateRef.current = shouldStrictGateTurn({
+            userText: trimmed,
+            inputMode: "voice",
+            postSanitizerOrReseed:
+              previousTurnSanitizerOrReseedRef.current,
+          });
           if (trimmed.length === 0) {
             void postGrokVoiceEvent("stt.skipped", {
               sessionId: activeSession.sessionId,
@@ -1426,14 +1500,27 @@ export function useGrokVoiceConversation(
           realtimeAudioQueuedThisTurnRef.current = true;
           agentSpeakingRef.current = true;
           setStatus("speaking");
-          if (activeSession.strictSanitizedPlayback) {
-            // Strict mode: buffer the chunk. Playback decision happens at
+          // PR D — per-turn strict-gate decision. The legacy
+          // `strictSanitizedPlayback` boolean would always buffer; the
+          // new tri-state `strictPlaybackMode` lets ungated turns under
+          // `risk_based` stream immediately (and `monitor_only` always
+          // streams, only for evidence collection in non-prod).
+          const shouldBuffer = shouldBufferForTurn({
+            mode: activeSession.strictPlaybackMode,
+            gateDecision: turnStrictGateRef.current,
+          });
+          if (shouldBuffer) {
+            // Buffer the chunk. Playback decision happens at
             // response.done after we can sanitize the full transcript.
             pendingRealtimeAudioChunksRef.current.push(base64);
             pendingRealtimeAudioBytesRef.current += chunkBytes;
           } else {
-            // Legacy path: schedule immediately. firstAudibleAudioAt collapses
-            // onto firstRealtimeAudioDeltaAt because there is no buffering.
+            // Streaming path: schedule immediately. firstAudibleAudioAt
+            // collapses onto firstRealtimeAudioDeltaAt because there is
+            // no buffering. `streamingBeforeDoneRef` enables the stock-
+            // suffix-after-streaming risk telemetry in the transcript
+            // handler.
+            streamingBeforeDoneRef.current = true;
             if (firstAudibleAudioAtRef.current === null) {
               firstAudibleAudioAtRef.current = now;
             }
@@ -1466,7 +1553,16 @@ export function useGrokVoiceConversation(
             clearLockedRealtimeDrain();
             break;
           }
-          if (activeSession.strictSanitizedPlayback) {
+          // PR D — same per-turn classification as the delta path. If
+          // the turn was buffered, we must run the strict finalize
+          // (sanitize → decide → play). If it was streamed, the audio
+          // has already reached the user; finalize on the legacy path
+          // to update metrics + history without re-playing.
+          const usedBufferedPath = shouldBufferForTurn({
+            mode: activeSession.strictPlaybackMode,
+            gateDecision: turnStrictGateRef.current,
+          });
+          if (usedBufferedPath) {
             // Re-entrancy guard: if a previous response.done is still in
             // flight (rare — would mean the realtime sent two response.done
             // events for the same turn), drop the new one.
@@ -1477,7 +1573,8 @@ export function useGrokVoiceConversation(
             });
             break;
           }
-          // Legacy non-strict path (env flag flipped to false for rollback).
+          // Streaming-path finalize: audio is already with the user.
+          // Reuse the existing non-strict finalize below.
           const id = interimAgentClientIdRef.current;
           const finalSpokenText = normalizePr60AssistantText(
             turnUserTextPreviewRef.current,
@@ -1504,8 +1601,19 @@ export function useGrokVoiceConversation(
           const doneMs = startedAt !== null ? Date.now() - startedAt : null;
           // PR A: legacy non-strict realtime path. Same routePath
           // classification as the strict branch above.
+          // PR D: this branch is also taken by the `risk_based` streaming
+          // path (gate not applied) and by `monitor_only`. The gate
+          // reason in those cases is null; the metrics still report
+          // `strictPlaybackMode` and `strictGateApplied=false` so
+          // dashboards distinguish "user heard model output directly"
+          // from "user heard sanitized version".
           const routePath: GrokVoiceTurnMetricsClient["routePath"] =
             turnInputModeRef.current === "text" ? "rt_text" : "rt_voice";
+          const strictGateStreaming = turnStrictGateRef.current;
+          const usedBufferedPathStreaming = shouldBufferForTurn({
+            mode: activeSession.strictPlaybackMode,
+            gateDecision: strictGateStreaming,
+          });
           const metrics: GrokVoiceTurnMetricsClient = {
             sessionId: activeSession.sessionId,
             turnIndex: turnIndexRef.current,
@@ -1526,8 +1634,16 @@ export function useGrokVoiceConversation(
             grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
             routePath,
             localLockedAudioHit: false,
+            strictPlaybackMode: activeSession.strictPlaybackMode,
+            strictGateApplied: usedBufferedPathStreaming,
+            strictGateReason: strictGateStreaming.reason,
+            streamingBeforeDone: streamingBeforeDoneRef.current,
           };
           setMetricsLog((current) => [...current, metrics]);
+          // PR D — streaming path: keep `previousTurnSanitizerOrReseed`
+          // false because no sanitizer ran. The next turn is free to
+          // stream unless its own user-text shape gates it.
+          previousTurnSanitizerOrReseedRef.current = false;
           void postGrokVoiceEvent("turn.completed", {
             sessionId: activeSession.sessionId,
             details: {
@@ -1541,6 +1657,10 @@ export function useGrokVoiceConversation(
               audioBytes: metrics.audioBytes,
               routePath: metrics.routePath,
               localLockedAudioHit: metrics.localLockedAudioHit,
+              strictPlaybackMode: metrics.strictPlaybackMode,
+              strictGateApplied: metrics.strictGateApplied,
+              strictGateReason: metrics.strictGateReason,
+              streamingBeforeDone: metrics.streamingBeforeDone,
               userTextPreview: turnUserTextPreviewRef.current,
               agentTextPreview: finalText,
               agentSpokenTextPreview: finalSpokenText,
@@ -1973,6 +2093,13 @@ export function useGrokVoiceConversation(
       turnInputModeRef.current = "text";
       turnUserTextLenRef.current = trimmed.length;
       turnUserTextPreviewRef.current = trimmed;
+      // PR D — strict-gate decision for text input is computed at submit
+      // time, before any model response is initiated.
+      turnStrictGateRef.current = shouldStrictGateTurn({
+        userText: trimmed,
+        inputMode: "text",
+        postSanitizerOrReseed: previousTurnSanitizerOrReseedRef.current,
+      });
       turnIndexRef.current += 1;
       turnStartAtRef.current = Date.now();
       firstAudioAtRef.current = null;

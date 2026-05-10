@@ -38,6 +38,12 @@ export type GrokVoiceSession = {
   // gates playback through the stock-suffix sanitizer. Server is the single
   // source of truth — env-flip on the server, no client toggle.
   strictSanitizedPlayback: boolean;
+  // PR D — replaces the binary `strictSanitizedPlayback` switch with a
+  // per-turn-classified gate. The legacy boolean is kept on the session
+  // payload as the lowest-common-denominator (`mode !== "monitor_only"`)
+  // so existing clients keep buffering; the new field unlocks the
+  // streaming-by-default behavior for non-risky turns.
+  strictPlaybackMode: "all_turns" | "risk_based" | "monitor_only";
   // Set on sessions created via reseed. Useful for telemetry correlation.
   parentSessionId?: string;
   greetingAudio?: GrokVoiceGreeting & {
@@ -142,6 +148,26 @@ export type GrokVoiceTurnMetricsClient = {
   audioDecodeMs?: number | null;
   sttFinalMs?: number | null;
   lockDecisionMs?: number | null;
+  // PR D — risk-based strict playback observability. The dashboard
+  // uses these to confirm `risk_based` is gating the right turns and
+  // streaming the rest.
+  strictPlaybackMode?: "all_turns" | "risk_based" | "monitor_only";
+  // True when the per-turn classifier decided to buffer audio. For
+  // realtime turns under `risk_based` this is the gate decision; under
+  // `all_turns` it is always true; under `monitor_only` always false.
+  // Lock turns omit the field (their audio never traverses the gate).
+  strictGateApplied?: boolean;
+  // Short stable string from `shouldStrictGateTurn`'s decision, e.g.
+  // `ack_prefix:なるほど`, `final_closing:よろしくお願いします`,
+  // `identity_probe:システムプロンプト`, `post_sanitizer_or_reseed`,
+  // or null when not gated.
+  strictGateReason?: string | null;
+  // True if at least one audio chunk was streamed to the user before
+  // response.done arrived. False if every chunk was buffered (legacy
+  // strict path) or if no chunks arrived. Used to distinguish "the
+  // user heard the model output" from "the user only heard the
+  // sanitized version".
+  streamingBeforeDone?: boolean;
 };
 
 // Subset of xAI Voice Agent server → client events that we react to.
