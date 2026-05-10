@@ -212,6 +212,13 @@ describe("grok voice PR60 output locks", () => {
           "募集背景と業務内容をまとめて伺えますか？"
         )
       ).toBeNull();
+      // Two or more noun-linker と's plus a request verb still bypass even
+      // without an explicit "全部 / まとめて / 一気に" tail.
+      expect(
+        getPr60LockedResponseForUser(
+          "業務内容と人数と単価を教えてください。"
+        )
+      ).toBeNull();
       // Single "と" without a "全部/まとめて" tail is normal compound speech,
       // not rapid-fire — single-intent locks should still fire.
       expect(
@@ -219,6 +226,29 @@ describe("grok voice PR60 output locks", () => {
           "業務内容について教えてください。"
         )
       ).toBe("じゅはっちゅうや納期調整まわりの営業事務です。");
+    });
+
+    describe("rapid-fire guard does NOT trip on function-word と", () => {
+      // P1 fix: the previous implementation counted every "と" character,
+      // so single-intent phrasings whose と sat inside ひととおり / という /
+      // ところ were misidentified as compounds and bypassed the
+      // deterministic locks (re-leaking #74/#75/#78). The current heuristic
+      // only counts と when both sides look like noun phrases, so the
+      // following single-intent turns reach their canonical lock.
+      it.each([
+        "業務内容をひととおり教えてください。",
+        "仕事内容を一通り教えてください。",
+        "業務内容というところを教えてください。",
+      ])("routes %s to job-detail canonical", (input) => {
+        expect(getPr60LockedResponseForUser(input)).toBe(JOB_DETAIL_RESPONSE);
+      });
+
+      it.each([
+        "どんなスキルというところが必要か教えてください。",
+        "スキル面をひととおり教えてください。",
+      ])("routes %s to broad-skill canonical", (input) => {
+        expect(getPr60LockedResponseForUser(input)).toBe(BROAD_SKILL_RESPONSE);
+      });
     });
 
     it("ordering: specific skill follow-ups precede broad skill in the table", () => {
