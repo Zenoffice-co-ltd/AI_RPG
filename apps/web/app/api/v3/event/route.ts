@@ -171,6 +171,19 @@ export function POST(request: NextRequest) {
             const agentSpokenTextPreviewUtf8Base64 = stringOrUndefined(
               trimmedDetails["agentSpokenTextPreviewUtf8Base64"]
             );
+            // Cloud Run revision identifier from the App Hosting runtime
+            // (`K_REVISION` is the standard Cloud Run env var). Tagging
+            // every turn with the revision lets dashboards group latency
+            // by deploy without joining against rollouts API.
+            const cloudRunRevision = process.env["K_REVISION"];
+            // Forward the new latency-observability fields when the
+            // client sent them. Untyped client builds without these fields
+            // continue to work — the destructured `details` shape stays
+            // backwards compatible.
+            const routePathRaw = stringOrUndefined(trimmedDetails["routePath"]);
+            const cacheStatusRaw = stringOrUndefined(
+              trimmedDetails["cacheStatus"]
+            );
             logGrokVoiceTurnMetrics({
               sessionId,
               turnIndex: numberOr(trimmedDetails["turnIndex"], 0),
@@ -196,6 +209,86 @@ export function POST(request: NextRequest) {
               ...(agentSpokenTextPreviewUtf8Base64
                 ? { agentSpokenTextPreviewUtf8Base64 }
                 : {}),
+              // exactOptionalPropertyTypes is on, so each new optional
+              // field must spread-when-defined rather than always include.
+              // Codex P2 fix: use `*FromDetails` helpers so a MISSING key
+              // (old client) is omitted entirely, while an EXPLICIT null
+              // (intentional client signal) is preserved as null.
+              ...(routePathRaw && isRoutePath(routePathRaw)
+                ? { routePath: routePathRaw }
+                : {}),
+              ...whenDefined(
+                "firstAudibleAudioMs",
+                numberOrUndefinedFromDetails(trimmedDetails, "firstAudibleAudioMs")
+              ),
+              ...whenDefined(
+                "firstRealtimeAudioDeltaMs",
+                numberOrUndefinedFromDetails(
+                  trimmedDetails,
+                  "firstRealtimeAudioDeltaMs"
+                )
+              ),
+              ...whenDefined(
+                "sttFinalMs",
+                numberOrUndefinedFromDetails(trimmedDetails, "sttFinalMs")
+              ),
+              ...whenDefined(
+                "lockDecisionMs",
+                numberOrUndefinedFromDetails(trimmedDetails, "lockDecisionMs")
+              ),
+              ...(typeof trimmedDetails["localLockedAudioHit"] === "boolean"
+                ? { localLockedAudioHit: trimmedDetails["localLockedAudioHit"] }
+                : {}),
+              ...whenDefined(
+                "lockedResponseKey",
+                stringOrUndefinedFromDetails(trimmedDetails, "lockedResponseKey")
+              ),
+              ...(cacheStatusRaw === "hit" || cacheStatusRaw === "miss"
+                ? { cacheStatus: cacheStatusRaw }
+                : {}),
+              ...whenDefined(
+                "cacheLookupMs",
+                numberOrUndefinedFromDetails(trimmedDetails, "cacheLookupMs")
+              ),
+              ...whenDefined(
+                "ttsVendorMsAtCreation",
+                numberOrUndefinedFromDetails(
+                  trimmedDetails,
+                  "ttsVendorMsAtCreation"
+                )
+              ),
+              ...whenDefined(
+                "networkTtsMs",
+                numberOrUndefinedFromDetails(trimmedDetails, "networkTtsMs")
+              ),
+              ...whenDefined(
+                "audioDecodeMs",
+                numberOrUndefinedFromDetails(trimmedDetails, "audioDecodeMs")
+              ),
+              ...whenDefined(
+                "sanitizerDelayMs",
+                numberOrUndefinedFromDetails(trimmedDetails, "sanitizerDelayMs")
+              ),
+              ...whenDefined(
+                "sanitizedTtsMs",
+                numberOrUndefinedFromDetails(trimmedDetails, "sanitizedTtsMs")
+              ),
+              ...whenDefined(
+                "reseedMs",
+                numberOrUndefinedFromDetails(trimmedDetails, "reseedMs")
+              ),
+              ...whenDefined(
+                "outcome",
+                stringOrUndefinedFromDetails(trimmedDetails, "outcome")
+              ),
+              ...(typeof trimmedDetails["sessionTainted"] === "boolean"
+                ? { sessionTainted: trimmedDetails["sessionTainted"] }
+                : {}),
+              ...whenDefined(
+                "parentSessionId",
+                stringOrUndefinedFromDetails(trimmedDetails, "parentSessionId")
+              ),
+              ...(cloudRunRevision ? { cloudRunRevision } : {}),
               provenance: {
                 promptVersion: stringOr(
                   trimmedDetails["promptVersion"],
@@ -260,6 +353,71 @@ function stringOrNull(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 function stringOrUndefined(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+const ROUTE_PATHS = new Set([
+  "lock_text",
+  "lock_voice_local_audio",
+  "lock_voice_network_tts",
+  "rt_text",
+  "rt_voice",
+  "unknown",
+]);
+function isRoutePath(
+  value: string
+): value is
+  | "lock_text"
+  | "lock_voice_local_audio"
+  | "lock_voice_network_tts"
+  | "rt_text"
+  | "rt_voice"
+  | "unknown" {
+  return ROUTE_PATHS.has(value);
+}
+
+// Helper for `exactOptionalPropertyTypes: true`. Returns either an empty
+// object or `{ [key]: value }` so a field that is `null` is forwarded as
+// null, but `undefined` (not present in the input) is omitted entirely.
+function whenDefined<K extends string, V>(
+  key: K,
+  value: V | undefined
+): { [P in K]: V } | Record<string, never> {
+  if (value === undefined) return {};
+  return { [key]: value } as { [P in K]: V };
+}
+
+// Sparse-telemetry helpers (Codex P2 follow-up on PR #83). Why these
+// exist instead of reusing `numberOrNull` / `stringOrNull`:
+//   - `numberOrNull(undefined)` returns `null` (because `typeof undefined
+//     !== "number"`). Pairing that with `whenDefined` would emit
+//     `someField: null` for every turn — defeating the sparse schema.
+//   - These helpers distinguish three cases:
+//       MISSING       → return `undefined` → `whenDefined` omits the key
+//       EXPLICIT null → return `null`      → `whenDefined` emits null
+//       VALID number  → return the number  → `whenDefined` emits it
+// This preserves "client did not send this field" vs "client explicitly
+// sent null" semantics in the structured log, and keeps log volume
+// proportional to actually populated fields.
+function hasOwn(obj: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+function numberOrUndefinedFromDetails(
+  details: Record<string, unknown>,
+  key: string
+): number | null | undefined {
+  if (!hasOwn(details, key)) return undefined;
+  const value = details[key];
+  if (value === null) return null;
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+function stringOrUndefinedFromDetails(
+  details: Record<string, unknown>,
+  key: string
+): string | null | undefined {
+  if (!hasOwn(details, key)) return undefined;
+  const value = details[key];
+  if (value === null) return null;
   return typeof value === "string" ? value : undefined;
 }
 

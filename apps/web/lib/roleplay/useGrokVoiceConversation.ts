@@ -795,6 +795,11 @@ export function useGrokVoiceConversation(
       // The session reference may have changed in the middle of this finalize
       // (after a successful reseed) — read from the ref to get the latest.
       const finalSession = sessionRef.current ?? activeSession;
+      // PR A: realtime path is `rt_voice` or `rt_text` based on input mode.
+      // Lock turns short-circuit before reaching this branch so they never
+      // emit `rt_*` here.
+      const routePath: GrokVoiceTurnMetricsClient["routePath"] =
+        turnInputModeRef.current === "text" ? "rt_text" : "rt_voice";
       const metrics: GrokVoiceTurnMetricsClient = {
         sessionId: finalSession.sessionId,
         turnIndex: turnIndexRef.current,
@@ -821,6 +826,8 @@ export function useGrokVoiceConversation(
           parentSessionIdForTurnRef.current ??
           finalSession.parentSessionId ??
           null,
+        routePath,
+        localLockedAudioHit: false,
       };
       setMetricsLog((current) => [...current, metrics]);
       void postGrokVoiceEvent("turn.completed", {
@@ -842,6 +849,8 @@ export function useGrokVoiceConversation(
           outcome: metrics.outcome,
           sessionTainted: metrics.sessionTainted,
           parentSessionId: metrics.parentSessionId,
+          routePath: metrics.routePath,
+          localLockedAudioHit: metrics.localLockedAudioHit,
           userTextPreview: turnUserTextPreviewRef.current,
           agentTextPreview: displayForUi,
           agentSpokenTextPreview: spokenForHistory,
@@ -943,10 +952,16 @@ export function useGrokVoiceConversation(
             agentTextLen: spokenAssistantText.length,
           },
         });
+        // PR A observability: time the network TTS roundtrip so we can
+        // attribute the "lock-voice is slow because of HTTP" hypothesis
+        // (vs xAI processing time, vs audio decode). This is the critical
+        // measurement that justifies PR B's local-audio prebundle work.
+        const ttsRequestStartedAt = Date.now();
         const tts = await fetchLockedResponseTts({
           sessionId: activeSession.sessionId,
           userText: input.userText,
         });
+        const networkTtsMs = Date.now() - ttsRequestStartedAt;
         const audioBytes = Math.floor((tts.audioBase64.length * 3) / 4);
         void postGrokVoiceEvent("locked_response.tts.completed", {
           sessionId: activeSession.sessionId,
@@ -957,6 +972,9 @@ export function useGrokVoiceConversation(
             voiceId: tts.voiceId,
             vendorMs: tts.vendorMs ?? null,
             cacheStatus: tts.cacheStatus,
+            cacheLookupMs: tts.cacheLookupMs ?? null,
+            ttsVendorMsAtCreation: tts.ttsVendorMsAtCreation ?? null,
+            networkTtsMs,
           },
         });
         lockedTurnTtsPlayingRef.current = true;
@@ -990,13 +1008,30 @@ export function useGrokVoiceConversation(
         });
 
         const doneMs = Date.now() - startedAt;
+        const firstAudioMs = firstAudioAt - startedAt;
+        // PR A: routePath classifies how this turn was actually served so
+        // dashboards can group by lane. localLockedAudioHit is reserved
+        // for PR B (session-bootstrap audio prebundle); in PR A it is
+        // always false. lockedResponseKey is the canonical text itself —
+        // a stable, human-readable identifier for the lock entry that
+        // collides with `getAllPr60LockedResponses()` so a future cache
+        // warm telemetry can join against it.
+        const routePath: GrokVoiceTurnMetricsClient["routePath"] =
+          input.channel === "chat"
+            ? "lock_text"
+            : "lock_voice_network_tts";
+        const localLockedAudioHit = false;
+        const lockedResponseKey = spokenAssistantText;
         const metrics: GrokVoiceTurnMetricsClient = {
           sessionId: activeSession.sessionId,
           turnIndex,
           inputMode: input.channel === "chat" ? "text" : "voice",
           userTextLen: input.userText.length,
           agentTextLen: displayAssistantText.length,
-          firstAudioMs: firstAudioAt - startedAt,
+          firstAudioMs,
+          // For lock turns there is no sanitizer gate, so firstAudibleAudioMs
+          // (what the user actually hears) equals firstAudioMs (decode start).
+          firstAudibleAudioMs: firstAudioMs,
           doneMs,
           audioBytes,
           error: null,
@@ -1007,6 +1042,13 @@ export function useGrokVoiceConversation(
           grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
           lockedResponse: true,
           lockedResponseSource: "client_tts",
+          routePath,
+          localLockedAudioHit,
+          lockedResponseKey,
+          cacheStatus: tts.cacheStatus,
+          cacheLookupMs: tts.cacheLookupMs ?? null,
+          ttsVendorMsAtCreation: tts.ttsVendorMsAtCreation ?? null,
+          networkTtsMs,
         };
         setMetricsLog((current) => [...current, metrics]);
         void postGrokVoiceEvent("turn.completed", {
@@ -1017,11 +1059,19 @@ export function useGrokVoiceConversation(
             userTextLen: metrics.userTextLen,
             agentTextLen: metrics.agentTextLen,
             firstAudioMs: metrics.firstAudioMs,
+            firstAudibleAudioMs: metrics.firstAudibleAudioMs,
             doneMs: metrics.doneMs,
             audioBytes: metrics.audioBytes,
             error: metrics.error,
             lockedResponse: true,
             lockedResponseSource: "client_tts",
+            routePath: metrics.routePath,
+            localLockedAudioHit: metrics.localLockedAudioHit,
+            lockedResponseKey: metrics.lockedResponseKey,
+            cacheStatus: metrics.cacheStatus,
+            cacheLookupMs: metrics.cacheLookupMs,
+            ttsVendorMsAtCreation: metrics.ttsVendorMsAtCreation,
+            networkTtsMs: metrics.networkTtsMs,
             userTextPreview: input.userText,
             agentTextPreview: displayAssistantText,
             agentSpokenTextPreview: spokenAssistantText,
@@ -1452,6 +1502,10 @@ export function useGrokVoiceConversation(
               ? firstAudioAtRef.current - startedAt
               : null;
           const doneMs = startedAt !== null ? Date.now() - startedAt : null;
+          // PR A: legacy non-strict realtime path. Same routePath
+          // classification as the strict branch above.
+          const routePath: GrokVoiceTurnMetricsClient["routePath"] =
+            turnInputModeRef.current === "text" ? "rt_text" : "rt_voice";
           const metrics: GrokVoiceTurnMetricsClient = {
             sessionId: activeSession.sessionId,
             turnIndex: turnIndexRef.current,
@@ -1459,6 +1513,9 @@ export function useGrokVoiceConversation(
             userTextLen: turnUserTextLenRef.current,
             agentTextLen: finalText.length,
             firstAudioMs,
+            // Non-strict path plays audio as it arrives, so the user-audible
+            // latency equals the delta arrival latency.
+            firstAudibleAudioMs: firstAudioMs,
             doneMs,
             audioBytes: turnAccumulatedAudioBytesRef.current,
             error: turnAccumulatedAudioBytesRef.current === 0 ? "no_audio" : null,
@@ -1467,6 +1524,8 @@ export function useGrokVoiceConversation(
             guardrailVersion: activeSession.guardrailVersion,
             grokVoiceModel: activeSession.grokVoiceModel,
             grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
+            routePath,
+            localLockedAudioHit: false,
           };
           setMetricsLog((current) => [...current, metrics]);
           void postGrokVoiceEvent("turn.completed", {
@@ -1477,8 +1536,11 @@ export function useGrokVoiceConversation(
               userTextLen: metrics.userTextLen,
               agentTextLen: metrics.agentTextLen,
               firstAudioMs: metrics.firstAudioMs,
+              firstAudibleAudioMs: metrics.firstAudibleAudioMs,
               doneMs: metrics.doneMs,
               audioBytes: metrics.audioBytes,
+              routePath: metrics.routePath,
+              localLockedAudioHit: metrics.localLockedAudioHit,
               userTextPreview: turnUserTextPreviewRef.current,
               agentTextPreview: finalText,
               agentSpokenTextPreview: finalSpokenText,

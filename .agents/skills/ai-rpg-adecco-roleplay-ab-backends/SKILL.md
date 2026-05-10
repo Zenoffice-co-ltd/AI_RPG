@@ -153,7 +153,30 @@ returns `ServiceUnavailable` until secrets are provisioned. Flip the flag to
 ## Deploy
 
 Firebase App Hosting **does NOT auto-deploy on push to main** for this backend
-(no Repository binding). Operator runs locally:
+(no Repository binding). Use the wrapper script:
+
+```bash
+pnpm deploy:adecco-roleplay
+```
+
+This runs: baseline rollout/version check → `firebase deploy --only apphosting`
+→ poll until SUCCEEDED → `pnpm grok:warm-tts-cache` → post-deploy verification
+that `/api/v3/session` returns the expected `guardrailVersion`. Skipping the
+warm step leaves a 25% locked-response cache miss rate in production (PR60
+canonicals are a 17-entry finite set; missing entries pay a 1.5–3s xAI synth
+penalty on first hit per session — measured on the live `build-2026-05-07-002`
+revision).
+
+Optional flags:
+
+```bash
+pnpm deploy:adecco-roleplay -- --skip-warm     # rollout only
+pnpm deploy:adecco-roleplay -- --skip-deploy   # warm only (existing rollout)
+pnpm deploy:adecco-roleplay -- --skip-verify   # bypass post-deploy session check
+```
+
+If you need to invoke the underlying CLI directly (debugging Cloud Build, or
+reapplying secrets without source change), the legacy command still works:
 
 ```bash
 npx --no-install firebase deploy --only apphosting --project=adecco-mendan --non-interactive
@@ -172,6 +195,22 @@ gcloud builds log <BUILD_ID> --region=asia-east1 --project=adecco-mendan
 
 Look for `fah/misconfigured-secret` lines indicating which secret name is missing
 or unauthorized.
+
+### Post-deploy must-do
+
+Whenever a PR bumps the runtime — guardrail version, prompt sections, lock
+catalog, audio sanitizer, etc. — **always** verify against `origin/main` AND
+production after the rollout completes (cf. memory
+`feedback_verify_late_push_landed`):
+
+```bash
+git fetch origin main
+git show origin/main:apps/web/lib/roleplay/grok-voice-pr60-shared.ts | grep <signature-line>
+pnpm tsx scripts/grok-voice-v21-prod-smoke.mjs
+```
+
+The wrapper script's verify step does the third check automatically; the first
+two are the human's responsibility.
 
 ## xAI Voice Agent integration specifics (Grok backend)
 

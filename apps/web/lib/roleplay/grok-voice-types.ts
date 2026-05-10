@@ -61,6 +61,15 @@ export type GrokVoiceLockedResponseTts = GrokVoiceGreeting & {
   text: string;
   displayText?: string;
   cacheStatus: "hit" | "miss";
+  // PR A: server-measured wall-clock for the cache read so the client can
+  // log the SERVER share of locked-response-tts roundtrip distinct from
+  // wire RTT. Always populated by /api/v3/locked-response-tts; older
+  // builds that don't set it leave it undefined (null on the client).
+  cacheLookupMs?: number;
+  // The original TTS synth time stamped at cache creation. On a hit this
+  // is informational only (NOT the current retrieval latency). On a miss
+  // it is null (the just-now synth time is in `vendorMs`).
+  ttsVendorMsAtCreation?: number | null;
 };
 
 // Strict sanitized playback: TTS rendering of a stripped-stock-suffix Grok
@@ -114,6 +123,25 @@ export type GrokVoiceTurnMetricsClient = {
     | "reseed_failed_after_play";
   sessionTainted?: boolean;
   parentSessionId?: string | null;
+  // PR A latency observability fields. All optional and additive — older
+  // builds without them continue to compile and emit valid metrics. Each
+  // field's intent is documented at metrics.ts logGrokVoiceTurnMetrics.
+  routePath?:
+    | "lock_text"
+    | "lock_voice_local_audio"
+    | "lock_voice_network_tts"
+    | "rt_text"
+    | "rt_voice"
+    | "unknown";
+  localLockedAudioHit?: boolean;
+  lockedResponseKey?: string | null;
+  cacheStatus?: "hit" | "miss" | null;
+  cacheLookupMs?: number | null;
+  ttsVendorMsAtCreation?: number | null;
+  networkTtsMs?: number | null;
+  audioDecodeMs?: number | null;
+  sttFinalMs?: number | null;
+  lockDecisionMs?: number | null;
 };
 
 // Subset of xAI Voice Agent server → client events that we react to.

@@ -364,6 +364,267 @@ describe("grok-voice event route", () => {
     );
     expect(response.status).toBe(503);
   });
+
+  // PR A — voice latency observability roadmap, Phase 0.
+  // The directive (latency-first roadmap §4 Phase 0) requires that every
+  // turn carry routePath, firstAudibleAudioMs, lock-path attribution, and
+  // server-measured cacheLookupMs into the typed `grokVoice.turnMetrics`
+  // scope so we can group by lane in Cloud Logging without joining
+  // against clientEvent details. These tests pin that contract.
+  it("forwards latency observability fields to grokVoice.turnMetrics (PR A)", async () => {
+    vi.stubEnv("K_REVISION", "adecco-roleplay-build-2026-05-10-test");
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 1,
+            inputMode: "voice",
+            userTextLen: 12,
+            agentTextLen: 33,
+            firstAudioMs: 2658,
+            firstAudibleAudioMs: 4261,
+            firstRealtimeAudioDeltaMs: 2658,
+            doneMs: 11303,
+            audioBytes: 337920,
+            error: null,
+            routePath: "rt_voice",
+            localLockedAudioHit: false,
+            sanitizerDelayMs: 1603,
+            outcome: "clean",
+            sessionTainted: false,
+            promptVersion: "compile-scenario@2026-05-07.v3.10.x",
+            promptHash: "750d10ade35a",
+            guardrailVersion: "gv-think-fast-v5.0-2026-05-10",
+            grokVoiceModel: "grok-voice-think-fast-1.0",
+            grokVoiceVoiceId: "rex",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    expect(metricsLine!["routePath"]).toBe("rt_voice");
+    expect(metricsLine!["firstAudibleAudioMs"]).toBe(4261);
+    expect(metricsLine!["firstRealtimeAudioDeltaMs"]).toBe(2658);
+    expect(metricsLine!["sanitizerDelayMs"]).toBe(1603);
+    expect(metricsLine!["localLockedAudioHit"]).toBe(false);
+    expect(metricsLine!["outcome"]).toBe("clean");
+    expect(metricsLine!["sessionTainted"]).toBe(false);
+    expect(metricsLine!["cloudRunRevision"]).toBe(
+      "adecco-roleplay-build-2026-05-10-test"
+    );
+  });
+
+  it("forwards lock-path TTS observability fields to grokVoice.turnMetrics (PR A)", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 3,
+            inputMode: "voice",
+            userTextLen: 7,
+            agentTextLen: 18,
+            firstAudioMs: 5302,
+            firstAudibleAudioMs: 5302,
+            doneMs: 10432,
+            audioBytes: 246240,
+            error: null,
+            routePath: "lock_voice_network_tts",
+            localLockedAudioHit: false,
+            lockedResponseKey: "請求想定は経験により、千七百五十円から、千九百円程度です。",
+            cacheStatus: "hit",
+            cacheLookupMs: 47,
+            ttsVendorMsAtCreation: 1867,
+            networkTtsMs: 1023,
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    expect(metricsLine!["routePath"]).toBe("lock_voice_network_tts");
+    expect(metricsLine!["cacheStatus"]).toBe("hit");
+    expect(metricsLine!["cacheLookupMs"]).toBe(47);
+    expect(metricsLine!["ttsVendorMsAtCreation"]).toBe(1867);
+    expect(metricsLine!["networkTtsMs"]).toBe(1023);
+    expect(metricsLine!["lockedResponseKey"]).toBe(
+      "請求想定は経験により、千七百五十円から、千九百円程度です。"
+    );
+    expect(metricsLine!["localLockedAudioHit"]).toBe(false);
+  });
+
+  // Codex P2 follow-up on PR #83: missing optional latency keys must be
+  // OMITTED from the typed `grokVoice.turnMetrics` scope (sparse), while
+  // keys explicitly set to null by a future client must be PRESERVED as
+  // null (so we can distinguish "client did not measure this" from
+  // "client measured this and it was null"). Pinning all three branches
+  // keeps the schema contract stable as more PRs add fields.
+  it("omits optional latency fields from turnMetrics when an old client does not send them (sparse schema)", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          // Mimic an old client that only sends the original turn fields,
+          // i.e. NONE of the PR A latency observability keys.
+          details: {
+            turnIndex: 7,
+            inputMode: "voice",
+            userTextLen: 5,
+            agentTextLen: 12,
+            firstAudioMs: 4200,
+            doneMs: 6800,
+            audioBytes: 320640,
+            promptVersion: "compile-scenario@2026-05-07.v3.10.x",
+            promptHash: "750d10ade35a",
+            guardrailVersion: "gv-think-fast-v5.0-2026-05-10",
+            grokVoiceModel: "grok-voice-think-fast-1.0",
+            grokVoiceVoiceId: "rex",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    // Each new PR A field must be ABSENT (not emitted as null) when the
+    // client did not send the property.
+    for (const key of [
+      "routePath",
+      "firstAudibleAudioMs",
+      "firstRealtimeAudioDeltaMs",
+      "sttFinalMs",
+      "lockDecisionMs",
+      "localLockedAudioHit",
+      "lockedResponseKey",
+      "cacheStatus",
+      "cacheLookupMs",
+      "ttsVendorMsAtCreation",
+      "networkTtsMs",
+      "audioDecodeMs",
+      "sanitizerDelayMs",
+      "sanitizedTtsMs",
+      "reseedMs",
+      "outcome",
+      "sessionTainted",
+      "parentSessionId",
+    ]) {
+      expect(
+        Object.prototype.hasOwnProperty.call(metricsLine, key),
+        `expected ${key} to be omitted, but it was emitted`
+      ).toBe(false);
+    }
+    // The legacy fields the client DID send must still be present.
+    expect(metricsLine!["firstAudioMs"]).toBe(4200);
+    expect(metricsLine!["doneMs"]).toBe(6800);
+    expect(metricsLine!["audioBytes"]).toBe(320640);
+  });
+
+  it("preserves an explicit null for a latency field rather than coercing to omitted", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 1,
+            inputMode: "voice",
+            userTextLen: 5,
+            agentTextLen: 12,
+            firstAudioMs: 100,
+            doneMs: 200,
+            audioBytes: 1024,
+            // Future-client signal: "I tracked this field but it has no
+            // value for this turn." Distinct from "I never set the field".
+            firstAudibleAudioMs: null,
+            cacheLookupMs: null,
+            outcome: null,
+            parentSessionId: null,
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    // Each explicit null must be preserved as null (key present, value null).
+    for (const key of [
+      "firstAudibleAudioMs",
+      "cacheLookupMs",
+      "outcome",
+      "parentSessionId",
+    ]) {
+      expect(
+        Object.prototype.hasOwnProperty.call(metricsLine, key),
+        `expected ${key} to be present (as null)`
+      ).toBe(true);
+      expect(metricsLine![key]).toBeNull();
+    }
+  });
+
+  it("rejects an invalid routePath value rather than passing garbage through", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 1,
+            inputMode: "voice",
+            firstAudioMs: 100,
+            doneMs: 200,
+            audioBytes: 1024,
+            routePath: "definitely_not_a_real_route",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    expect(metricsLine!["routePath"]).toBeUndefined();
+  });
 });
 
 function validRequest({

@@ -39,6 +39,34 @@ export function logGrokVoiceClientEvent(payload: {
   emit("grokVoice.clientEvent", payload);
 }
 
+// Voice latency observability fields (PR A — Phase 0 of latency-first roadmap).
+//
+// Why these fields, in plain language:
+//   - firstAudibleAudioMs is the primary KPI. It's the time from
+//     end-of-user-speech to the moment the user actually HEARS AI audio.
+//     firstAudioMs (legacy) is the time the first audio delta ARRIVED at
+//     the client — it does NOT include the strict-sanitized-playback gate
+//     that buffers audio until response.done. firstAudibleAudioMs DOES.
+//   - routePath says which path served the turn. Without it we can't tell
+//     why a turn was fast or slow (lock-text is fast for free; rt-voice
+//     speed depends on xAI; lock-voice today still pays an HTTP roundtrip).
+//   - cacheLookupMs is the ACTUAL hit-retrieval latency for locked
+//     responses. Do not confuse with `vendorMs` on a cache hit, which is
+//     the synth time stamped at cache-creation, not now.
+//   - localLockedAudioHit is reserved for PR B; in PR A it is always
+//     false. Emitting it now keeps the dashboard schema stable across the
+//     roadmap.
+//
+// All fields are optional so PR A is a pure observability addition with
+// no behavior change.
+export type GrokVoiceRoutePath =
+  | "lock_text"
+  | "lock_voice_local_audio"
+  | "lock_voice_network_tts"
+  | "rt_text"
+  | "rt_voice"
+  | "unknown";
+
 export function logGrokVoiceTurnMetrics(payload: {
   sessionId: string;
   turnIndex: number;
@@ -56,6 +84,26 @@ export function logGrokVoiceTurnMetrics(payload: {
   agentTextPreviewUtf8Base64?: string;
   agentSpokenTextPreviewUtf8Base64?: string;
   provenance: GrokVoiceProvenance;
+  // PR A latency observability (all optional — backwards compatible).
+  routePath?: GrokVoiceRoutePath;
+  firstAudibleAudioMs?: number | null;
+  firstRealtimeAudioDeltaMs?: number | null;
+  sttFinalMs?: number | null;
+  lockDecisionMs?: number | null;
+  localLockedAudioHit?: boolean;
+  lockedResponseKey?: string | null;
+  cacheStatus?: "hit" | "miss" | null;
+  cacheLookupMs?: number | null;
+  ttsVendorMsAtCreation?: number | null;
+  networkTtsMs?: number | null;
+  audioDecodeMs?: number | null;
+  sanitizerDelayMs?: number | null;
+  sanitizedTtsMs?: number | null;
+  reseedMs?: number | null;
+  outcome?: string | null;
+  sessionTainted?: boolean;
+  parentSessionId?: string | null;
+  cloudRunRevision?: string;
 }) {
   emit("grokVoice.turnMetrics", {
     sessionId: payload.sessionId,
@@ -84,6 +132,51 @@ export function logGrokVoiceTurnMetrics(payload: {
             payload.agentSpokenTextPreviewUtf8Base64,
         }
       : {}),
+    // Latency observability fields. Emit each one only when defined so
+    // the BigQuery / Logs Explorer schema stays sparse and queryable.
+    ...(payload.routePath !== undefined ? { routePath: payload.routePath } : {}),
+    ...(payload.firstAudibleAudioMs !== undefined
+      ? { firstAudibleAudioMs: payload.firstAudibleAudioMs }
+      : {}),
+    ...(payload.firstRealtimeAudioDeltaMs !== undefined
+      ? { firstRealtimeAudioDeltaMs: payload.firstRealtimeAudioDeltaMs }
+      : {}),
+    ...(payload.sttFinalMs !== undefined ? { sttFinalMs: payload.sttFinalMs } : {}),
+    ...(payload.lockDecisionMs !== undefined
+      ? { lockDecisionMs: payload.lockDecisionMs }
+      : {}),
+    ...(payload.localLockedAudioHit !== undefined
+      ? { localLockedAudioHit: payload.localLockedAudioHit }
+      : {}),
+    ...(payload.lockedResponseKey !== undefined
+      ? { lockedResponseKey: payload.lockedResponseKey }
+      : {}),
+    ...(payload.cacheStatus !== undefined ? { cacheStatus: payload.cacheStatus } : {}),
+    ...(payload.cacheLookupMs !== undefined
+      ? { cacheLookupMs: payload.cacheLookupMs }
+      : {}),
+    ...(payload.ttsVendorMsAtCreation !== undefined
+      ? { ttsVendorMsAtCreation: payload.ttsVendorMsAtCreation }
+      : {}),
+    ...(payload.networkTtsMs !== undefined ? { networkTtsMs: payload.networkTtsMs } : {}),
+    ...(payload.audioDecodeMs !== undefined
+      ? { audioDecodeMs: payload.audioDecodeMs }
+      : {}),
+    ...(payload.sanitizerDelayMs !== undefined
+      ? { sanitizerDelayMs: payload.sanitizerDelayMs }
+      : {}),
+    ...(payload.sanitizedTtsMs !== undefined
+      ? { sanitizedTtsMs: payload.sanitizedTtsMs }
+      : {}),
+    ...(payload.reseedMs !== undefined ? { reseedMs: payload.reseedMs } : {}),
+    ...(payload.outcome !== undefined ? { outcome: payload.outcome } : {}),
+    ...(payload.sessionTainted !== undefined
+      ? { sessionTainted: payload.sessionTainted }
+      : {}),
+    ...(payload.parentSessionId !== undefined
+      ? { parentSessionId: payload.parentSessionId }
+      : {}),
+    ...(payload.cloudRunRevision ? { cloudRunRevision: payload.cloudRunRevision } : {}),
     ...payload.provenance,
   });
 }

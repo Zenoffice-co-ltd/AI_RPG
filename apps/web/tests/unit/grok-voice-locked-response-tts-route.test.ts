@@ -50,6 +50,14 @@ describe("grok-voice locked-response-tts route", () => {
     expect(body["sampleRateHz"]).toBe(24_000);
     expect(body["voiceId"]).toBe("rex");
     expect(body["cacheStatus"]).toBe("miss");
+    // PR A: server-measured wall-clock for the cache lookup. On a miss
+    // path this includes the synth time too. The exact number is timing-
+    // dependent so we only assert the field is present and numeric.
+    expect(typeof body["cacheLookupMs"]).toBe("number");
+    expect(body["cacheLookupMs"] as number).toBeGreaterThanOrEqual(0);
+    // ttsVendorMsAtCreation is null on a miss because the just-now synth
+    // time is in `vendorMs`, not in this snapshot field.
+    expect(body["ttsVendorMsAtCreation"]).toBeNull();
     expect(JSON.stringify(body)).not.toContain("xai-test-key");
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "https://api.x.ai/v1/tts",
