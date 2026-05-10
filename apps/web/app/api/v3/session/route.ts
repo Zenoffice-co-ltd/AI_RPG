@@ -183,16 +183,35 @@ export async function POST(request: NextRequest) {
     turnDetection,
     instructions,
     firstMessage: bundle.firstMessage,
-    // PR D — `strictSanitizedPlayback` (boolean) is kept for legacy
-    // client backwards compatibility: it is the lowest-common-denominator
-    // ("buffer everything unless explicitly disabled"). New clients
-    // read `strictPlaybackMode` for the three-state classification.
-    // The boolean is set true unless the new env explicitly opts into
-    // `monitor_only`, so a legacy client always buffers and is safe.
-    strictSanitizedPlayback:
-      isGrokVoiceStrictSanitizedPlaybackEnabled() &&
-      getGrokVoiceStrictPlaybackMode() !== "monitor_only",
-    strictPlaybackMode: getGrokVoiceStrictPlaybackMode(),
+    // PR D + PR #86 — strict-playback session contract.
+    //
+    // Two env flags, with a clear precedence:
+    //   1. `GROK_VOICE_STRICT_SANITIZED_PLAYBACK=false` is the LEGACY
+    //      global disable. Existing deploys have used it as the
+    //      kill-switch for the sanitize-then-play path. It MUST win
+    //      over any per-mode setting — otherwise rolling back to
+    //      "stream everything, do not sanitize" via the legacy flag
+    //      would silently leave the new client in `risk_based`
+    //      (buffering and sanitizing ack/closing/identity turns),
+    //      which is a different contract than the legacy flag implies.
+    //   2. `GROK_VOICE_STRICT_PLAYBACK_MODE` (PR D) chooses among
+    //      `all_turns | risk_based | monitor_only` only when the
+    //      legacy flag is true. Default `risk_based`.
+    //
+    // The effective mode is what the new client reads from
+    // `strictPlaybackMode`. The legacy `strictSanitizedPlayback`
+    // boolean is derived from the effective mode so old clients
+    // observe the same kill-switch behavior.
+    ...(() => {
+      const strictEnabled = isGrokVoiceStrictSanitizedPlaybackEnabled();
+      const configuredMode = getGrokVoiceStrictPlaybackMode();
+      const effectiveMode = strictEnabled ? configuredMode : "monitor_only";
+      return {
+        strictSanitizedPlayback:
+          strictEnabled && effectiveMode !== "monitor_only",
+        strictPlaybackMode: effectiveMode,
+      };
+    })(),
     ...(reseedFromSessionId ? { parentSessionId: reseedFromSessionId } : {}),
     ...(greetingAudio
       ? {

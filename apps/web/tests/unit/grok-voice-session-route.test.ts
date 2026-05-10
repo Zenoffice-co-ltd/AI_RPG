@@ -214,6 +214,76 @@ describe("grok-voice session route", () => {
     expect(body["strictSanitizedPlayback"]).toBe(false);
   });
 
+  // PR #86 Codex P1 follow-up on PR #85. The new client decides
+  // buffering from `strictPlaybackMode`. Without this fix, setting the
+  // legacy global kill-switch (`GROK_VOICE_STRICT_SANITIZED_PLAYBACK=
+  // false`) would leave the new client in `risk_based` and continue
+  // buffering ack/closing/identity turns — silently violating the
+  // contract the legacy flag has historically carried. These four
+  // cases pin the precedence: legacy disable always forces
+  // `strictPlaybackMode="monitor_only"`, otherwise `STRICT_PLAYBACK_MODE`
+  // wins (default `risk_based`).
+  describe("strict playback session payload (PR #86 P1)", () => {
+    function mockEphemeralToken() {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            value: "xai-realtime-client-secret-test-value",
+            expires_at: 1747_000_000,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      );
+    }
+
+    it("default (both envs unset) → strictPlaybackMode=risk_based, strictSanitizedPlayback=true", async () => {
+      mockEphemeralToken();
+      const { POST } = await import("../../app/api/v3/session/route");
+      const response = await POST(validRequest());
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Record<string, unknown>;
+      expect(body["strictPlaybackMode"]).toBe("risk_based");
+      expect(body["strictSanitizedPlayback"]).toBe(true);
+    });
+
+    it("explicit all_turns mode (strict flag still on) → strictPlaybackMode=all_turns, strictSanitizedPlayback=true", async () => {
+      vi.stubEnv("GROK_VOICE_STRICT_PLAYBACK_MODE", "all_turns");
+      mockEphemeralToken();
+      const { POST } = await import("../../app/api/v3/session/route");
+      const response = await POST(validRequest());
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Record<string, unknown>;
+      expect(body["strictPlaybackMode"]).toBe("all_turns");
+      expect(body["strictSanitizedPlayback"]).toBe(true);
+    });
+
+    it("legacy strict disable wins over default mode → strictPlaybackMode=monitor_only, strictSanitizedPlayback=false", async () => {
+      // Existing deploys use STRICT_SANITIZED_PLAYBACK=false as the
+      // global kill-switch. The new client must observe that as
+      // monitor_only, never as risk_based.
+      vi.stubEnv("GROK_VOICE_STRICT_SANITIZED_PLAYBACK", "false");
+      mockEphemeralToken();
+      const { POST } = await import("../../app/api/v3/session/route");
+      const response = await POST(validRequest());
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Record<string, unknown>;
+      expect(body["strictPlaybackMode"]).toBe("monitor_only");
+      expect(body["strictSanitizedPlayback"]).toBe(false);
+    });
+
+    it("legacy strict disable overrides explicit all_turns mode → strictPlaybackMode=monitor_only, strictSanitizedPlayback=false", async () => {
+      vi.stubEnv("GROK_VOICE_STRICT_SANITIZED_PLAYBACK", "false");
+      vi.stubEnv("GROK_VOICE_STRICT_PLAYBACK_MODE", "all_turns");
+      mockEphemeralToken();
+      const { POST } = await import("../../app/api/v3/session/route");
+      const response = await POST(validRequest());
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Record<string, unknown>;
+      expect(body["strictPlaybackMode"]).toBe("monitor_only");
+      expect(body["strictSanitizedPlayback"]).toBe(false);
+    });
+  });
+
   it("returns cached greeting audio on memory cache hit without calling xAI TTS", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")

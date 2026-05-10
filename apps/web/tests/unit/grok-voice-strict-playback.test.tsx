@@ -445,6 +445,132 @@ describe("strict sanitized playback — stock suffix detected", () => {
     });
   });
 
+  // PR #86 Codex P2 follow-up on PR #85. `streamingBeforeDoneRef`
+  // tracks "did at least one audio chunk reach the user before
+  // response.done arrived?". Without this fix, a barge-in interrupting
+  // a streamed turn would leave the ref at `true`, and the NEXT turn
+  // (potentially a fully buffered gated turn) would emit
+  // `streamingBeforeDone=true` despite never actually streaming.
+  // The fix calls `resetStrictPlaybackTurnState` from BOTH
+  // `resetTurnBookkeeping` AND the `input_audio_buffer.speech_started`
+  // barge-in path. This test pins that contract.
+  it("clears streamingBeforeDone on barge-in so a previous streamed turn does not contaminate the next turn's metrics (PR #86 P2)", async () => {
+    // For PR D risk_based, business factual turns stream. We need a
+    // `risk_based` session fixture instead of the all_turns
+    // STRICT_SESSION used elsewhere in this file.
+    const RISK_BASED_SESSION: GrokVoiceSession = {
+      ...STRICT_SESSION,
+      strictPlaybackMode: "risk_based",
+    };
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input) => {
+        const url = typeof input === "string" ? input : (input as Request).url;
+        if (url.endsWith("/api/v3/event")) {
+          return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response("not used", { status: 200 });
+      });
+
+    const fake = buildFakeRealtime();
+    const queue = buildStubAudioQueue();
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => RISK_BASED_SESSION),
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchSanitizedResponseTts: vi.fn(async () => SANITIZED_TTS),
+      createAudioQueue: () => queue,
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      micEnabled: false,
+    };
+    const { result } = renderHook(() =>
+      useGrokVoiceConversation("live", deps)
+    );
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => expect(result.current.status).toBe("listening"));
+
+    // Turn 1: business factual text input. Under `risk_based`, this
+    // gate evaluates to apply=false → streaming path → at least one
+    // audio chunk routes through `enqueueBase64` directly, which sets
+    // `streamingBeforeDoneRef.current = true`.
+    await act(async () => {
+      await result.current.sendTextMessage("業務内容を教えてください");
+    });
+    act(() => {
+      fake.emit({ type: "response.created", response: { id: "barge-r1" } });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "じゅはっちゅうや納期調整まわりの営業事務です。",
+        item_id: "barge-item-1",
+      });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: PCM_CHUNK,
+        item_id: "barge-item-1",
+      });
+    });
+
+    // User barges in mid-stream. The directive: this path MUST clear
+    // the strict-playback per-turn state so the previous streamed
+    // signal does not bleed into the next turn.
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+    });
+
+    // Turn 2: STT confirms an ack-prefix input → `shouldStrictGateTurn`
+    // applies → buffered path → response.done finalizes a turn
+    // metrics emission. The new turn's `streamingBeforeDone` MUST be
+    // false; if the P2 leak existed, this assertion would fail.
+    act(() => {
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "なるほど、ありがとうございます",
+      });
+      fake.emit({ type: "response.created", response: { id: "barge-r2" } });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "ありがとうございます。",
+        item_id: "barge-item-2",
+      });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: PCM_CHUNK,
+        item_id: "barge-item-2",
+      });
+      fake.emit({ type: "response.done", response: { id: "barge-r2" } });
+    });
+    await waitFor(() => expect(result.current.metricsLog).toHaveLength(1));
+
+    // Collect every turn.completed payload posted from this test.
+    const turnCompletedPosts = fetchSpy.mock.calls
+      .filter((c) => {
+        const url = typeof c[0] === "string" ? c[0] : (c[0] as Request).url;
+        return url.endsWith("/api/v3/event");
+      })
+      .map((c) => {
+        const body = (c[1] as RequestInit | undefined)?.body;
+        return JSON.parse(String(body)) as Record<string, unknown>;
+      })
+      .filter((b) => b["kind"] === "turn.completed");
+    expect(turnCompletedPosts.length).toBeGreaterThanOrEqual(1);
+    const lastTurn = turnCompletedPosts.at(-1)!;
+    const details = lastTurn["details"] as Record<string, unknown>;
+    // The replacement (post-barge-in) gated turn must NOT inherit the
+    // streamed-flag from the interrupted previous turn.
+    expect(details["streamingBeforeDone"]).toBe(false);
+    expect(details["strictGateApplied"]).toBe(true);
+    expect(String(details["strictGateReason"])).toMatch(/^ack_prefix:/);
+
+    fetchSpy.mockRestore();
+  });
+
   it("non-clean failure paths post realtime.session_tainted with reason and parentSessionId", async () => {
     // Spy on /api/v3/event posts to check the typed event fires with the
     // right `reason` discriminator on each non-clean outcome.
