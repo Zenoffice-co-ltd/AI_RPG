@@ -52,7 +52,19 @@ export async function synthesizeGrokVoiceTts(input: {
   });
 
   if (!response.ok) {
-    throw new GrokVoiceTtsError(response.status, input.purpose);
+    // Capture a short, redacted fragment of the xAI response body so the
+    // failure is actionable in operator logs without leaking the request
+    // payload. The xAI 400 path uniquely identifies an invalid key with
+    // "Incorrect API key provided" — that signal was previously lost
+    // because we only forwarded the status code.
+    let bodyFragment = "";
+    try {
+      const raw = (await response.text()).trim();
+      bodyFragment = redactXaiTtsBody(raw).slice(0, 240);
+    } catch {
+      // Ignore body read failures — status code alone is still useful.
+    }
+    throw new GrokVoiceTtsError(response.status, input.purpose, bodyFragment);
   }
 
   const audio = Buffer.from(await response.arrayBuffer());
@@ -74,11 +86,30 @@ export async function synthesizeGrokVoiceTts(input: {
 }
 
 export class GrokVoiceTtsError extends Error {
+  readonly bodyFragment: string;
   constructor(
     readonly status: number,
-    readonly purpose: GrokVoiceTtsPurpose
+    readonly purpose: GrokVoiceTtsPurpose,
+    bodyFragment = ""
   ) {
-    super(`xAI TTS failed for ${purpose} with status ${status}`);
+    super(
+      bodyFragment
+        ? `xAI TTS failed for ${purpose} with status ${status}: ${bodyFragment}`
+        : `xAI TTS failed for ${purpose} with status ${status}`
+    );
     this.name = "GrokVoiceTtsError";
+    this.bodyFragment = bodyFragment;
   }
+}
+
+// Redact substrings that look like Bearer tokens or "xai-..." key
+// material out of xAI error bodies before logging. xAI's own 400
+// messages include masked key fragments like "te***2e" — those are
+// safe to log, so we leave them alone. We just block accidental
+// substrings that would leak full credentials if xAI ever echoed the
+// request back.
+function redactXaiTtsBody(body: string): string {
+  return body
+    .replace(/Bearer [A-Za-z0-9_-]+/g, "Bearer <redacted>")
+    .replace(/xai-[A-Za-z0-9_-]{16,}/g, "xai-<redacted>");
 }

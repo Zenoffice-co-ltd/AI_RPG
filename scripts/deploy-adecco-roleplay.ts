@@ -177,9 +177,15 @@ function runFirebaseDeploy(): void {
 
 function runWarmTtsCache(): void {
   console.log("[deploy] running warm-tts-cache");
+  // Use `npx --no-install tsx` instead of `pnpm exec tsx` because
+  // pnpm is not always on PATH on Windows (corepack-shimmed users
+  // invoke it via `node "<corepack>/dist/pnpm.js"`). npx ships with
+  // node and resolves the workspace-local `tsx` binary the same way
+  // on all platforms. --no-install prevents npx from silently
+  // installing a different tsx version into the npm cache.
   const r = spawnSync(
-    "pnpm",
-    ["exec", "tsx", "scripts/grok-voice-warm-tts-cache.ts"],
+    "npx",
+    ["--no-install", "tsx", "scripts/grok-voice-warm-tts-cache.ts"],
     {
       stdio: "inherit",
       shell: process.platform === "win32",

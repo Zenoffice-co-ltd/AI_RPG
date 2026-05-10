@@ -60,6 +60,65 @@ describe("grok voice TTS helper and cache", () => {
     ).rejects.toMatchObject({ status: 502 });
   });
 
+  // PR 84 — surface the xAI error body fragment so operator logs can
+  // disambiguate "invalid key" vs "rate limited" vs "bad request shape".
+  // Previously only the HTTP status was forwarded, which is what caused
+  // us to chase the warm-cache 400 for a full debugging session before
+  // realizing a stale .env.local placeholder was the culprit.
+  it("includes a redacted xAI error body fragment in GrokVoiceTtsError messages", async () => {
+    const xaiBody = JSON.stringify({
+      code: "Client specified an invalid argument",
+      error:
+        "Incorrect API key provided: te***2e. You can obtain an API key from https://console.x.ai.",
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(xaiBody, {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      })
+    );
+    const { synthesizeGrokVoiceTts, GrokVoiceTtsError } = await import(
+      "../../server/grokVoice/tts"
+    );
+    try {
+      await synthesizeGrokVoiceTts({ text: "hello", purpose: "greeting" });
+      throw new Error("expected GrokVoiceTtsError, got success");
+    } catch (error) {
+      expect(error).toBeInstanceOf(GrokVoiceTtsError);
+      const e = error as InstanceType<typeof GrokVoiceTtsError>;
+      expect(e.status).toBe(400);
+      expect(e.message).toContain("Incorrect API key provided");
+      // Server-emitted masked fragment (e.g. "te***2e") is safe to log —
+      // it's already redacted upstream. We do not over-redact it.
+      expect(e.bodyFragment).toContain("te***2e");
+    }
+  });
+
+  it("redacts Bearer/xai- credentials if they ever appear in an upstream error body", async () => {
+    const xaiBody =
+      "rate limited: forwarded request had authorization Bearer xai-superSecretLiveKeyShouldNotLog123456 and was throttled";
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(xaiBody, { status: 429 })
+    );
+    const { synthesizeGrokVoiceTts } = await import(
+      "../../server/grokVoice/tts"
+    );
+    try {
+      await synthesizeGrokVoiceTts({ text: "hello", purpose: "greeting" });
+      throw new Error("expected throw");
+    } catch (error) {
+      const message = (error as Error).message;
+      // Semantic: credential bytes must not appear in the error message.
+      // The exact replacement form (Bearer <redacted> vs xai-<redacted>)
+      // depends on which regex matches first when the body contains
+      // "Bearer xai-…" — we only care that the live key bytes are gone.
+      expect(message).toContain("status 429");
+      expect(message).not.toContain("xai-superSecretLiveKeyShouldNotLog123456");
+      expect(message).not.toContain("Bearer xai-superSecret");
+      expect(message).toMatch(/<redacted>/);
+    }
+  });
+
   it("varies cache keys by text, voice, sample rate, codec/language shape", async () => {
     const { buildGrokVoiceTtsCacheKey } = await import(
       "../../server/grokVoice/ttsCache"
