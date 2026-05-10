@@ -190,19 +190,49 @@ const STOCK_SUFFIX_PATTERNS = [
 // per the answerBudget prompt rule — NOT for a deterministic lock to grab
 // one of the topics and answer it. This guard prevents Phase 6 single-
 // intent locks from hijacking case7-style rapid-fire turns.
+//
+// Heuristic: a "と" character only counts as a list connector when both
+// sides look like noun phrases (≥2 consecutive kanji, or ≥2 consecutive
+// katakana). This excludes "と" appearing inside function words such as
+//   - quotative   〜という / 〜とは / 〜とか / 〜とも
+//   - aspect noun 〜ところ
+//   - adverb      ひととおり (一通り)
+// where the surrounding characters are hiragana, not noun-like.
+//
+// Without this guard, single-intent phrasings such as
+//   「業務内容をひととおり教えてください」(2 と's inside ひととおり)
+//   「どんなスキルというところが必要か教えてください」(と in という + ところ)
+//   「業務内容というところを教えてください」
+//   「スキル面をひととおり教えてください」
+// were misidentified as rapid-fire compounds and bypassed the deterministic
+// 業務内容 / broad-skill / 件数 locks, re-leaking the #74/#75/#78 drift.
+//
+// STT note: live xAI / Grok voice transcripts often insert punctuation or
+// whitespace between the connector と and the next noun phrase
+// ("業務内容と、人数と単価を教えて"), so the regex tolerates an arbitrary
+// run of separators (FW/HW comma・period・middle-dot・whitespace) between
+// と and the next noun. The lookahead still requires a noun-like run on
+// the right side, which keeps function-word と (followed by hiragana)
+// excluded.
+const CONNECTOR_SEPARATOR = String.raw`[\s、。，,.．・]*`;
+const NOUN_LINKER_TO = new RegExp(
+  String.raw`(?:[一-鿿]{2,}|[゠-ヿ]{2,})と${CONNECTOR_SEPARATOR}(?=[一-鿿]{2,}|[゠-ヿ]{2,})`,
+  "g"
+);
+
 function isRapidFireCompoundQuestion(text: string): boolean {
-  // Two or more "と" connectors plus a request verb is the canonical
-  // Japanese rapid-fire compound. Single "と" (e.g. "AとB" of two clauses)
-  // is normal and not flagged.
-  const toMatches = text.match(/と/g);
-  const linkerCount = toMatches ? toMatches.length : 0;
-  if (linkerCount >= 2 && /教えて|聞かせて|お願いします|伺いたい/.test(text)) {
+  // Explicit "全部教えて" / "まとめて教えて" / "一気に教えて" tail markers —
+  // unambiguous "everything at once" intent regardless of how many noun
+  // clusters the user actually listed.
+  if (/(全部|まとめて|一気に).*(教えて|聞かせ|お願い|伺)/.test(text)) {
     return true;
   }
-  // Explicit "全部教えて" / "まとめて教えて" / "一気に教えて" tail markers
-  // catch the cases where the user only used one "と" but explicitly asked
-  // for everything.
-  if (/(全部|まとめて|一気に).*(教えて|聞かせ|お願い|伺)/.test(text)) {
+  // Two or more noun-linker と connectors plus a request verb indicate a
+  // multi-cluster compound (case7-style "AとBとCと…教えて"). One linker
+  // alone (e.g. "業務内容と単価を教えて") is normal compound speech and
+  // falls through to the deterministic locks.
+  const linkerCount = (text.match(NOUN_LINKER_TO) ?? []).length;
+  if (linkerCount >= 2 && /教えて|聞かせて|お願いします|伺いたい/.test(text)) {
     return true;
   }
   return false;
