@@ -35,12 +35,18 @@
 // inside warm-tts-cache. This script never reads or prints secrets.
 
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const PROJECT = "adecco-mendan";
 const BACKEND = "adecco-roleplay";
 const LOCATION = "asia-east1";
 const APPHOSTING_BASE_URL =
   "https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app";
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const TSX_CLI_PATH = resolve(REPO_ROOT, "node_modules/tsx/dist/cli.mjs");
 
 type CliFlags = {
   skipDeploy: boolean;
@@ -177,12 +183,35 @@ function runFirebaseDeploy(): void {
 
 function runWarmTtsCache(): void {
   console.log("[deploy] running warm-tts-cache");
+  // Invoke the workspace-installed tsx CLI directly via `node <cli.mjs>`
+  // instead of going through a PATH-resolved binary. This is the most
+  // hermetic option:
+  //   - No `pnpm` PATH dependency (corepack-shimmed pnpm on Windows is
+  //     not on PATH; this previously broke the wrapper).
+  //   - No `npx --no-install` (Codex P2 flagged that npm 11 does not
+  //     document --no-install and may still attempt registry resolution
+  //     when the binary isn't locally available, causing surprise
+  //     deploy failures on locked-down networks/CI).
+  //   - Resolves the exact tsx version pinned by the workspace lockfile
+  //     because the path is computed from this script's own directory.
+  if (!existsSync(TSX_CLI_PATH)) {
+    throw new Error(
+      `tsx CLI not found at ${TSX_CLI_PATH}. Run \`pnpm install\` at the repo root before invoking the deploy wrapper.`
+    );
+  }
+  const warmScriptPath = resolve(
+    REPO_ROOT,
+    "scripts/grok-voice-warm-tts-cache.ts"
+  );
   const r = spawnSync(
-    "pnpm",
-    ["exec", "tsx", "scripts/grok-voice-warm-tts-cache.ts"],
+    process.execPath,
+    [TSX_CLI_PATH, warmScriptPath],
     {
       stdio: "inherit",
-      shell: process.platform === "win32",
+      // No shell — `process.execPath` is the absolute path to the
+      // currently-running node, so we avoid shell-escaping surprises
+      // entirely.
+      shell: false,
     }
   );
   if (r.status !== 0) {
