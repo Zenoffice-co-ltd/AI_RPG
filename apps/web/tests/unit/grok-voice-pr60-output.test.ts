@@ -251,6 +251,23 @@ describe("grok voice PR60 output locks", () => {
       });
     });
 
+    describe("rapid-fire guard tolerates STT-inserted punctuation between と and the next noun", () => {
+      // Codex P1 follow-up on PR #81: live xAI / STT transcripts often
+      // insert FW comma・FW period・whitespace between the connector と
+      // and the next noun ("業務内容と、人数と単価を教えて"). The
+      // noun-linker regex must still count those connectors, otherwise the
+      // multi-intent compound silently falls into a single-intent lock.
+      it.each([
+        "業務内容と、人数と単価を教えてください。",
+        "業務内容と 人数と単価を教えてください。",
+        "業務内容と。人数と単価を教えてください。",
+        "業務内容と、人数と、単価を教えてください。",
+        "開始時期と、件数と、繁忙時期をまとめて教えてください。",
+      ])("bypasses rapid-fire even when STT inserts punctuation: %s", (input) => {
+        expect(getPr60LockedResponseForUser(input)).toBeNull();
+      });
+    });
+
     it("ordering: specific skill follow-ups precede broad skill in the table", () => {
       // Sentinel: a phrase that contains BOTH the broad pattern token and
       // the specific follow-up token. The matcher must return the SPECIFIC

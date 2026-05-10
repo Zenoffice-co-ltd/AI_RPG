@@ -206,8 +206,19 @@ const STOCK_SUFFIX_PATTERNS = [
 //   「スキル面をひととおり教えてください」
 // were misidentified as rapid-fire compounds and bypassed the deterministic
 // 業務内容 / broad-skill / 件数 locks, re-leaking the #74/#75/#78 drift.
-const NOUN_LINKER_TO =
-  /(?:[一-鿿]{2,}|[゠-ヿ]{2,})と(?=[一-鿿]{2,}|[゠-ヿ]{2,})/g;
+//
+// STT note: live xAI / Grok voice transcripts often insert punctuation or
+// whitespace between the connector と and the next noun phrase
+// ("業務内容と、人数と単価を教えて"), so the regex tolerates an arbitrary
+// run of separators (FW/HW comma・period・middle-dot・whitespace) between
+// と and the next noun. The lookahead still requires a noun-like run on
+// the right side, which keeps function-word と (followed by hiragana)
+// excluded.
+const CONNECTOR_SEPARATOR = String.raw`[\s、。，,.．・]*`;
+const NOUN_LINKER_TO = new RegExp(
+  String.raw`(?:[一-鿿]{2,}|[゠-ヿ]{2,})と${CONNECTOR_SEPARATOR}(?=[一-鿿]{2,}|[゠-ヿ]{2,})`,
+  "g"
+);
 
 function isRapidFireCompoundQuestion(text: string): boolean {
   // Explicit "全部教えて" / "まとめて教えて" / "一気に教えて" tail markers —
