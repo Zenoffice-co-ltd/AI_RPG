@@ -1,3 +1,12 @@
+// Order matters: more specific intents must precede broader ones because
+// `getPr60LockedResponseForUser` returns the FIRST match.
+//
+// In particular, every "specific skill follow-up" entry (協調性 / 正確性 /
+// メーカー経験 / 必須) MUST appear BEFORE the broad-initial-skill lock so
+// follow-up questions like 「メーカー経験はありますか」 don't get swallowed
+// by the broad-skill canonical answer. Specific follow-ups either route to
+// their own deterministic lock OR fall through to the realtime model where
+// the Skill Disclosure Budget prompt rule handles them.
 const PR60_LOCKED_RESPONSES: Array<{
   userPatterns: RegExp[];
   response: string;
@@ -11,18 +20,49 @@ const PR60_LOCKED_RESPONSES: Array<{
     userPatterns: [/今回の内容/, /簡単.*内容/, /概要/, /案件概要/],
     response: "営業事務一名の相談です。まずは要件を整理したいと考えています。",
   },
+
+  // -------- 業務内容 lock (#78) --------
+  // Single-sentence canonical so the model can't add a 3rd declarative
+  // explanation. New patterns: 業務内容 / どんな業務 / 仕事内容 / 何をする /
+  // 営業事務.*内容 / 業務.*教えて. Existing patterns
+  // (どういう業務|業務.*具体|具体的.*業務) are kept.
   {
-    userPatterns: [/どういう業務/, /業務.*具体/, /具体的.*業務/],
+    userPatterns: [
+      /どういう業務/,
+      /どんな業務/,
+      /業務.*具体/,
+      /具体的.*業務/,
+      /業務内容/,
+      /仕事内容/,
+      /何をする/,
+      /営業事務.*内容/,
+      /業務.*教えて/,
+    ],
     response: "じゅはっちゅうや納期調整まわりの営業事務です。",
   },
+
   {
     userPatterns: [/時期的にはいつ/, /開始時期/, /いつから/, /就業開始/],
     response: "開始は六月ついたちを希望しています。",
   },
+
+  // -------- 件数 lock (#74) --------
+  // Single-sentence canonical so the model can't add a 2nd "繁忙時期は…"
+  // continuation. New patterns: ボリューム / どれくらい処理 / どの程度の量.
   {
-    userPatterns: [/受注件数/, /月にどのくらい/, /月何件/, /件数/, /処理量/],
+    userPatterns: [
+      /受注件数/,
+      /月にどのくらい/,
+      /月何件/,
+      /件数/,
+      /処理量/,
+      /ボリューム/,
+      /どれくらい処理/,
+      /どの程度の量/,
+    ],
     response: "つきあたり、ろっぴゃく件から、ななひゃっけん程度です。",
   },
+
   {
     userPatterns: [/繁忙時期/, /忙しい時期/, /ピーク/, /繁忙.*いつ/],
     response:
@@ -42,26 +82,53 @@ const PR60_LOCKED_RESPONSES: Array<{
     ],
     response: "はい。",
   },
+
+  // -------- Specific skill follow-up (BEFORE broad skill lock) --------
+  // Per Phase 6 directive: specific follow-ups (正確性 / メーカー経験 / 必須)
+  // are intentionally NOT added as deterministic locks. The realtime model
+  // handles them via the Skill Disclosure Budget prompt rule. The only
+  // specific follow-up with a deterministic answer is 協調性 (already
+  // canonicalized below). Adding new specific locks risked cross-
+  // contamination with case5's CP-handoff summary turn — the summary
+  // mentions 「メーカー経験必須ではなく」 which was hijacking the
+  // メーカー経験 follow-up canonical.
+  {
+    userPatterns: [/協調性.*具体/, /協調性.*聞/, /協調性.*もう少し/],
+    response:
+      "営業や物流と確認しながら進める場面が多いので、抱え込まずに連携できる方が合います。",
+  },
+
+  // -------- broad initial skill lock (#75) --------
+  // Single-sentence canonical that routes the broad "what skills" question
+  // away from the realtime model's 2nd-sentence (正確性/協調性) leak path.
+  // Patterns intentionally exclude:
+  //   - 経験.*必要 / 経験.*ありますか — collide with メーカー経験 follow-up
+  //   - スキル.*ありますか — same family
+  //   - 候補者.*経験 — collides with hypothetical phrasings like case11
+  //     「候補者が少ない場合、…経験があれば」 which is NOT a broad-skill
+  //     question.
+  // Stick to phrasings that are unambiguously asking "what skills/experience
+  // is needed" — paraphrases of the prototypical question.
   {
     userPatterns: [
       /候補者のスキル/,
       /どういうスキル/,
       /どういう経験/,
       /どんなスキル/,
+      /どんな経験/,
       /スキル.*望ましい/,
+      /スキル.*必要/,
+      /スキル面/,
+      /経験面/,
     ],
     response:
       "じゅはっちゅう経験と対外調整の経験がある方を優先的に見ています。",
   },
+
   {
     userPatterns: [/人柄/, /合う.*人/, /人物面/, /性格/],
     response:
       "周囲と合わせて進められるタイプが合いやすく、自分のやり方にこだわりすぎる方は合いにくいです。",
-  },
-  {
-    userPatterns: [/協調性.*具体/, /協調性.*聞/, /協調性.*もう少し/],
-    response:
-      "営業や物流と確認しながら進める場面が多いので、抱え込まずに連携できる方が合います。",
   },
   {
     userPatterns: [/単価/, /請求/, /時給/],
@@ -117,9 +184,36 @@ const STOCK_SUFFIX_PATTERNS = [
   /また改めて/,
 ];
 
+// A rapid-fire compound question contains multiple distinct intents in one
+// utterance ("AとBとCと…全部教えて"). The expected behavior in those cases
+// is for the realtime model to push back ("一つずつ" / "まず業務内容から")
+// per the answerBudget prompt rule — NOT for a deterministic lock to grab
+// one of the topics and answer it. This guard prevents Phase 6 single-
+// intent locks from hijacking case7-style rapid-fire turns.
+function isRapidFireCompoundQuestion(text: string): boolean {
+  // Two or more "と" connectors plus a request verb is the canonical
+  // Japanese rapid-fire compound. Single "と" (e.g. "AとB" of two clauses)
+  // is normal and not flagged.
+  const toMatches = text.match(/と/g);
+  const linkerCount = toMatches ? toMatches.length : 0;
+  if (linkerCount >= 2 && /教えて|聞かせて|お願いします|伺いたい/.test(text)) {
+    return true;
+  }
+  // Explicit "全部教えて" / "まとめて教えて" / "一気に教えて" tail markers
+  // catch the cases where the user only used one "と" but explicitly asked
+  // for everything.
+  if (/(全部|まとめて|一気に).*(教えて|聞かせ|お願い|伺)/.test(text)) {
+    return true;
+  }
+  return false;
+}
+
 export function getPr60LockedResponseForUser(userText: string): string | null {
   const normalized = userText.trim();
   if (normalized.length === 0) return null;
+  // Phase 6: rapid-fire compound questions bypass single-intent locks. Let
+  // the realtime model handle them per the answerBudget prompt rule.
+  if (isRapidFireCompoundQuestion(normalized)) return null;
   const hit = PR60_LOCKED_RESPONSES.find((entry) =>
     entry.userPatterns.some((pattern) => pattern.test(normalized))
   );

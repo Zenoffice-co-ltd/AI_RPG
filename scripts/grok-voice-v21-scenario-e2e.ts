@@ -40,7 +40,10 @@ import {
   GROK_VOICE_RUNTIME_GUARDRAIL,
   buildGrokVoiceSystemPrompt,
 } from "../apps/web/server/grokVoice/promptBuilder";
-import { normalizePr60AssistantText } from "../apps/web/lib/roleplay/grok-voice-pr60-output";
+import {
+  getPr60LockedResponseForUser,
+  normalizePr60AssistantText,
+} from "../apps/web/lib/roleplay/grok-voice-pr60-output";
 import type { GrokVoiceScenarioBundle } from "../apps/web/server/grokVoice/scenarioLoader";
 import { createHash } from "node:crypto";
 import {
@@ -190,6 +193,55 @@ async function runOneRound(
     const sendNextUser = () => {
       if (turnIdx >= caseDef.turns.length) return;
       const turn = caseDef.turns[turnIdx]!;
+      // Phase 6: deterministic-lock routing. The production system runs the
+      // user's text through getPr60LockedResponseForUser() BEFORE dispatching
+      // to xAI realtime — locked intents bypass the realtime model entirely
+      // and play deterministic TTS. Mirror that here so the live E2E tests
+      // the production flow, not raw model behavior. If a turn is locked, we
+      // synthesize the canonical response into the transcript and seed the
+      // realtime conversation with a user-history+assistant-history pair so
+      // subsequent turns see the same context the production client would.
+      const lockedResponse = getPr60LockedResponseForUser(turn.text);
+      if (lockedResponse) {
+        if (turnIdx < transcripts.length) {
+          // Voice-friendly cases (case25/26/27/35/36/37) check the kana
+          // canonical form directly. Apply only normalizePr60AssistantText
+          // (broad stock-suffix scrub + business-term voice canonicalize),
+          // NOT the display-form back-conversion. Pass conditions for
+          // digit-form-expecting cases (case23/30) accept kana too.
+          transcripts[turnIdx]!.assistant = normalizePr60AssistantText(
+            turn.text,
+            lockedResponse
+          );
+        }
+        ws.send(
+          JSON.stringify({
+            type: "conversation.item.create",
+            item: {
+              type: "message",
+              role: "user",
+              content: [{ type: "input_text", text: turn.text }],
+            },
+          })
+        );
+        ws.send(
+          JSON.stringify({
+            type: "conversation.item.create",
+            item: {
+              type: "message",
+              role: "assistant",
+              content: [{ type: "output_text", text: lockedResponse }],
+            },
+          })
+        );
+        turnIdx += 1;
+        if (turnIdx >= caseDef.turns.length) {
+          finish("locked.last");
+        } else {
+          sendNextUser();
+        }
+        return;
+      }
       ws.send(
         JSON.stringify({
           type: "conversation.item.create",
@@ -250,6 +302,10 @@ async function runOneRound(
       } else if (t === "response.done") {
         if (turnIdx < transcripts.length) {
           const current = transcripts[turnIdx]!;
+          // Apply normalizePr60AssistantText only (broad stock-suffix scrub
+          // + business-term voice canonicalize). NOT the display-form back-
+          // conversion: voice-friendly E2E cases (case25/26/27/35/36/37)
+          // assert against the kana canonical form directly.
           current.assistant = normalizePr60AssistantText(
             current.user,
             current.assistant
@@ -478,8 +534,26 @@ async function main(): Promise<void> {
     const rounds: RunOutcome[] = [];
     for (let i = 1; i <= target; i += 1) {
       process.stdout.write(`  [${c.id}] round ${i}/${target} ... `);
-      const outcome = await runOneRound(c, i, instructions);
+      let outcome = await runOneRound(c, i, instructions);
       evaluateOutcome(c, outcome);
+      // Phase 6: transient-error retry. Pure infrastructure noise (ws
+      // disconnect, empty response on a closed socket) is NOT a model
+      // behavior failure. Retry the round ONCE — if it passes on retry,
+      // record the retry outcome. If it fails again, the original failure
+      // stands and gets counted normally.
+      const isTransient =
+        !outcome.pass &&
+        (outcome.errorCode === "WS_ERROR" ||
+          outcome.errorCode === "EMPTY_RESPONSE");
+      if (isTransient) {
+        process.stdout.write("transient — retrying ... ");
+        await sleep(2_500);
+        const retry = await runOneRound(c, i, instructions);
+        evaluateOutcome(c, retry);
+        if (retry.pass) {
+          outcome = retry;
+        }
+      }
       rounds.push(outcome);
       // Throttle: 2.5s between successful rounds. If we hit a 429, back off
       // for 30s before continuing — gives the per-minute window time to
