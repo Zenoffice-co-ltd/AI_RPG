@@ -18,4 +18,9 @@ data/generated/tts-response-latency-benchmark/
 data/generated/llm-model-latency/
 data/generated/quality-latency-benchmark/
 data/generated/chat-orb-sessions/
-.claude/
+# Ignore Claude Code local state (worktrees, scheduled task locks, etc.).
+# Carve out .claude/rules/ so the cross-tool rules surface (mirrors
+# AGENTS.md SoT) is committed alongside .codex/rules/ and .cursor/rules/.
+.claude/*
+!.claude/rules/
+!.claude/rules/**
