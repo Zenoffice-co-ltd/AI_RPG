@@ -364,6 +364,144 @@ describe("grok-voice event route", () => {
     );
     expect(response.status).toBe(503);
   });
+
+  // PR A — voice latency observability roadmap, Phase 0.
+  // The directive (latency-first roadmap §4 Phase 0) requires that every
+  // turn carry routePath, firstAudibleAudioMs, lock-path attribution, and
+  // server-measured cacheLookupMs into the typed `grokVoice.turnMetrics`
+  // scope so we can group by lane in Cloud Logging without joining
+  // against clientEvent details. These tests pin that contract.
+  it("forwards latency observability fields to grokVoice.turnMetrics (PR A)", async () => {
+    vi.stubEnv("K_REVISION", "adecco-roleplay-build-2026-05-10-test");
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 1,
+            inputMode: "voice",
+            userTextLen: 12,
+            agentTextLen: 33,
+            firstAudioMs: 2658,
+            firstAudibleAudioMs: 4261,
+            firstRealtimeAudioDeltaMs: 2658,
+            doneMs: 11303,
+            audioBytes: 337920,
+            error: null,
+            routePath: "rt_voice",
+            localLockedAudioHit: false,
+            sanitizerDelayMs: 1603,
+            outcome: "clean",
+            sessionTainted: false,
+            promptVersion: "compile-scenario@2026-05-07.v3.10.x",
+            promptHash: "750d10ade35a",
+            guardrailVersion: "gv-think-fast-v5.0-2026-05-10",
+            grokVoiceModel: "grok-voice-think-fast-1.0",
+            grokVoiceVoiceId: "rex",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    expect(metricsLine!["routePath"]).toBe("rt_voice");
+    expect(metricsLine!["firstAudibleAudioMs"]).toBe(4261);
+    expect(metricsLine!["firstRealtimeAudioDeltaMs"]).toBe(2658);
+    expect(metricsLine!["sanitizerDelayMs"]).toBe(1603);
+    expect(metricsLine!["localLockedAudioHit"]).toBe(false);
+    expect(metricsLine!["outcome"]).toBe("clean");
+    expect(metricsLine!["sessionTainted"]).toBe(false);
+    expect(metricsLine!["cloudRunRevision"]).toBe(
+      "adecco-roleplay-build-2026-05-10-test"
+    );
+  });
+
+  it("forwards lock-path TTS observability fields to grokVoice.turnMetrics (PR A)", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 3,
+            inputMode: "voice",
+            userTextLen: 7,
+            agentTextLen: 18,
+            firstAudioMs: 5302,
+            firstAudibleAudioMs: 5302,
+            doneMs: 10432,
+            audioBytes: 246240,
+            error: null,
+            routePath: "lock_voice_network_tts",
+            localLockedAudioHit: false,
+            lockedResponseKey: "請求想定は経験により、千七百五十円から、千九百円程度です。",
+            cacheStatus: "hit",
+            cacheLookupMs: 47,
+            ttsVendorMsAtCreation: 1867,
+            networkTtsMs: 1023,
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    expect(metricsLine!["routePath"]).toBe("lock_voice_network_tts");
+    expect(metricsLine!["cacheStatus"]).toBe("hit");
+    expect(metricsLine!["cacheLookupMs"]).toBe(47);
+    expect(metricsLine!["ttsVendorMsAtCreation"]).toBe(1867);
+    expect(metricsLine!["networkTtsMs"]).toBe(1023);
+    expect(metricsLine!["lockedResponseKey"]).toBe(
+      "請求想定は経験により、千七百五十円から、千九百円程度です。"
+    );
+    expect(metricsLine!["localLockedAudioHit"]).toBe(false);
+  });
+
+  it("rejects an invalid routePath value rather than passing garbage through", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 1,
+            inputMode: "voice",
+            firstAudioMs: 100,
+            doneMs: 200,
+            audioBytes: 1024,
+            routePath: "definitely_not_a_real_route",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    expect(metricsLine!["routePath"]).toBeUndefined();
+  });
 });
 
 function validRequest({

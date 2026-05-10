@@ -171,6 +171,19 @@ export function POST(request: NextRequest) {
             const agentSpokenTextPreviewUtf8Base64 = stringOrUndefined(
               trimmedDetails["agentSpokenTextPreviewUtf8Base64"]
             );
+            // Cloud Run revision identifier from the App Hosting runtime
+            // (`K_REVISION` is the standard Cloud Run env var). Tagging
+            // every turn with the revision lets dashboards group latency
+            // by deploy without joining against rollouts API.
+            const cloudRunRevision = process.env["K_REVISION"];
+            // Forward the new latency-observability fields when the
+            // client sent them. Untyped client builds without these fields
+            // continue to work — the destructured `details` shape stays
+            // backwards compatible.
+            const routePathRaw = stringOrUndefined(trimmedDetails["routePath"]);
+            const cacheStatusRaw = stringOrUndefined(
+              trimmedDetails["cacheStatus"]
+            );
             logGrokVoiceTurnMetrics({
               sessionId,
               turnIndex: numberOr(trimmedDetails["turnIndex"], 0),
@@ -196,6 +209,68 @@ export function POST(request: NextRequest) {
               ...(agentSpokenTextPreviewUtf8Base64
                 ? { agentSpokenTextPreviewUtf8Base64 }
                 : {}),
+              // exactOptionalPropertyTypes is on, so each new optional
+              // field must spread-when-defined rather than always include.
+              ...(routePathRaw && isRoutePath(routePathRaw)
+                ? { routePath: routePathRaw }
+                : {}),
+              ...whenDefined(
+                "firstAudibleAudioMs",
+                numberOrNull(trimmedDetails["firstAudibleAudioMs"])
+              ),
+              ...whenDefined(
+                "firstRealtimeAudioDeltaMs",
+                numberOrNull(trimmedDetails["firstRealtimeAudioDeltaMs"])
+              ),
+              ...whenDefined("sttFinalMs", numberOrNull(trimmedDetails["sttFinalMs"])),
+              ...whenDefined(
+                "lockDecisionMs",
+                numberOrNull(trimmedDetails["lockDecisionMs"])
+              ),
+              ...(typeof trimmedDetails["localLockedAudioHit"] === "boolean"
+                ? { localLockedAudioHit: trimmedDetails["localLockedAudioHit"] }
+                : {}),
+              ...whenDefined(
+                "lockedResponseKey",
+                stringOrNull(trimmedDetails["lockedResponseKey"])
+              ),
+              ...(cacheStatusRaw === "hit" || cacheStatusRaw === "miss"
+                ? { cacheStatus: cacheStatusRaw }
+                : {}),
+              ...whenDefined(
+                "cacheLookupMs",
+                numberOrNull(trimmedDetails["cacheLookupMs"])
+              ),
+              ...whenDefined(
+                "ttsVendorMsAtCreation",
+                numberOrNull(trimmedDetails["ttsVendorMsAtCreation"])
+              ),
+              ...whenDefined(
+                "networkTtsMs",
+                numberOrNull(trimmedDetails["networkTtsMs"])
+              ),
+              ...whenDefined(
+                "audioDecodeMs",
+                numberOrNull(trimmedDetails["audioDecodeMs"])
+              ),
+              ...whenDefined(
+                "sanitizerDelayMs",
+                numberOrNull(trimmedDetails["sanitizerDelayMs"])
+              ),
+              ...whenDefined(
+                "sanitizedTtsMs",
+                numberOrNull(trimmedDetails["sanitizedTtsMs"])
+              ),
+              ...whenDefined("reseedMs", numberOrNull(trimmedDetails["reseedMs"])),
+              ...whenDefined("outcome", stringOrNull(trimmedDetails["outcome"])),
+              ...(typeof trimmedDetails["sessionTainted"] === "boolean"
+                ? { sessionTainted: trimmedDetails["sessionTainted"] }
+                : {}),
+              ...whenDefined(
+                "parentSessionId",
+                stringOrNull(trimmedDetails["parentSessionId"])
+              ),
+              ...(cloudRunRevision ? { cloudRunRevision } : {}),
               provenance: {
                 promptVersion: stringOr(
                   trimmedDetails["promptVersion"],
@@ -261,6 +336,37 @@ function stringOrNull(value: unknown): string | null {
 }
 function stringOrUndefined(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
+}
+
+const ROUTE_PATHS = new Set([
+  "lock_text",
+  "lock_voice_local_audio",
+  "lock_voice_network_tts",
+  "rt_text",
+  "rt_voice",
+  "unknown",
+]);
+function isRoutePath(
+  value: string
+): value is
+  | "lock_text"
+  | "lock_voice_local_audio"
+  | "lock_voice_network_tts"
+  | "rt_text"
+  | "rt_voice"
+  | "unknown" {
+  return ROUTE_PATHS.has(value);
+}
+
+// Helper for `exactOptionalPropertyTypes: true`. Returns either an empty
+// object or `{ [key]: value }` so a field that is `null` is forwarded as
+// null, but `undefined` (not present in the input) is omitted entirely.
+function whenDefined<K extends string, V>(
+  key: K,
+  value: V | undefined
+): { [P in K]: V } | Record<string, never> {
+  if (value === undefined) return {};
+  return { [key]: value } as { [P in K]: V };
 }
 
 const TRANSCRIPT_PREVIEW_KEYS = new Set([

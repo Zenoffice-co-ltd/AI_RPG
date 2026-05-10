@@ -63,6 +63,13 @@ export async function POST(request: NextRequest) {
 
   try {
     const env = getGrokVoiceServerEnv();
+    // Measure cache lookup wall-clock so the client can attribute the
+    // server-side share of locked-response-tts latency. On a hit this is
+    // typically <50ms (in-memory) or <250ms (Firestore-bounded). On a
+    // miss it includes the full xAI synth + Firestore write. The legacy
+    // `vendorMs` field on a hit is the synth time stamped at cache
+    // creation, NOT this lookup — see metrics.ts comment for context.
+    const cacheLookupStartedAt = Date.now();
     const cached = await getCachedGrokVoiceTts({
       text,
       voiceId: env.GROK_VOICE_VOICE_ID,
@@ -82,6 +89,8 @@ export async function POST(request: NextRequest) {
         vendorMs: cached.vendorMs ?? undefined,
         cacheStatus: "hit",
         cacheKeyHash: cached.cacheKeyHash,
+        cacheLookupMs: Date.now() - cacheLookupStartedAt,
+        ttsVendorMsAtCreation: cached.vendorMs ?? null,
       });
     }
 
@@ -104,6 +113,8 @@ export async function POST(request: NextRequest) {
       voiceId: result.voiceId,
       vendorMs: result.vendorMs,
       cacheStatus: "miss",
+      cacheLookupMs: Date.now() - cacheLookupStartedAt,
+      ttsVendorMsAtCreation: null,
     });
   } catch (error) {
     console.error("grokVoice locked response tts failed", sanitizeServerError(error));
