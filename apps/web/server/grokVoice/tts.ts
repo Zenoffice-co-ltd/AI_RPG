@@ -7,7 +7,13 @@ export const GROK_VOICE_TTS_OPTIMIZE_STREAMING_LATENCY = 1;
 export const GROK_VOICE_TTS_REQUEST_SHAPE_VERSION =
   "xai-tts-rest-v2026-05-06-pcm24k-optlat1";
 
-export type GrokVoiceTtsPurpose = "greeting" | "locked_response";
+export type GrokVoiceTtsPurpose =
+  | "greeting"
+  | "locked_response"
+  // sanitized_response is unbounded-cardinality free-form Grok output that has
+  // had stock suffixes stripped. It MUST NOT use the shared TTS cache —
+  // see assertCacheableGrokVoiceTtsPurpose() in ttsCache.ts.
+  | "sanitized_response";
 
 export type GrokVoiceTtsResult = {
   audio: Buffer;

@@ -14,6 +14,7 @@ import {
 import {
   fetchGrokVoiceGreeting,
   fetchGrokVoiceLockedResponseTts,
+  fetchGrokVoiceSanitizedResponseTts,
   fetchGrokVoiceSession,
   postGrokVoiceEvent,
 } from "./grok-voice-client";
@@ -25,6 +26,7 @@ import {
   getPr60LockedResponseForUser,
   normalizeGrokVoiceDisplayText,
   normalizePr60AssistantText,
+  sanitizeGrokVoiceSpokenText,
   shouldStopAtPr60LockedResponse,
 } from "./grok-voice-pr60-output";
 import { GrokVoiceMicRecorder } from "./grok-voice-mic-recorder";
@@ -57,7 +59,9 @@ export type GrokVoiceConversation = UseRoleplayConversationReturn & {
 };
 
 export type UseGrokVoiceConversationDeps = {
-  fetchSession?: () => Promise<GrokVoiceSession>;
+  fetchSession?: (input?: {
+    reseedFromSessionId?: string;
+  }) => Promise<GrokVoiceSession>;
   fetchGreeting?: (input: {
     sessionId: string;
     text: string;
@@ -66,6 +70,10 @@ export type UseGrokVoiceConversationDeps = {
     sessionId: string;
     userText: string;
   }) => Promise<import("./grok-voice-types").GrokVoiceLockedResponseTts>;
+  fetchSanitizedResponseTts?: (input: {
+    sessionId: string;
+    text: string;
+  }) => Promise<import("./grok-voice-types").GrokVoiceSanitizedResponseTts>;
   audioQueueOptions?: GrokVoiceAudioQueueOptions;
   createAudioQueue?: (options: GrokVoiceAudioQueueOptions) => GrokVoiceAudioQueue;
   createRealtime?: (
@@ -142,6 +150,48 @@ export function useGrokVoiceConversation(
   const turnUserTextLenRef = useRef(0);
   const turnUserTextPreviewRef = useRef("");
 
+  // Strict sanitized playback bookkeeping.
+  // pendingRealtimeAudioChunksRef holds raw base64 chunks from
+  // response.output_audio.delta until response.done lets us decide whether to
+  // play, drop, or replace them. firstRealtimeAudioDeltaAtRef captures when
+  // the first chunk arrived from the model; firstAudibleAudioAtRef captures
+  // when audio actually started playing (which can be later — sanitized-TTS
+  // round trip — or never, if suppressed).
+  const pendingRealtimeAudioChunksRef = useRef<string[]>([]);
+  const pendingRealtimeAudioBytesRef = useRef(0);
+  const finalizingResponseRef = useRef(false);
+  const sanitizedTurnInFlightRef = useRef(false);
+  const firstRealtimeAudioDeltaAtRef = useRef<number | null>(null);
+  const firstAudibleAudioAtRef = useRef<number | null>(null);
+  const sanitizerDecidedAtRef = useRef<number | null>(null);
+  const sanitizedTtsMsRef = useRef<number | null>(null);
+
+  // Reseed plumbing.
+  // spokenHistoryRef holds the canonical (un-display-normalized) text per turn
+  // — replayed verbatim into a fresh xAI session after reseed so Grok stays in
+  // character. The first entry is the greeting (firstMessage); we mark it so
+  // reseed doesn't double-prime it.
+  type SpokenHistoryEntry = {
+    role: "user" | "agent";
+    text: string;
+    isFirstMessage?: boolean;
+  };
+  const spokenHistoryRef = useRef<SpokenHistoryEntry[]>([]);
+  // sessionTaintedRef = "the prior assistant turn contained a stock suffix
+  // and we either failed to reseed, refused to reseed (sanitized_to_empty /
+  // unverified_audio_suppressed), or the sanitized-TTS call failed. Either
+  // way the old realtime session memory still carries the raw suffix turn,
+  // so the next user-turn entry MUST retry reseed before sending."
+  const sessionTaintedRef = useRef(false);
+  // Synchronous "drop mic chunks NOW" flag. Set the same instant we close
+  // the tainted socket so any frame already in flight from the recorder is
+  // discarded at onChunk before it can become an appendAudio call.
+  const dropMicChunksWhileTaintedRef = useRef(false);
+  // Guards re-entrant reseed retries from concurrent voice/text entries.
+  const reseedRetryInFlightRef = useRef(false);
+  const reseedMsRef = useRef<number | null>(null);
+  const parentSessionIdForTurnRef = useRef<string | null>(null);
+
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
@@ -150,6 +200,8 @@ export function useGrokVoiceConversation(
   const fetchGreeting = deps.fetchGreeting ?? fetchGrokVoiceGreeting;
   const fetchLockedResponseTts =
     deps.fetchLockedResponseTts ?? fetchGrokVoiceLockedResponseTts;
+  const fetchSanitizedResponseTts =
+    deps.fetchSanitizedResponseTts ?? fetchGrokVoiceSanitizedResponseTts;
   const audioQueueOptions = deps.audioQueueOptions;
   const createAudioQueue = deps.createAudioQueue;
   const createRealtime = deps.createRealtime;
@@ -263,7 +315,554 @@ export function useGrokVoiceConversation(
     lockedTurnTtsPlayingRef.current = false;
     lockedTurnMicTailIgnoreUntilRef.current = 0;
     pendingCancelOnResponseCreatedRef.current = false;
+    pendingRealtimeAudioChunksRef.current = [];
+    pendingRealtimeAudioBytesRef.current = 0;
+    sanitizedTurnInFlightRef.current = false;
+    firstRealtimeAudioDeltaAtRef.current = null;
+    firstAudibleAudioAtRef.current = null;
+    sanitizerDecidedAtRef.current = null;
+    sanitizedTtsMsRef.current = null;
+    reseedMsRef.current = null;
+    parentSessionIdForTurnRef.current = null;
   }, []);
+
+  // Indirection ref so the reseed flow can construct a new realtime that
+  // dispatches into the SAME handleServerEvent without a circular useCallback
+  // dependency. handleServerEvent itself depends on finalizeStrictResponseDone
+  // which depends on reseed; the ref breaks that cycle.
+  const handleServerEventRef = useRef<
+    ((event: GrokVoiceServerEvent) => void) | null
+  >(null);
+
+  // P1A: mark the current realtime session as tainted (prior assistant turn
+  // is contaminated with raw suffix or unverifiable audio). Closes the socket
+  // immediately so no later code path can accidentally appendAudio /
+  // sendUserText into a poisoned context. The next user-turn entry will
+  // bootstrap a fresh session via reseed.
+  const markSessionTainted = useCallback(
+    (
+      reason:
+        | "sanitized_tts_failed"
+        | "sanitized_to_empty"
+        | "unverified_audio_suppressed"
+        | "reseed_failed_after_play",
+      parentSessionId: string
+    ) => {
+      sessionTaintedRef.current = true;
+      parentSessionIdForTurnRef.current = parentSessionId;
+      dropMicChunksWhileTaintedRef.current = true;
+      micRecorderRef.current?.setEnabled(false);
+      try {
+        realtimeRef.current?.close();
+      } catch {
+        // best effort; we are already in an error path
+      }
+      realtimeRef.current = null;
+      realtimeReadyRef.current = false;
+      void postGrokVoiceEvent("realtime.session_tainted", {
+        sessionId: parentSessionId,
+        details: { reason, parentSessionId },
+      });
+    },
+    []
+  );
+
+  // Strict sanitized playback reseed. Closes the tainted socket, requests a
+  // fresh session marked as a reseed (relaxed rate-limit bucket), opens a new
+  // socket, re-primes the assistant history with the original firstMessage,
+  // then replays sanitized SPOKEN history (NOT display-normalized text).
+  // Returns ok=false on any failure so the caller can mark sessionTainted
+  // and retry on the next user-turn entry — never silently fall back to a
+  // tainted socket.
+  const reseedRealtimeWithSanitizedHistory = useCallback(
+    async (): Promise<{ ok: boolean; reseedMs: number }> => {
+      const startedAt = Date.now();
+      const oldRealtime = realtimeRef.current;
+      const oldSession = sessionRef.current;
+      if (!oldSession) {
+        return { ok: false, reseedMs: 0 };
+      }
+      // The retry path can be hit when the previous reseed already closed
+      // the old socket — in that case oldRealtime is null and we skip the
+      // close step but still drive a fresh session bootstrap.
+      const parentSessionId = oldSession.sessionId;
+      void postGrokVoiceEvent("realtime.reseed.started", {
+        sessionId: parentSessionId,
+        details: { parentSessionId },
+      });
+      try {
+        if (oldRealtime) {
+          oldRealtime.close();
+        }
+        realtimeRef.current = null;
+        realtimeReadyRef.current = false;
+
+        const next = await fetchSession({
+          reseedFromSessionId: parentSessionId,
+        });
+        sessionRef.current = next;
+        setSession(next);
+
+        // Open the new realtime socket. Reuse handleServerEvent via the ref
+        // indirection so the new socket flows into the same per-turn logic.
+        const realtimeOptions: ConstructorParameters<
+          typeof GrokVoiceRealtime
+        >[0] = {
+          url: next.wsUrl,
+          ephemeralToken: next.ephemeralToken,
+          onMessage: (e) => handleServerEventRef.current?.(e),
+          onOpen: () => {
+            void postGrokVoiceEvent("ws.connected", {
+              sessionId: next.sessionId,
+              details: { reseed: true, parentSessionId },
+            });
+            realtimeRef.current?.sendSessionUpdate({
+              voice: next.grokVoiceVoiceId,
+              instructions: next.instructions,
+              audio: next.audio,
+              turn_detection: next.turnDetection,
+            });
+            realtimeRef.current?.sendAssistantHistory(next.firstMessage);
+          },
+          onReady: () => {
+            realtimeReadyRef.current = true;
+          },
+          onClose: ({ code, reason }) => {
+            void postGrokVoiceEvent("ws.disconnected", {
+              sessionId: next.sessionId,
+              details: { code, reason: reason || "", reseed: true },
+            });
+          },
+          onError: ({ message }) => {
+            void postGrokVoiceEvent("ws.error", {
+              sessionId: next.sessionId,
+              details: { message, reseed: true },
+            });
+          },
+          onTelemetry: ({ kind, details }) => {
+            void postGrokVoiceEvent(
+              kind as Parameters<typeof postGrokVoiceEvent>[0],
+              {
+                sessionId: next.sessionId,
+                ...(details ? { details } : {}),
+              }
+            );
+          },
+        };
+        const realtime = createRealtime
+          ? createRealtime(realtimeOptions)
+          : new GrokVoiceRealtime(realtimeOptions);
+        realtimeRef.current = realtime;
+        realtime.open();
+
+        // Replay sanitized SPOKEN history. Skip the firstMessage entry — the
+        // sendAssistantHistory call inside onOpen has already re-primed it.
+        for (const turn of spokenHistoryRef.current) {
+          if (turn.isFirstMessage) continue;
+          if (turn.role === "user") {
+            realtime.sendUserHistory(turn.text);
+          } else {
+            realtime.sendAssistantHistoryMessage(turn.text);
+          }
+        }
+
+        const reseedMs = Date.now() - startedAt;
+        void postGrokVoiceEvent("realtime.reseed.completed", {
+          sessionId: next.sessionId,
+          details: {
+            parentSessionId,
+            reseedFromSessionId: parentSessionId,
+            reseedToSessionId: next.sessionId,
+            reseedMs,
+            replayedTurns: spokenHistoryRef.current.filter(
+              (t) => !t.isFirstMessage
+            ).length,
+          },
+        });
+        sessionTaintedRef.current = false;
+        parentSessionIdForTurnRef.current = parentSessionId;
+        return { ok: true, reseedMs };
+      } catch (error) {
+        const reseedMs = Date.now() - startedAt;
+        sessionTaintedRef.current = true;
+        parentSessionIdForTurnRef.current = parentSessionId;
+        void postGrokVoiceEvent("realtime.reseed.failed", {
+          sessionId: parentSessionId,
+          details: {
+            parentSessionId,
+            message: (error as Error)?.message ?? String(error),
+            reseedMs,
+          },
+        });
+        return { ok: false, reseedMs };
+      }
+    },
+    [createRealtime, fetchSession]
+  );
+
+  // P1B: text- and voice-input-shared gate that retries reseed before any
+  // user-turn side effect can hit a tainted socket. Returns true when the
+  // socket is safe to send/append into.
+  //
+  // - `text`: called from sendTextMessage() head.
+  // - `voice`: called from STT completion AND from input_audio_buffer.
+  //   speech_started. Mic onChunk uses dropMicChunksWhileTaintedRef
+  //   synchronously — it does NOT call this helper per-frame.
+  const ensureUntaintedRealtimeBeforeUserTurn = useCallback(
+    async (inputMode: "text" | "voice"): Promise<boolean> => {
+      if (!sessionTaintedRef.current) return true;
+      micRecorderRef.current?.setEnabled(false);
+      dropMicChunksWhileTaintedRef.current = true;
+      if (reseedRetryInFlightRef.current) {
+        // Another caller is already retrying. Surface as soft fail — the
+        // caller will refuse the turn rather than queue behind the retry.
+        return false;
+      }
+      reseedRetryInFlightRef.current = true;
+      try {
+        const retry = await reseedRealtimeWithSanitizedHistory();
+        if (!retry.ok) {
+          setErrorMessage(RESPOND_ERROR);
+          void postGrokVoiceEvent("realtime.reseed.failed", {
+            ...(sessionRef.current?.sessionId
+              ? { sessionId: sessionRef.current.sessionId }
+              : {}),
+            details: { inputMode, reason: "tainted_retry_failed" },
+          });
+          return false;
+        }
+        // reseedRealtimeWithSanitizedHistory clears sessionTaintedRef on
+        // success. Mirror the mic-side flag so onChunk stops dropping.
+        dropMicChunksWhileTaintedRef.current = false;
+        if (inputMode === "voice" && micEnabled && !isMutedRef.current) {
+          micRecorderRef.current?.setEnabled(true);
+        }
+        return true;
+      } finally {
+        reseedRetryInFlightRef.current = false;
+      }
+    },
+    [micEnabled, reseedRealtimeWithSanitizedHistory]
+  );
+
+  // Strict sanitized playback finalize step. Runs after response.done in
+  // strict mode. Caller has already gated on stale-response and locked-turn
+  // cases. We OWN the playback decision and the per-turn metrics emission for
+  // strict-mode turns — the synchronous response.done handler returns early
+  // and never touches metrics or status.
+  type StrictOutcome =
+    | "clean"
+    | "unverified_audio_suppressed"
+    | "sanitized_to_empty"
+    | "sanitized_tts_played"
+    | "sanitized_tts_failed"
+    | "reseed_failed_after_play";
+
+  const finalizeStrictResponseDone = useCallback(
+    async (activeSession: GrokVoiceSession): Promise<void> => {
+      // CRITICAL: run the strict detector on the RAW model transcript, not on
+      // normalizePr60AssistantText() output. The legacy normalizer already
+      // strips broad STOCK_SUFFIX_PATTERNS (which includes the closing-suffix
+      // sentences), so by the time normalizePr60AssistantText returns, the
+      // tail we want to detect is already gone — the detector would always
+      // see a "clean" turn and we'd play raw audio.
+      const rawText = turnAccumulatedTextRef.current;
+      const sanitized = sanitizeGrokVoiceSpokenText(rawText);
+      sanitizerDecidedAtRef.current = Date.now();
+      const accumulatedTextEmpty = rawText.trim().length === 0;
+      const audioBuffered = pendingRealtimeAudioChunksRef.current.length > 0;
+      const bufferedBytes = pendingRealtimeAudioBytesRef.current;
+
+      // For non-suffix turns, defer to the legacy text normalizer so existing
+      // transcript-display behavior (broad stock-suffix scrub + voice-friendly
+      // term reflow) is preserved. For suffix-detected turns, use ONLY the
+      // sanitized fragment to make sure the stripped tail can never reach UI.
+      const spokenForHistory = sanitized.detected
+        ? sanitized.text
+        : normalizePr60AssistantText(
+            turnUserTextPreviewRef.current,
+            rawText
+          );
+      const displayForUi = normalizeGrokVoiceDisplayText(spokenForHistory);
+
+      let outcome: StrictOutcome = "clean";
+      let error: GrokVoiceTurnMetricsClient["error"] = null;
+      let audioBytesActuallyPlayed = 0;
+
+      if (audioBuffered && accumulatedTextEmpty) {
+        // Audio without any transcript — we cannot inspect what's in those
+        // bytes, so we drop them. This is the "unverifiable audio" gate.
+        pendingRealtimeAudioChunksRef.current = [];
+        pendingRealtimeAudioBytesRef.current = 0;
+        outcome = "unverified_audio_suppressed";
+        error = "unverified_audio_suppressed";
+        void postGrokVoiceEvent("response.unverified_audio_suppressed", {
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex: turnIndexRef.current,
+            audioBytesBuffered: bufferedBytes,
+          },
+        });
+        // P1A: the assistant turn whose audio we just dropped IS still in
+        // the realtime session memory — taint it.
+        markSessionTainted(
+          "unverified_audio_suppressed",
+          activeSession.sessionId
+        );
+      } else if (sanitized.detected) {
+        // Suffix found. Drop ALL buffered raw audio — under no circumstance
+        // play it; that would defeat the entire strict-playback goal.
+        pendingRealtimeAudioChunksRef.current = [];
+        pendingRealtimeAudioBytesRef.current = 0;
+        void postGrokVoiceEvent("response.stock_suffix_detected", {
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex: turnIndexRef.current,
+            removedSentenceCount: sanitized.removedSentences.length,
+            removedPatternIds: sanitized.removedPatternIds,
+            sanitizedToEmpty: sanitized.sanitizedToEmpty,
+            audioBytesDropped: bufferedBytes,
+          },
+        });
+        if (sanitized.sanitizedToEmpty) {
+          outcome = "sanitized_to_empty";
+          error = "sanitized_to_empty";
+          // P1A: the raw suffix-only assistant turn is still in xAI memory.
+          markSessionTainted("sanitized_to_empty", activeSession.sessionId);
+        } else {
+          // Try sanitized-TTS. On failure, NEVER fall back to raw audio.
+          sanitizedTurnInFlightRef.current = true;
+          void postGrokVoiceEvent("sanitized_response.tts.requested", {
+            sessionId: activeSession.sessionId,
+            details: {
+              turnIndex: turnIndexRef.current,
+              textLen: sanitized.text.length,
+            },
+          });
+          const startedAt = Date.now();
+          try {
+            const tts = await fetchSanitizedResponseTts({
+              sessionId: activeSession.sessionId,
+              text: sanitized.text,
+            });
+            sanitizedTtsMsRef.current = Date.now() - startedAt;
+            const ttsBytes = Math.floor((tts.audioBase64.length * 3) / 4);
+            void postGrokVoiceEvent("sanitized_response.tts.completed", {
+              sessionId: activeSession.sessionId,
+              details: {
+                turnIndex: turnIndexRef.current,
+                textLen: tts.textLen,
+                audioBytes: ttsBytes,
+                voiceId: tts.voiceId,
+                vendorMs: tts.vendorMs ?? null,
+              },
+            });
+            void postGrokVoiceEvent("sanitized_response.playback.started", {
+              sessionId: activeSession.sessionId,
+              details: { turnIndex: turnIndexRef.current, audioBytes: ttsBytes },
+            });
+            if (firstAudibleAudioAtRef.current === null) {
+              firstAudibleAudioAtRef.current = Date.now();
+            }
+            await ensureAudioQueue().enqueueBase64AndWait(tts.audioBase64);
+            void postGrokVoiceEvent("sanitized_response.playback.completed", {
+              sessionId: activeSession.sessionId,
+              details: { turnIndex: turnIndexRef.current, audioBytes: ttsBytes },
+            });
+            outcome = "sanitized_tts_played";
+            audioBytesActuallyPlayed = ttsBytes;
+            // Append the sanitized assistant turn to spoken history NOW, so
+            // the upcoming reseed replays the cleaned version (not the raw
+            // suffix-laden output that was in the old session's memory).
+            spokenHistoryRef.current.push({
+              role: "agent",
+              text: sanitized.text,
+            });
+            // Reseed: rotate the realtime socket so the next turn doesn't
+            // see the raw stock-suffix output in xAI's internal context.
+            const reseedResult = await reseedRealtimeWithSanitizedHistory();
+            reseedMsRef.current = reseedResult.reseedMs;
+            if (!reseedResult.ok) {
+              outcome = "reseed_failed_after_play";
+              error = "reseed_failed_after_play";
+              // P1A: belt-and-suspenders. reseedRealtimeWithSanitizedHistory
+              // already sets sessionTaintedRef=true on its own catch path,
+              // but we re-emit through markSessionTainted so the typed event
+              // fires and the mic-drop flag is set consistently.
+              markSessionTainted(
+                "reseed_failed_after_play",
+                activeSession.sessionId
+              );
+            }
+          } catch (e) {
+            sanitizedTtsMsRef.current = Date.now() - startedAt;
+            void postGrokVoiceEvent("sanitized_response.tts.failed", {
+              sessionId: activeSession.sessionId,
+              details: {
+                turnIndex: turnIndexRef.current,
+                message: (e as Error)?.message ?? String(e),
+              },
+            });
+            outcome = "sanitized_tts_failed";
+            error = "sanitized_tts_failed";
+            // No audio is played. The sanitized text is still displayed below.
+            // We still append the sanitized text to history so a subsequent
+            // successful reseed (driven by the next user turn) can replay it.
+            spokenHistoryRef.current.push({
+              role: "agent",
+              text: sanitized.text,
+            });
+            // P1A: the raw suffix turn is still in xAI session memory and we
+            // never reseeded — the next user turn must not enter this socket.
+            markSessionTainted(
+              "sanitized_tts_failed",
+              activeSession.sessionId
+            );
+          } finally {
+            sanitizedTurnInFlightRef.current = false;
+          }
+        }
+      } else if (audioBuffered) {
+        // Clean turn. Play buffered chunks sequentially, awaiting each so we
+        // hold status="speaking" until the last sample finishes. This keeps
+        // the mic from re-listening into our own tail audio.
+        for (const chunk of pendingRealtimeAudioChunksRef.current) {
+          if (firstAudibleAudioAtRef.current === null) {
+            firstAudibleAudioAtRef.current = Date.now();
+          }
+          try {
+            await ensureAudioQueue().enqueueBase64AndWait(chunk);
+            audioBytesActuallyPlayed += Math.floor((chunk.length * 3) / 4);
+          } catch (e) {
+            // Audio queue errors surface via onPlaybackError; we keep going so
+            // the metrics emission and status reset still happen.
+            void postGrokVoiceEvent("audio.queue.error", {
+              sessionId: activeSession.sessionId,
+              details: {
+                message: (e as Error)?.message ?? String(e),
+                turnIndex: turnIndexRef.current,
+              },
+            });
+            break;
+          }
+        }
+        pendingRealtimeAudioChunksRef.current = [];
+        pendingRealtimeAudioBytesRef.current = 0;
+        // Append spoken history for clean turns. xAI's internal context has
+        // this turn already, but we still need our own copy in case a later
+        // turn triggers a reseed.
+        spokenHistoryRef.current.push({
+          role: "agent",
+          text: spokenForHistory,
+        });
+      } else {
+        // No audio at all in a non-suffix turn — text-only model output.
+        error = "no_audio";
+        spokenHistoryRef.current.push({
+          role: "agent",
+          text: spokenForHistory,
+        });
+      }
+
+      // Transcript update with the (possibly sanitized) display text.
+      const interimId = interimAgentClientIdRef.current;
+      if (interimId) {
+        dispatchMessages({
+          type: "updateTextAndStatus",
+          clientMessageId: interimId,
+          text: displayForUi,
+          status: "final",
+        });
+      }
+
+      // Metrics. firstAudioMs preserves the legacy semantic (first delta
+      // arrival) for back-compat dashboards; firstAudibleAudioMs is the new
+      // user-experience KPI.
+      const startedAt = turnStartAtRef.current;
+      const firstAudioMs =
+        startedAt !== null && firstRealtimeAudioDeltaAtRef.current !== null
+          ? firstRealtimeAudioDeltaAtRef.current - startedAt
+          : null;
+      const firstAudibleAudioMs =
+        startedAt !== null && firstAudibleAudioAtRef.current !== null
+          ? firstAudibleAudioAtRef.current - startedAt
+          : null;
+      const sanitizerDelayMs =
+        startedAt !== null && sanitizerDecidedAtRef.current !== null
+          ? sanitizerDecidedAtRef.current - startedAt
+          : null;
+      const doneMs = startedAt !== null ? Date.now() - startedAt : null;
+      // The session reference may have changed in the middle of this finalize
+      // (after a successful reseed) — read from the ref to get the latest.
+      const finalSession = sessionRef.current ?? activeSession;
+      const metrics: GrokVoiceTurnMetricsClient = {
+        sessionId: finalSession.sessionId,
+        turnIndex: turnIndexRef.current,
+        inputMode: turnInputModeRef.current,
+        userTextLen: turnUserTextLenRef.current,
+        agentTextLen: displayForUi.length,
+        firstAudioMs,
+        doneMs,
+        audioBytes: audioBytesActuallyPlayed,
+        error,
+        promptHash: finalSession.promptHash,
+        promptVersion: finalSession.promptVersion,
+        guardrailVersion: finalSession.guardrailVersion,
+        grokVoiceModel: finalSession.grokVoiceModel,
+        grokVoiceVoiceId: finalSession.grokVoiceVoiceId,
+        firstRealtimeAudioDeltaMs: firstAudioMs,
+        firstAudibleAudioMs,
+        sanitizerDelayMs,
+        sanitizedTtsMs: sanitizedTtsMsRef.current,
+        reseedMs: reseedMsRef.current,
+        outcome,
+        sessionTainted: sessionTaintedRef.current,
+        parentSessionId:
+          parentSessionIdForTurnRef.current ??
+          finalSession.parentSessionId ??
+          null,
+      };
+      setMetricsLog((current) => [...current, metrics]);
+      void postGrokVoiceEvent("turn.completed", {
+        sessionId: activeSession.sessionId,
+        details: {
+          turnIndex: metrics.turnIndex,
+          inputMode: metrics.inputMode,
+          userTextLen: metrics.userTextLen,
+          agentTextLen: metrics.agentTextLen,
+          firstAudioMs: metrics.firstAudioMs,
+          firstRealtimeAudioDeltaMs: metrics.firstRealtimeAudioDeltaMs,
+          firstAudibleAudioMs: metrics.firstAudibleAudioMs,
+          sanitizerDelayMs: metrics.sanitizerDelayMs,
+          sanitizedTtsMs: metrics.sanitizedTtsMs,
+          reseedMs: metrics.reseedMs,
+          doneMs: metrics.doneMs,
+          audioBytes: metrics.audioBytes,
+          error: metrics.error,
+          outcome: metrics.outcome,
+          sessionTainted: metrics.sessionTainted,
+          parentSessionId: metrics.parentSessionId,
+          userTextPreview: turnUserTextPreviewRef.current,
+          agentTextPreview: displayForUi,
+          agentSpokenTextPreview: spokenForHistory,
+          promptHash: metrics.promptHash,
+          promptVersion: metrics.promptVersion,
+          guardrailVersion: metrics.guardrailVersion,
+          grokVoiceModel: metrics.grokVoiceModel,
+          grokVoiceVoiceId: metrics.grokVoiceVoiceId,
+        },
+      });
+      resetTurnBookkeeping();
+      setStatus("listening");
+    },
+    [
+      ensureAudioQueue,
+      fetchSanitizedResponseTts,
+      markSessionTainted,
+      reseedRealtimeWithSanitizedHistory,
+      resetTurnBookkeeping,
+    ]
+  );
 
   const playLockedResponse = useCallback(
     async (input: {
@@ -381,6 +980,14 @@ export function useGrokVoiceConversation(
           realtime.sendUserHistory(input.userText);
         }
         realtime.sendAssistantHistoryMessage(spokenAssistantText);
+        // The user-side spoken history was already appended by either
+        // sendTextMessage (chat) or the STT completion branch (voice). Append
+        // the assistant turn now so reseed has the deterministic locked
+        // response in the replay.
+        spokenHistoryRef.current.push({
+          role: "agent",
+          text: spokenAssistantText,
+        });
 
         const doneMs = Date.now() - startedAt;
         const metrics: GrokVoiceTurnMetricsClient = {
@@ -468,6 +1075,26 @@ export function useGrokVoiceConversation(
 
       switch (event.type) {
         case "input_audio_buffer.speech_started": {
+          // P1B: synchronous freeze before any per-turn state advance when
+          // the socket is tainted. Do NOT advance turnIndex, do NOT touch
+          // buffered audio or pending response state. The "turn" never
+          // starts until reseed succeeds.
+          if (sessionTaintedRef.current) {
+            micRecorderRef.current?.setEnabled(false);
+            dropMicChunksWhileTaintedRef.current = true;
+            void postGrokVoiceEvent("realtime.session_tainted", {
+              sessionId: activeSession.sessionId,
+              details: {
+                inputMode: "voice",
+                reason: "speech_started_while_tainted",
+              },
+            });
+            void (async () => {
+              const ok = await ensureUntaintedRealtimeBeforeUserTurn("voice");
+              if (ok) dropMicChunksWhileTaintedRef.current = false;
+            })();
+            break;
+          }
           if (
             lockedTurnActiveRef.current &&
             Date.now() < lockedTurnMicTailIgnoreUntilRef.current
@@ -522,6 +1149,16 @@ export function useGrokVoiceConversation(
           lockedTurnMicTailIgnoreUntilRef.current = 0;
           pendingCancelOnResponseCreatedRef.current = false;
           suppressNextRealtimeResponseRef.current = false;
+          // Strict sanitized playback: drop buffered audio and reset timing on
+          // barge-in. The user has started a new turn; nothing from the
+          // canceled response should ever play.
+          pendingRealtimeAudioChunksRef.current = [];
+          pendingRealtimeAudioBytesRef.current = 0;
+          sanitizedTurnInFlightRef.current = false;
+          firstRealtimeAudioDeltaAtRef.current = null;
+          firstAudibleAudioAtRef.current = null;
+          sanitizerDecidedAtRef.current = null;
+          sanitizedTtsMsRef.current = null;
           setStatus("listening");
           break;
         }
@@ -544,6 +1181,28 @@ export function useGrokVoiceConversation(
             });
             break;
           }
+          // P1B: refuse the entire voice turn before ANY side effect when
+          // the socket is tainted. Do NOT append to UI transcript, do NOT
+          // push to spoken history, do NOT dispatch locked response. A
+          // tainted-then-failed turn must not enter reseed-replay history.
+          if (sessionTaintedRef.current) {
+            void postGrokVoiceEvent("stt.skipped", {
+              sessionId: activeSession.sessionId,
+              details: {
+                turnIndex: turnIndexRef.current,
+                reason: "tainted_socket",
+              },
+            });
+            void (async () => {
+              const ok = await ensureUntaintedRealtimeBeforeUserTurn("voice");
+              if (ok) {
+                dropMicChunksWhileTaintedRef.current = false;
+              }
+              // On failure: soft error is already on the hook state; the
+              // user can speak again to retry.
+            })();
+            break;
+          }
           void postGrokVoiceEvent("stt.completed", {
             sessionId: activeSession.sessionId,
             details: {
@@ -564,6 +1223,7 @@ export function useGrokVoiceConversation(
               sdkMessageId: `user-stt-${activeSession.sessionId}-${turnIndexRef.current}`,
             }),
           });
+          spokenHistoryRef.current.push({ role: "user", text: trimmed });
           const lockedText = getPr60LockedResponseForUser(trimmed);
           if (lockedText) {
             void playLockedResponse({
@@ -703,15 +1363,32 @@ export function useGrokVoiceConversation(
           const base64 = event.delta ?? "";
           if (base64.length === 0) break;
           if (event.item_id) currentResponseItemIdRef.current = event.item_id;
+          const now = Date.now();
           if (firstAudioAtRef.current === null) {
-            firstAudioAtRef.current = Date.now();
+            firstAudioAtRef.current = now;
+          }
+          if (firstRealtimeAudioDeltaAtRef.current === null) {
+            firstRealtimeAudioDeltaAtRef.current = now;
           }
           // base64 length ≈ bytes * 4/3; rough but fine for telemetry.
-          turnAccumulatedAudioBytesRef.current += Math.floor((base64.length * 3) / 4);
+          const chunkBytes = Math.floor((base64.length * 3) / 4);
+          turnAccumulatedAudioBytesRef.current += chunkBytes;
           realtimeAudioQueuedThisTurnRef.current = true;
           agentSpeakingRef.current = true;
           setStatus("speaking");
-          ensureAudioQueue().enqueueBase64(base64);
+          if (activeSession.strictSanitizedPlayback) {
+            // Strict mode: buffer the chunk. Playback decision happens at
+            // response.done after we can sanitize the full transcript.
+            pendingRealtimeAudioChunksRef.current.push(base64);
+            pendingRealtimeAudioBytesRef.current += chunkBytes;
+          } else {
+            // Legacy path: schedule immediately. firstAudibleAudioAt collapses
+            // onto firstRealtimeAudioDeltaAt because there is no buffering.
+            if (firstAudibleAudioAtRef.current === null) {
+              firstAudibleAudioAtRef.current = now;
+            }
+            ensureAudioQueue().enqueueBase64(base64);
+          }
           break;
         }
         case "response.done": {
@@ -739,6 +1416,18 @@ export function useGrokVoiceConversation(
             clearLockedRealtimeDrain();
             break;
           }
+          if (activeSession.strictSanitizedPlayback) {
+            // Re-entrancy guard: if a previous response.done is still in
+            // flight (rare — would mean the realtime sent two response.done
+            // events for the same turn), drop the new one.
+            if (finalizingResponseRef.current) break;
+            finalizingResponseRef.current = true;
+            void finalizeStrictResponseDone(activeSession).finally(() => {
+              finalizingResponseRef.current = false;
+            });
+            break;
+          }
+          // Legacy non-strict path (env flag flipped to false for rollback).
           const id = interimAgentClientIdRef.current;
           const finalSpokenText = normalizePr60AssistantText(
             turnUserTextPreviewRef.current,
@@ -753,6 +1442,10 @@ export function useGrokVoiceConversation(
               status: "final",
             });
           }
+          spokenHistoryRef.current.push({
+            role: "agent",
+            text: finalSpokenText,
+          });
           const startedAt = turnStartAtRef.current;
           const firstAudioMs =
             startedAt !== null && firstAudioAtRef.current !== null
@@ -817,31 +1510,53 @@ export function useGrokVoiceConversation(
           break;
       }
     },
-    [clearLockedRealtimeDrain, ensureAudioQueue, playLockedResponse, resetTurnBookkeeping]
+    [
+      clearLockedRealtimeDrain,
+      ensureAudioQueue,
+      finalizeStrictResponseDone,
+      playLockedResponse,
+      resetTurnBookkeeping,
+    ]
   );
+
+  // Keep handleServerEventRef in sync so the reseed flow can construct a
+  // fresh GrokVoiceRealtime that dispatches into the latest closure.
+  useEffect(() => {
+    handleServerEventRef.current = handleServerEvent;
+  }, [handleServerEvent]);
 
   const startMicRecorder = useCallback(async () => {
     if (!micEnabled) return;
     if (micRecorderRef.current) return;
+    // P1B last-line defense: synchronous drop while the realtime socket is
+    // tainted. The async reseed retry is started by speech_started / STT
+    // handlers; this is the belt-and-suspenders guard for any frame that
+    // slipped past the recorder's setEnabled(false) call.
+    const sendChunkIfUntainted = (chunk: string) => {
+      if (
+        sessionTaintedRef.current ||
+        dropMicChunksWhileTaintedRef.current
+      ) {
+        return; // synchronous drop, no telemetry per-frame
+      }
+      realtimeRef.current?.appendAudio(chunk);
+    };
     const recorder =
-      createMicRecorder?.(
-        (chunk) => realtimeRef.current?.appendAudio(chunk),
-        {
-          onError: (error) => {
-            console.warn("grokVoice mic recorder error", error);
-            void postGrokVoiceEvent("mic.permission.denied", {
-              ...(sessionRef.current?.sessionId
-                ? { sessionId: sessionRef.current.sessionId }
-                : {}),
-              details: { message: error.message },
-            });
-          },
-          onStateChange: (next) => emitMicStateChange(next),
-        }
-      ) ??
+      createMicRecorder?.(sendChunkIfUntainted, {
+        onError: (error) => {
+          console.warn("grokVoice mic recorder error", error);
+          void postGrokVoiceEvent("mic.permission.denied", {
+            ...(sessionRef.current?.sessionId
+              ? { sessionId: sessionRef.current.sessionId }
+              : {}),
+            details: { message: error.message },
+          });
+        },
+        onStateChange: (next) => emitMicStateChange(next),
+      }) ??
       new GrokVoiceMicRecorder({
         targetSampleRate: sessionRef.current?.audio.sampleRate ?? 24_000,
-        onChunk: (chunk) => realtimeRef.current?.appendAudio(chunk),
+        onChunk: sendChunkIfUntainted,
         onError: (error) => {
           console.warn("grokVoice mic recorder error", error);
           void postGrokVoiceEvent("mic.permission.denied", {
@@ -925,6 +1640,11 @@ export function useGrokVoiceConversation(
         sdkMessageId: `agent-greeting-${next.sessionId}`,
       });
       dispatchMessages({ type: "reset", messages: [greeting] });
+      // Seed spoken history with the firstMessage so reseed re-primes the
+      // session with the SAME byte-for-byte greeting xAI saw originally.
+      spokenHistoryRef.current = [
+        { role: "agent", text: next.firstMessage, isFirstMessage: true },
+      ];
 
       const queue = ensureAudioQueue();
       try {
@@ -1114,6 +1834,20 @@ export function useGrokVoiceConversation(
     lockedTurnMicTailIgnoreUntilRef.current = 0;
     pendingCancelOnResponseCreatedRef.current = false;
     suppressNextRealtimeResponseRef.current = false;
+    pendingRealtimeAudioChunksRef.current = [];
+    pendingRealtimeAudioBytesRef.current = 0;
+    sanitizedTurnInFlightRef.current = false;
+    finalizingResponseRef.current = false;
+    firstRealtimeAudioDeltaAtRef.current = null;
+    firstAudibleAudioAtRef.current = null;
+    sanitizerDecidedAtRef.current = null;
+    sanitizedTtsMsRef.current = null;
+    spokenHistoryRef.current = [];
+    sessionTaintedRef.current = false;
+    dropMicChunksWhileTaintedRef.current = false;
+    reseedRetryInFlightRef.current = false;
+    reseedMsRef.current = null;
+    parentSessionIdForTurnRef.current = null;
     clearLockedRealtimeDrain();
     void postGrokVoiceEvent("session.cancelled");
   }, [clearLockedRealtimeDrain, stopMicRecorder]);
@@ -1138,6 +1872,19 @@ export function useGrokVoiceConversation(
         await startConversation();
         activeSession = sessionRef.current;
       }
+      // P1B: shared tainted-recovery gate for text and voice. Refuse the
+      // turn if the socket is poisoned and reseed retry fails — we never
+      // send into a tainted context.
+      if (activeSession) {
+        const ok = await ensureUntaintedRealtimeBeforeUserTurn("text");
+        if (!ok) {
+          // Soft error already surfaced; user message NOT appended to UI
+          // or to spoken history (the appends below the readiness gate
+          // never run).
+          return;
+        }
+        activeSession = sessionRef.current;
+      }
       if (!activeSession || !realtimeRef.current?.isReady()) {
         return;
       }
@@ -1157,6 +1904,7 @@ export function useGrokVoiceConversation(
         clientMessageId,
       });
       dispatchMessages({ type: "append", message: userMessage });
+      spokenHistoryRef.current.push({ role: "user", text: trimmed });
 
       // Mark this turn as text-input so metrics & response.created handler
       // know not to expect speech_started.
@@ -1191,7 +1939,13 @@ export function useGrokVoiceConversation(
       realtimeRef.current.sendUserText(trimmed);
       setStatus("thinking");
     },
-    [ensureAudioQueue, isInteractive, playLockedResponse, startConversation]
+    [
+      ensureAudioQueue,
+      ensureUntaintedRealtimeBeforeUserTurn,
+      isInteractive,
+      playLockedResponse,
+      startConversation,
+    ]
   );
 
   const toggleMute = useCallback(async () => {

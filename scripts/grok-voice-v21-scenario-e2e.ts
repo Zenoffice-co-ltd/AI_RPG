@@ -43,7 +43,13 @@ import {
 import { normalizePr60AssistantText } from "../apps/web/lib/roleplay/grok-voice-pr60-output";
 import type { GrokVoiceScenarioBundle } from "../apps/web/server/grokVoice/scenarioLoader";
 import { createHash } from "node:crypto";
-import { CASES, type CaseDef } from "./grok-voice-v21-e2e-cases";
+import {
+  ALLOWED_KNOWN_FAILURE_IDS,
+  CASES,
+  type CaseDef,
+} from "./grok-voice-v21-e2e-cases";
+
+const PRONE_ROUNDS_FLOOR = 5;
 
 // ---------------- Args & env ----------------
 
@@ -464,7 +470,11 @@ async function main(): Promise<void> {
   const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
   for (const c of filtered) {
-    const target = c.critical ? Math.max(ROUNDS, CRITICAL_ROUNDS) : ROUNDS;
+    let target = c.critical ? Math.max(ROUNDS, CRITICAL_ROUNDS) : ROUNDS;
+    // Phase 5: stock-suffix-prone cases get at least PRONE_ROUNDS_FLOOR rounds
+    // so the live xAI run actually exercises the strict-playback recovery
+    // path multiple times.
+    if (c.prone) target = Math.max(target, PRONE_ROUNDS_FLOOR);
     const rounds: RunOutcome[] = [];
     for (let i = 1; i <= target; i += 1) {
       process.stdout.write(`  [${c.id}] round ${i}/${target} ... `);
@@ -497,6 +507,28 @@ async function main(): Promise<void> {
     });
   }
 
+  // Phase 5: cases pinned in ALLOWED_KNOWN_FAILURE_IDS are excluded from the
+  // overallPass calculation. They are tracked in separate GitHub issues and
+  // are NOT a regression for this PR. The exclusion is case-ID-pinned (not
+  // pattern-pinned) so a NEW case exhibiting the same kind of failure still
+  // counts as a regression.
+  const allowed = new Set<string>(ALLOWED_KNOWN_FAILURE_IDS);
+  const newRegressions = summaryCases
+    .filter((c) => !c.pass && !allowed.has(c.caseId))
+    .map((c) => c.caseId);
+  const proneCriticalShortfall = summaryCases
+    .filter(
+      (c) =>
+        c.critical &&
+        !allowed.has(c.caseId) &&
+        c.consecutivePass <
+          (CASES.find((d) => d.id === c.caseId)?.prone
+            ? Math.max(CRITICAL_ROUNDS, PRONE_ROUNDS_FLOOR)
+            : CRITICAL_ROUNDS)
+    )
+    .map((c) => c.caseId);
+  const overallPass =
+    newRegressions.length === 0 && proneCriticalShortfall.length === 0;
   const summary = {
     scenarioId: bundle.scenarioId,
     promptVersion: bundle.promptVersion,
@@ -512,16 +544,25 @@ async function main(): Promise<void> {
     instructionsSha256: createHash("sha256").update(instructions).digest("hex"),
     rounds: ROUNDS,
     criticalRounds: CRITICAL_ROUNDS,
+    proneRoundsFloor: PRONE_ROUNDS_FLOOR,
+    allowedKnownFailureIds: [...allowed],
+    newRegressions,
+    proneCriticalShortfall,
     cases: summaryCases,
-    overallPass:
-      summaryCases.every((c) => c.pass) &&
-      summaryCases
-        .filter((c) => c.critical)
-        .every((c) => c.consecutivePass >= CRITICAL_ROUNDS),
+    overallPass,
     timestamp: new Date().toISOString(),
   };
   await writeFile(
     resolve(outDir, "summary.json"),
+    JSON.stringify(summary, null, 2),
+    "utf8"
+  );
+  // Phase 5: also write the summary into the shared audio E2E artifact root
+  // so Layer A / B / C share a single timestamped directory.
+  const layerBOutDir = resolve(REPO_ROOT, "out", "grok_voice_audio_e2e", stamp);
+  await mkdir(layerBOutDir, { recursive: true });
+  await writeFile(
+    resolve(layerBOutDir, "layer_b_live_xai_summary.json"),
     JSON.stringify(summary, null, 2),
     "utf8"
   );

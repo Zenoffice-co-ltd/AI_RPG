@@ -34,6 +34,12 @@ export type GrokVoiceSession = {
   turnDetection: GrokVoiceTurnDetectionConfig;
   instructions: string;
   firstMessage: string;
+  // When true, the client buffers all realtime audio until response.done and
+  // gates playback through the stock-suffix sanitizer. Server is the single
+  // source of truth — env-flip on the server, no client toggle.
+  strictSanitizedPlayback: boolean;
+  // Set on sessions created via reseed. Useful for telemetry correlation.
+  parentSessionId?: string;
   greetingAudio?: GrokVoiceGreeting & {
     cacheStatus: "hit";
     cacheKeyHash: string;
@@ -57,16 +63,34 @@ export type GrokVoiceLockedResponseTts = GrokVoiceGreeting & {
   cacheStatus: "hit" | "miss";
 };
 
+// Strict sanitized playback: TTS rendering of a stripped-stock-suffix Grok
+// response. Always cacheStatus: "miss" — sanitized output is unbounded.
+export type GrokVoiceSanitizedResponseTts = GrokVoiceGreeting & {
+  text: string;
+  displayText: string;
+  cacheStatus: "miss";
+};
+
 export type GrokVoiceTurnMetricsClient = {
   sessionId: string;
   turnIndex: number;
   inputMode: "voice" | "text";
   userTextLen: number;
   agentTextLen: number;
+  // Legacy: time from turn start to first realtime audio delta arrival. With
+  // strict sanitized playback this is the model latency, not the user-audible
+  // latency. Use firstAudibleAudioMs for user-experience KPIs.
   firstAudioMs: number | null;
   doneMs: number | null;
   audioBytes: number;
-  error: string | null;
+  error:
+    | null
+    | "no_audio"
+    | "unverified_audio_suppressed"
+    | "sanitized_to_empty"
+    | "sanitized_tts_failed"
+    | "reseed_failed_after_play"
+    | string;
   promptHash: string;
   promptVersion: string;
   guardrailVersion: string;
@@ -74,6 +98,22 @@ export type GrokVoiceTurnMetricsClient = {
   grokVoiceVoiceId: string;
   lockedResponse?: boolean;
   lockedResponseSource?: "client_tts";
+  // Strict sanitized playback observability. All optional so the legacy
+  // (non-strict) path doesn't have to populate them.
+  firstRealtimeAudioDeltaMs?: number | null;
+  firstAudibleAudioMs?: number | null;
+  sanitizerDelayMs?: number | null;
+  sanitizedTtsMs?: number | null;
+  reseedMs?: number | null;
+  outcome?:
+    | "clean"
+    | "unverified_audio_suppressed"
+    | "sanitized_to_empty"
+    | "sanitized_tts_played"
+    | "sanitized_tts_failed"
+    | "reseed_failed_after_play";
+  sessionTainted?: boolean;
+  parentSessionId?: string | null;
 };
 
 // Subset of xAI Voice Agent server → client events that we react to.

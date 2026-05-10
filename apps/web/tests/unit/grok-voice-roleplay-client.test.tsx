@@ -29,6 +29,7 @@ const SESSION: GrokVoiceSession = {
   turnDetection: { type: "server_vad", threshold: 0.5, silence_duration_ms: 500 },
   instructions: "You are a roleplay agent.",
   firstMessage: "お時間ありがとうございます。",
+  strictSanitizedPlayback: false,
 };
 
 const GREETING: GrokVoiceGreeting = {
@@ -561,13 +562,18 @@ describe("useGrokVoiceConversation", () => {
     expect(result.current.metricsLog[0]?.audioBytes).toBeGreaterThan(0);
   });
 
-  it("does not cancel or flush normal realtime audio when a stock suffix appears", async () => {
+  it("legacy mode (strictSanitizedPlayback=false): scrubs transcript only, raw audio still plays", async () => {
+    // This is the inverted version of the original "does not cancel or flush
+    // normal realtime audio when a stock suffix appears" test. With strict
+    // mode OFF the legacy leaky behavior is preserved (UI sees sanitized text,
+    // raw audio still plays). The strict-mode flow is exercised in
+    // grok-voice-strict-playback.test.tsx.
     const fake = buildFakeRealtime();
     const queue = buildStubAudioQueue();
     const enqueueSpy = vi.spyOn(queue, "enqueueBase64").mockImplementation(() => undefined);
     const flushSpy = vi.spyOn(queue, "flush");
     const deps: UseGrokVoiceConversationDeps = {
-      fetchSession: vi.fn(async () => SESSION),
+      fetchSession: vi.fn(async () => SESSION), // SESSION.strictSanitizedPlayback === false
       fetchGreeting: vi.fn(async () => GREETING),
       createAudioQueue: () => queue,
       createRealtime: fake.ctor as unknown as NonNullable<

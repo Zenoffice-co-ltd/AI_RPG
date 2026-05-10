@@ -3,14 +3,20 @@
 import type {
   GrokVoiceGreeting,
   GrokVoiceLockedResponseTts,
+  GrokVoiceSanitizedResponseTts,
   GrokVoiceSession,
 } from "./grok-voice-types";
 
-export async function fetchGrokVoiceSession(): Promise<GrokVoiceSession> {
+export async function fetchGrokVoiceSession(
+  input?: { reseedFromSessionId?: string }
+): Promise<GrokVoiceSession> {
+  const body = input?.reseedFromSessionId
+    ? { reseedFromSessionId: input.reseedFromSessionId }
+    : {};
   const response = await fetch("/api/v3/session", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     throw new Error(`grok voice session bootstrap failed: ${response.status}`);
@@ -46,6 +52,23 @@ export async function fetchGrokVoiceLockedResponseTts(input: {
     throw new Error(`grok voice locked response tts failed: ${response.status}`);
   }
   return (await response.json()) as GrokVoiceLockedResponseTts;
+}
+
+export async function fetchGrokVoiceSanitizedResponseTts(input: {
+  sessionId: string;
+  text: string;
+}): Promise<GrokVoiceSanitizedResponseTts> {
+  const response = await fetch("/api/v3/sanitized-response-tts", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error(
+      `grok voice sanitized response tts failed: ${response.status}`
+    );
+  }
+  return (await response.json()) as GrokVoiceSanitizedResponseTts;
 }
 
 export type GrokVoiceEventKind =
@@ -87,7 +110,19 @@ export type GrokVoiceEventKind =
   | "locked_response.playback.failed"
   | "locked_response.mic_tail_ignored"
   | "response.done.stale_discarded"
-  | "response.pr60_locked_cancelled";
+  | "response.pr60_locked_cancelled"
+  // Strict sanitized playback events.
+  | "response.stock_suffix_detected"
+  | "response.unverified_audio_suppressed"
+  | "sanitized_response.tts.requested"
+  | "sanitized_response.tts.completed"
+  | "sanitized_response.tts.failed"
+  | "sanitized_response.playback.started"
+  | "sanitized_response.playback.completed"
+  | "realtime.reseed.started"
+  | "realtime.reseed.completed"
+  | "realtime.reseed.failed"
+  | "realtime.session_tainted";
 
 export function postGrokVoiceEvent(
   kind: GrokVoiceEventKind,
