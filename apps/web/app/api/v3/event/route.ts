@@ -211,64 +211,82 @@ export function POST(request: NextRequest) {
                 : {}),
               // exactOptionalPropertyTypes is on, so each new optional
               // field must spread-when-defined rather than always include.
+              // Codex P2 fix: use `*FromDetails` helpers so a MISSING key
+              // (old client) is omitted entirely, while an EXPLICIT null
+              // (intentional client signal) is preserved as null.
               ...(routePathRaw && isRoutePath(routePathRaw)
                 ? { routePath: routePathRaw }
                 : {}),
               ...whenDefined(
                 "firstAudibleAudioMs",
-                numberOrNull(trimmedDetails["firstAudibleAudioMs"])
+                numberOrUndefinedFromDetails(trimmedDetails, "firstAudibleAudioMs")
               ),
               ...whenDefined(
                 "firstRealtimeAudioDeltaMs",
-                numberOrNull(trimmedDetails["firstRealtimeAudioDeltaMs"])
+                numberOrUndefinedFromDetails(
+                  trimmedDetails,
+                  "firstRealtimeAudioDeltaMs"
+                )
               ),
-              ...whenDefined("sttFinalMs", numberOrNull(trimmedDetails["sttFinalMs"])),
+              ...whenDefined(
+                "sttFinalMs",
+                numberOrUndefinedFromDetails(trimmedDetails, "sttFinalMs")
+              ),
               ...whenDefined(
                 "lockDecisionMs",
-                numberOrNull(trimmedDetails["lockDecisionMs"])
+                numberOrUndefinedFromDetails(trimmedDetails, "lockDecisionMs")
               ),
               ...(typeof trimmedDetails["localLockedAudioHit"] === "boolean"
                 ? { localLockedAudioHit: trimmedDetails["localLockedAudioHit"] }
                 : {}),
               ...whenDefined(
                 "lockedResponseKey",
-                stringOrNull(trimmedDetails["lockedResponseKey"])
+                stringOrUndefinedFromDetails(trimmedDetails, "lockedResponseKey")
               ),
               ...(cacheStatusRaw === "hit" || cacheStatusRaw === "miss"
                 ? { cacheStatus: cacheStatusRaw }
                 : {}),
               ...whenDefined(
                 "cacheLookupMs",
-                numberOrNull(trimmedDetails["cacheLookupMs"])
+                numberOrUndefinedFromDetails(trimmedDetails, "cacheLookupMs")
               ),
               ...whenDefined(
                 "ttsVendorMsAtCreation",
-                numberOrNull(trimmedDetails["ttsVendorMsAtCreation"])
+                numberOrUndefinedFromDetails(
+                  trimmedDetails,
+                  "ttsVendorMsAtCreation"
+                )
               ),
               ...whenDefined(
                 "networkTtsMs",
-                numberOrNull(trimmedDetails["networkTtsMs"])
+                numberOrUndefinedFromDetails(trimmedDetails, "networkTtsMs")
               ),
               ...whenDefined(
                 "audioDecodeMs",
-                numberOrNull(trimmedDetails["audioDecodeMs"])
+                numberOrUndefinedFromDetails(trimmedDetails, "audioDecodeMs")
               ),
               ...whenDefined(
                 "sanitizerDelayMs",
-                numberOrNull(trimmedDetails["sanitizerDelayMs"])
+                numberOrUndefinedFromDetails(trimmedDetails, "sanitizerDelayMs")
               ),
               ...whenDefined(
                 "sanitizedTtsMs",
-                numberOrNull(trimmedDetails["sanitizedTtsMs"])
+                numberOrUndefinedFromDetails(trimmedDetails, "sanitizedTtsMs")
               ),
-              ...whenDefined("reseedMs", numberOrNull(trimmedDetails["reseedMs"])),
-              ...whenDefined("outcome", stringOrNull(trimmedDetails["outcome"])),
+              ...whenDefined(
+                "reseedMs",
+                numberOrUndefinedFromDetails(trimmedDetails, "reseedMs")
+              ),
+              ...whenDefined(
+                "outcome",
+                stringOrUndefinedFromDetails(trimmedDetails, "outcome")
+              ),
               ...(typeof trimmedDetails["sessionTainted"] === "boolean"
                 ? { sessionTainted: trimmedDetails["sessionTainted"] }
                 : {}),
               ...whenDefined(
                 "parentSessionId",
-                stringOrNull(trimmedDetails["parentSessionId"])
+                stringOrUndefinedFromDetails(trimmedDetails, "parentSessionId")
               ),
               ...(cloudRunRevision ? { cloudRunRevision } : {}),
               provenance: {
@@ -367,6 +385,40 @@ function whenDefined<K extends string, V>(
 ): { [P in K]: V } | Record<string, never> {
   if (value === undefined) return {};
   return { [key]: value } as { [P in K]: V };
+}
+
+// Sparse-telemetry helpers (Codex P2 follow-up on PR #83). Why these
+// exist instead of reusing `numberOrNull` / `stringOrNull`:
+//   - `numberOrNull(undefined)` returns `null` (because `typeof undefined
+//     !== "number"`). Pairing that with `whenDefined` would emit
+//     `someField: null` for every turn — defeating the sparse schema.
+//   - These helpers distinguish three cases:
+//       MISSING       → return `undefined` → `whenDefined` omits the key
+//       EXPLICIT null → return `null`      → `whenDefined` emits null
+//       VALID number  → return the number  → `whenDefined` emits it
+// This preserves "client did not send this field" vs "client explicitly
+// sent null" semantics in the structured log, and keeps log volume
+// proportional to actually populated fields.
+function hasOwn(obj: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+function numberOrUndefinedFromDetails(
+  details: Record<string, unknown>,
+  key: string
+): number | null | undefined {
+  if (!hasOwn(details, key)) return undefined;
+  const value = details[key];
+  if (value === null) return null;
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+function stringOrUndefinedFromDetails(
+  details: Record<string, unknown>,
+  key: string
+): string | null | undefined {
+  if (!hasOwn(details, key)) return undefined;
+  const value = details[key];
+  if (value === null) return null;
+  return typeof value === "string" ? value : undefined;
 }
 
 const TRANSCRIPT_PREVIEW_KEYS = new Set([

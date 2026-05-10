@@ -473,6 +473,129 @@ describe("grok-voice event route", () => {
     expect(metricsLine!["localLockedAudioHit"]).toBe(false);
   });
 
+  // Codex P2 follow-up on PR #83: missing optional latency keys must be
+  // OMITTED from the typed `grokVoice.turnMetrics` scope (sparse), while
+  // keys explicitly set to null by a future client must be PRESERVED as
+  // null (so we can distinguish "client did not measure this" from
+  // "client measured this and it was null"). Pinning all three branches
+  // keeps the schema contract stable as more PRs add fields.
+  it("omits optional latency fields from turnMetrics when an old client does not send them (sparse schema)", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          // Mimic an old client that only sends the original turn fields,
+          // i.e. NONE of the PR A latency observability keys.
+          details: {
+            turnIndex: 7,
+            inputMode: "voice",
+            userTextLen: 5,
+            agentTextLen: 12,
+            firstAudioMs: 4200,
+            doneMs: 6800,
+            audioBytes: 320640,
+            promptVersion: "compile-scenario@2026-05-07.v3.10.x",
+            promptHash: "750d10ade35a",
+            guardrailVersion: "gv-think-fast-v5.0-2026-05-10",
+            grokVoiceModel: "grok-voice-think-fast-1.0",
+            grokVoiceVoiceId: "rex",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    // Each new PR A field must be ABSENT (not emitted as null) when the
+    // client did not send the property.
+    for (const key of [
+      "routePath",
+      "firstAudibleAudioMs",
+      "firstRealtimeAudioDeltaMs",
+      "sttFinalMs",
+      "lockDecisionMs",
+      "localLockedAudioHit",
+      "lockedResponseKey",
+      "cacheStatus",
+      "cacheLookupMs",
+      "ttsVendorMsAtCreation",
+      "networkTtsMs",
+      "audioDecodeMs",
+      "sanitizerDelayMs",
+      "sanitizedTtsMs",
+      "reseedMs",
+      "outcome",
+      "sessionTainted",
+      "parentSessionId",
+    ]) {
+      expect(
+        Object.prototype.hasOwnProperty.call(metricsLine, key),
+        `expected ${key} to be omitted, but it was emitted`
+      ).toBe(false);
+    }
+    // The legacy fields the client DID send must still be present.
+    expect(metricsLine!["firstAudioMs"]).toBe(4200);
+    expect(metricsLine!["doneMs"]).toBe(6800);
+    expect(metricsLine!["audioBytes"]).toBe(320640);
+  });
+
+  it("preserves an explicit null for a latency field rather than coercing to omitted", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 1,
+            inputMode: "voice",
+            userTextLen: 5,
+            agentTextLen: 12,
+            firstAudioMs: 100,
+            doneMs: 200,
+            audioBytes: 1024,
+            // Future-client signal: "I tracked this field but it has no
+            // value for this turn." Distinct from "I never set the field".
+            firstAudibleAudioMs: null,
+            cacheLookupMs: null,
+            outcome: null,
+            parentSessionId: null,
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    // Each explicit null must be preserved as null (key present, value null).
+    for (const key of [
+      "firstAudibleAudioMs",
+      "cacheLookupMs",
+      "outcome",
+      "parentSessionId",
+    ]) {
+      expect(
+        Object.prototype.hasOwnProperty.call(metricsLine, key),
+        `expected ${key} to be present (as null)`
+      ).toBe(true);
+      expect(metricsLine![key]).toBeNull();
+    }
+  });
+
   it("rejects an invalid routePath value rather than passing garbage through", async () => {
     const { POST } = await import("../../app/api/v3/event/route");
     const response = await POST(
