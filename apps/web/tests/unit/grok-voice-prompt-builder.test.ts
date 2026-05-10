@@ -50,7 +50,7 @@ describe("grok-voice prompt builder", () => {
 
   it("includes PR60 voice canonicalization, stock suffix ban, and skill budget", () => {
     const guardrail = GROK_VOICE_RUNTIME_GUARDRAIL;
-    expect(GROK_VOICE_GUARDRAIL_VERSION).toBe("gv-think-fast-v4.9-2026-05-09");
+    expect(GROK_VOICE_GUARDRAIL_VERSION).toBe("gv-think-fast-v5.0-2026-05-10");
     expect(guardrail).toContain("Voice-Friendly Date and Quantity Canonicalization");
     expect(guardrail).toContain("六月ついたち");
     expect(guardrail).toContain("ろっぴゃく件から、ななひゃっけん程度");
@@ -82,6 +82,23 @@ describe("grok-voice prompt builder", () => {
     );
     // The legacy "End Question の3条件がすべて揃った" loophole is gone.
     expect(guardrail).not.toContain("End Question の3条件がすべて揃った");
+  });
+
+  it("v5.0 adds Canonical-Only Enforcement for 件数 / broad skill / 業務内容", () => {
+    const guardrail = GROK_VOICE_RUNTIME_GUARDRAIL;
+    expect(guardrail).toContain("Canonical-Only Enforcement");
+    expect(guardrail).toContain(
+      "件数質問、初回の広いスキル質問、業務内容質問は、対応する PR60 Canonical One-Line Answer Locks の完全一致回答だけで終える"
+    );
+    expect(guardrail).toContain(
+      "件数回答に「繁忙時期」「月のおわり」「月の初め」「月末」「月初」を続けて出さない"
+    );
+    expect(guardrail).toContain(
+      "初回の広いスキル質問に「正確性」「協調性」「メーカー」「プラス」「必須」を続けて出さない"
+    );
+    expect(guardrail).toContain(
+      "業務内容回答に「製品コードに慣れるまで」「大枠はこのあたり」「現場の状況によっては」のような3文目補足を出さない"
+    );
   });
 
   it("does not concat publish-artifact promptSections (avoids duplicating compiled prompt)", () => {

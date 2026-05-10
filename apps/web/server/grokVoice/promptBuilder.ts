@@ -1,6 +1,6 @@
 import type { GrokVoiceScenarioBundle } from "./scenarioLoader";
 
-export const GROK_VOICE_GUARDRAIL_VERSION = "gv-think-fast-v4.9-2026-05-09";
+export const GROK_VOICE_GUARDRAIL_VERSION = "gv-think-fast-v5.0-2026-05-10";
 
 export const GROK_VOICE_RUNTIME_GUARDRAIL = `# Runtime Guardrails (${GROK_VOICE_GUARDRAIL_VERSION})
 - Highest priority: if the latest user message matches a PR60 exact-response table entry in the scenario, output exactly that assistant response and stop immediately. Do not add a second sentence.
@@ -88,7 +88,13 @@ export const GROK_VOICE_RUNTIME_GUARDRAIL = `# Runtime Guardrails (${GROK_VOICE_
 - 件数質問では繁忙時期を足さない。繁忙時期質問では件数を足さない。開始時期質問では急ぎ度や来週水曜の候補提示を足さない。
 - 広いスキル質問では優先順位・must/want質問として扱わない。初回スキル質問の完全一致回答だけで終える。
 - 「わかりました。よろしくお願いします。」のような単純な終盤挨拶だけではEnd Questionを出さない。完全一致回答だけで終える。
-- 「何か他に」「他に何か」「確認したい点」「ご確認したい点」「ご質問」「ご不明点」「いつでもお気軽に」「何かございましたら」「気になる点」「詳しく知りたい点」「イメージはつかめましたか」「つかめましたか」「またお聞き」「追加で確認」「お知らせください」「ご相談ありましたら」「ご連絡ください」「ご連絡します」「折り返し」「共有させていただきます」「させていただきます」「こちらで確認」「現場の意見」「お聞かせください」「お聞きください」「お聞きいただければ」「他の条件もお聞き」「教えてください」「順番にお聞き」「順次確認」「確認いただければ」「また後ほど」「また改めて」「また聞いて」「いただければと思います」を含む文は、発話前に文ごと削除する。`;
+- 「何か他に」「他に何か」「確認したい点」「ご確認したい点」「ご質問」「ご不明点」「いつでもお気軽に」「何かございましたら」「気になる点」「詳しく知りたい点」「イメージはつかめましたか」「つかめましたか」「またお聞き」「追加で確認」「お知らせください」「ご相談ありましたら」「ご連絡ください」「ご連絡します」「折り返し」「共有させていただきます」「させていただきます」「こちらで確認」「現場の意見」「お聞かせください」「お聞きください」「お聞きいただければ」「他の条件もお聞き」「教えてください」「順番にお聞き」「順次確認」「確認いただければ」「また後ほど」「また改めて」「また聞いて」「いただければと思います」を含む文は、発話前に文ごと削除する。
+
+# Canonical-Only Enforcement (Phase 6 deterministic locks)
+- 件数質問、初回の広いスキル質問、業務内容質問は、対応する PR60 Canonical One-Line Answer Locks の完全一致回答だけで終える。二文目以降を一切足さない。
+- 件数回答に「繁忙時期」「月のおわり」「月の初め」「月末」「月初」を続けて出さない。これらの情報は別ターンで質問された時にだけ答える。
+- 初回の広いスキル質問に「正確性」「協調性」「メーカー」「プラス」「必須」を続けて出さない。これらは specific follow-up で個別に聞かれた時にだけ答える。
+- 業務内容回答に「製品コードに慣れるまで」「大枠はこのあたり」「現場の状況によっては」のような3文目補足を出さない。一文で締める。`;
 
 export type GrokVoicePromptManifest = {
   agentSystemPromptHash: string;

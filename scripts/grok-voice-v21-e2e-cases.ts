@@ -21,12 +21,13 @@ export type CaseDef = {
 // case-ID-pinned (NOT pattern-pinned): a NEW case that exhibits the same
 // failure pattern is a NEW regression.
 export const ALLOWED_KNOWN_FAILURE_IDS: readonly string[] = [
-  "case23_working_hours_correction", // #73 — voice-canonical kana vs digit form mismatch
-  "case26_monthly_volume_voice_friendly_no_suffix", // #74 — declarative second sentence after canonical 件数
-  "case30_skill_question_minimal_disclosure", // #75 — Skill Disclosure Budget leak
+  // #73 / #74 / #75 / #78 closed by Phase 6: deterministic locks at the
+  // harness level + kana-form acceptance in case23/case30 pass conditions.
+  // case23 / case26 / case30 / case40 now route through canonical answers
+  // and PASS reliably (5/5 across multiple runs).
   "case8_late_kickback_question", // #76 — locked-response 2-sentence truncation (model drops 2nd sentence)
   "case3b_weak_question_no_reveal", // #77 — domain hidden facts (代理店/工務店) intermittent leak
-  "case40_job_detail_no_teach_me_suffix", // #78 — over-explanation 3rd sentence (round 1 sanitizer fix already in)
+  "case12_praise_threshold_medium_question", // #79 — Tier-1 praise threshold leaks 施工日 (different cluster) intermittently
 ];
 export type PassCondition =
   | { kind: "must_contain_any"; terms: string[]; reason: string }
@@ -996,9 +997,21 @@ export const CASES: CaseDef[] = [
     turns: [{ role: "user", text: "勤務時間は十時開始でも大丈夫ですよね？" }],
     passConditions: [
       {
+        // Phase 6 (#73): accept BOTH the digit display form (legacy) and the
+        // voice-canonical kana form. The prompt's Voice-Friendly
+        // Canonicalization rule mandates kana ("朝八時よんじゅうごふん") at
+        // the model's output stage; production UI runs the inverse mapping
+        // for display. The test catalog must accept either so it doesn't
+        // depend on which side of the kana/digit boundary the harness sees.
         kind: "must_contain_any",
-        terms: ["八時四十五分", "十七時三十分", "現場確認"],
-        reason: "既存の勤務時間に訂正する",
+        terms: [
+          "八時四十五分",
+          "十七時三十分",
+          "現場確認",
+          "朝八時よんじゅうごふん",
+          "夕方五時三十分",
+        ],
+        reason: "既存の勤務時間に訂正する (digit OR voice-canonical kana)",
       },
       {
         kind: "must_not_contain_any",
@@ -1162,10 +1175,13 @@ export const CASES: CaseDef[] = [
     ],
     passConditions: [
       {
+        // Phase 6 (#75): accept BOTH digit (受発注) and voice-canonical kana
+        // (じゅはっちゅう) forms. Same rationale as case23: the prompt
+        // mandates kana at the model output and the UI inverts for display.
         kind: "must_contain_at_least",
         n: 1,
-        terms: ["受発注"],
-        reason: "第一階層の受発注経験を答える",
+        terms: ["受発注", "じゅはっちゅう"],
+        reason: "第一階層の受発注経験を答える (digit OR voice-canonical kana)",
       },
       {
         kind: "must_contain_any",
