@@ -14,10 +14,20 @@
 
 ## Secrets
 
-- All API keys, tokens, and credentials are sourced from Google Secret Manager. The runtime (`apps/web/server/secrets.ts`) and any operational scripts must fetch from Secret Manager — never hard-code keys, never commit them to `.env*` files, and never paste them into the repo.
-- Default secret-source project is `zapier-transfer` (overridable via `SECRET_SOURCE_PROJECT_ID`); per-tenant secrets such as `XAI_API_KEY` may also live in `adecco-mendan` as a fallback.
-- Local development that needs a live API key should pull it via `gcloud secrets versions access latest --secret=<NAME> --project=<PROJECT>` at the start of the session, into the current shell only. Do not write the value into `apps/web/.env.local` or any tracked file.
-- E2E and benchmark scripts should resolve secrets at runtime (env first, then Secret Manager) and exit with a clear "BLOCKED" message if neither source is available — they must not silently fall back to placeholder strings.
+- All API keys, tokens, and credentials are sourced from Google Secret Manager. The runtime (`apps/web/server/secrets.ts`) and any operational scripts must fetch from Secret Manager — never hard-code keys, never commit them to `.env*` files, and never paste them into the repo, PR descriptions, issue comments, or commit messages.
+- **Resolution precedence** (every script and dev session must follow this order):
+  1. Process env (`process.env["<NAME>"]`) if already set in the current shell.
+  2. `apps/web/.env.local` (gitignored, local-only — never commit).
+  3. Secret Manager via `gcloud secrets versions access latest --secret=<NAME> --project=<PROJECT>`. Project order: `SECRET_SOURCE_PROJECT_ID` env var → `zapier-transfer` (default) → `adecco-mendan` (per-tenant fallback for `XAI_API_KEY`, `ELEVENLABS_API_KEY`, etc.).
+- **Canonical retrieval command** for ad-hoc local use:
+  `gcloud secrets versions access latest --secret=<NAME> --project=<PROJECT>`
+  Pull into the current shell only. Do not write the value into `apps/web/.env.local`, any tracked file, or any tool config.
+- E2E and benchmark scripts must resolve secrets at runtime via the precedence above and exit with an explicit `BLOCKED: <NAME> not available` message if no source yields a real key (length ≥ 32, not a `test-…` placeholder). They must not silently fall back to placeholder strings or skip checks. The reference implementation is `loadXaiKeyFromSecretManagerIfNeeded()` in `scripts/grok-voice-v21-scenario-e2e.ts`.
+- This `## Secrets` section is the cross-tool **Source of Truth**. Tool-specific surfaces re-state it (so each tool surfaces the rule natively) without owning the contract:
+  - Codex command-approval guards for Secret Manager mutations (`gcloud secrets {delete,versions destroy,versions add,create,set-iam-policy}`) live in [`.codex/rules/secrets.rules`](.codex/rules/secrets.rules).
+  - Claude Code surface lives in [`.claude/rules/secrets.md`](.claude/rules/secrets.md).
+  - Cursor surface lives in [`.cursor/rules/secrets.mdc`](.cursor/rules/secrets.mdc) (`alwaysApply: true`).
+  - Any change to the retrieval contract above must update **all four** files in the same change.
 
 ## Working Defaults
 
@@ -58,6 +68,7 @@
 
 ## Repo-Scoped Rules And Hooks
 
-- Repo command-approval rules live under `.codex/rules/`.
+- Repo command-approval rules live under `.codex/rules/` (Codex) with cross-tool mirrors at `.claude/rules/` (Claude Code) and `.cursor/rules/` (Cursor). The Codex mirror uses `prefix_rule()` DSL; the Claude / Cursor mirrors are markdown / `.mdc` thin wrappers that point back to AGENTS.md as SoT.
+- When introducing a safety-sensitive command flow, destructive operation, or canonical retrieval pattern, update AGENTS.md as the SoT first, then add (or amend) the matching surface in each of `.codex/rules/`, `.claude/rules/`, and `.cursor/rules/`.
 - Repo hooks live under `.codex/hooks.json` and `.codex/hooks/`.
 - Hooks are experimental and currently disabled on Windows in Codex, so do not rely on hooks as the only safety mechanism for this repo.
