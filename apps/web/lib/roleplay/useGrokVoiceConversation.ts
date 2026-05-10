@@ -165,6 +165,22 @@ export function useGrokVoiceConversation(
     reason: "uninitialized_defaulting_to_safe",
   });
   const streamingBeforeDoneRef = useRef(false);
+  // PR D / PR #86 P2 — reset helper for the two strict-playback turn
+  // refs. There are multiple sites that begin a new turn (the regular
+  // `resetTurnBookkeeping` after a clean response.done AND the
+  // `input_audio_buffer.speech_started` barge-in path that creates a
+  // replacement turn by mutating refs directly). Both must reset BOTH
+  // refs, otherwise `streamingBeforeDone=true` from a previous streamed
+  // turn leaks into the next (possibly buffered) turn's metrics.
+  // Codex P2 on PR #85 caught the barge-in leak; this helper makes the
+  // contract explicit so future barge-in paths can't drift.
+  const resetStrictPlaybackTurnState = useCallback(() => {
+    turnStrictGateRef.current = {
+      apply: true,
+      reason: "uninitialized_defaulting_to_safe",
+    };
+    streamingBeforeDoneRef.current = false;
+  }, []);
   // Tracks whether the IMMEDIATELY PREVIOUS turn ended with a sanitizer
   // rewrite or a session reseed. The recovery turn after either signal
   // is conservatively gated so the model has one buffered turn to
@@ -324,11 +340,7 @@ export function useGrokVoiceConversation(
     // PR D — reset the gate decision to the safe default for the next
     // turn. The `previousTurnSanitizerOrReseedRef` survives this reset
     // because it captures inter-turn state.
-    turnStrictGateRef.current = {
-      apply: true,
-      reason: "uninitialized_defaulting_to_safe",
-    };
-    streamingBeforeDoneRef.current = false;
+    resetStrictPlaybackTurnState();
     interimAgentClientIdRef.current = null;
     agentSpeakingRef.current = false;
     bargeInCancelSentRef.current = false;
@@ -353,7 +365,7 @@ export function useGrokVoiceConversation(
     sanitizedTtsMsRef.current = null;
     reseedMsRef.current = null;
     parentSessionIdForTurnRef.current = null;
-  }, []);
+  }, [resetStrictPlaybackTurnState]);
 
   // Indirection ref so the reseed flow can construct a new realtime that
   // dispatches into the SAME handleServerEvent without a circular useCallback
@@ -1273,6 +1285,14 @@ export function useGrokVoiceConversation(
           firstAudibleAudioAtRef.current = null;
           sanitizerDecidedAtRef.current = null;
           sanitizedTtsMsRef.current = null;
+          // PR D / PR #86 P2 — barge-in starts a replacement turn by
+          // mutating refs directly (NOT via resetTurnBookkeeping). Reset
+          // the strict-playback per-turn state explicitly so the
+          // previous turn's `streamingBeforeDone=true` does not leak
+          // into the new turn's metrics, and so the new turn re-enters
+          // with the safe-default gate until STT confirms a fresh
+          // user-text classification.
+          resetStrictPlaybackTurnState();
           setStatus("listening");
           break;
         }
@@ -1697,6 +1717,7 @@ export function useGrokVoiceConversation(
       ensureAudioQueue,
       finalizeStrictResponseDone,
       playLockedResponse,
+      resetStrictPlaybackTurnState,
       resetTurnBookkeeping,
     ]
   );
