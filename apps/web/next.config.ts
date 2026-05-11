@@ -22,6 +22,16 @@ const nextConfig: NextConfig = {
       // for Grok Voice instructions injection. Without this, the standalone
       // bundle returns ENOENT and the v3 session route 502s.
       "../../data/pronunciation/**/*.pls",
+      // Verified Audio Artifact pipeline (PR #92 / PR-93). The manifest
+      // JSON + per-intent PCM artifacts are read at server cold start by
+      // apps/web/server/registeredSpeech/manifestLoader.ts (sha256 verify
+      // + forbidden-suffix scan), and the bytes are then base64-streamed
+      // into /api/v3/session as `registeredSpeech.artifacts`. Without this
+      // include, the standalone Next.js bundle ships manifestLoader code
+      // but NOT the data — bundle assembly throws ENOENT, the session
+      // route surfaces no `registeredSpeech` field, and the deterministic-
+      // mode client refuses mic with "音声バンドルの整合性が確認できない".
+      "../../data/generated/registered-speech/**",
     ]
   },
   async headers() {
