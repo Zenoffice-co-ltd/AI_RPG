@@ -142,8 +142,34 @@ const PR60_LOCKED_RESPONSES: Array<{
     response:
       "請求想定は経験により、千七百五十円から、千九百円程度です。",
   },
+  // decision_maker — pattern set kept in sync with the
+  // registered-speech matcher in
+  // apps/web/lib/roleplay/registered-speech/intent-matcher.ts.
+  // Manual regression on 2026-05-12 showed the natural phrasing
+  // "決定される方はどなたですか？" fell through to rt_voice at 11.9s;
+  // this expansion routes those phrasings to the locked canonical.
   {
-    userPatterns: [/最終決定/, /誰になります/, /決定.*誰/, /決裁者/],
+    userPatterns: [
+      /最終決定/,
+      /最終判断/,
+      /決裁者/,
+      /誰になります/,
+      /決定.*誰/,
+      /決定.*どなた/,
+      /決定される/,
+      /決める.*誰/,
+      /決める.*どなた/,
+      /決まる.*誰/,
+      /決まる.*どなた/,
+      /選定.*誰/,
+      /選定.*どなた/,
+      /判断.*誰/,
+      /判断.*どなた/,
+      /どなた.*決定/,
+      /どなた.*判断/,
+      /どなた.*決め/,
+      /誰.*決め/,
+    ],
     response:
       "ベンダー選定はじんじが主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。",
   },

@@ -30,6 +30,7 @@ import type {
 } from "./registered-speech/types";
 import {
   classifyUserUtteranceForRegisteredSpeech,
+  isRepeatRequest,
   type MatcherDecision,
 } from "./registered-speech/intent-matcher";
 import {
@@ -148,6 +149,14 @@ export function useGrokVoiceConversation(
   // verified during `buildVerifiedRegisteredSpeechCache`.
   const verifiedRegisteredSpeechCacheRef =
     useRef<VerifiedRegisteredSpeechCache | null>(null);
+  // 2026-05-12 manual-regression fix: when the user follows a lock
+  // turn with "もう一度お願いします" the matcher previously fell
+  // through to `fallback_unknown`. We now remember the most-recent
+  // registered-speech hit (any intent except the two fallbacks) so
+  // the repeat-intent detector can replay the same verified audio
+  // byte-for-byte. Cleared whenever the cache itself is rebuilt at
+  // session bootstrap.
+  const lastRegisteredSpeechHitRef = useRef<LockedSpeechHit | null>(null);
   const currentResponseItemIdRef = useRef<string | null>(null);
   const currentResponseIdRef = useRef<string | null>(null);
   const ignoredResponseIdsRef = useRef(new Set<string>());
@@ -1561,6 +1570,40 @@ export function useGrokVoiceConversation(
       const cache = verifiedRegisteredSpeechCacheRef.current;
       if (!cache) return false;
       const userInputFinalizedAt = Date.now();
+
+      // Repeat-request fast path: 2026-05-12 manual regression showed
+      // "もう一度お願いします" falling through to rt_voice on the
+      // legacy path and to fallback_unknown on the deterministic
+      // path. Both produced a "first-turn-wrong / second-turn-right"
+      // UX. The fix: when the user asks for a repeat AND we have a
+      // recent registered-speech hit cached, replay that same
+      // artifact byte-for-byte. Same sha256, same audio, no
+      // matcher-shape gymnastics needed.
+      if (isRepeatRequest(trimmed) && lastRegisteredSpeechHitRef.current) {
+        const lastHit = lastRegisteredSpeechHitRef.current;
+        const repeatDecision: MatcherDecision = {
+          kind: "intent_hit",
+          hit: lastHit,
+        };
+        const intentClassifiedAt = Date.now();
+        void postGrokVoiceEvent("registered_speech.intent_matched", {
+          sessionId: activeSession.sessionId,
+          details: {
+            decisionKind: "repeat_last_registered_speech",
+            intent: lastHit.intent,
+            classificationMs: intentClassifiedAt - userInputFinalizedAt,
+          },
+        });
+        void playRegisteredSpeechArtifact({
+          userText: trimmed,
+          decision: repeatDecision,
+          channel,
+          userInputFinalizedAt,
+          intentClassifiedAt,
+        });
+        return true;
+      }
+
       const decision = classifyUserUtteranceForRegisteredSpeech({
         userText: trimmed,
         cache,
@@ -1574,6 +1617,17 @@ export function useGrokVoiceConversation(
           classificationMs: intentClassifiedAt - userInputFinalizedAt,
         },
       });
+      // Track the most-recent non-fallback hit so the repeat-intent
+      // fast path above has something to replay. fallback_unknown /
+      // fallback_audio_not_ready are intentionally excluded — asking
+      // to repeat a "その点は確認します。" loop would be useless.
+      if (
+        decision.kind === "intent_hit" &&
+        decision.hit.intent !== "fallback_unknown" &&
+        decision.hit.intent !== "fallback_audio_not_ready"
+      ) {
+        lastRegisteredSpeechHitRef.current = decision.hit;
+      }
       void playRegisteredSpeechArtifact({
         userText: trimmed,
         decision,
@@ -2334,6 +2388,7 @@ export function useGrokVoiceConversation(
           return;
         }
         verifiedRegisteredSpeechCacheRef.current = cacheResult.cache;
+        lastRegisteredSpeechHitRef.current = null;
         void postGrokVoiceEvent("registered_speech.sha_verified", {
           sessionId: next.sessionId,
           details: {
@@ -2343,6 +2398,7 @@ export function useGrokVoiceConversation(
         });
       } else {
         verifiedRegisteredSpeechCacheRef.current = null;
+        lastRegisteredSpeechHitRef.current = null;
       }
 
       const greeting = createTranscriptMessage({

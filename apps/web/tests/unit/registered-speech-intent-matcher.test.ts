@@ -4,7 +4,11 @@ import {
   REQUIRED_REGISTERED_SPEECH_INTENTS,
   type CanonicalIntent,
 } from "../../lib/roleplay/registered-speech/canonical-intents";
-import { classifyUserUtteranceForRegisteredSpeech } from "../../lib/roleplay/registered-speech/intent-matcher";
+import {
+  classifyUserUtteranceForRegisteredSpeech,
+  isRepeatRequest,
+  normalizeUserUtteranceForIntent,
+} from "../../lib/roleplay/registered-speech/intent-matcher";
 import type { VerifiedRegisteredSpeechCache } from "../../lib/roleplay/registered-speech/types";
 
 // Tests for the deterministic-mode user-utterance → intent classifier.
@@ -100,5 +104,72 @@ describe("classifyUserUtteranceForRegisteredSpeech", () => {
     const decision = classify("業務内容と単価を教えてください");
     expect(decision.kind).toBe("intent_hit");
     expect(decision.hit.intent).toBe("job_content");
+  });
+
+  // 2026-05-12 manual-regression coverage. The natural phrasings below
+  // missed the original matcher and fell to rt_voice (decision_maker:
+  // 11,938ms first-audible). With the expanded pattern set + ack/filler
+  // normalization, each phrase must now resolve to its lock canonical.
+  describe("manual-regression natural phrasings (2026-05-12)", () => {
+    it.each<[string, CanonicalIntent]>([
+      ["決定される方はどなたですか？", "decision_maker"],
+      ["今回はー、決定される方はどなたですか？", "decision_maker"],
+      [
+        "はい、ありがとうございます。今回はー、決定される方はどなたですか？",
+        "decision_maker",
+      ],
+      ["最終判断される方はどなたですか？", "decision_maker"],
+      ["どなたが最終判断されますか？", "decision_maker"],
+      ["決まる方はどなたですか", "decision_maker"],
+      // ack-prefixed factual questions
+      ["あ、請求単価は？", "billing_rate"],
+      ["なるほどですね、残業は月どれくらいですか？", "overtime"],
+      ["えっと、業務時間は？", "working_hours"],
+      ["うん、在宅勤務はありますか？", "remote_work"],
+      ["はい、何名募集ですか？", "headcount"],
+      ["ありがとうございます、業務内容を教えてください", "job_content"],
+    ])("routes %p to intent %p", (text, expected) => {
+      const decision = classify(text);
+      expect(decision.kind).toBe("intent_hit");
+      expect(decision.hit.intent).toBe(expected);
+    });
+  });
+});
+
+describe("normalizeUserUtteranceForIntent", () => {
+  it.each<[string, string]>([
+    ["はい、ありがとうございます。今回はー、決定される方はどなたですか？", "決定される方はどなたですか？"],
+    ["あ、請求単価は？", "請求単価は？"],
+    ["なるほどですね、残業は月どれくらいですか？", "残業は月どれくらいですか？"],
+    ["えっと、業務時間は？", "業務時間は？"],
+    ["うん、在宅勤務はありますか？", "在宅勤務はありますか？"],
+    // No-op when there's no leading filler
+    ["業務時間は何時からですか？", "業務時間は何時からですか？"],
+    ["", ""],
+  ])("strips leading ack/filler: %p → %p", (input, expected) => {
+    expect(normalizeUserUtteranceForIntent(input)).toBe(expected);
+  });
+});
+
+describe("isRepeatRequest", () => {
+  it.each<[string, boolean]>([
+    ["もう一度お願いします", true],
+    ["あ、もう一度お願いします", true],
+    ["もう一度", true],
+    ["もう一回お願いします", true],
+    ["もっかいお願いします", true],
+    ["再度お願いします", true],
+    ["繰り返してください", true],
+    ["聞き直したいです", true],
+    ["さっきの単価をもう一回", true],
+    ["聞こえませんでした", true],
+    // Negative cases
+    ["請求単価は？", false],
+    ["時給はいくらですか", false],
+    ["業務時間は", false],
+    // Confound: "もう一度" must be present; "一度" alone is not enough
+    ["一度確認させてください", false],
+  ])("isRepeatRequest(%p) === %p", (input, expected) => {
+    expect(isRepeatRequest(input)).toBe(expected);
   });
 });

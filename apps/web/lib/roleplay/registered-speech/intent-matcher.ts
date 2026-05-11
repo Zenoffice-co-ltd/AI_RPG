@@ -6,6 +6,54 @@ import type {
   VerifiedRegisteredSpeechCache,
 } from "./types";
 
+// 2026-05-12 manual regression: natural prefixes like "あ、" /
+// "なるほどですね、" / "はい、ありがとうございます。今回はー、" carried
+// the user's real intent (e.g. "決定される方はどなたですか？") but the
+// trimmed-only matcher couldn't see past them. The normalizer strips
+// the conversational filler so the underlying intent reaches the
+// patterns. Original `userText` is still matched first so any pattern
+// that NEEDS the prefix (none today, but defensible) keeps working.
+//
+// Alternation order is LONGEST-first because JS regex alternation is
+// left-to-right with first-match semantics — `あ|ありがとう` would
+// match only `あ` on input "ありがとう", which would maim the rest of
+// the prefix walk.
+const ACK_FILLER_PREFIX_RE =
+  /^(ありがとうございます|なるほどですね|ありがとう|すみません|なるほど|えっと|ええと|うーん|はい|えー|うん|その|あ)[\s、。,.．・ー\-]*/;
+const SCENE_OPENER_PREFIX_RE =
+  /^(それでは|では|じゃあ|今回は|今回)[\s、。,.．・ー\-]*/;
+
+export function normalizeUserUtteranceForIntent(input: string): string {
+  let s = input.trim();
+  // Collapse interjection punctuation that the STT scatters across the
+  // sentence ("はい、今回はー、…") so multi-stage stripping below sees
+  // a uniform delimiter.
+  s = s.replace(/[、。,.．・]+/g, " ").replace(/\s+/g, " ").trim();
+  // Strip a sequence of leading acks ("はい ありがとうございます")
+  // followed optionally by a scene opener ("今回は ") — each cycle
+  // peels one layer until none of the prefixes match.
+  for (let i = 0; i < 4; i += 1) {
+    const before = s;
+    s = s.replace(ACK_FILLER_PREFIX_RE, "").replace(SCENE_OPENER_PREFIX_RE, "");
+    if (s === before) break;
+  }
+  return s.trim();
+}
+
+// Repeat-request detection. 2026-05-12 production sessions showed
+// "もう一度お願いします" being routed to rt_voice because the literal
+// has no canonical anchor; this caused a "first-time wrong / second-time
+// right" perception loop (the first turn played a cached TTS rendering
+// of the lock canonical, the second turn was a fresh rt_voice
+// synthesis with a different reading). The fix is to detect the repeat
+// intent and replay the most-recent verified artifact byte-for-byte.
+const REPEAT_REQUEST_RE =
+  /もう一度|もう一回|もっかい|もっぺん|再度|繰り返|聞き直|聞きなお|聞こえません|聞こえなかった|もう少し聞|さっきの|今の.*もう一回/;
+
+export function isRepeatRequest(input: string): boolean {
+  return REPEAT_REQUEST_RE.test(input.trim());
+}
+
 // Maps a user utterance to a canonical intent. The order here mirrors
 // `PR60_LOCKED_RESPONSES` in `grok-voice-pr60-shared.ts` so we preserve
 // the load-bearing rule that specific follow-ups precede broad
@@ -94,7 +142,38 @@ const INTENT_PATTERNS: ReadonlyArray<{
   },
   { intent: "personality", userPatterns: [/人柄/, /合う.*人/, /人物面/, /性格/] },
   { intent: "billing_rate", userPatterns: [/単価/, /請求/, /時給/, /いくら/] },
-  { intent: "decision_maker", userPatterns: [/最終決定/, /誰になります/, /決定.*誰/, /決裁者/] },
+  // decision_maker — expanded after the 2026-05-12 manual regression
+  // ("はい、ありがとうございます。今回はー、決定される方はどなたですか？")
+  // missed every original pattern and fell to rt_voice at 11,938ms.
+  // The expansion covers natural phrasings: どなた variants, 決定される
+  // / 決定する, 決まる, 選定, 判断 + 誰/どなた. Each pattern still has
+  // to imply an actor ("誰" or "どなた") to avoid colliding with the
+  // 業務内容 / 件数 intents, which also contain 決定 in some
+  // adjacent semantics.
+  {
+    intent: "decision_maker",
+    userPatterns: [
+      /最終決定/,
+      /最終判断/,
+      /決裁者/,
+      /誰になります/,
+      /決定.*誰/,
+      /決定.*どなた/,
+      /決定される/,
+      /決める.*誰/,
+      /決める.*どなた/,
+      /決まる.*誰/,
+      /決まる.*どなた/,
+      /選定.*誰/,
+      /選定.*どなた/,
+      /判断.*誰/,
+      /判断.*どなた/,
+      /どなた.*決定/,
+      /どなた.*判断/,
+      /どなた.*決め/,
+      /誰.*決め/,
+    ],
+  },
   { intent: "wednesday_followup", userPatterns: [/水曜.*メール/, /水曜日.*メール/, /候補.*メール/] },
   { intent: "closing_short", userPatterns: [/よろしくお願いします/, /宜しくお願いします/] },
 
@@ -138,9 +217,10 @@ function entryToHit(
 export function classifyUserUtteranceForRegisteredSpeech(
   input: MatcherInput
 ): MatcherDecision {
-  const trimmed = input.userText.trim();
+  const raw = input.userText.trim();
+  const normalized = normalizeUserUtteranceForIntent(raw);
 
-  if (trimmed.length === 0) {
+  if (raw.length === 0) {
     return {
       kind: "unknown_fallback",
       hit: entryToHit(input.cache, "fallback_unknown"),
@@ -151,15 +231,23 @@ export function classifyUserUtteranceForRegisteredSpeech(
   // matcher this returned null and fell to the realtime model. In
   // deterministic mode we MUST not let that path run, so route to the
   // unknown-fallback artifact instead.
-  if (isRapidFireCompoundQuestion(trimmed)) {
+  if (isRapidFireCompoundQuestion(raw)) {
     return {
       kind: "rapid_fire_fallback",
       hit: entryToHit(input.cache, "fallback_unknown"),
     };
   }
 
+  // Each intent's regex set is tested against BOTH the raw text and
+  // the ack/filler-stripped normalized text. We test raw first so any
+  // hypothetical pattern that needs to see the prefix (none today)
+  // still works; if raw misses, normalized gets a chance. Hits on
+  // either form return the same intent.
   for (const { intent, userPatterns } of INTENT_PATTERNS) {
-    if (userPatterns.some((pat) => pat.test(trimmed))) {
+    if (
+      userPatterns.some((pat) => pat.test(raw)) ||
+      userPatterns.some((pat) => pat.test(normalized))
+    ) {
       return { kind: "intent_hit", hit: entryToHit(input.cache, intent) };
     }
   }
@@ -168,8 +256,8 @@ export function classifyUserUtteranceForRegisteredSpeech(
   // "業務時間と単価を教えて" with no specific-enough intent winning).
   // Route to multi_intent_redirect rather than guessing.
   if (
-    countNounLinkerTo(trimmed) >= 1 &&
-    /教えて|聞かせて|お願いします|伺いたい/.test(trimmed)
+    countNounLinkerTo(raw) >= 1 &&
+    /教えて|聞かせて|お願いします|伺いたい/.test(raw)
   ) {
     return {
       kind: "multi_intent_redirect",

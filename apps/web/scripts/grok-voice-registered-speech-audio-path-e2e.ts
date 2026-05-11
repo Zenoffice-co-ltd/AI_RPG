@@ -318,7 +318,12 @@ type CaseExpect =
   | { kind: "multi_intent_redirect_or_fallback" }
   | { kind: "fail_closed_mic_refused" }
   | { kind: "race_drop"; intent: CanonicalIntent }
-  | { kind: "fetcher_never_called"; intent: CanonicalIntent };
+  | { kind: "fetcher_never_called"; intent: CanonicalIntent }
+  // 2026-05-12: two-turn case. First turn hits an intent, second turn
+  // is a repeat request. The pass condition is "second turn's played
+  // sha256 === first turn's played sha256" (byte-exact replay) AND
+  // routePath remains registered_speech_local on both turns.
+  | { kind: "repeat_replay"; firstIntent: CanonicalIntent; repeatInput: string };
 
 type Case = {
   id: string;
@@ -387,6 +392,51 @@ const CASES: Case[] = [
   { id: "A39", label: "no dynamic TTS (locked-response-tts)", input: "時給はいくらですか？", expect: { kind: "fetcher_never_called", intent: "billing_rate" } },
   { id: "A40", label: "no sanitized TTS", input: "業務時間は？", expect: { kind: "fetcher_never_called", intent: "working_hours" } },
   { id: "A41", label: "no greeting TTS", input: "残業は月どのくらいですか？", expect: { kind: "fetcher_never_called", intent: "overtime" } },
+  // 2026-05-12 manual-regression coverage (PR-93)
+  {
+    id: "A42",
+    label: "decision_maker natural phrase (manual regression: was 11,938ms rt_voice)",
+    input: "はい、ありがとうございます。今回はー、決定される方はどなたですか？",
+    expect: { kind: "intent_hit", intent: "decision_maker" },
+  },
+  {
+    id: "A43",
+    label: "repeat replays billing_rate artifact byte-for-byte",
+    input: "請求単価は？",
+    expect: {
+      kind: "repeat_replay",
+      firstIntent: "billing_rate",
+      repeatInput: "もう一度お願いします",
+    },
+  },
+  {
+    id: "A44",
+    label: "repeat replays skill_requirement_broad artifact byte-for-byte",
+    input: "スキルセットどんな必要ですか？",
+    expect: {
+      kind: "repeat_replay",
+      firstIntent: "skill_requirement_broad",
+      repeatInput: "あ、もう一度お願いします",
+    },
+  },
+  {
+    id: "A45",
+    label: "ack-prefixed billing_rate",
+    input: "あ、請求単価は？",
+    expect: { kind: "intent_hit", intent: "billing_rate" },
+  },
+  {
+    id: "A46",
+    label: "ack-prefixed overtime",
+    input: "なるほどですね、残業は月どれくらいですか？",
+    expect: { kind: "intent_hit", intent: "overtime" },
+  },
+  {
+    id: "A47",
+    label: "scene-opener-prefixed working_hours",
+    input: "では、業務時間は？",
+    expect: { kind: "intent_hit", intent: "working_hours" },
+  },
 ];
 
 // -------- Per-case driver --------
@@ -584,6 +634,30 @@ async function driveCase(
 
   // Per-expectation pass logic
   const exp = caseDef.expect;
+
+  // For repeat_replay cases, send the second turn (the "もう一度
+  // お願いします" follow-up) and capture m2's metrics. The pass logic
+  // below checks both turns hit registered_speech_local AND the
+  // played sha is identical (byte-for-byte replay of the first
+  // turn's artifact).
+  let m2: typeof m | null = null;
+  let m2PlayedSha: string | undefined;
+  if (exp.kind === "repeat_replay") {
+    await act(async () => {
+      await hookResult.current.sendTextMessage(exp.repeatInput);
+    });
+    await waitFor(() => {
+      if (hookResult.current.metricsLog.length < 2) {
+        throw new Error("no second metrics yet");
+      }
+    });
+    m2 = hookResult.current.metricsLog[1]!;
+    // Capture sha from the LAST recorded chunk on the queue after
+    // turn 2. Greeting + turn1 + turn2 = 3 entries (at minimum).
+    const last2 = recorded[recorded.length - 1];
+    if (last2) m2PlayedSha = last2.sha256;
+  }
+
   switch (exp.kind) {
     case "intent_hit": {
       result.pass =
@@ -638,6 +712,34 @@ async function driveCase(
         result.fetcherCounts.greeting === 0;
       if (!result.pass)
         result.reason = `routePath=${m.routePath} fetchers=${JSON.stringify(result.fetcherCounts)}`;
+      break;
+    }
+    case "repeat_replay": {
+      const turn1Ok =
+        m.routePath === "registered_speech_local" &&
+        m.registeredSpeechIntent === exp.firstIntent &&
+        result.playedSha !== undefined &&
+        result.playedSha === result.expectedArtifactSha;
+      const turn2Ok =
+        m2 !== null &&
+        m2.routePath === "registered_speech_local" &&
+        m2.registeredSpeechIntent === exp.firstIntent &&
+        m2PlayedSha === result.expectedArtifactSha;
+      const byteForByte =
+        result.playedSha !== undefined &&
+        m2PlayedSha !== undefined &&
+        result.playedSha === m2PlayedSha;
+      const noFetchers =
+        result.fetcherCounts.locked === 0 &&
+        result.fetcherCounts.sanitized === 0 &&
+        result.fetcherCounts.greeting === 0;
+      result.pass = turn1Ok && turn2Ok && byteForByte && noFetchers;
+      if (!result.pass) {
+        result.reason =
+          `turn1: route=${m.routePath} intent=${m.registeredSpeechIntent} playedSha=${result.playedSha}; ` +
+          `turn2: route=${m2?.routePath} intent=${m2?.registeredSpeechIntent} playedSha=${m2PlayedSha}; ` +
+          `byteForByte=${byteForByte} fetchers=${JSON.stringify(result.fetcherCounts)}`;
+      }
       break;
     }
     default:

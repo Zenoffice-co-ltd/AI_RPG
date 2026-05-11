@@ -473,6 +473,97 @@ describe("Layer A — deterministic mode router", () => {
     });
   });
 
+  // 2026-05-12 manual-regression repeat tests. "もう一度お願いします"
+  // and variants must replay the most-recent registered-speech artifact
+  // byte-for-byte; the previous behavior routed them to fallback_unknown
+  // which delivered a different audio and broke the "say it again"
+  // illusion.
+  describe("repeat-intent fast path (2026-05-12 manual regression)", () => {
+    it.each<[string, string, string]>([
+      ["billing_rate", "請求単価は？", "もう一度お願いします"],
+      ["billing_rate", "請求単価は？", "あ、もう一度お願いします"],
+      ["billing_rate", "請求単価は？", "もう一回お願いします"],
+      [
+        "skill_requirement_broad",
+        "スキルセットどんな必要ですか？",
+        "あ、もう一度お願いします",
+      ],
+      ["working_hours", "業務時間は？", "もう一回お願いします"],
+      ["overtime", "残業は月どれくらいですか？", "再度お願いします"],
+    ])(
+      "%s: turn1=%p, repeat=%p — both turns produce the same intent + sha",
+      async (expectedIntent, firstInput, repeatInput) => {
+        const { result } = await startHook();
+        await act(async () => {
+          await result.current.sendTextMessage(firstInput);
+        });
+        await waitFor(() => {
+          expect(result.current.metricsLog).toHaveLength(1);
+        });
+        await act(async () => {
+          await result.current.sendTextMessage(repeatInput);
+        });
+        await waitFor(() => {
+          expect(result.current.metricsLog).toHaveLength(2);
+        });
+        const m1 = result.current.metricsLog[0]!;
+        const m2 = result.current.metricsLog[1]!;
+
+        // Turn 1: canonical intent hit
+        expect(m1.routePath).toBe("registered_speech_local");
+        expect(m1.registeredSpeechIntent).toBe(expectedIntent);
+
+        // Turn 2: same intent, same sha, same routePath
+        expect(m2.routePath).toBe("registered_speech_local");
+        expect(m2.registeredSpeechIntent).toBe(expectedIntent);
+        expect(m2.registeredSpeechSha256).toBe(m1.registeredSpeechSha256);
+        // DOD: the repeat MUST NOT fall to fallback_unknown
+        expect(m2.registeredSpeechIntent).not.toBe("fallback_unknown");
+        // DOD: the repeat MUST NOT engage the runtime model. With the
+        // production-deterministic flag on, this is enforced
+        // structurally — no sendUserText for the repeat turn.
+      }
+    );
+
+    it("repeat without prior hit falls to fallback_unknown (no last hit to replay)", async () => {
+      const { result } = await startHook();
+      // No prior intent hit. Repeat request alone has no anchor.
+      await act(async () => {
+        await result.current.sendTextMessage("もう一度お願いします");
+      });
+      await waitFor(() => {
+        expect(result.current.metricsLog).toHaveLength(1);
+      });
+      const m = result.current.metricsLog[0]!;
+      expect(m.routePath).toBe("registered_speech_fallback");
+      expect(m.registeredSpeechIntent).toBe("fallback_unknown");
+    });
+  });
+
+  // Decision-maker natural phrases that previously fell to rt_voice
+  // (production observed 11,938ms first-audible). With the expanded
+  // matcher pattern set + ack/filler normalization, each of these MUST
+  // resolve to the decision_maker artifact.
+  describe("decision_maker natural-phrase regression (2026-05-12)", () => {
+    it.each([
+      "決定される方はどなたですか？",
+      "はい、ありがとうございます。今回はー、決定される方はどなたですか？",
+      "最終判断される方はどなたですか？",
+      "どなたが最終判断されますか？",
+    ])("%p → decision_maker", async (input) => {
+      const { result } = await startHook();
+      await act(async () => {
+        await result.current.sendTextMessage(input);
+      });
+      await waitFor(() => {
+        expect(result.current.metricsLog).toHaveLength(1);
+      });
+      const m = result.current.metricsLog[0]!;
+      expect(m.routePath).toBe("registered_speech_local");
+      expect(m.registeredSpeechIntent).toBe("decision_maker");
+    });
+  });
+
   describe("A27-A29: realtime audio delta races are dropped", () => {
     it("A27 realtime output_audio.delta arriving during a deterministic session is hard-dropped", async () => {
       const { result, fake, enqueueSpy } = await startHook();
