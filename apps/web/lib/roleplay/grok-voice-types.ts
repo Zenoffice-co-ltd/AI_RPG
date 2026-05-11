@@ -1,5 +1,9 @@
 "use client";
 
+import type {
+  RegisteredSpeechBundle,
+} from "./registered-speech/types";
+
 export type GrokVoiceMicState = "idle" | "listening" | "speaking" | "paused";
 
 export type GrokVoiceTurnDetectionConfig = {
@@ -70,6 +74,15 @@ export type GrokVoiceSession = {
     cacheStatus: "hit";
     cacheKeyHash: string;
   };
+  // Verified Audio Artifact (review-v2). When `productionDeterministicOnly`
+  // is true the client MUST refuse to enable the mic if `registeredSpeech`
+  // is missing or `registeredSpeechManifestVersion` doesn't match the
+  // bundled-at-build-time client constant. In non-deterministic mode the
+  // fields are advisory and may be absent.
+  productionDeterministicOnly?: boolean;
+  registeredSpeech?: RegisteredSpeechBundle;
+  registeredSpeechManifestVersion?: "v1";
+  registeredSpeechBuildId?: string;
 };
 
 export type GrokVoiceGreeting = {

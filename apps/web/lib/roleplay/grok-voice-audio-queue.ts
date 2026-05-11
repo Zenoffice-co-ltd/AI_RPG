@@ -47,6 +47,13 @@ export class GrokVoiceAudioQueue {
   private gain: GainNode | null = null;
   private nextStartAt = 0;
   private playing = 0;
+  // Scheduled `AudioBufferSourceNode`s that have started but not yet
+  // ended. We retain references so a lock turn can call
+  // `clearAllScheduledAudioForLock()` and stop every in-flight chunk
+  // without closing the AudioContext. Without this list the only way
+  // to silence the queue was `stop()` (which closes the context),
+  // which prevents subsequent artifact playback in the same turn.
+  private scheduled: AudioBufferSourceNode[] = [];
   private readonly create: CreateAudioContext;
   private readonly onError: (error: unknown) => void;
   private readonly sampleRate: number;
@@ -140,10 +147,36 @@ export class GrokVoiceAudioQueue {
     source.start(startAt);
     this.nextStartAt = startAt + buffer.duration;
     this.playing += 1;
+    this.scheduled.push(source);
     source.onended = () => {
       this.playing = Math.max(0, this.playing - 1);
+      const idx = this.scheduled.indexOf(source);
+      if (idx >= 0) this.scheduled.splice(idx, 1);
       onEnded?.();
     };
+  }
+
+  // Stop every currently-scheduled audio source without tearing down the
+  // AudioContext, so a deterministic-mode lock turn can immediately
+  // begin playing the verified artifact. Caller MUST follow this with
+  // either `enqueueBase64{,AndWait}()` (to play the artifact) or a
+  // higher-level "silence" decision; the queue is left empty but the
+  // context remains live.
+  clearAllScheduledAudioForLock() {
+    for (const source of this.scheduled) {
+      try {
+        source.stop(0);
+      } catch {
+        // Already stopped or never started — ignore.
+      }
+    }
+    this.scheduled = [];
+    if (this.context) {
+      this.nextStartAt = this.context.currentTime;
+    } else {
+      this.nextStartAt = 0;
+    }
+    this.playing = 0;
   }
 
   async stop() {
@@ -156,6 +189,7 @@ export class GrokVoiceAudioQueue {
       this.context = null;
       this.gain = null;
     }
+    this.scheduled = [];
     this.nextStartAt = 0;
     this.playing = 0;
   }

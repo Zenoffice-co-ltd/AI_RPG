@@ -7,6 +7,40 @@ import type {
   GrokVoiceSession,
 } from "./grok-voice-types";
 
+// Client-side enforcement of "no runtime TTS in deterministic mode"
+// (review-v2 P0-4). The server route also returns 503, but reaching
+// that 503 is itself a bug signal — the DoD requires zero fetch
+// attempts. These helpers throw before the request leaves the client
+// so we get a stack trace at the bad caller instead of a silent 503
+// surfaced as "TTS unavailable".
+class DeterministicTtsGuardError extends Error {
+  constructor(public readonly route: string) {
+    super(
+      `[deterministic] runtime TTS endpoint is forbidden in this mode: ${route}`
+    );
+    this.name = "DeterministicTtsGuardError";
+  }
+}
+
+let deterministicModeActive = false;
+
+export function setGrokVoiceClientDeterministicMode(active: boolean): void {
+  deterministicModeActive = active;
+}
+
+export function isGrokVoiceClientDeterministicMode(): boolean {
+  return deterministicModeActive;
+}
+
+function assertNotDeterministic(route: string) {
+  if (deterministicModeActive) {
+    void postGrokVoiceEvent("runtime_tts.fetch_blocked_deterministic", {
+      details: { route },
+    });
+    throw new DeterministicTtsGuardError(route);
+  }
+}
+
 export async function fetchGrokVoiceSession(
   input?: { reseedFromSessionId?: string }
 ): Promise<GrokVoiceSession> {
@@ -28,6 +62,7 @@ export async function fetchGrokVoiceGreeting(input: {
   sessionId: string;
   text: string;
 }): Promise<GrokVoiceGreeting> {
+  assertNotDeterministic("/api/v3/greet");
   const response = await fetch("/api/v3/greet", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -43,6 +78,7 @@ export async function fetchGrokVoiceLockedResponseTts(input: {
   sessionId: string;
   userText: string;
 }): Promise<GrokVoiceLockedResponseTts> {
+  assertNotDeterministic("/api/v3/locked-response-tts");
   const response = await fetch("/api/v3/locked-response-tts", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -58,6 +94,7 @@ export async function fetchGrokVoiceSanitizedResponseTts(input: {
   sessionId: string;
   text: string;
 }): Promise<GrokVoiceSanitizedResponseTts> {
+  assertNotDeterministic("/api/v3/sanitized-response-tts");
   const response = await fetch("/api/v3/sanitized-response-tts", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -126,7 +163,18 @@ export type GrokVoiceEventKind =
   // PR B — locked-response audio prebundle telemetry.
   | "locked_audio_bundle.loaded"
   | "locked_audio_bundle.miss"
-  | "locked_audio_bundle.disabled";
+  | "locked_audio_bundle.disabled"
+  // Verified Audio Artifact (review-v2) telemetry.
+  | "registered_speech.manifest_version_mismatch"
+  | "registered_speech.bundle_missing"
+  | "registered_speech.sha_verified"
+  | "registered_speech.sha_mismatch"
+  | "registered_speech.artifact.played"
+  | "registered_speech.fail_closed_emergency"
+  | "registered_speech.fallback_unknown.played"
+  | "registered_speech.multi_intent_redirect.played"
+  | "realtime.output_audio_delta.dropped_deterministic"
+  | "runtime_tts.fetch_blocked_deterministic";
 
 export function postGrokVoiceEvent(
   kind: GrokVoiceEventKind,

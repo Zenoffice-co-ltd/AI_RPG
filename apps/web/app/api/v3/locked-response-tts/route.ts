@@ -12,6 +12,7 @@ import {
   assertGrokVoiceEnvForProduction,
   getGrokVoiceServerEnv,
   isGrokVoiceRoleplayEnabled,
+  isGrokVoiceProductionDeterministicOnlyEnabled,
 } from "@/lib/roleplay/server-env";
 import { synthesizeGrokVoiceTts } from "@/server/grokVoice/tts";
 import {
@@ -29,6 +30,21 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   if (!isGrokVoiceRoleplayEnabled()) {
+    return safeError(503);
+  }
+  // Verified Audio Artifact: deterministic mode forbids runtime TTS
+  // entirely. The client-side fetcher MUST refuse to call this
+  // endpoint when `productionDeterministicOnly` is on; reaching this
+  // 503 is a bug signal (stale client or mis-deployed bundle). The
+  // structured log here is what the prod smoke asserts is 0 in
+  // deterministic-mode runs.
+  if (isGrokVoiceProductionDeterministicOnlyEnabled()) {
+    console.warn(
+      JSON.stringify({
+        scope: "grokVoice.runtimeTts.blocked_deterministic",
+        route: "/api/v3/locked-response-tts",
+      })
+    );
     return safeError(503);
   }
   try {

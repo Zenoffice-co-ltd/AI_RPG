@@ -17,7 +17,14 @@ import {
   fetchGrokVoiceSanitizedResponseTts,
   fetchGrokVoiceSession,
   postGrokVoiceEvent,
+  setGrokVoiceClientDeterministicMode,
 } from "./grok-voice-client";
+import { buildVerifiedRegisteredSpeechCache } from "./registered-speech/verified-cache";
+import {
+  REGISTERED_SPEECH_CLIENT_BUILD_ID,
+  REGISTERED_SPEECH_CLIENT_MANIFEST_VERSION,
+} from "./registered-speech/manifest-constant";
+import type { VerifiedRegisteredSpeechCache } from "./registered-speech/types";
 import {
   GrokVoiceAudioQueue,
   type GrokVoiceAudioQueueOptions,
@@ -123,6 +130,17 @@ export function useGrokVoiceConversation(
   const agentSpeakingRef = useRef(false);
   const bargeInCancelSentRef = useRef(false);
   const discardStaleResponseDeltasRef = useRef(false);
+  // Verified Audio Artifact (review-v2): counts realtime audio deltas
+  // dropped by the deterministic-mode hard-drop guard. Surfaced in
+  // per-turn metrics and asserted >0 on every realtime-bearing turn
+  // by the Layer A audio path E2E in deterministic mode.
+  const droppedRealtimeAudioDeltaCountRef = useRef(0);
+  // Populated at session bootstrap when `productionDeterministicOnly`
+  // is true. Reading from this ref on the turn critical path is O(1)
+  // — no base64 decode, no sha256 work — because every entry was
+  // verified during `buildVerifiedRegisteredSpeechCache`.
+  const verifiedRegisteredSpeechCacheRef =
+    useRef<VerifiedRegisteredSpeechCache | null>(null);
   const currentResponseItemIdRef = useRef<string | null>(null);
   const currentResponseIdRef = useRef<string | null>(null);
   const ignoredResponseIdsRef = useRef(new Set<string>());
@@ -1287,6 +1305,46 @@ export function useGrokVoiceConversation(
       const activeSession = sessionRef.current;
       if (!activeSession) return;
 
+      // Verified Audio Artifact hard-drop guard (review-v2 P0-1). In
+      // deterministic mode the only audio source we play is the
+      // registered-speech artifact set, so realtime audio deltas MUST
+      // be dropped at the entry point — NOT after the matcher decides
+      // a lock fired. The reason is that xAI server VAD may auto-emit
+      // an `output_audio.delta` before our lock match runs (transcript
+      // and audio events are separate streams), and `response.cancel`
+      // is a best-effort signal that doesn't unwind the in-flight
+      // delta. Dropping at the top of handleServerEvent is the only
+      // place where there is no race window.
+      if (
+        activeSession.productionDeterministicOnly === true &&
+        event.type === "response.output_audio.delta"
+      ) {
+        droppedRealtimeAudioDeltaCountRef.current += 1;
+        void postGrokVoiceEvent(
+          "realtime.output_audio_delta.dropped_deterministic",
+          {
+            sessionId: activeSession.sessionId,
+            details: {
+              turnIndex: turnIndexRef.current,
+              itemId: event.item_id ?? null,
+            },
+          }
+        );
+        return;
+      }
+      // Likewise discard the xAI assistant transcript stream in
+      // deterministic mode so the model's free-form response never
+      // pollutes the displayed conversation history. The registered-
+      // speech `displayText` is the only assistant content shown.
+      if (
+        activeSession.productionDeterministicOnly === true &&
+        (event.type === "response.output_audio_transcript.delta" ||
+          event.type === "response.text.delta" ||
+          event.type === "response.audio_transcript.delta")
+      ) {
+        return;
+      }
+
       switch (event.type) {
         case "input_audio_buffer.speech_started": {
           // P1B: synchronous freeze before any per-turn state advance when
@@ -1921,6 +1979,76 @@ export function useGrokVoiceConversation(
       const next = await fetchSession();
       sessionRef.current = next;
       setSession(next);
+
+      // Verified Audio Artifact (review-v2): activate / deactivate the
+      // client-side runtime-TTS guard the moment we know the
+      // server-side flag value. The guard MUST be set before any
+      // fetcher (greeting / locked / sanitized) is called so a
+      // deterministic-mode session can never reach a runtime TTS
+      // endpoint.
+      setGrokVoiceClientDeterministicMode(
+        next.productionDeterministicOnly === true
+      );
+
+      if (next.productionDeterministicOnly === true) {
+        // Manifest version handshake. We refuse to enable the mic
+        // when the server's bundle version doesn't match the client
+        // build constant, OR when the bundle is missing entirely.
+        const expectedVersion = next.registeredSpeechManifestVersion;
+        const buildId = next.registeredSpeechBuildId;
+        if (
+          !next.registeredSpeech ||
+          expectedVersion !== REGISTERED_SPEECH_CLIENT_MANIFEST_VERSION ||
+          (REGISTERED_SPEECH_CLIENT_BUILD_ID !== "uninitialized" &&
+            buildId !== REGISTERED_SPEECH_CLIENT_BUILD_ID)
+        ) {
+          void postGrokVoiceEvent("registered_speech.manifest_version_mismatch", {
+            sessionId: next.sessionId,
+            details: {
+              clientVersion: REGISTERED_SPEECH_CLIENT_MANIFEST_VERSION,
+              clientBuildId: REGISTERED_SPEECH_CLIENT_BUILD_ID,
+              serverVersion: expectedVersion ?? null,
+              serverBuildId: buildId ?? null,
+              bundlePresent: Boolean(next.registeredSpeech),
+            },
+          });
+          setStatus("error");
+          setErrorMessage(
+            "音声バンドルの整合性が確認できないため接続を停止しました。再読み込みしてください。"
+          );
+          return;
+        }
+
+        const cacheResult = await buildVerifiedRegisteredSpeechCache({
+          bundle: next.registeredSpeech,
+          clientManifestVersion: REGISTERED_SPEECH_CLIENT_MANIFEST_VERSION,
+          clientBuildId:
+            REGISTERED_SPEECH_CLIENT_BUILD_ID === "uninitialized"
+              ? null
+              : REGISTERED_SPEECH_CLIENT_BUILD_ID,
+        });
+        if (cacheResult.kind !== "ok") {
+          void postGrokVoiceEvent("registered_speech.sha_mismatch", {
+            sessionId: next.sessionId,
+            details: { ...cacheResult },
+          });
+          setStatus("error");
+          setErrorMessage(
+            "音声バンドルの検証に失敗したため接続を停止しました。再読み込みしてください。"
+          );
+          return;
+        }
+        verifiedRegisteredSpeechCacheRef.current = cacheResult.cache;
+        void postGrokVoiceEvent("registered_speech.sha_verified", {
+          sessionId: next.sessionId,
+          details: {
+            buildId: cacheResult.cache.buildId,
+            entryCount: cacheResult.cache.entries.size,
+          },
+        });
+      } else {
+        verifiedRegisteredSpeechCacheRef.current = null;
+      }
 
       const greeting = createTranscriptMessage({
         role: "agent",

@@ -1,0 +1,51 @@
+# CI gate for the Verified Audio Artifact pipeline.
+#
+# Runs read-only checks on every PR that touches:
+#   - the artifact manifest or audio files
+#   - the canonical intent enum / type module
+#   - the runtime paths that must NOT call xAI TTS in deterministic mode
+#
+# The checks are intentionally NOT a synthesis run — that's done
+# offline by `pnpm grok:build-registered-speech` and gated by a human
+# approval (APPROVALS.md). CI only re-validates what's already in the
+# repo: sha256, manifest schema, forbidden suffix, model-pinned WS URL.
+
+name: registered-speech-verify
+
+on:
+  pull_request:
+    paths:
+      - "data/generated/registered-speech/**"
+      - "apps/web/lib/roleplay/registered-speech/**"
+      - "apps/web/server/registeredSpeech/**"
+      - "apps/web/app/api/v3/session/route.ts"
+      - "apps/web/app/api/v3/locked-response-tts/route.ts"
+      - "apps/web/app/api/v3/sanitized-response-tts/route.ts"
+      - "apps/web/lib/roleplay/useGrokVoiceConversation.ts"
+      - "apps/web/lib/roleplay/grok-voice-realtime.ts"
+      - "apps/web/lib/roleplay/grok-voice-ws-url.ts"
+      - "apps/web/lib/roleplay/grok-voice-pr60-shared.ts"
+      - "scripts/grok-voice-build-registered-speech.ts"
+      - "scripts/grok-voice-verify-registered-speech.ts"
+      - "scripts/grok-voice-forbid-modelless-ws.ts"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Verify registered-speech manifest + sha256 + forbidden suffix
+        run: pnpm grok:verify-registered-speech
+      - name: Forbid model-less Realtime WS URL
+        run: pnpm grok:forbid-modelless-ws
+      - name: Run web unit tests for registered-speech modules
+        working-directory: apps/web
+        run: pnpm test -- --run tests/unit/registered-speech-intent-matcher.test.ts tests/unit/registered-speech-expected-tokens.test.ts tests/unit/grok-voice-ws-url.test.ts tests/unit/grok-voice-audio-queue-clear-for-lock.test.ts

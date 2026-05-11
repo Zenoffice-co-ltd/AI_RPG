@@ -50,6 +50,44 @@
     <grapheme>月末</grapheme>
     <alias>ゲツマツ</alias>
   </lexeme>
+  <!-- Verified Audio Artifact (review-v2) PLS housekeeping (2026-05-11):
+       inserted near 月末 so they survive the 80-entry relevance-filter
+       cap applied in apps/web/server/grokVoice/scenarioLoader.ts. The
+       cap matched 197/394 lexemes; entries appended at the file end
+       (千七百五十円 idx 167, 千九百円 idx 168, 月十から十五時間 idx 170)
+       were silently dropped. These additions / re-insertions guarantee
+       the LLM-side `# Pronunciation Guide` sees the readings on every
+       rt_voice (non-deterministic) turn. Deterministic mode bypasses
+       this path entirely (audio comes from verified artifacts), so
+       PLS is now a free-form-turn safety net, not a guarantee. -->
+  <lexeme>
+    <grapheme>月初</grapheme>
+    <alias>ツキハジメ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>請求想定</grapheme>
+    <alias>セイキュウソウテイ</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>千七百五十円</grapheme>
+    <alias>センナナヒャクゴジュウエン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>千九百円</grapheme>
+    <alias>センキュウヒャクエン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>1750円</grapheme>
+    <alias>センナナヒャクゴジュウエン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>1900円</grapheme>
+    <alias>センキュウヒャクエン</alias>
+  </lexeme>
+  <lexeme>
+    <grapheme>月十から十五時間</grapheme>
+    <alias>ツキジュウカラジュウゴジカン</alias>
+  </lexeme>
   <lexeme>
     <grapheme>来月頭</grapheme>
     <alias>ライゲツアタマ</alias>

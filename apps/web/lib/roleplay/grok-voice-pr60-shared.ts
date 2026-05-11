@@ -131,6 +131,13 @@ const PR60_LOCKED_RESPONSES: Array<{
       "周囲と合わせて進められるタイプが合いやすく、自分のやり方にこだわりすぎる方は合いにくいです。",
   },
   {
+    // Legacy (non-deterministic-mode) lock text. Deterministic mode
+    // does NOT use this string — see `registered-speech/intent-matcher.ts`
+    // for the billing_rate intent's spokenText (which is the kana form
+    // so xAI TTS reads the digits consistently). Keep this kanji form
+    // for backward compatibility with the existing event-route and
+    // locked-response-tts-route tests and the LLM prompt instructions
+    // in `promptBuilder.ts`.
     userPatterns: [/単価/, /請求/, /時給/],
     response:
       "請求想定は経験により、千七百五十円から、千九百円程度です。",
@@ -141,9 +148,15 @@ const PR60_LOCKED_RESPONSES: Array<{
       "ベンダー選定はじんじが主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。",
   },
   {
+    // review-v2 P0-4: the response must not end with a facilitator-
+    // style question — the registered-speech catalogue would otherwise
+    // ship audio that itself carries a trailing question. The
+    // 「整理しておきたい」 phrasing keeps the offer to discuss the
+    // 派遣の特徴 / たしゃ違い on the table without prompting a "yes/no"
+    // closing from the user.
     userPatterns: [/水曜.*メール/, /水曜日.*メール/, /候補.*メール/],
     response:
-      "はい、お願いします。ちなみに、アデコさんの派遣の特徴や、たしゃさんとの違いはどのあたりでしょうか。",
+      "はい、お願いします。アデコさんの派遣の特徴やたしゃさんとの違いも、整理しておきたいと考えています。",
   },
   {
     userPatterns: [/よろしくお願いします/, /宜しくお願いします/],
@@ -220,7 +233,14 @@ const NOUN_LINKER_TO = new RegExp(
   "g"
 );
 
-function isRapidFireCompoundQuestion(text: string): boolean {
+// Exported so the Verified Audio Artifact intent matcher can reuse the
+// exact same rapid-fire predicate; the two matchers must agree on which
+// utterances bypass single-intent locks. Also exported for unit tests.
+export function countNounLinkerTo(text: string): number {
+  return (text.match(NOUN_LINKER_TO) ?? []).length;
+}
+
+export function isRapidFireCompoundQuestion(text: string): boolean {
   // Explicit "全部教えて" / "まとめて教えて" / "一気に教えて" tail markers —
   // unambiguous "everything at once" intent regardless of how many noun
   // clusters the user actually listed.
@@ -440,7 +460,8 @@ export function normalizeVoiceFriendlyTerms(text: string): string {
     .replace(
       /千七百五十円から、千九百円/g,
       "千七百五十円から、千九百円"
-    );
+    )
+    .replace(/月十から十五時間/g, "つきじゅうからじゅうごじかん");
 }
 
 export function normalizeGrokVoiceDisplayText(text: string): string {
@@ -459,5 +480,6 @@ export function normalizeGrokVoiceDisplayText(text: string): string {
     .replace(/ろっぴゃく件/g, "六百件")
     .replace(/ななひゃっけん/g, "七百件")
     .replace(/せんななひゃくごじゅう円/g, "千七百五十円")
-    .replace(/せんきゅうひゃく円/g, "千九百円");
+    .replace(/せんきゅうひゃく円/g, "千九百円")
+    .replace(/つきじゅうからじゅうごじかん/g, "月十から十五時間");
 }
