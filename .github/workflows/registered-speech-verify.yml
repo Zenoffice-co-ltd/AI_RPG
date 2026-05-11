@@ -49,3 +49,16 @@ jobs:
       - name: Run web unit tests for registered-speech modules
         working-directory: apps/web
         run: pnpm test -- --run tests/unit/registered-speech-intent-matcher.test.ts tests/unit/registered-speech-expected-tokens.test.ts tests/unit/grok-voice-ws-url.test.ts tests/unit/grok-voice-audio-queue-clear-for-lock.test.ts tests/unit/grok-voice-deterministic-router.test.tsx
+      - name: Run Layer A registered-speech audio path E2E (full 40-case)
+        # Reads the promoted v1 manifest, drives the conversation hook
+        # through 40 deterministic cases, and asserts the 3 DOD
+        # invariants (registered_speech_local 100%, realtime audio
+        # enqueued = 0, forbidden suffix = 0, runtime TTS fetch = 0,
+        # sha computed on turn path = 0). Only runs when the promoted
+        # manifest is present in the PR.
+        run: |
+          if [ -f data/generated/registered-speech/v1/manifest.json ]; then
+            pnpm grok:audio-e2e:layer-a
+          else
+            echo "Skip Layer A E2E: promoted manifest not present (scaffold-mode PR)"
+          fi

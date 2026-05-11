@@ -2372,7 +2372,43 @@ export function useGrokVoiceConversation(
           setStatus("speaking");
           let greetingAudio: GrokVoiceGreeting;
           let source: "session_cache" | "greet_route";
-          if (next.greetingAudio) {
+          // Verified Audio Artifact (review-v2): deterministic mode
+          // MUST NOT fetch greeting TTS. The bundle ships a verified
+          // `greeting` artifact; synthesize the GrokVoiceGreeting
+          // shape from the cache so the existing playback code path
+          // is unchanged. This guarantees DOD #10 (greeting TTS
+          // invocation count = 0) at runtime, not just via the
+          // fetcher gate.
+          const verifiedCacheForGreeting =
+            verifiedRegisteredSpeechCacheRef.current;
+          const greetingEntry =
+            next.productionDeterministicOnly === true &&
+            verifiedCacheForGreeting
+              ? verifiedCacheForGreeting.entries.get("greeting")
+              : undefined;
+          if (greetingEntry) {
+            source = "session_cache";
+            greetingAudio = {
+              audioBase64: greetingEntry.audioBase64,
+              mimeType: "audio/pcm",
+              sampleRateHz: 24000,
+              textLen: greetingEntry.spokenText.length,
+              voiceId: "rex",
+              vendorMs: 0,
+              cacheStatus: "hit",
+              cacheKeyHash: greetingEntry.sha256.slice(0, 16),
+            };
+            void postGrokVoiceEvent("registered_speech.playback.started", {
+              sessionId: next.sessionId,
+              details: {
+                turnIndex: -1,
+                intent: "greeting",
+                decisionKind: "intent_hit",
+                audioBytes: greetingEntry.decodedByteLength,
+                sha256: greetingEntry.sha256,
+              },
+            });
+          } else if (next.greetingAudio) {
             source = "session_cache";
             greetingAudio = next.greetingAudio;
             void postGrokVoiceEvent("greeting.cache.hit", {
