@@ -1,0 +1,117 @@
+[
+  {
+    "intent": "mission",
+    "spokenTextForGeneration": "じんじ課では、派遣スタッフの受け入れや管理を担当しています。",
+    "displayText": "人事課では、派遣スタッフの受け入れや管理を担当しています。"
+  },
+  {
+    "intent": "engagement_scope",
+    "spokenTextForGeneration": "営業事務一名の相談です。まずは要件を整理したいと考えています。",
+    "displayText": "営業事務一名の相談です。まずは要件を整理したいと考えています。"
+  },
+  {
+    "intent": "job_content",
+    "spokenTextForGeneration": "じゅはっちゅうや納期調整まわりの営業事務です。",
+    "displayText": "受発注や納期調整まわりの営業事務です。"
+  },
+  {
+    "intent": "start_date",
+    "spokenTextForGeneration": "開始は六月ついたちを希望しています。",
+    "displayText": "開始は6月1日を希望しています。"
+  },
+  {
+    "intent": "order_volume",
+    "spokenTextForGeneration": "つきあたり、ろっぴゃく件から、ななひゃっけん程度です。",
+    "displayText": "月あたり、600件から700件程度です。"
+  },
+  {
+    "intent": "busy_period",
+    "spokenTextForGeneration": "月のおわりと月の初め、月曜日の午前中、商品が切り替わる時期に負荷が上がります。",
+    "displayText": "月末と月初、月曜日の午前中、商品が切り替わる時期に負荷が上がります。"
+  },
+  {
+    "intent": "hiring_reason",
+    "spokenTextForGeneration": "増員です。受注処理が増えてきています。",
+    "displayText": "増員です。受注処理が増えてきています。"
+  },
+  {
+    "intent": "ack_short",
+    "spokenTextForGeneration": "はい。",
+    "displayText": "はい。"
+  },
+  {
+    "intent": "skill_followup_teamwork",
+    "spokenTextForGeneration": "営業や物流と確認しながら進める場面が多いので、抱え込まずに連携できる方が合います。",
+    "displayText": "営業や物流と確認しながら進める場面が多いので、抱え込まずに連携できる方が合います。"
+  },
+  {
+    "intent": "skill_requirement_broad",
+    "spokenTextForGeneration": "じゅはっちゅう経験と対外調整の経験がある方を優先的に見ています。",
+    "displayText": "受発注経験と対外調整の経験がある方を優先的に見ています。"
+  },
+  {
+    "intent": "personality",
+    "spokenTextForGeneration": "周囲と合わせて進められるタイプが合いやすく、自分のやり方にこだわりすぎる方は合いにくいです。",
+    "displayText": "協調型のタイプが合いやすく、自己流にこだわりすぎる方は合いにくいです。"
+  },
+  {
+    "intent": "billing_rate",
+    "spokenTextForGeneration": "請求想定は経験により、せんななひゃくごじゅう円から、せんきゅうひゃく円程度です。",
+    "displayText": "請求想定は経験により、千七百五十円から、千九百円程度です。"
+  },
+  {
+    "intent": "decision_maker",
+    "spokenTextForGeneration": "ベンダー選定はじんじが主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。",
+    "displayText": "ベンダー選定は人事が主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。"
+  },
+  {
+    "intent": "wednesday_followup",
+    "spokenTextForGeneration": "はい、お願いします。アデコさんの派遣の特徴やたしゃさんとの違いも、整理しておきたいと考えています。",
+    "displayText": "はい、お願いします。アデコさんの派遣の特徴や他社さんとの違いも、整理しておきたいと考えています。"
+  },
+  {
+    "intent": "closing_short",
+    "spokenTextForGeneration": "こちらこそよろしくお願いします。",
+    "displayText": "こちらこそよろしくお願いします。"
+  },
+  {
+    "intent": "working_hours",
+    "spokenTextForGeneration": "平日は朝八時よんじゅうごふんから夕方五時三十分です。",
+    "displayText": "平日は朝8時45分から夕方5時30分です。"
+  },
+  {
+    "intent": "overtime",
+    "spokenTextForGeneration": "残業は、つきじゅうからじゅうごじかん程度です。",
+    "displayText": "残業は、月10から15時間程度です。"
+  },
+  {
+    "intent": "remote_work",
+    "spokenTextForGeneration": "在宅は当面なしです。",
+    "displayText": "在宅は当面なしです。"
+  },
+  {
+    "intent": "headcount",
+    "spokenTextForGeneration": "まずは営業事務を一名お願いしたい相談です。",
+    "displayText": "まずは営業事務を一名お願いしたい相談です。"
+  },
+  {
+    "intent": "greeting",
+    "spokenTextForGeneration": "PENDING_GREETING_FILL — populated by the build script from the scenario bundle's firstMessageJa at run time. Source.json keeps this placeholder so the manifest schema doesn't break before the first build.",
+    "displayText": "PENDING_GREETING_FILL"
+  },
+  {
+    "intent": "multi_intent_redirect",
+    "spokenTextForGeneration": "一つずつ整理してお伝えします。まずは業務内容からお話しします。",
+    "displayText": "一つずつ整理してお伝えします。まずは業務内容からお話しします。"
+  },
+  {
+    "intent": "fallback_unknown",
+    "spokenTextForGeneration": "その点は確認します。",
+    "displayText": "その点は確認します。"
+  },
+  {
+    "intent": "fallback_audio_not_ready",
+    "spokenTextForGeneration": "現在、音声を準備しています。",
+    "displayText": "現在、音声を準備しています。"
+  }
+]

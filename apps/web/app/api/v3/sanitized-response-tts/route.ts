@@ -11,6 +11,7 @@ import {
 import {
   assertGrokVoiceEnvForProduction,
   isGrokVoiceRoleplayEnabled,
+  isGrokVoiceProductionDeterministicOnlyEnabled,
 } from "@/lib/roleplay/server-env";
 import { synthesizeGrokVoiceTts } from "@/server/grokVoice/tts";
 
@@ -36,6 +37,15 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   if (!isGrokVoiceRoleplayEnabled()) {
+    return safeError(503);
+  }
+  if (isGrokVoiceProductionDeterministicOnlyEnabled()) {
+    console.warn(
+      JSON.stringify({
+        scope: "grokVoice.runtimeTts.blocked_deterministic",
+        route: "/api/v3/sanitized-response-tts",
+      })
+    );
     return safeError(503);
   }
   try {

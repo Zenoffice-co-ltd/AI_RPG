@@ -275,6 +275,63 @@ export function getGrokVoiceTranscriptPreviewMaxChars() {
   return Math.max(1, Math.min(4_000, Math.trunc(parsed)));
 }
 
+// Verified Audio Artifact rollout — single kill-switch for the
+// deterministic mode. When ON the client:
+//   - never plays xAI realtime audio (output_audio.delta is dropped at
+//     the handleServerEvent entrypoint, not after a lock hit)
+//   - never calls /api/v3/locked-response-tts, /api/v3/sanitized-
+//     response-tts, or any greeting TTS endpoint
+//   - never falls through to rt_voice on unknown user input
+//   - plays only verified registered-speech artifacts whose sha256 was
+//     computed and verified at session bootstrap (pre mic-enable)
+// Default OFF keeps the existing risk-based playback path live, so
+// flipping this flag at runtime is the one-step rollout / rollback.
+export function isGrokVoiceProductionDeterministicOnlyEnabled() {
+  ensureEnvLoaded();
+  const value = process.env["GROK_VOICE_PRODUCTION_DETERMINISTIC_ONLY"];
+  if (value === undefined || value === null || value === "") return false;
+  return value === "true" || value === "1";
+}
+
+// Independent bundle kill-switch for the registered-speech inline
+// payload. Default ON so once artifacts exist they ship; flipping to
+// false makes /api/v3/session omit the bundle, which forces
+// deterministic mode to fall through to fail-closed (mic disabled). Use
+// this to roll back a bad manifest without disabling deterministic mode
+// entirely.
+export function isGrokVoiceRegisteredSpeechBundleEnabled() {
+  ensureEnvLoaded();
+  const value = process.env["GROK_VOICE_REGISTERED_SPEECH_BUNDLE_ENABLED"];
+  if (value === undefined || value === null || value === "") return true;
+  return value !== "false" && value !== "0";
+}
+
+// Hard upper bound on the bundle's combined base64 byte length. The
+// session route throws if a built manifest would exceed this so a
+// runaway artifact doesn't ship a multi-megabyte response. 8 MiB is the
+// review-v2 agreed limit; raise it deliberately, never accidentally.
+export function getGrokVoiceRegisteredSpeechBundleHardLimitBytes(): number {
+  ensureEnvLoaded();
+  const raw =
+    process.env["GROK_VOICE_REGISTERED_SPEECH_BUNDLE_HARD_LIMIT_BYTES"];
+  const parsed = Number(raw ?? `${8 * 1024 * 1024}`);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 8 * 1024 * 1024;
+  return Math.trunc(parsed);
+}
+
+// Residual-guard kill-switch for the strict-playback sanitizer. The
+// sanitizer is demoted to a residual guard once the registered-speech
+// path lands — keep it enabled by default so non-deterministic
+// (research / fallback) sessions still benefit from suffix-strip; set
+// to false to silence the residual guard in environments where it
+// surfaces noisy false-positives.
+export function isGrokVoiceResidualSanitizerEnabled() {
+  ensureEnvLoaded();
+  const value = process.env["GROK_VOICE_RESIDUAL_SANITIZER_ENABLED"];
+  if (value === undefined || value === null || value === "") return true;
+  return value !== "false" && value !== "0";
+}
+
 export function assertGrokVoiceEnvForProduction() {
   ensureEnvLoaded();
   if (!isGrokVoiceRoleplayEnabled()) {

@@ -43,7 +43,8 @@ const DEFAULT_BUNDLE_PRIORITY: readonly string[] = [
   "つきあたり、ろっぴゃく件から、ななひゃっけん程度です。",
   // broad initial skill lock (#75)
   "じゅはっちゅう経験と対外調整の経験がある方を優先的に見ています。",
-  // 単価 lock
+  // 単価 lock — kanji form (legacy path; deterministic mode uses the
+  // kana form via registered-speech bundle instead).
   "請求想定は経験により、千七百五十円から、千九百円程度です。",
   // 募集背景 lock
   "増員です。受注処理が増えてきています。",

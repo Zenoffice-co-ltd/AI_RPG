@@ -19,7 +19,10 @@ import {
   getGrokVoiceStrictPlaybackMode,
   isGrokVoiceLockedAudioBundleEnabled,
   getGrokVoiceLockedAudioBundleMaxEntries,
+  isGrokVoiceProductionDeterministicOnlyEnabled,
+  isGrokVoiceRegisteredSpeechBundleEnabled,
 } from "@/lib/roleplay/server-env";
+import { buildGrokRealtimeWsUrl } from "@/lib/roleplay/grok-voice-ws-url";
 import {
   buildGrokVoicePromptManifest,
   buildGrokVoiceSystemPrompt,
@@ -32,6 +35,7 @@ import {
 import { logGrokVoiceSessionCreated } from "@/server/grokVoice/metrics";
 import { getCachedGrokVoiceTts } from "@/server/grokVoice/ttsCache";
 import { assembleLockedAudioBundle } from "@/server/grokVoice/lockedAudioBundle";
+import { buildRegisteredSpeechBundle } from "@/server/registeredSpeech/bundleAssembler";
 
 const SAFE_ERROR =
   "セッションの開始に失敗しました。時間をおいて再試行してください。";
@@ -145,7 +149,10 @@ export async function POST(request: NextRequest) {
   }
 
   const sessionId = `gv_sess_${randomUUID()}`;
-  const wsUrl = `${env.GROK_VOICE_REALTIME_BASE}?model=${encodeURIComponent(env.GROK_VOICE_MODEL)}`;
+  const wsUrl = buildGrokRealtimeWsUrl({
+    base: env.GROK_VOICE_REALTIME_BASE,
+    model: env.GROK_VOICE_MODEL,
+  });
 
   const provenance = {
     promptVersion: manifest.promptVersion,
@@ -162,13 +169,20 @@ export async function POST(request: NextRequest) {
     provenance,
   });
 
-  const greetingAudio = await getCachedGrokVoiceTts({
-    text: bundle.firstMessage,
-    voiceId: env.GROK_VOICE_VOICE_ID,
-    sampleRateHz: env.GROK_VOICE_SAMPLE_RATE,
-    purpose: "greeting",
-    firestoreTimeoutMs: 250,
-  });
+  // Verified Audio Artifact: in deterministic mode the greeting plays
+  // from the registered-speech bundle (intent="greeting"), so we skip
+  // the legacy cache hit entirely. The corresponding DoD assertion in
+  // the prod smoke is that `greetingAudio` is undefined on every
+  // deterministic-mode session payload.
+  const greetingAudio = isGrokVoiceProductionDeterministicOnlyEnabled()
+    ? null
+    : await getCachedGrokVoiceTts({
+        text: bundle.firstMessage,
+        voiceId: env.GROK_VOICE_VOICE_ID,
+        sampleRateHz: env.GROK_VOICE_SAMPLE_RATE,
+        purpose: "greeting",
+        firestoreTimeoutMs: 250,
+      });
 
   // PR B — assemble the locked-response audio bundle if enabled. We
   // never synthesize on this path; the bundle is read-only against the
@@ -177,7 +191,11 @@ export async function POST(request: NextRequest) {
   // failure we omit the bundle and let the client fall back to the
   // existing `/api/v3/locked-response-tts` HTTP path — session
   // bootstrap MUST NOT fail because of a bundle issue.
-  const lockedAudioBundleEnabled = isGrokVoiceLockedAudioBundleEnabled();
+  // Skipped entirely in deterministic mode: registered-speech bundle
+  // is the only audio source there.
+  const lockedAudioBundleEnabled =
+    !isGrokVoiceProductionDeterministicOnlyEnabled() &&
+    isGrokVoiceLockedAudioBundleEnabled();
   const lockedAudioBundleMaxEntries = getGrokVoiceLockedAudioBundleMaxEntries();
   const lockedAudioBundleResult =
     lockedAudioBundleEnabled && lockedAudioBundleMaxEntries > 0
@@ -284,6 +302,36 @@ export async function POST(request: NextRequest) {
     lockedAudioBundleResult.bundle.entries.length > 0
       ? { lockedResponseAudioBundle: lockedAudioBundleResult.bundle }
       : {}),
+    // Verified Audio Artifact (review-v2) — surfaces the registered-
+    // speech bundle and the deterministic-mode kill-switch to the
+    // client. The client reads `productionDeterministicOnly` to decide
+    // whether to enable the hard-drop guard, refuse to call any runtime
+    // TTS endpoint, and route unknown user input to a verified
+    // fallback artifact instead of rt_voice.
+    productionDeterministicOnly:
+      isGrokVoiceProductionDeterministicOnlyEnabled(),
+    ...(await (async () => {
+      if (!isGrokVoiceRegisteredSpeechBundleEnabled()) return {};
+      try {
+        const registered = await buildRegisteredSpeechBundle();
+        return {
+          registeredSpeech: registered,
+          registeredSpeechManifestVersion: registered.manifestVersion,
+          registeredSpeechBuildId: registered.buildId,
+        };
+      } catch (error) {
+        // In non-deterministic mode the bundle absence is degraded but
+        // not fatal — surface telemetry and let the existing
+        // lock_voice_network_tts path serve the turn. In deterministic
+        // mode the client refuses to enable the mic if these fields are
+        // missing, which is the intended fail-closed behavior.
+        console.warn(
+          "registered-speech bundle assembly failed; serving session without it",
+          error instanceof Error ? error.message : String(error)
+        );
+        return {};
+      }
+    })()),
   });
 }
 
