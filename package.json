@@ -42,6 +42,8 @@
     "grok:promote-registered-speech": "tsx scripts/grok-voice-promote-registered-speech.ts",
     "grok:verify-registered-speech": "tsx scripts/grok-voice-verify-registered-speech.ts",
     "grok:audio-e2e:layer-a": "tsx apps/web/scripts/grok-voice-registered-speech-audio-path-e2e.ts",
+    "grok:audio-e2e:layer-b": "tsx scripts/grok-voice-registered-speech-layer-b.ts",
+    "grok:audio-e2e:prod-log-assert": "node scripts/grok-voice-registered-speech-prod-log-assert.mjs",
     "grok:forbid-modelless-ws": "tsx scripts/grok-voice-forbid-modelless-ws.ts",
     "deploy:adecco-roleplay": "tsx scripts/deploy-adecco-roleplay.ts",
     "review:summarize:ja": "tsx scripts/elevenlabs/summarize-ja-voice-review.ts",

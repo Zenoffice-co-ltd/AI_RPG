@@ -62,3 +62,15 @@ jobs:
           else
             echo "Skip Layer A E2E: promoted manifest not present (scaffold-mode PR)"
           fi
+      - name: Run Layer B deterministic scenario E2E
+        # Replays every CASES turn from the live xAI scenario suite
+        # through the registered-speech matcher; asserts route is
+        # always one of the 3 deterministic routes and the resulting
+        # displayText carries zero forbidden suffix. Live xAI calls
+        # NOT made here — this is the $0-quota deterministic mirror.
+        run: |
+          if [ -f data/generated/registered-speech/v1/manifest.json ]; then
+            pnpm grok:audio-e2e:layer-b
+          else
+            echo "Skip Layer B E2E: promoted manifest not present (scaffold-mode PR)"
+          fi
