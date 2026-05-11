@@ -39,6 +39,7 @@
     "grok:prod-logs": "node scripts/grok-voice-v21-prod-logs.mjs",
     "grok:latency-report": "tsx scripts/grok-voice-latency-report.ts",
     "grok:build-registered-speech": "tsx scripts/grok-voice-build-registered-speech.ts",
+    "grok:promote-registered-speech": "tsx scripts/grok-voice-promote-registered-speech.ts",
     "grok:verify-registered-speech": "tsx scripts/grok-voice-verify-registered-speech.ts",
     "grok:forbid-modelless-ws": "tsx scripts/grok-voice-forbid-modelless-ws.ts",
     "deploy:adecco-roleplay": "tsx scripts/deploy-adecco-roleplay.ts",

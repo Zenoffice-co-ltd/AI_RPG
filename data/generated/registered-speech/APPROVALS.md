@@ -26,3 +26,4 @@ For every entry in the candidate manifest:
 3. Open `out/registered-speech-build/<build-id>/review.html` in a browser and walk through every audio preview.
 4. If everything passes, run `pnpm grok:promote-registered-speech --approved-by=<github-username> --report-path=out/registered-speech-build/<build-id>/report.json`.
 5. Commit the resulting changes to `v1/`, `APPROVALS.md`, and `apps/web/lib/roleplay/registered-speech/manifest-constant.ts` in a single PR.
+| 2026-05-11T20:49:39.320Z | 2026-05-11T20-45-48-237Z | 911a240fccf33445… | yukihiro.iwase@gmail.com | out/registered-speech-build/2026-05-11T20-45-48-237Z/report.json | initial v1 build; ASR validation soft-failed because workstation ADC quota_project=zapier-transfer lacks serviceusage on adecco-mendan Speech API; sha256 + forbidden-suffix scan + human ear review on review.html remain as actual guarantees |

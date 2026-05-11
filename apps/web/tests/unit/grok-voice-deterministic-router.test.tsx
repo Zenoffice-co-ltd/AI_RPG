@@ -36,8 +36,15 @@ import type {
   RegisteredSpeechBundleArtifact,
 } from "../../lib/roleplay/registered-speech/types";
 
+import { REGISTERED_SPEECH_CLIENT_BUILD_ID } from "../../lib/roleplay/registered-speech/manifest-constant";
+
 const MANIFEST_VERSION = "v1";
-const MANIFEST_BUILD_ID = "test-2026-05-11";
+// Match the promoted manifest's buildId so the version-handshake in
+// useGrokVoiceConversation.ts accepts the test session. Once promoted,
+// the constant is a non-"uninitialized" literal and the runtime
+// refuses mismatched bundles — tests must follow the production
+// contract.
+const MANIFEST_BUILD_ID = REGISTERED_SPEECH_CLIENT_BUILD_ID;
 
 // Per-intent canonical strings. Mirrors v1.candidate/source.json so
 // the matcher's regex table hits these. Each artifact is a tiny
