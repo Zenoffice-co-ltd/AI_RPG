@@ -779,4 +779,213 @@ describe("useGrokVoiceConversation", () => {
     });
     expect(fake.sent.some((s) => s.method === "sendUserText")).toBe(false);
   });
+
+  // PR B — voice-lock local audio prebundle.
+  //
+  // When the session ships `lockedResponseAudioBundle`, a voice-lock
+  // turn whose canonical is in the bundle plays from memory and SKIPS
+  // the `/api/v3/locked-response-tts` HTTP roundtrip. PR #85 E2E
+  // measured the legacy network path at ~6,131ms first-audible;
+  // eliminating that roundtrip is the PR B latency win.
+  //
+  // Contract pinned by these tests:
+  //   1. voice lock + bundle hit  → no fetchLockedResponseTts call
+  //   2. voice lock + bundle miss → existing network path
+  //   3. text  lock + bundle hit  → existing network path (bundle is voice-only)
+  //   4. voice lock + bundle absent (env kill-switch) → existing network path
+  describe("PR B — voice-lock local audio prebundle", () => {
+    const LOCKED_RATE_AUDIO_LOCAL = Buffer.from(
+      new Uint8Array(256).fill(7)
+    ).toString("base64");
+    const LOCKED_RATE_AUDIO_NETWORK = Buffer.from(
+      new Uint8Array(48).fill(3)
+    ).toString("base64");
+
+    function sessionWithBundle(): GrokVoiceSession {
+      return {
+        ...SESSION,
+        // The bundle is voice-only; the SESSION fixture already has
+        // strictPlaybackMode=monitor_only, so the streaming branch
+        // doesn't interfere.
+        lockedResponseAudioBundle: {
+          version: "v1",
+          voiceId: "rex",
+          sampleRateHz: 24_000,
+          codec: "pcm",
+          entries: [
+            {
+              spokenText: LOCKED_RATE_TEXT,
+              audioBase64: LOCKED_RATE_AUDIO_LOCAL,
+              audioBytes: 256,
+              cacheStatus: "hit",
+              cacheKeyHash: "test-hash-rate",
+              vendorMsAtCreation: 1800,
+            },
+          ],
+        },
+      };
+    }
+
+    it("voice lock + bundle HIT plays from bundle and skips fetchLockedResponseTts (PR B)", async () => {
+      const fake = buildFakeRealtime();
+      const queue = buildStubAudioQueue();
+      const enqueueAndWaitSpy = vi.spyOn(queue, "enqueueBase64AndWait");
+      const fetchLockedResponseTts = vi.fn(async () => LOCKED_TTS);
+      const deps: UseGrokVoiceConversationDeps = {
+        fetchSession: vi.fn(async () => sessionWithBundle()),
+        fetchGreeting: vi.fn(async () => GREETING),
+        fetchLockedResponseTts,
+        createAudioQueue: () => queue,
+        createRealtime: fake.ctor as unknown as NonNullable<
+          UseGrokVoiceConversationDeps["createRealtime"]
+        >,
+        micEnabled: false,
+      };
+      const { result } = renderHook(() =>
+        useGrokVoiceConversation("live", deps)
+      );
+      await act(async () => {
+        await result.current.startConversation();
+      });
+      await waitFor(() => expect(result.current.status).toBe("listening"));
+
+      // Emit STT-completion with a user text that hits the PR60 単価 lock.
+      act(() => {
+        fake.emit({ type: "input_audio_buffer.speech_started" });
+        fake.emit({ type: "input_audio_buffer.speech_stopped" });
+        fake.emit({
+          type: "conversation.item.input_audio_transcription.completed",
+          transcript: "単価は？",
+        });
+      });
+
+      await waitFor(() => expect(result.current.metricsLog).toHaveLength(1));
+
+      // Network path MUST NOT be taken — the whole point of PR B.
+      expect(fetchLockedResponseTts).not.toHaveBeenCalled();
+      // The locally-bundled audio must reach the player.
+      expect(enqueueAndWaitSpy).toHaveBeenCalledWith(LOCKED_RATE_AUDIO_LOCAL);
+      // History sync still happens (parity with the network path).
+      expect(
+        fake.sent.some((s) => s.method === "sendAssistantHistoryMessage")
+      ).toBe(true);
+    });
+
+    it("voice lock + bundle MISS falls back to the existing network path (PR B)", async () => {
+      // Bundle has 単価 only. We trigger a different canonical (人柄)
+      // that is NOT in the bundle → must fall back to network.
+      const fake = buildFakeRealtime();
+      const queue = buildStubAudioQueue();
+      const PERSONALITY_TEXT =
+        "周囲と合わせて進められるタイプが合いやすく、自分のやり方にこだわりすぎる方は合いにくいです。";
+      const personalityTts = {
+        ...LOCKED_TTS,
+        text: PERSONALITY_TEXT,
+        textLen: PERSONALITY_TEXT.length,
+        audioBase64: LOCKED_RATE_AUDIO_NETWORK,
+      };
+      const fetchLockedResponseTts = vi.fn(async () => personalityTts);
+      const deps: UseGrokVoiceConversationDeps = {
+        fetchSession: vi.fn(async () => sessionWithBundle()),
+        fetchGreeting: vi.fn(async () => GREETING),
+        fetchLockedResponseTts,
+        createAudioQueue: () => queue,
+        createRealtime: fake.ctor as unknown as NonNullable<
+          UseGrokVoiceConversationDeps["createRealtime"]
+        >,
+        micEnabled: false,
+      };
+      const { result } = renderHook(() =>
+        useGrokVoiceConversation("live", deps)
+      );
+      await act(async () => {
+        await result.current.startConversation();
+      });
+      await waitFor(() => expect(result.current.status).toBe("listening"));
+
+      act(() => {
+        fake.emit({ type: "input_audio_buffer.speech_started" });
+        fake.emit({ type: "input_audio_buffer.speech_stopped" });
+        fake.emit({
+          type: "conversation.item.input_audio_transcription.completed",
+          transcript: "人柄については？",
+        });
+      });
+
+      await waitFor(() => expect(result.current.metricsLog).toHaveLength(1));
+
+      // Bundle missed → network path taken.
+      expect(fetchLockedResponseTts).toHaveBeenCalledTimes(1);
+    });
+
+    it("text lock with bundle still uses the existing network path (PR B; bundle is voice-only)", async () => {
+      const fake = buildFakeRealtime();
+      const fetchLockedResponseTts = vi.fn(async () => LOCKED_TTS);
+      const deps: UseGrokVoiceConversationDeps = {
+        fetchSession: vi.fn(async () => sessionWithBundle()),
+        fetchGreeting: vi.fn(async () => GREETING),
+        fetchLockedResponseTts,
+        createAudioQueue: () => buildStubAudioQueue(),
+        createRealtime: fake.ctor as unknown as NonNullable<
+          UseGrokVoiceConversationDeps["createRealtime"]
+        >,
+        micEnabled: false,
+      };
+      const { result } = renderHook(() =>
+        useGrokVoiceConversation("live", deps)
+      );
+      await act(async () => {
+        await result.current.startConversation();
+      });
+      await act(async () => {
+        await result.current.sendTextMessage("単価を教えてください");
+      });
+      await waitFor(() => expect(result.current.metricsLog).toHaveLength(1));
+
+      // Text channel: PR B does NOT short-circuit; network TTS still runs.
+      // Text input is already <500ms per PR A observability, so the
+      // bundle wouldn't move the needle for text mode.
+      expect(fetchLockedResponseTts).toHaveBeenCalledTimes(1);
+    });
+
+    it("voice lock with NO bundle (env kill-switch) uses the existing network path (PR B)", async () => {
+      const fake = buildFakeRealtime();
+      const queue = buildStubAudioQueue();
+      const fetchLockedResponseTts = vi.fn(async () => LOCKED_TTS);
+      const deps: UseGrokVoiceConversationDeps = {
+        // No `lockedResponseAudioBundle` field on the session → simulates
+        // the production env having `GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED=false`.
+        fetchSession: vi.fn(async () => SESSION),
+        fetchGreeting: vi.fn(async () => GREETING),
+        fetchLockedResponseTts,
+        createAudioQueue: () => queue,
+        createRealtime: fake.ctor as unknown as NonNullable<
+          UseGrokVoiceConversationDeps["createRealtime"]
+        >,
+        micEnabled: false,
+      };
+      const { result } = renderHook(() =>
+        useGrokVoiceConversation("live", deps)
+      );
+      await act(async () => {
+        await result.current.startConversation();
+      });
+      await waitFor(() => expect(result.current.status).toBe("listening"));
+
+      act(() => {
+        fake.emit({ type: "input_audio_buffer.speech_started" });
+        fake.emit({ type: "input_audio_buffer.speech_stopped" });
+        fake.emit({
+          type: "conversation.item.input_audio_transcription.completed",
+          transcript: "単価は？",
+        });
+      });
+
+      await waitFor(() => expect(result.current.metricsLog).toHaveLength(1));
+
+      // No bundle → network path. Critical: PR B never degrades the
+      // legacy path.
+      expect(fetchLockedResponseTts).toHaveBeenCalledTimes(1);
+    });
+  });
 });

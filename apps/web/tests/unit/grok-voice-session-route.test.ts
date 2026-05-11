@@ -284,6 +284,119 @@ describe("grok-voice session route", () => {
     });
   });
 
+  // PR B — locked-response audio prebundle session contract.
+  //
+  // The session route MAY surface `lockedResponseAudioBundle`. When it
+  // does, the bundle MUST carry only cache-hit entries (no synth on
+  // bootstrap). When disabled by env, the field is omitted entirely.
+  describe("locked-response audio bundle (PR B)", () => {
+    function mockEphemeralToken() {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            value: "xai-realtime-client-secret-test-value",
+            expires_at: 1747_000_000,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        )
+      );
+    }
+
+    it("omits the bundle field entirely when the env kill-switch is off", async () => {
+      vi.stubEnv("GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED", "false");
+      mockEphemeralToken();
+      const { POST } = await import("../../app/api/v3/session/route");
+      const response = await POST(validRequest());
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Record<string, unknown>;
+      expect(body).not.toHaveProperty("lockedResponseAudioBundle");
+    });
+
+    it("omits the bundle field when zero canonicals are cache-hit", async () => {
+      // No memory cache seed → assembler sees all misses → bundle has
+      // no entries → session route omits the field per the
+      // "omit when empty" contract.
+      mockEphemeralToken();
+      const { POST } = await import("../../app/api/v3/session/route");
+      const response = await POST(validRequest());
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Record<string, unknown>;
+      expect(body).not.toHaveProperty("lockedResponseAudioBundle");
+    });
+
+    it("surfaces a populated bundle when canonicals are cache-hit, with cache-hit entries only", async () => {
+      // Seed two canonicals before invoking the route.
+      const { seedGrokVoiceTtsMemoryCache } = await import(
+        "../../server/grokVoice/ttsCache"
+      );
+      const {
+        GROK_VOICE_TTS_CODEC,
+        GROK_VOICE_TTS_LANGUAGE,
+        GROK_VOICE_TTS_MIME_TYPE,
+        GROK_VOICE_TTS_REQUEST_SHAPE_VERSION,
+      } = await import("../../server/grokVoice/tts");
+      const { buildGrokVoiceTtsCacheKey } = await import(
+        "../../server/grokVoice/ttsCache"
+      );
+      // Seed canonicals that are in the assembler's
+      // DEFAULT_BUNDLE_PRIORITY (lockedAudioBundle.ts). Any canonical
+      // NOT on that list is trimmed by `slice(0, maxEntries)`.
+      const seedTexts = [
+        "じゅはっちゅうや納期調整まわりの営業事務です。",
+        "つきあたり、ろっぴゃく件から、ななひゃっけん程度です。",
+      ];
+      for (const text of seedTexts) {
+        const { cacheKey, cacheKeyHash, textHash } = buildGrokVoiceTtsCacheKey({
+          text,
+          voiceId: "rex",
+          sampleRateHz: 24_000,
+          purpose: "locked_response",
+        });
+        seedGrokVoiceTtsMemoryCache({
+          cacheKey,
+          cacheKeyHash,
+          textHash,
+          voiceId: "rex",
+          sampleRateHz: 24_000,
+          codec: GROK_VOICE_TTS_CODEC,
+          language: GROK_VOICE_TTS_LANGUAGE,
+          mimeType: GROK_VOICE_TTS_MIME_TYPE,
+          audioBase64: Buffer.from(new Uint8Array(96)).toString("base64"),
+          audioBytes: 96,
+          createdAt: new Date().toISOString(),
+          vendorMs: 1_500,
+          xaiTtsRequestShapeVersion: GROK_VOICE_TTS_REQUEST_SHAPE_VERSION,
+        });
+      }
+      mockEphemeralToken();
+      const { POST } = await import("../../app/api/v3/session/route");
+      const response = await POST(validRequest());
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Record<string, unknown>;
+      const bundle = body["lockedResponseAudioBundle"] as
+        | {
+            version: string;
+            voiceId: string;
+            sampleRateHz: number;
+            codec: string;
+            entries: Array<Record<string, unknown>>;
+          }
+        | undefined;
+      expect(bundle).toBeDefined();
+      expect(bundle!.version).toBe("v1");
+      expect(bundle!.voiceId).toBe("rex");
+      expect(bundle!.sampleRateHz).toBe(24_000);
+      expect(bundle!.codec).toBe("pcm");
+      expect(bundle!.entries.length).toBeGreaterThanOrEqual(2);
+      for (const entry of bundle!.entries) {
+        expect(entry["cacheStatus"]).toBe("hit");
+        expect(typeof entry["audioBase64"]).toBe("string");
+        expect(typeof entry["audioBytes"]).toBe("number");
+        expect(typeof entry["spokenText"]).toBe("string");
+      }
+    });
+  });
+
   it("returns cached greeting audio on memory cache hit without calling xAI TTS", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")

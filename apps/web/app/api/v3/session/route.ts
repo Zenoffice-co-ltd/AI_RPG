@@ -17,6 +17,8 @@ import {
   isGrokVoiceRoleplayEnabled,
   isGrokVoiceStrictSanitizedPlaybackEnabled,
   getGrokVoiceStrictPlaybackMode,
+  isGrokVoiceLockedAudioBundleEnabled,
+  getGrokVoiceLockedAudioBundleMaxEntries,
 } from "@/lib/roleplay/server-env";
 import {
   buildGrokVoicePromptManifest,
@@ -29,6 +31,7 @@ import {
 } from "@/server/grokVoice/ephemeralToken";
 import { logGrokVoiceSessionCreated } from "@/server/grokVoice/metrics";
 import { getCachedGrokVoiceTts } from "@/server/grokVoice/ttsCache";
+import { assembleLockedAudioBundle } from "@/server/grokVoice/lockedAudioBundle";
 
 const SAFE_ERROR =
   "セッションの開始に失敗しました。時間をおいて再試行してください。";
@@ -167,6 +170,53 @@ export async function POST(request: NextRequest) {
     firestoreTimeoutMs: 250,
   });
 
+  // PR B — assemble the locked-response audio bundle if enabled. We
+  // never synthesize on this path; the bundle is read-only against the
+  // shared TTS cache (warm-cache hook in PR #84 keeps prod hit rate
+  // >95%, so the typical bundle is fully populated). On any internal
+  // failure we omit the bundle and let the client fall back to the
+  // existing `/api/v3/locked-response-tts` HTTP path — session
+  // bootstrap MUST NOT fail because of a bundle issue.
+  const lockedAudioBundleEnabled = isGrokVoiceLockedAudioBundleEnabled();
+  const lockedAudioBundleMaxEntries = getGrokVoiceLockedAudioBundleMaxEntries();
+  const lockedAudioBundleResult =
+    lockedAudioBundleEnabled && lockedAudioBundleMaxEntries > 0
+      ? await assembleLockedAudioBundle({
+          voiceId: env.GROK_VOICE_VOICE_ID,
+          sampleRateHz: env.GROK_VOICE_SAMPLE_RATE,
+          maxEntries: lockedAudioBundleMaxEntries,
+          firestoreTimeoutMs: 250,
+        }).catch((error) => {
+          // The bundle is a latency optimization. If the assembler
+          // throws (timeout, transient Firestore error, etc.), we log
+          // for triage and serve the session without it.
+          console.warn(
+            "grokVoice locked audio bundle assembly failed; serving session without it",
+            error instanceof Error ? error.message : String(error)
+          );
+          return null;
+        })
+      : null;
+  // Structured log so the dashboard can attribute bundle hit/miss rate
+  // per deploy. Keep it minimal — entry texts are not logged (already
+  // cached on Firestore; logging here would just inflate stdout).
+  console.log(
+    JSON.stringify({
+      scope: "grokVoice.lockedAudioBundle",
+      sessionId,
+      enabled: lockedAudioBundleEnabled,
+      maxEntries: lockedAudioBundleMaxEntries,
+      bundledEntries: lockedAudioBundleResult?.bundle.entries.length ?? 0,
+      attempted: lockedAudioBundleResult?.attemptedSpokenTexts.length ?? 0,
+      missed: lockedAudioBundleResult?.missedSpokenTexts.length ?? 0,
+      totalAudioBytes:
+        lockedAudioBundleResult?.bundle.entries.reduce(
+          (acc, e) => acc + e.audioBytes,
+          0
+        ) ?? 0,
+    })
+  );
+
   return NextResponse.json({
     sessionId,
     scenarioId: bundle.scenarioId,
@@ -226,6 +276,13 @@ export async function POST(request: NextRequest) {
             cacheKeyHash: greetingAudio.cacheKeyHash,
           },
         }
+      : {}),
+    // PR B — locked-response audio bundle. Omitted when the env
+    // kill-switch is off OR when no canonical was cache-hit (typically
+    // never, since PR #84's warm-cache hook keeps prod hit rate high).
+    ...(lockedAudioBundleResult &&
+    lockedAudioBundleResult.bundle.entries.length > 0
+      ? { lockedResponseAudioBundle: lockedAudioBundleResult.bundle }
       : {}),
   });
 }
