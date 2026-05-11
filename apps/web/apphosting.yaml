@@ -190,6 +190,20 @@ env:
     value: "4000"
     availability:
       - RUNTIME
+  # Verified Audio Artifact deterministic mode (PR #92 / PR-93).
+  # When true, production plays ONLY sha256-verified registered speech PCM artifacts:
+  #   - no rt_voice audio playback (realtime output_audio.delta hard-dropped)
+  #   - no runtime locked / sanitized / greeting TTS (fetchers throw before HTTP)
+  #   - unknown / repeat / rapid-fire are handled by registered fallback artifacts
+  #   - WS URL is pinned to ?model=grok-voice-think-fast-1.0 via builder
+  #   - session.update tools.length is forced to 0
+  # Rollback: set to "false" and re-deploy. Reverts to legacy PR60 lock path
+  # within one request (no client redeploy needed). DOD is asserted by
+  # `pnpm grok:audio-e2e:prod-log-assert --minutes 30 --json out/cl_assert_prod.json`.
+  - variable: GROK_VOICE_PRODUCTION_DETERMINISTIC_ONLY
+    value: "true"
+    availability:
+      - RUNTIME
   - variable: XAI_API_KEY
     secret: XAI_API_KEY
   # Demo access gate token (existing secret stored as `demo-access-token` in
