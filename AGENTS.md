@@ -34,6 +34,7 @@
 - Prefer root `pnpm` scripts over ad hoc one-off commands so operational flows stay reproducible.
 - Keep generated files out of commits unless the task explicitly needs checked-in artifacts or reviewer evidence.
 - For code changes, run `pnpm typecheck` and `pnpm test` before closing the task when feasible.
+- **Performance / latency claims require production observation** (Cloud Logging, browser E2E, or equivalent live measurement) before being reported as DOD. Unit / typecheck / harness PASS is a necessary but NOT sufficient signal — Layer B harness improvements do not translate 1:1 to production user-perceived metrics. See `docs/standard_migration_pipeline.md` for the canonical Phase 0 → Phase N workflow.
 - For publish, release, or acceptance work, treat `pnpm verify:acceptance` as the canonical final gate.
 - If `verify:acceptance` is blocked, capture the blocker explicitly and verify the underlying substeps you touched.
 - When an acceptance blocker appears in a legacy path while working on a new scenario, isolate causality before closing: run the targeted scenario, compare relevant generated scenario/assets and test definitions, and record any non-task blocker in `docs/OPERATIONS.md`.
@@ -46,6 +47,12 @@
 - Keep tests, smoke checks, and acceptance scripts aligned with any changed runtime, compile, publish, scoring, or vendor contract.
 - When voice-profile mapping changes, update the profile JSON, `config/voice-profiles/scenario-map.json`, and publish-readiness evidence together.
 - Do not mark orb preview DoD as complete from generated snapshots or ConvAI tests alone. Human orb utterances must be captured in the relevant memo; otherwise leave the memo as a blocker with the preview URL.
+
+## Always After Merge
+
+- **Verify the squash actually captured your latest commits.** Immediately after `gh pr merge` returns, run `git show origin/main:<path>` against a unique signature line from your latest change. Squash can pick up an older parent commit if the merge was queued before a late push (cf. PR #80 → PR #81 mismatch incident). The PR's "merged" badge, the PR body, and the head SHA are leading indicators, NOT authoritative.
+- **Every behavior-changing PR must ship with an env-flag rollback that does NOT require a client redeploy.** The flag is read fresh on the next request (typical pattern: surface it through `/api/v3/session`), so flipping the env immediately reverts behavior. Document the flag in the PR body, verify it in a unit test, and re-document it in the relevant skill. Reference implementations: `GROK_VOICE_STRICT_PLAYBACK_MODE` (PR #85), `GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED` (PR #87).
+- For Firebase App Hosting deploys, prefer `pnpm deploy:adecco-roleplay` (the wrapper records the baseline rollout, runs `firebase deploy --only apphosting`, executes `pnpm grok:warm-tts-cache`, and post-deploy verifies via `/api/v3/session`). Bare `firebase deploy` is fine for Cloud Build debugging only.
 
 ## Directory Map
 
