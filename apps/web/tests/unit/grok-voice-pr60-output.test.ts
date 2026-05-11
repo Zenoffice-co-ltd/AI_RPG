@@ -39,10 +39,15 @@ describe("grok voice PR60 output locks", () => {
       "じゅはっちゅうや納期調整まわりの営業事務です。"
     );
     expect(getPr60LockedResponseForUser("なるほどですね。")).toBe("はい。");
+    // review-v2 P0-4: wednesday_followup response was rewritten to drop
+    // the trailing question ("〜どのあたりでしょうか。") so the
+    // registered-speech catalogue can ship audio that itself does not
+    // ask a closing question. Both the legacy PR60 lock and the new
+    // registered-speech intent share this new phrasing.
     expect(
       getPr60LockedResponseForUser("わかりました。じゃあ水曜までにメールしますね。")
     ).toBe(
-      "はい、お願いします。ちなみに、アデコさんの派遣の特徴や、たしゃさんとの違いはどのあたりでしょうか。"
+      "はい、お願いします。アデコさんの派遣の特徴やたしゃさんとの違いも、整理しておきたいと考えています。"
     );
   });
 
