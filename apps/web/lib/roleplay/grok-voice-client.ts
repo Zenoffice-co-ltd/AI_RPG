@@ -122,7 +122,11 @@ export type GrokVoiceEventKind =
   | "realtime.reseed.started"
   | "realtime.reseed.completed"
   | "realtime.reseed.failed"
-  | "realtime.session_tainted";
+  | "realtime.session_tainted"
+  // PR B — locked-response audio prebundle telemetry.
+  | "locked_audio_bundle.loaded"
+  | "locked_audio_bundle.miss"
+  | "locked_audio_bundle.disabled";
 
 export function postGrokVoiceEvent(
   kind: GrokVoiceEventKind,

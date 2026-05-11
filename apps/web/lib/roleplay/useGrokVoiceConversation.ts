@@ -39,6 +39,7 @@ import { GrokVoiceRealtime } from "./grok-voice-realtime";
 import type {
   GrokVoiceMicState,
   GrokVoiceGreeting,
+  GrokVoiceLockedResponseTts,
   GrokVoiceServerEvent,
   GrokVoiceSession,
   GrokVoiceTurnMetricsClient,
@@ -1009,25 +1010,116 @@ export function useGrokVoiceConversation(
           });
         }
 
-        void postGrokVoiceEvent("locked_response.tts.requested", {
-          sessionId: activeSession.sessionId,
-          details: {
-            turnIndex,
-            inputMode: input.channel === "chat" ? "text" : "voice",
-            userTextLen: input.userText.length,
-            agentTextLen: spokenAssistantText.length,
-          },
-        });
-        // PR A observability: time the network TTS roundtrip so we can
-        // attribute the "lock-voice is slow because of HTTP" hypothesis
-        // (vs xAI processing time, vs audio decode). This is the critical
-        // measurement that justifies PR B's local-audio prebundle work.
-        const ttsRequestStartedAt = Date.now();
-        const tts = await fetchLockedResponseTts({
-          sessionId: activeSession.sessionId,
-          userText: input.userText,
-        });
-        const networkTtsMs = Date.now() - ttsRequestStartedAt;
+        // PR B — voice-lock local audio prebundle.
+        //
+        // The session bootstrap optionally ships pre-synthesized
+        // canonical audio in `lockedResponseAudioBundle`. For voice
+        // turns whose canonical is in the bundle, play it directly
+        // from memory and skip the `/api/v3/locked-response-tts`
+        // HTTP roundtrip entirely. PR #85 E2E measured that roundtrip
+        // at ~6,131ms (build-2026-05-10-004 voice_case1_shallow_background);
+        // eliminating it is the target latency win of this PR.
+        //
+        // Text turns keep the existing network-TTS path: text input
+        // already lands in <500ms per PR A observability, so the
+        // bundle would not move the needle for text mode.
+        //
+        // Local-miss policy is conservative for the initial roll-out:
+        // fall back to the existing network-TTS path so we never
+        // regress an uncached canonical. A future env-flip can
+        // upgrade this to "realtime fallback" for `local_audio_only`
+        // mode.
+        const bundle = activeSession.lockedResponseAudioBundle;
+        const bundleEntry =
+          input.channel === "voice" && bundle
+            ? bundle.entries.find((e) => e.spokenText === spokenAssistantText)
+            : undefined;
+
+        let tts: GrokVoiceLockedResponseTts;
+        let networkTtsMs: number;
+        let routePath: GrokVoiceTurnMetricsClient["routePath"];
+        let localLockedAudioHit: boolean;
+
+        if (bundleEntry && bundle) {
+          // Local hit — synthesize a TTS-shaped object from the
+          // bundle entry so the downstream playback / metrics code
+          // paths are identical to the network path. `vendorMs` is
+          // spread-when-defined to satisfy
+          // `exactOptionalPropertyTypes: true`.
+          tts = {
+            text: spokenAssistantText,
+            displayText: displayAssistantText,
+            audioBase64: bundleEntry.audioBase64,
+            mimeType: "audio/pcm",
+            sampleRateHz: bundle.sampleRateHz,
+            textLen: spokenAssistantText.length,
+            voiceId: bundle.voiceId,
+            ...(bundleEntry.vendorMsAtCreation !== null
+              ? { vendorMs: bundleEntry.vendorMsAtCreation }
+              : {}),
+            cacheStatus: "hit",
+            cacheLookupMs: 0,
+            ttsVendorMsAtCreation: bundleEntry.vendorMsAtCreation,
+          };
+          networkTtsMs = 0;
+          routePath = "lock_voice_local_audio";
+          localLockedAudioHit = true;
+          void postGrokVoiceEvent("locked_audio_bundle.loaded", {
+            sessionId: activeSession.sessionId,
+            details: {
+              turnIndex,
+              spokenTextLen: spokenAssistantText.length,
+              audioBytes: bundleEntry.audioBytes,
+              cacheKeyHash: bundleEntry.cacheKeyHash,
+            },
+          });
+        } else {
+          if (input.channel === "voice" && bundle) {
+            // Voice turn, bundle present, but THIS canonical missed.
+            // Worth a structured signal so the dashboard can spot a
+            // catalog drift between PR60 locks and the bundle priority list.
+            void postGrokVoiceEvent("locked_audio_bundle.miss", {
+              sessionId: activeSession.sessionId,
+              details: {
+                turnIndex,
+                spokenTextLen: spokenAssistantText.length,
+                bundleEntryCount: bundle.entries.length,
+              },
+            });
+          } else if (input.channel === "voice" && !bundle) {
+            // Bundle is disabled / not surfaced (env kill-switch or
+            // assembler failed). One event per turn so the dashboard
+            // can quantify how many turns ran without a bundle.
+            void postGrokVoiceEvent("locked_audio_bundle.disabled", {
+              sessionId: activeSession.sessionId,
+              details: { turnIndex },
+            });
+          }
+          void postGrokVoiceEvent("locked_response.tts.requested", {
+            sessionId: activeSession.sessionId,
+            details: {
+              turnIndex,
+              inputMode: input.channel === "chat" ? "text" : "voice",
+              userTextLen: input.userText.length,
+              agentTextLen: spokenAssistantText.length,
+            },
+          });
+          // PR A observability: time the network TTS roundtrip so we can
+          // attribute the "lock-voice is slow because of HTTP" hypothesis
+          // (vs xAI processing time, vs audio decode). PR B eliminates
+          // this roundtrip on the local-hit path; the measurement
+          // remains the source of truth for the legacy fallback path.
+          const ttsRequestStartedAt = Date.now();
+          tts = await fetchLockedResponseTts({
+            sessionId: activeSession.sessionId,
+            userText: input.userText,
+          });
+          networkTtsMs = Date.now() - ttsRequestStartedAt;
+          routePath =
+            input.channel === "chat" ? "lock_text" : "lock_voice_network_tts";
+          localLockedAudioHit = false;
+        }
+
         const audioBytes = Math.floor((tts.audioBase64.length * 3) / 4);
         void postGrokVoiceEvent("locked_response.tts.completed", {
           sessionId: activeSession.sessionId,
@@ -1041,6 +1133,7 @@ export function useGrokVoiceConversation(
             cacheLookupMs: tts.cacheLookupMs ?? null,
             ttsVendorMsAtCreation: tts.ttsVendorMsAtCreation ?? null,
             networkTtsMs,
+            localLockedAudioHit,
           },
         });
         lockedTurnTtsPlayingRef.current = true;
@@ -1075,18 +1168,13 @@ export function useGrokVoiceConversation(
 
         const doneMs = Date.now() - startedAt;
         const firstAudioMs = firstAudioAt - startedAt;
-        // PR A: routePath classifies how this turn was actually served so
-        // dashboards can group by lane. localLockedAudioHit is reserved
-        // for PR B (session-bootstrap audio prebundle); in PR A it is
-        // always false. lockedResponseKey is the canonical text itself —
-        // a stable, human-readable identifier for the lock entry that
-        // collides with `getAllPr60LockedResponses()` so a future cache
-        // warm telemetry can join against it.
-        const routePath: GrokVoiceTurnMetricsClient["routePath"] =
-          input.channel === "chat"
-            ? "lock_text"
-            : "lock_voice_network_tts";
-        const localLockedAudioHit = false;
+        // PR A + PR B: `routePath` and `localLockedAudioHit` are set
+        // above where the bundle vs network path is chosen, so this
+        // emission block just hands them through.
+        // lockedResponseKey is the canonical text itself — a stable,
+        // human-readable identifier for the lock entry that collides
+        // with `getAllPr60LockedResponses()` so cache warm telemetry
+        // can join against it.
         const lockedResponseKey = spokenAssistantText;
         const metrics: GrokVoiceTurnMetricsClient = {
           sessionId: activeSession.sessionId,

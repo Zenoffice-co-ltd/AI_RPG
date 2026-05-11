@@ -44,6 +44,26 @@ export type GrokVoiceSession = {
   // so existing clients keep buffering; the new field unlocks the
   // streaming-by-default behavior for non-risky turns.
   strictPlaybackMode: "all_turns" | "risk_based" | "monitor_only";
+  // PR B — optional locked-response audio bundle for the voice path.
+  // When present, the client looks up canonical TTS audio in this
+  // local Map before falling back to the `/api/v3/locked-response-tts`
+  // HTTP roundtrip. Omitted entirely if the env kill-switch
+  // (`GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED=false`) is set, or if all
+  // priority canonicals missed cache. See server/grokVoice/lockedAudioBundle.ts.
+  lockedResponseAudioBundle?: {
+    version: "v1";
+    voiceId: string;
+    sampleRateHz: number;
+    codec: "pcm";
+    entries: Array<{
+      spokenText: string;
+      audioBase64: string;
+      audioBytes: number;
+      cacheStatus: "hit";
+      cacheKeyHash: string;
+      vendorMsAtCreation: number | null;
+    }>;
+  };
   // Set on sessions created via reseed. Useful for telemetry correlation.
   parentSessionId?: string;
   greetingAudio?: GrokVoiceGreeting & {

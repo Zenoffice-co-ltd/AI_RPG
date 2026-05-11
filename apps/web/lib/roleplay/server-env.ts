@@ -233,6 +233,40 @@ export function getGrokVoiceStrictPlaybackMode(): GrokVoiceStrictPlaybackMode {
   return "risk_based";
 }
 
+// PR B — locked-response audio prebundle.
+//
+// Voice deterministic-lock turns currently pay an HTTP roundtrip to
+// `/api/v3/locked-response-tts` after STT confirms (production Cloud
+// Logging on PR #85 measured one such turn at 6,131ms first-audible).
+// Shipping the PR60 canonical audio bundles inside the session
+// bootstrap response lets the client play locked audio synchronously
+// from a local Map, eliminating the network hop before first audio.
+//
+// `GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED` is the kill-switch:
+//   true / unset → bundle enabled (default — recommended for prod).
+//   false / 0    → bundle omitted, client falls back to the existing
+//                  network-TTS path. This is the immediate rollback
+//                  flag (no client redeploy).
+//
+// `GROK_VOICE_LOCKED_AUDIO_BUNDLE_MAX_ENTRIES` caps how many cached
+// canonicals to embed. Each entry adds ~150–400KB of base64 audio to
+// the session response. Default 8 = top business-factual canonicals,
+// keeping the bootstrap payload under ~3MB on the worst case.
+export function isGrokVoiceLockedAudioBundleEnabled() {
+  ensureEnvLoaded();
+  const value = process.env["GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED"];
+  if (value === undefined || value === null || value === "") return true;
+  return value !== "false" && value !== "0";
+}
+
+export function getGrokVoiceLockedAudioBundleMaxEntries(): number {
+  ensureEnvLoaded();
+  const raw = process.env["GROK_VOICE_LOCKED_AUDIO_BUNDLE_MAX_ENTRIES"];
+  const parsed = Number(raw ?? "8");
+  if (!Number.isFinite(parsed)) return 8;
+  return Math.max(0, Math.min(20, Math.trunc(parsed)));
+}
+
 export function getGrokVoiceTranscriptPreviewMaxChars() {
   ensureEnvLoaded();
   const raw = process.env["GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_MAX_CHARS"];
