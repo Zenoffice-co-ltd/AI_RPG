@@ -48,4 +48,4 @@ jobs:
         run: pnpm grok:forbid-modelless-ws
       - name: Run web unit tests for registered-speech modules
         working-directory: apps/web
-        run: pnpm test -- --run tests/unit/registered-speech-intent-matcher.test.ts tests/unit/registered-speech-expected-tokens.test.ts tests/unit/grok-voice-ws-url.test.ts tests/unit/grok-voice-audio-queue-clear-for-lock.test.ts
+        run: pnpm test -- --run tests/unit/registered-speech-intent-matcher.test.ts tests/unit/registered-speech-expected-tokens.test.ts tests/unit/grok-voice-ws-url.test.ts tests/unit/grok-voice-audio-queue-clear-for-lock.test.ts tests/unit/grok-voice-deterministic-router.test.tsx

@@ -145,7 +145,7 @@ export type GrokVoiceTurnMetricsClient = {
   grokVoiceModel: string;
   grokVoiceVoiceId: string;
   lockedResponse?: boolean;
-  lockedResponseSource?: "client_tts";
+  lockedResponseSource?: "client_tts" | "registered_speech_local";
   // Strict sanitized playback observability. All optional so the legacy
   // (non-strict) path doesn't have to populate them.
   firstRealtimeAudioDeltaMs?: number | null;
@@ -171,7 +171,26 @@ export type GrokVoiceTurnMetricsClient = {
     | "lock_voice_network_tts"
     | "rt_text"
     | "rt_voice"
+    | "registered_speech_local"
+    | "registered_speech_fallback"
+    | "registered_speech_multi_intent_redirect"
     | "unknown";
+  // Verified Audio Artifact telemetry (review-v2). Populated only when
+  // the deterministic-mode path served the turn. Cloud Logging
+  // dashboards key on `registeredSpeechIntent` to confirm zero
+  // runtime-TTS path leakage across canonical intents.
+  registeredSpeechIntent?: string;
+  registeredSpeechSha256?: string;
+  registeredSpeechManifestBuildId?: string;
+  registeredSpeechLatency?: {
+    userInputFinalizedAt: number;
+    intentClassifiedAt: number;
+    artifactLookupAt: number;
+    playbackRequestedAt: number;
+    firstAudibleAudioAt: number;
+    manifestVerifiedBeforeMicEnable: boolean;
+    sha256ComputedOnTurnPath: boolean;
+  };
   localLockedAudioHit?: boolean;
   lockedResponseKey?: string | null;
   cacheStatus?: "hit" | "miss" | null;

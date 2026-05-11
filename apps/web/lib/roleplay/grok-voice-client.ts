@@ -173,6 +173,12 @@ export type GrokVoiceEventKind =
   | "registered_speech.fail_closed_emergency"
   | "registered_speech.fallback_unknown.played"
   | "registered_speech.multi_intent_redirect.played"
+  // Playback-side events emitted by playRegisteredSpeechArtifact.
+  | "registered_speech.intent_matched"
+  | "registered_speech.playback.started"
+  | "registered_speech.playback.completed"
+  | "registered_speech.playback.failed"
+  | "registered_speech.cache_miss_fail_closed"
   | "realtime.output_audio_delta.dropped_deterministic"
   | "runtime_tts.fetch_blocked_deterministic";
 

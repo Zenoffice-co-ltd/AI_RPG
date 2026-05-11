@@ -24,7 +24,14 @@ import {
   REGISTERED_SPEECH_CLIENT_BUILD_ID,
   REGISTERED_SPEECH_CLIENT_MANIFEST_VERSION,
 } from "./registered-speech/manifest-constant";
-import type { VerifiedRegisteredSpeechCache } from "./registered-speech/types";
+import type {
+  LockedSpeechHit,
+  VerifiedRegisteredSpeechCache,
+} from "./registered-speech/types";
+import {
+  classifyUserUtteranceForRegisteredSpeech,
+  type MatcherDecision,
+} from "./registered-speech/intent-matcher";
 import {
   GrokVoiceAudioQueue,
   type GrokVoiceAudioQueueOptions,
@@ -1300,6 +1307,285 @@ export function useGrokVoiceConversation(
     ]
   );
 
+  // Verified Audio Artifact playback. Distinct from playLockedResponse:
+  // never fetches network TTS, never touches the locked-audio bundle,
+  // never appends to spokenHistoryRef (xAI assistant memory isolation
+  // in deterministic mode), and emits a `registered_speech_local` /
+  // `_fallback` / `_multi_intent_redirect` routePath instead of
+  // `lock_voice_*`. Audio bytes come from `verifiedRegisteredSpeechCacheRef`
+  // which was sha256-verified at session bootstrap (mic-enable gate),
+  // so the turn critical path does NOT hash.
+  const playRegisteredSpeechArtifact = useCallback(
+    async (input: {
+      userText: string;
+      decision: MatcherDecision;
+      channel: "voice" | "chat";
+      userInputFinalizedAt: number;
+      intentClassifiedAt: number;
+    }) => {
+      const activeSession = sessionRef.current;
+      const realtime = realtimeRef.current;
+      const cache = verifiedRegisteredSpeechCacheRef.current;
+      if (!activeSession || !realtime || !cache) return;
+
+      const hit: LockedSpeechHit = input.decision.hit;
+      const entry = cache.entries.get(hit.intent);
+      if (!entry) {
+        // Defensive: cache should be exhaustive (manifestLoader threw
+        // at boot if any required intent was missing). Reaching this
+        // branch means the runtime invariant was violated; fail closed.
+        void postGrokVoiceEvent("registered_speech.cache_miss_fail_closed", {
+          sessionId: activeSession.sessionId,
+          details: { intent: hit.intent },
+        });
+        setErrorMessage(
+          "音声バンドルにエントリが見つからないため、応答を停止しました。"
+        );
+        return;
+      }
+      const artifactLookupAt = Date.now();
+
+      const turnIndex = turnIndexRef.current;
+      const routePath: GrokVoiceTurnMetricsClient["routePath"] =
+        input.decision.kind === "intent_hit"
+          ? "registered_speech_local"
+          : input.decision.kind === "multi_intent_redirect"
+            ? "registered_speech_multi_intent_redirect"
+            : "registered_speech_fallback";
+
+      lockedTurnActiveRef.current = true;
+      suppressNextRealtimeResponseRef.current = true;
+      lockedTurnIndexRef.current = turnIndex;
+      lockedTurnUserTextRef.current = input.userText;
+      lockedTurnMicTailIgnoreUntilRef.current =
+        input.channel === "voice"
+          ? Date.now() + LOCKED_TURN_MIC_TAIL_IGNORE_MS
+          : 0;
+      discardStaleResponseDeltasRef.current = true;
+      if (currentResponseItemIdRef.current) {
+        staleResponseItemIdsRef.current.add(currentResponseItemIdRef.current);
+      }
+      if (responseActiveRef.current) {
+        realtime.cancelResponse();
+      } else {
+        pendingCancelOnResponseCreatedRef.current = true;
+      }
+
+      dispatchMessages({
+        type: "append",
+        message: createTranscriptMessage({
+          role: "agent",
+          channel: input.channel === "voice" ? "voice" : "chat",
+          text: entry.displayText,
+          status: "final",
+          source: "local",
+          clientMessageId: `agent-registered-${activeSession.sessionId}-${turnIndex}`,
+        }),
+      });
+
+      const startedAt = turnStartAtRef.current ?? Date.now();
+      turnStartAtRef.current = startedAt;
+      micRecorderRef.current?.setEnabled(false);
+      setStatus("speaking");
+      agentSpeakingRef.current = true;
+
+      let firstAudioAt = startedAt;
+      const playbackRequestedAt = Date.now();
+      try {
+        const queue = ensureAudioQueue();
+        await queue.resume().catch(() => undefined);
+        // Clear any speculative realtime audio that snuck in before
+        // the deterministic hard-drop guard. clearAllScheduledAudioForLock
+        // does not close the AudioContext, so the artifact playback
+        // below reuses it without paying the re-create cost.
+        queue.clearAllScheduledAudioForLock();
+        void postGrokVoiceEvent("audio.queue.flushed", {
+          sessionId: activeSession.sessionId,
+          details: {
+            reason: "registered_speech_preempt",
+            turnIndex,
+            intent: hit.intent,
+          },
+        });
+
+        void postGrokVoiceEvent("registered_speech.playback.started", {
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex,
+            intent: hit.intent,
+            decisionKind: input.decision.kind,
+            audioBytes: entry.decodedByteLength,
+            sha256: entry.sha256,
+          },
+        });
+        firstAudioAt = Date.now();
+        firstAudioAtRef.current = firstAudioAt;
+        await queue.enqueueBase64AndWait(entry.audioBase64);
+        void postGrokVoiceEvent("registered_speech.playback.completed", {
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex,
+            intent: hit.intent,
+            audioBytes: entry.decodedByteLength,
+          },
+        });
+
+        // xAI assistant memory isolation (review-v2 P1): do NOT call
+        // realtime.sendAssistantHistoryMessage in deterministic mode.
+        // The xAI session never sees our registered speech output, so
+        // its conversation history can never drift in a direction that
+        // contradicts the artifact catalogue.
+        if (activeSession.productionDeterministicOnly !== true) {
+          if (input.channel === "chat") {
+            realtime.sendUserHistory(input.userText);
+          }
+          realtime.sendAssistantHistoryMessage(entry.spokenText);
+        }
+
+        const doneMs = Date.now() - startedAt;
+        const firstAudioMs = firstAudioAt - startedAt;
+        const metrics: GrokVoiceTurnMetricsClient = {
+          sessionId: activeSession.sessionId,
+          turnIndex,
+          inputMode: input.channel === "chat" ? "text" : "voice",
+          userTextLen: input.userText.length,
+          agentTextLen: entry.displayText.length,
+          firstAudioMs,
+          firstAudibleAudioMs: firstAudioMs,
+          doneMs,
+          audioBytes: entry.decodedByteLength,
+          error: null,
+          promptHash: activeSession.promptHash,
+          promptVersion: activeSession.promptVersion,
+          guardrailVersion: activeSession.guardrailVersion,
+          grokVoiceModel: activeSession.grokVoiceModel,
+          grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
+          lockedResponse: true,
+          lockedResponseSource: "registered_speech_local",
+          routePath,
+          localLockedAudioHit: true,
+          lockedResponseKey: hit.intent,
+          cacheStatus: "hit",
+          cacheLookupMs: 0,
+          ttsVendorMsAtCreation: null,
+          networkTtsMs: 0,
+          strictPlaybackMode: activeSession.strictPlaybackMode,
+          registeredSpeechIntent: hit.intent,
+          registeredSpeechSha256: entry.sha256,
+          registeredSpeechManifestBuildId: cache.buildId,
+          registeredSpeechLatency: {
+            userInputFinalizedAt: input.userInputFinalizedAt,
+            intentClassifiedAt: input.intentClassifiedAt,
+            artifactLookupAt,
+            playbackRequestedAt,
+            firstAudibleAudioAt: firstAudioAt,
+            manifestVerifiedBeforeMicEnable: true,
+            sha256ComputedOnTurnPath: false,
+          },
+        };
+        previousTurnSanitizerOrReseedRef.current = false;
+        setMetricsLog((current) => [...current, metrics]);
+        void postGrokVoiceEvent("turn.completed", {
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex: metrics.turnIndex,
+            inputMode: metrics.inputMode,
+            userTextLen: metrics.userTextLen,
+            agentTextLen: metrics.agentTextLen,
+            firstAudioMs: metrics.firstAudioMs,
+            firstAudibleAudioMs: metrics.firstAudibleAudioMs,
+            doneMs: metrics.doneMs,
+            audioBytes: metrics.audioBytes,
+            error: metrics.error,
+            lockedResponse: true,
+            lockedResponseSource: "registered_speech_local",
+            routePath: metrics.routePath,
+            localLockedAudioHit: metrics.localLockedAudioHit,
+            lockedResponseKey: metrics.lockedResponseKey,
+            cacheStatus: metrics.cacheStatus,
+            cacheLookupMs: metrics.cacheLookupMs,
+            networkTtsMs: metrics.networkTtsMs,
+            strictPlaybackMode: metrics.strictPlaybackMode,
+            registeredSpeechIntent: hit.intent,
+            registeredSpeechSha256: entry.sha256,
+            registeredSpeechManifestBuildId: cache.buildId,
+            registeredSpeechLatency: metrics.registeredSpeechLatency,
+            userTextPreview: input.userText.slice(0, 200),
+            agentTextPreview: entry.displayText.slice(0, 200),
+            agentSpokenTextPreview: entry.spokenText.slice(0, 200),
+            promptHash: metrics.promptHash,
+            promptVersion: metrics.promptVersion,
+            guardrailVersion: metrics.guardrailVersion,
+            grokVoiceModel: metrics.grokVoiceModel,
+            grokVoiceVoiceId: metrics.grokVoiceVoiceId,
+          },
+        });
+      } catch (error) {
+        void postGrokVoiceEvent("registered_speech.playback.failed", {
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex,
+            intent: hit.intent,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
+        setErrorMessage(AUDIO_ERROR);
+      } finally {
+        if (input.channel === "voice") {
+          startLockedRealtimeDrain(turnIndex);
+        }
+        resetTurnBookkeeping();
+        setStatus("listening");
+        if (micEnabled && !isMutedRef.current) {
+          micRecorderRef.current?.setEnabled(true);
+        }
+      }
+    },
+    [
+      ensureAudioQueue,
+      micEnabled,
+      resetTurnBookkeeping,
+      startLockedRealtimeDrain,
+    ]
+  );
+
+  // Single-entry router for both voice-STT and text-input turn starts.
+  // Returns true if deterministic-mode handling took place (in which
+  // case the caller MUST NOT fall through to PR60 / realtime). Returns
+  // false otherwise — caller continues with legacy lock matching.
+  const tryRouteToRegisteredSpeech = useCallback(
+    (trimmed: string, channel: "voice" | "chat"): boolean => {
+      const activeSession = sessionRef.current;
+      if (!activeSession) return false;
+      if (activeSession.productionDeterministicOnly !== true) return false;
+      const cache = verifiedRegisteredSpeechCacheRef.current;
+      if (!cache) return false;
+      const userInputFinalizedAt = Date.now();
+      const decision = classifyUserUtteranceForRegisteredSpeech({
+        userText: trimmed,
+        cache,
+      });
+      const intentClassifiedAt = Date.now();
+      void postGrokVoiceEvent("registered_speech.intent_matched", {
+        sessionId: activeSession.sessionId,
+        details: {
+          decisionKind: decision.kind,
+          intent: decision.hit.intent,
+          classificationMs: intentClassifiedAt - userInputFinalizedAt,
+        },
+      });
+      void playRegisteredSpeechArtifact({
+        userText: trimmed,
+        decision,
+        channel,
+        userInputFinalizedAt,
+        intentClassifiedAt,
+      });
+      return true;
+    },
+    [playRegisteredSpeechArtifact]
+  );
+
   const handleServerEvent = useCallback(
     (event: GrokVoiceServerEvent) => {
       const activeSession = sessionRef.current;
@@ -1514,6 +1800,14 @@ export function useGrokVoiceConversation(
             }),
           });
           spokenHistoryRef.current.push({ role: "user", text: trimmed });
+          // Verified Audio Artifact (review-v2) — deterministic-mode
+          // takes priority. The intent matcher always returns a hit
+          // (intent / fallback / multi_intent_redirect), so this
+          // branch is terminal: rt_voice and PR60 are never reached
+          // when the flag is on.
+          if (tryRouteToRegisteredSpeech(trimmed, "voice")) {
+            break;
+          }
           const lockedText = getPr60LockedResponseForUser(trimmed);
           if (lockedText) {
             void playLockedResponse({
@@ -1865,6 +2159,7 @@ export function useGrokVoiceConversation(
       playLockedResponse,
       resetStrictPlaybackTurnState,
       resetTurnBookkeeping,
+      tryRouteToRegisteredSpeech,
     ]
   );
 
@@ -2353,6 +2648,11 @@ export function useGrokVoiceConversation(
       }
       // Pause the mic while Grok is generating to avoid feedback.
       micRecorderRef.current?.setEnabled(false);
+      // Verified Audio Artifact (review-v2) — deterministic-mode
+      // takes priority over PR60 / rt_voice on text turns too.
+      if (tryRouteToRegisteredSpeech(trimmed, "chat")) {
+        return;
+      }
       const lockedText = getPr60LockedResponseForUser(trimmed);
       if (lockedText) {
         void playLockedResponse({
@@ -2371,6 +2671,7 @@ export function useGrokVoiceConversation(
       isInteractive,
       playLockedResponse,
       startConversation,
+      tryRouteToRegisteredSpeech,
     ]
   );
 
