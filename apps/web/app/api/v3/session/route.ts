@@ -36,6 +36,14 @@ import { logGrokVoiceSessionCreated } from "@/server/grokVoice/metrics";
 import { getCachedGrokVoiceTts } from "@/server/grokVoice/ttsCache";
 import { assembleLockedAudioBundle } from "@/server/grokVoice/lockedAudioBundle";
 import { buildRegisteredSpeechBundle } from "@/server/registeredSpeech/bundleAssembler";
+import {
+  getGrokVoiceRouterVariantForDemoSlug,
+  isGrokVoiceDeterministicRegisteredSpeechVariant,
+  resolveGrokVoiceDemoSlug,
+  resolveGrokVoiceDemoSlugFromPath,
+  type AdeccoGrokVoiceDemoSlug,
+  type GrokVoiceRouterVariant,
+} from "@/lib/roleplay/grok-voice-router-variant";
 
 const SAFE_ERROR =
   "セッションの開始に失敗しました。時間をおいて再試行してください。";
@@ -52,6 +60,16 @@ const requestSchema = z
       .min(1)
       .max(128)
       .regex(/^gv_sess_/)
+      .optional(),
+    demoSlug: z
+      .enum(["adecco-roleplay-v3", "adecco-roleplay-v4", "adecco-roleplay-v5"])
+      .optional(),
+    routerVariant: z
+      .enum([
+        "A_STRICT_FALLBACK_CONTROL",
+        "B_NARROW_FALLBACK_SEMANTIC",
+        "C_GUARDED_FLEXIBLE_GENERATION",
+      ])
       .optional(),
   })
   .strict()
@@ -76,7 +94,13 @@ export async function POST(request: NextRequest) {
 
   // Body parse: tolerate empty body for backwards compat with the no-arg call,
   // accept { reseedFromSessionId } for strict-playback reseeds.
-  let parsedBody: { reseedFromSessionId?: string | undefined } | undefined;
+  let parsedBody:
+    | {
+        reseedFromSessionId?: string | undefined;
+        demoSlug?: AdeccoGrokVoiceDemoSlug | undefined;
+        routerVariant?: GrokVoiceRouterVariant | undefined;
+      }
+    | undefined;
   try {
     const text = await request.text();
     if (text.length > 0) {
@@ -88,6 +112,8 @@ export async function POST(request: NextRequest) {
     return safeError(400);
   }
   const reseedFromSessionId = parsedBody?.reseedFromSessionId;
+  const demoSlug = resolveRequestDemoSlug(request, parsedBody?.demoSlug);
+  const routerVariant = getGrokVoiceRouterVariantForDemoSlug(demoSlug);
 
   const ip = resolveClientIp(request);
   const signature = request.cookies.get(DEMO_API_ACCESS_COOKIE)?.value;
@@ -162,11 +188,15 @@ export async function POST(request: NextRequest) {
     guardrailVersion: manifest.guardrailVersion,
     grokVoiceModel: env.GROK_VOICE_MODEL,
     grokVoiceVoiceId: env.GROK_VOICE_VOICE_ID,
+    demoSlug,
+    routerVariant,
   };
   logGrokVoiceSessionCreated({
     sessionId,
     ephemeralExpiresAt: token.expiresAt,
     provenance,
+    demoSlug,
+    routerVariant,
   });
 
   // Verified Audio Artifact: in deterministic mode the greeting plays
@@ -174,7 +204,10 @@ export async function POST(request: NextRequest) {
   // the legacy cache hit entirely. The corresponding DoD assertion in
   // the prod smoke is that `greetingAudio` is undefined on every
   // deterministic-mode session payload.
-  const greetingAudio = isGrokVoiceProductionDeterministicOnlyEnabled()
+  const productionDeterministicOnly = isEffectiveProductionDeterministicOnly(
+    routerVariant
+  );
+  const greetingAudio = productionDeterministicOnly
     ? null
     : await getCachedGrokVoiceTts({
         text: bundle.firstMessage,
@@ -194,7 +227,7 @@ export async function POST(request: NextRequest) {
   // Skipped entirely in deterministic mode: registered-speech bundle
   // is the only audio source there.
   const lockedAudioBundleEnabled =
-    !isGrokVoiceProductionDeterministicOnlyEnabled() &&
+    !productionDeterministicOnly &&
     isGrokVoiceLockedAudioBundleEnabled();
   const lockedAudioBundleMaxEntries = getGrokVoiceLockedAudioBundleMaxEntries();
   const lockedAudioBundleResult =
@@ -222,6 +255,8 @@ export async function POST(request: NextRequest) {
     JSON.stringify({
       scope: "grokVoice.lockedAudioBundle",
       sessionId,
+      demoSlug,
+      routerVariant,
       enabled: lockedAudioBundleEnabled,
       maxEntries: lockedAudioBundleMaxEntries,
       bundledEntries: lockedAudioBundleResult?.bundle.entries.length ?? 0,
@@ -237,6 +272,8 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     sessionId,
+    demoSlug,
+    routerVariant,
     scenarioId: bundle.scenarioId,
     backend: "grok-voice-think-fast",
     promptVersion: manifest.promptVersion,
@@ -271,8 +308,14 @@ export async function POST(request: NextRequest) {
     // boolean is derived from the effective mode so old clients
     // observe the same kill-switch behavior.
     ...(() => {
-      const strictEnabled = isGrokVoiceStrictSanitizedPlaybackEnabled();
-      const configuredMode = getGrokVoiceStrictPlaybackMode();
+      const strictEnabled =
+        routerVariant === "C_GUARDED_FLEXIBLE_GENERATION"
+          ? true
+          : isGrokVoiceStrictSanitizedPlaybackEnabled();
+      const configuredMode =
+        routerVariant === "C_GUARDED_FLEXIBLE_GENERATION"
+          ? "all_turns"
+          : getGrokVoiceStrictPlaybackMode();
       const effectiveMode = strictEnabled ? configuredMode : "monitor_only";
       return {
         strictSanitizedPlayback:
@@ -309,7 +352,7 @@ export async function POST(request: NextRequest) {
     // TTS endpoint, and route unknown user input to a verified
     // fallback artifact instead of rt_voice.
     productionDeterministicOnly:
-      isGrokVoiceProductionDeterministicOnlyEnabled(),
+      productionDeterministicOnly,
     ...(await (async () => {
       if (!isGrokVoiceRegisteredSpeechBundleEnabled()) return {};
       try {
@@ -371,4 +414,25 @@ function sanitizeServerError(error: unknown) {
 
 function shortHash(hash: string) {
   return hash.slice(0, 12);
+}
+
+function resolveRequestDemoSlug(
+  request: NextRequest,
+  bodySlug: AdeccoGrokVoiceDemoSlug | undefined
+): AdeccoGrokVoiceDemoSlug {
+  if (bodySlug) return bodySlug;
+  const headerSlug = request.headers.get("x-grok-voice-demo-slug");
+  if (headerSlug) return resolveGrokVoiceDemoSlug(headerSlug);
+  return resolveGrokVoiceDemoSlugFromPath(request.headers.get("referer"));
+}
+
+function isEffectiveProductionDeterministicOnly(
+  variant: GrokVoiceRouterVariant
+): boolean {
+  if (variant === "B_NARROW_FALLBACK_SEMANTIC") return true;
+  if (variant === "C_GUARDED_FLEXIBLE_GENERATION") return false;
+  return (
+    isGrokVoiceDeterministicRegisteredSpeechVariant(variant) &&
+    isGrokVoiceProductionDeterministicOnlyEnabled()
+  );
 }

@@ -253,7 +253,9 @@ describe("strict sanitized playback — reseed", () => {
     // fetchSession was called twice: once for initial, once for reseed.
     expect(fetchSession).toHaveBeenCalledTimes(2);
     expect(fetchSession).toHaveBeenNthCalledWith(2, {
+      demoSlug: "adecco-roleplay-v3",
       reseedFromSessionId: FIRST_SESSION.sessionId,
+      routerVariant: "A_STRICT_FALLBACK_CONTROL",
     });
     // A second fake realtime was created and primed.
     expect(factory.fakes.length).toBe(2);
@@ -405,7 +407,9 @@ describe("strict sanitized playback — reseed", () => {
     // Third fetchSession call MUST have been made with reseedFromSessionId.
     expect(fetchSession).toHaveBeenCalledTimes(3);
     expect(fetchSession).toHaveBeenNthCalledWith(3, {
+      demoSlug: "adecco-roleplay-v3",
       reseedFromSessionId: FIRST_SESSION.sessionId,
+      routerVariant: "A_STRICT_FALLBACK_CONTROL",
     });
     // The sendTextMessage should have routed through the new (reseeded)
     // socket. Two fakes existed before this turn (initial + first failed

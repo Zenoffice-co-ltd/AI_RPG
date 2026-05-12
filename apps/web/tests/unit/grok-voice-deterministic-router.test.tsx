@@ -551,6 +551,9 @@ describe("Layer A — deterministic mode router", () => {
       "はい、ありがとうございます。今回はー、決定される方はどなたですか？",
       "最終判断される方はどなたですか？",
       "どなたが最終判断されますか？",
+      "決済書",
+      "決済される方は？",
+      "ただ今回の決定を主導しますか。",
     ])("%p → decision_maker", async (input) => {
       const { result } = await startHook();
       await act(async () => {

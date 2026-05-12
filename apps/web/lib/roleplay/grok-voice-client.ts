@@ -6,6 +6,12 @@ import type {
   GrokVoiceSanitizedResponseTts,
   GrokVoiceSession,
 } from "./grok-voice-types";
+import {
+  getGrokVoiceRouterVariantForDemoSlug,
+  resolveGrokVoiceDemoSlug,
+  type AdeccoGrokVoiceDemoSlug,
+  type GrokVoiceRouterVariant,
+} from "./grok-voice-router-variant";
 
 // Client-side enforcement of "no runtime TTS in deterministic mode"
 // (review-v2 P0-4). The server route also returns 503, but reaching
@@ -23,6 +29,18 @@ class DeterministicTtsGuardError extends Error {
 }
 
 let deterministicModeActive = false;
+let clientDemoSlug: AdeccoGrokVoiceDemoSlug = "adecco-roleplay-v3";
+let clientRouterVariant: GrokVoiceRouterVariant =
+  "A_STRICT_FALLBACK_CONTROL";
+
+export function configureGrokVoiceClientContext(input: {
+  demoSlug?: AdeccoGrokVoiceDemoSlug | undefined;
+  routerVariant?: GrokVoiceRouterVariant | undefined;
+}): void {
+  clientDemoSlug = resolveGrokVoiceDemoSlug(input.demoSlug);
+  clientRouterVariant =
+    input.routerVariant ?? getGrokVoiceRouterVariantForDemoSlug(clientDemoSlug);
+}
 
 export function setGrokVoiceClientDeterministicMode(active: boolean): void {
   deterministicModeActive = active;
@@ -42,11 +60,25 @@ function assertNotDeterministic(route: string) {
 }
 
 export async function fetchGrokVoiceSession(
-  input?: { reseedFromSessionId?: string }
+  input?: {
+    reseedFromSessionId?: string;
+    demoSlug?: AdeccoGrokVoiceDemoSlug;
+    routerVariant?: GrokVoiceRouterVariant;
+  }
 ): Promise<GrokVoiceSession> {
+  if (input?.demoSlug || input?.routerVariant) {
+    configureGrokVoiceClientContext({
+      demoSlug: input.demoSlug,
+      routerVariant: input.routerVariant,
+    });
+  }
   const body = input?.reseedFromSessionId
-    ? { reseedFromSessionId: input.reseedFromSessionId }
-    : {};
+    ? {
+        reseedFromSessionId: input.reseedFromSessionId,
+        demoSlug: clientDemoSlug,
+        routerVariant: clientRouterVariant,
+      }
+    : { demoSlug: clientDemoSlug, routerVariant: clientRouterVariant };
   const response = await fetch("/api/v3/session", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -55,7 +87,12 @@ export async function fetchGrokVoiceSession(
   if (!response.ok) {
     throw new Error(`grok voice session bootstrap failed: ${response.status}`);
   }
-  return (await response.json()) as GrokVoiceSession;
+  const session = (await response.json()) as GrokVoiceSession;
+  configureGrokVoiceClientContext({
+    demoSlug: session.demoSlug,
+    routerVariant: session.routerVariant,
+  });
+  return session;
 }
 
 export async function fetchGrokVoiceGreeting(input: {
@@ -93,12 +130,17 @@ export async function fetchGrokVoiceLockedResponseTts(input: {
 export async function fetchGrokVoiceSanitizedResponseTts(input: {
   sessionId: string;
   text: string;
+  routerVariant?: GrokVoiceRouterVariant | undefined;
 }): Promise<GrokVoiceSanitizedResponseTts> {
   assertNotDeterministic("/api/v3/sanitized-response-tts");
   const response = await fetch("/api/v3/sanitized-response-tts", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...input,
+      demoSlug: clientDemoSlug,
+      routerVariant: input.routerVariant ?? clientRouterVariant,
+    }),
   });
   if (!response.ok) {
     throw new Error(
@@ -193,7 +235,11 @@ export function postGrokVoiceEvent(
     body: JSON.stringify({
       kind,
       ...(payload?.sessionId ? { sessionId: payload.sessionId } : {}),
-      ...(payload?.details ? { details: payload.details } : {}),
+      details: {
+        demoSlug: clientDemoSlug,
+        routerVariant: clientRouterVariant,
+        ...(payload?.details ?? {}),
+      },
     }),
     keepalive: true,
   })

@@ -473,6 +473,43 @@ describe("grok-voice event route", () => {
     expect(metricsLine!["localLockedAudioHit"]).toBe(false);
   });
 
+  it("forwards registered-speech routePath values to grokVoice.turnMetrics", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 4,
+            inputMode: "voice",
+            userTextLen: 8,
+            agentTextLen: 14,
+            firstAudioMs: 0,
+            firstAudibleAudioMs: 0,
+            doneMs: 2500,
+            audioBytes: 122400,
+            error: null,
+            routePath: "registered_speech_fallback",
+            lockedResponseKey: "fallback_unknown",
+            registeredSpeechIntent: "fallback_unknown",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    expect(metricsLine!["routePath"]).toBe("registered_speech_fallback");
+    expect(metricsLine!["lockedResponseKey"]).toBe("fallback_unknown");
+  });
+
   // Codex P2 follow-up on PR #83: missing optional latency keys must be
   // OMITTED from the typed `grokVoice.turnMetrics` scope (sparse), while
   // keys explicitly set to null by a future client must be PRESERVED as
