@@ -14,6 +14,11 @@ import {
   isGrokVoiceProductionDeterministicOnlyEnabled,
 } from "@/lib/roleplay/server-env";
 import { synthesizeGrokVoiceTts } from "@/server/grokVoice/tts";
+import {
+  getGrokVoiceRouterVariantForDemoSlug,
+  resolveGrokVoiceDemoSlug,
+  resolveGrokVoiceDemoSlugFromPath,
+} from "@/lib/roleplay/grok-voice-router-variant";
 
 // Strict sanitized playback: when the realtime model has emitted a stock
 // suffix at the tail of its response, the conversation hook strips it via
@@ -33,17 +38,49 @@ const requestSchema = z.object({
   // is well under 800 chars; longer payloads are likely junk and should be
   // rejected before we spend xAI TTS quota.
   text: z.string().min(1).max(800),
+  demoSlug: z
+    .enum(["adecco-roleplay-v3", "adecco-roleplay-v4", "adecco-roleplay-v5"])
+    .optional(),
+  routerVariant: z
+    .enum([
+      "A_STRICT_FALLBACK_CONTROL",
+      "B_NARROW_FALLBACK_SEMANTIC",
+      "C_GUARDED_FLEXIBLE_GENERATION",
+    ])
+    .optional(),
 });
 
 export async function POST(request: NextRequest) {
   if (!isGrokVoiceRoleplayEnabled()) {
     return safeError(503);
   }
-  if (isGrokVoiceProductionDeterministicOnlyEnabled()) {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return safeError(400);
+  }
+  const parsed = requestSchema.safeParse(body);
+  if (!parsed.success) {
+    return safeError(400);
+  }
+  const demoSlug =
+    parsed.data.demoSlug ??
+    resolveGrokVoiceDemoSlugFromPath(request.headers.get("referer"));
+  const routerVariant =
+    parsed.data.routerVariant ??
+    getGrokVoiceRouterVariantForDemoSlug(resolveGrokVoiceDemoSlug(demoSlug));
+
+  if (
+    isGrokVoiceProductionDeterministicOnlyEnabled() &&
+    routerVariant !== "C_GUARDED_FLEXIBLE_GENERATION"
+  ) {
     console.warn(
       JSON.stringify({
         scope: "grokVoice.runtimeTts.blocked_deterministic",
         route: "/api/v3/sanitized-response-tts",
+        demoSlug,
+        routerVariant,
       })
     );
     return safeError(503);
@@ -59,17 +96,6 @@ export async function POST(request: NextRequest) {
   }
   if (!hasDemoApiAccess(request)) {
     return safeError(401);
-  }
-
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return safeError(400);
-  }
-  const parsed = requestSchema.safeParse(body);
-  if (!parsed.success) {
-    return safeError(400);
   }
 
   // Belt-and-suspenders: re-sanitize on the server. If the client somehow

@@ -17,6 +17,7 @@ import {
   fetchGrokVoiceSanitizedResponseTts,
   fetchGrokVoiceSession,
   postGrokVoiceEvent,
+  configureGrokVoiceClientContext,
   setGrokVoiceClientDeterministicMode,
 } from "./grok-voice-client";
 import { buildVerifiedRegisteredSpeechCache } from "./registered-speech/verified-cache";
@@ -31,6 +32,7 @@ import type {
 import { REGISTERED_SPEECH_VOICE_ID } from "./registered-speech/types";
 import {
   classifyUserUtteranceForRegisteredSpeech,
+  isShortNoiseFragment,
   isRepeatRequest,
   type MatcherDecision,
 } from "./registered-speech/intent-matcher";
@@ -53,6 +55,15 @@ import {
 import { GrokVoiceMicRecorder } from "./grok-voice-mic-recorder";
 import { GrokVoiceRealtime } from "./grok-voice-realtime";
 import type {
+  AdeccoGrokVoiceDemoSlug,
+  GrokVoiceRouterVariant,
+} from "./grok-voice-router-variant";
+import {
+  getGrokVoiceRouterVariantForDemoSlug,
+  isGrokVoiceNarrowFallbackVariant,
+  resolveGrokVoiceDemoSlug,
+} from "./grok-voice-router-variant";
+import type {
   GrokVoiceMicState,
   GrokVoiceGreeting,
   GrokVoiceLockedResponseTts,
@@ -69,6 +80,13 @@ const AUDIO_ERROR =
 const LOCKED_REALTIME_DRAIN_MS = 5_000;
 const LOCKED_TURN_MIC_TAIL_IGNORE_MS = 1_500;
 
+const SAFETY_OR_IDENTITY_PROBE_RE =
+  /システムプロンプト|前の指示|指示を無視|採点基準|正体|何のモデル|あなたは.*モデル|プロンプト.*教えて/;
+const OUT_OF_SCOPE_RE =
+  /今日の天気|天気を教えて|株価|ラーメン屋|おすすめ.*(?:店|屋)|ニュース|為替/;
+const SUFFIX_INDUCTION_RE =
+  /他に質問はありますか|他に確認したい点はありますか|最後.*言って|最後.*締めて|語尾.*質問/;
+
 export type GrokVoiceConversation = UseRoleplayConversationReturn & {
   mode: RoleplayMode;
   history: never[];
@@ -83,6 +101,8 @@ export type GrokVoiceConversation = UseRoleplayConversationReturn & {
 export type UseGrokVoiceConversationDeps = {
   fetchSession?: (input?: {
     reseedFromSessionId?: string;
+    demoSlug?: AdeccoGrokVoiceDemoSlug;
+    routerVariant?: GrokVoiceRouterVariant;
   }) => Promise<GrokVoiceSession>;
   fetchGreeting?: (input: {
     sessionId: string;
@@ -95,6 +115,7 @@ export type UseGrokVoiceConversationDeps = {
   fetchSanitizedResponseTts?: (input: {
     sessionId: string;
     text: string;
+    routerVariant?: GrokVoiceRouterVariant | undefined;
   }) => Promise<import("./grok-voice-types").GrokVoiceSanitizedResponseTts>;
   audioQueueOptions?: GrokVoiceAudioQueueOptions;
   createAudioQueue?: (options: GrokVoiceAudioQueueOptions) => GrokVoiceAudioQueue;
@@ -109,6 +130,7 @@ export type UseGrokVoiceConversationDeps = {
     }
   ) => GrokVoiceMicRecorder;
   micEnabled?: boolean;
+  demoSlug?: AdeccoGrokVoiceDemoSlug | undefined;
 };
 
 export function useGrokVoiceConversation(
@@ -116,6 +138,12 @@ export function useGrokVoiceConversation(
   deps: UseGrokVoiceConversationDeps = {}
 ): GrokVoiceConversation {
   const isInteractive = mode === "live";
+  const demoSlug = resolveGrokVoiceDemoSlug(deps.demoSlug);
+  const routerVariant = getGrokVoiceRouterVariantForDemoSlug(demoSlug);
+
+  useEffect(() => {
+    configureGrokVoiceClientContext({ demoSlug, routerVariant });
+  }, [demoSlug, routerVariant]);
 
   const [status, setStatus] = useState<RoleplayStatus>(() =>
     isInteractive ? "idle" : "ended"
@@ -476,6 +504,8 @@ export function useGrokVoiceConversation(
 
         const next = await fetchSession({
           reseedFromSessionId: parentSessionId,
+          demoSlug,
+          routerVariant,
         });
         sessionRef.current = next;
         setSession(next);
@@ -574,7 +604,7 @@ export function useGrokVoiceConversation(
         return { ok: false, reseedMs };
       }
     },
-    [createRealtime, fetchSession]
+    [createRealtime, demoSlug, fetchSession, routerVariant]
   );
 
   // P1B: text- and voice-input-shared gate that retries reseed before any
@@ -721,6 +751,7 @@ export function useGrokVoiceConversation(
             const tts = await fetchSanitizedResponseTts({
               sessionId: activeSession.sessionId,
               text: sanitized.text,
+              routerVariant: activeSession.routerVariant,
             });
             sanitizedTtsMsRef.current = Date.now() - startedAt;
             const ttsBytes = Math.floor((tts.audioBase64.length * 3) / 4);
@@ -876,7 +907,11 @@ export function useGrokVoiceConversation(
       // Lock turns short-circuit before reaching this branch so they never
       // emit `rt_*` here.
       const routePath: GrokVoiceTurnMetricsClient["routePath"] =
-        turnInputModeRef.current === "text" ? "rt_text" : "rt_voice";
+        finalSession.routerVariant === "C_GUARDED_FLEXIBLE_GENERATION"
+          ? "runtime_guarded_generation"
+          : turnInputModeRef.current === "text"
+            ? "rt_text"
+            : "rt_voice";
       // PR D — strict-gate decision was computed once at user-input
       // finalization. The buffered (strict) path went through the
       // sanitizer; the streaming path did not. Both report the same
@@ -901,6 +936,8 @@ export function useGrokVoiceConversation(
         guardrailVersion: finalSession.guardrailVersion,
         grokVoiceModel: finalSession.grokVoiceModel,
         grokVoiceVoiceId: finalSession.grokVoiceVoiceId,
+        demoSlug: finalSession.demoSlug,
+        routerVariant: finalSession.routerVariant,
         firstRealtimeAudioDeltaMs: firstAudioMs,
         firstAudibleAudioMs,
         sanitizerDelayMs,
@@ -913,6 +950,26 @@ export function useGrokVoiceConversation(
           finalSession.parentSessionId ??
           null,
         routePath,
+        routeStage:
+          routePath === "runtime_guarded_generation"
+            ? sanitized.detected
+              ? outcome === "sanitized_tts_played"
+                ? "guarded_generation_rewritten"
+                : "guard_failed_fallback"
+              : "guarded_generation_pass"
+            : undefined,
+        guardAction:
+          routePath === "runtime_guarded_generation"
+            ? sanitized.detected
+              ? "rewrite_once"
+              : "none"
+            : undefined,
+        forbiddenSuffixDetected: sanitized.detected,
+        closingQuestionDetected: sanitized.detected,
+        audioEmittedAfterGuard:
+          routePath === "runtime_guarded_generation"
+            ? audioBytesActuallyPlayed > 0
+            : undefined,
         localLockedAudioHit: false,
         strictPlaybackMode: finalSession.strictPlaybackMode,
         strictGateApplied: usedBufferedPath,
@@ -948,6 +1005,13 @@ export function useGrokVoiceConversation(
           sessionTainted: metrics.sessionTainted,
           parentSessionId: metrics.parentSessionId,
           routePath: metrics.routePath,
+          routeStage: metrics.routeStage,
+          demoSlug: metrics.demoSlug,
+          routerVariant: metrics.routerVariant,
+          guardAction: metrics.guardAction,
+          forbiddenSuffixDetected: metrics.forbiddenSuffixDetected,
+          closingQuestionDetected: metrics.closingQuestionDetected,
+          audioEmittedAfterGuard: metrics.audioEmittedAfterGuard,
           localLockedAudioHit: metrics.localLockedAudioHit,
           strictPlaybackMode: metrics.strictPlaybackMode,
           strictGateApplied: metrics.strictGateApplied,
@@ -1229,6 +1293,8 @@ export function useGrokVoiceConversation(
           guardrailVersion: activeSession.guardrailVersion,
           grokVoiceModel: activeSession.grokVoiceModel,
           grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
+          demoSlug: activeSession.demoSlug,
+          routerVariant: activeSession.routerVariant,
           lockedResponse: true,
           lockedResponseSource: "client_tts",
           routePath,
@@ -1264,6 +1330,8 @@ export function useGrokVoiceConversation(
             lockedResponse: true,
             lockedResponseSource: "client_tts",
             routePath: metrics.routePath,
+            demoSlug: metrics.demoSlug,
+            routerVariant: metrics.routerVariant,
             localLockedAudioHit: metrics.localLockedAudioHit,
             lockedResponseKey: metrics.lockedResponseKey,
             cacheStatus: metrics.cacheStatus,
@@ -1358,19 +1426,26 @@ export function useGrokVoiceConversation(
       const turnIndex = turnIndexRef.current;
       const routePath: GrokVoiceTurnMetricsClient["routePath"] =
         input.decision.kind === "intent_hit"
-          ? "registered_speech_local"
+          ? activeSession.routerVariant !== undefined &&
+            activeSession.routerVariant !== "A_STRICT_FALLBACK_CONTROL" &&
+            hit.intent === "decision_maker"
+            ? "registered_speech_decision_maker"
+            : "registered_speech_local"
           : input.decision.kind === "multi_intent_redirect"
             ? "registered_speech_multi_intent_redirect"
             : "registered_speech_fallback";
+      const routeStage =
+        input.decision.kind === "intent_hit" ? "exact_match" : input.decision.kind;
 
       lockedTurnActiveRef.current = true;
       suppressNextRealtimeResponseRef.current = true;
       lockedTurnIndexRef.current = turnIndex;
       lockedTurnUserTextRef.current = input.userText;
+      const artifactPlaybackIgnoreMs =
+        Math.ceil((entry.decodedByteLength / (24_000 * 2)) * 1000) +
+        LOCKED_TURN_MIC_TAIL_IGNORE_MS;
       lockedTurnMicTailIgnoreUntilRef.current =
-        input.channel === "voice"
-          ? Date.now() + LOCKED_TURN_MIC_TAIL_IGNORE_MS
-          : 0;
+        Date.now() + artifactPlaybackIgnoreMs;
       discardStaleResponseDeltasRef.current = true;
       if (currentResponseItemIdRef.current) {
         staleResponseItemIdsRef.current.add(currentResponseItemIdRef.current);
@@ -1470,9 +1545,12 @@ export function useGrokVoiceConversation(
           guardrailVersion: activeSession.guardrailVersion,
           grokVoiceModel: activeSession.grokVoiceModel,
           grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
+          demoSlug: activeSession.demoSlug,
+          routerVariant: activeSession.routerVariant,
           lockedResponse: true,
           lockedResponseSource: "registered_speech_local",
           routePath,
+          routeStage,
           localLockedAudioHit: true,
           lockedResponseKey: hit.intent,
           cacheStatus: "hit",
@@ -1510,6 +1588,9 @@ export function useGrokVoiceConversation(
             lockedResponse: true,
             lockedResponseSource: "registered_speech_local",
             routePath: metrics.routePath,
+            routeStage: metrics.routeStage,
+            demoSlug: activeSession.demoSlug,
+            routerVariant: activeSession.routerVariant,
             localLockedAudioHit: metrics.localLockedAudioHit,
             lockedResponseKey: metrics.lockedResponseKey,
             cacheStatus: metrics.cacheStatus,
@@ -1559,6 +1640,76 @@ export function useGrokVoiceConversation(
     ]
   );
 
+  const completeNoiseFragmentTurn = useCallback(
+    (input: { userText: string; channel: "voice" | "chat" }) => {
+      const activeSession = sessionRef.current;
+      if (!activeSession) return;
+      const startedAt = turnStartAtRef.current ?? Date.now();
+      turnStartAtRef.current = startedAt;
+      const metrics: GrokVoiceTurnMetricsClient = {
+        sessionId: activeSession.sessionId,
+        turnIndex: turnIndexRef.current,
+        inputMode: input.channel === "chat" ? "text" : "voice",
+        userTextLen: input.userText.length,
+        agentTextLen: 0,
+        firstAudioMs: null,
+        firstAudibleAudioMs: null,
+        doneMs: Date.now() - startedAt,
+        audioBytes: 0,
+        error: null,
+        promptHash: activeSession.promptHash,
+        promptVersion: activeSession.promptVersion,
+        guardrailVersion: activeSession.guardrailVersion,
+        grokVoiceModel: activeSession.grokVoiceModel,
+        grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
+        demoSlug: activeSession.demoSlug,
+        routerVariant: activeSession.routerVariant,
+        routePath: "noise_fragment_ignored",
+        routeStage: "noise_fragment",
+        fallbackReason: "short_fragment",
+        shouldRespond: false,
+        strictPlaybackMode: activeSession.strictPlaybackMode,
+      };
+      previousTurnSanitizerOrReseedRef.current = false;
+      setMetricsLog((current) => [...current, metrics]);
+      void postGrokVoiceEvent("turn.completed", {
+        sessionId: activeSession.sessionId,
+        details: {
+          turnIndex: metrics.turnIndex,
+          inputMode: metrics.inputMode,
+          userTextLen: metrics.userTextLen,
+          agentTextLen: metrics.agentTextLen,
+          firstAudioMs: metrics.firstAudioMs,
+          firstAudibleAudioMs: metrics.firstAudibleAudioMs,
+          doneMs: metrics.doneMs,
+          audioBytes: metrics.audioBytes,
+          error: metrics.error,
+          demoSlug: metrics.demoSlug,
+          routerVariant: metrics.routerVariant,
+          routePath: metrics.routePath,
+          routeStage: metrics.routeStage,
+          fallbackReason: metrics.fallbackReason,
+          shouldRespond: metrics.shouldRespond,
+          strictPlaybackMode: metrics.strictPlaybackMode,
+          userTextPreview: input.userText.slice(0, 200),
+          agentTextPreview: "",
+          agentSpokenTextPreview: "",
+          promptHash: metrics.promptHash,
+          promptVersion: metrics.promptVersion,
+          guardrailVersion: metrics.guardrailVersion,
+          grokVoiceModel: metrics.grokVoiceModel,
+          grokVoiceVoiceId: metrics.grokVoiceVoiceId,
+        },
+      });
+      resetTurnBookkeeping();
+      setStatus("listening");
+      if (micEnabled && !isMutedRef.current) {
+        micRecorderRef.current?.setEnabled(true);
+      }
+    },
+    [micEnabled, resetTurnBookkeeping]
+  );
+
   // Single-entry router for both voice-STT and text-input turn starts.
   // Returns true if deterministic-mode handling took place (in which
   // case the caller MUST NOT fall through to PR60 / realtime). Returns
@@ -1567,10 +1718,37 @@ export function useGrokVoiceConversation(
     (trimmed: string, channel: "voice" | "chat"): boolean => {
       const activeSession = sessionRef.current;
       if (!activeSession) return false;
-      if (activeSession.productionDeterministicOnly !== true) return false;
+      const activeVariant =
+        activeSession.routerVariant ?? "A_STRICT_FALLBACK_CONTROL";
+      if (
+        activeVariant === "A_STRICT_FALLBACK_CONTROL" &&
+        activeSession.productionDeterministicOnly !== true
+      ) {
+        return false;
+      }
       const cache = verifiedRegisteredSpeechCacheRef.current;
       if (!cache) return false;
       const userInputFinalizedAt = Date.now();
+
+      if (
+        isGrokVoiceNarrowFallbackVariant(activeVariant) &&
+        isShortNoiseFragment(trimmed)
+      ) {
+        void postGrokVoiceEvent("registered_speech.intent_matched", {
+          sessionId: activeSession.sessionId,
+          details: {
+            decisionKind: "noise_fragment",
+            intent: null,
+            routePath: "noise_fragment_ignored",
+            routeStage: "noise_fragment",
+            fallbackReason: "short_fragment",
+            shouldRespond: false,
+            classificationMs: Date.now() - userInputFinalizedAt,
+          },
+        });
+        completeNoiseFragmentTurn({ userText: trimmed, channel });
+        return true;
+      }
 
       // Repeat-request fast path: 2026-05-12 manual regression showed
       // "もう一度お願いします" falling through to rt_voice on the
@@ -1610,11 +1788,30 @@ export function useGrokVoiceConversation(
         cache,
       });
       const intentClassifiedAt = Date.now();
+      if (
+        activeVariant === "C_GUARDED_FLEXIBLE_GENERATION" &&
+        decision.kind !== "intent_hit" &&
+        decision.kind !== "rapid_fire_fallback" &&
+        !SAFETY_OR_IDENTITY_PROBE_RE.test(trimmed) &&
+        !OUT_OF_SCOPE_RE.test(trimmed) &&
+        !SUFFIX_INDUCTION_RE.test(trimmed)
+      ) {
+        return false;
+      }
       void postGrokVoiceEvent("registered_speech.intent_matched", {
         sessionId: activeSession.sessionId,
         details: {
           decisionKind: decision.kind,
           intent: decision.hit.intent,
+          routeStage:
+            decision.kind === "intent_hit" ? "exact_match" : decision.kind,
+          fallbackReason:
+            decision.hit.intent === "fallback_unknown" ? decision.kind : null,
+          guardAction:
+            activeVariant === "C_GUARDED_FLEXIBLE_GENERATION" &&
+            SUFFIX_INDUCTION_RE.test(trimmed)
+              ? "approved_fallback"
+              : "none",
           classificationMs: intentClassifiedAt - userInputFinalizedAt,
         },
       });
@@ -1638,7 +1835,7 @@ export function useGrokVoiceConversation(
       });
       return true;
     },
-    [playRegisteredSpeechArtifact]
+    [completeNoiseFragmentTurn, playRegisteredSpeechArtifact]
   );
 
   const handleServerEvent = useCallback(
@@ -2147,6 +2344,8 @@ export function useGrokVoiceConversation(
             guardrailVersion: activeSession.guardrailVersion,
             grokVoiceModel: activeSession.grokVoiceModel,
             grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
+            demoSlug: activeSession.demoSlug,
+            routerVariant: activeSession.routerVariant,
             routePath,
             localLockedAudioHit: false,
             strictPlaybackMode: activeSession.strictPlaybackMode,
@@ -2171,6 +2370,8 @@ export function useGrokVoiceConversation(
               doneMs: metrics.doneMs,
               audioBytes: metrics.audioBytes,
               routePath: metrics.routePath,
+              demoSlug: metrics.demoSlug,
+              routerVariant: metrics.routerVariant,
               localLockedAudioHit: metrics.localLockedAudioHit,
               strictPlaybackMode: metrics.strictPlaybackMode,
               strictGateApplied: metrics.strictGateApplied,
@@ -2326,7 +2527,7 @@ export function useGrokVoiceConversation(
     setStatus("connecting");
     setErrorMessage(null);
     try {
-      const next = await fetchSession();
+        const next = await fetchSession({ demoSlug, routerVariant });
       sessionRef.current = next;
       setSession(next);
 
@@ -2340,7 +2541,11 @@ export function useGrokVoiceConversation(
         next.productionDeterministicOnly === true
       );
 
-      if (next.productionDeterministicOnly === true) {
+      const shouldVerifyRegisteredSpeech =
+        next.productionDeterministicOnly === true ||
+        next.routerVariant === "C_GUARDED_FLEXIBLE_GENERATION";
+
+      if (shouldVerifyRegisteredSpeech) {
         // Manifest version handshake. We refuse to enable the mic
         // when the server's bundle version doesn't match the client
         // build constant, OR when the bundle is missing entirely.
@@ -2364,7 +2569,9 @@ export function useGrokVoiceConversation(
           });
           setStatus("error");
           setErrorMessage(
-            "音声バンドルの整合性が確認できないため接続を停止しました。再読み込みしてください。"
+            next.productionDeterministicOnly === true
+              ? "音声バンドルの整合性が確認できないため接続を停止しました。再読み込みしてください。"
+              : "音声バンドルの整合性が確認できないため、柔軟応答モードを開始できません。再読み込みしてください。"
           );
           return;
         }
@@ -2439,7 +2646,8 @@ export function useGrokVoiceConversation(
           const verifiedCacheForGreeting =
             verifiedRegisteredSpeechCacheRef.current;
           const greetingEntry =
-            next.productionDeterministicOnly === true &&
+            (next.productionDeterministicOnly === true ||
+              next.routerVariant === "C_GUARDED_FLEXIBLE_GENERATION") &&
             verifiedCacheForGreeting
               ? verifiedCacheForGreeting.entries.get("greeting")
               : undefined;
@@ -2602,12 +2810,14 @@ export function useGrokVoiceConversation(
     }
   }, [
     createRealtime,
+    demoSlug,
     ensureAudioQueue,
     fetchSession,
     fetchGreeting,
     handleServerEvent,
     isInteractive,
     maybeStartMicAfterGreeting,
+    routerVariant,
   ]);
 
   const endConversation = useCallback(async () => {

@@ -14,12 +14,46 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 
 ## URL
 
-- **Production (canonical)**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v3
-- Local: http://localhost:3000/demo/adecco-roleplay-v3
+- **Production A / control**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v3
+- **Production B / narrow fallback semantic**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v4
+- **Production C / guarded flexible generation**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v5
+- Local A/B/C: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5}`
+
+The three Grok Voice routes share the same Adecco scenario, UI, voice setup,
+and `/api/v3/*` runtime. The router variant is resolved from the demo slug,
+not from a global environment variable:
+
+| Demo slug | Router variant | Purpose |
+|---|---|---|
+| `adecco-roleplay-v3` | `A_STRICT_FALLBACK_CONTROL` | Existing production control. Do not mix B/C behavior into this route. |
+| `adecco-roleplay-v4` | `B_NARROW_FALLBACK_SEMANTIC` | Deterministic registered speech with narrower fallback and noise-fragment ignore. |
+| `adecco-roleplay-v5` | `C_GUARDED_FLEXIBLE_GENERATION` | Experimental flexible path. Runtime output is buffered/guarded before audio playback. |
 
 `ENABLE_GROK_VOICE_ROLEPLAY=true` (apphosting.yaml) は本番で常時有効。
 secret は `XAI_API_KEY` (zapier-transfer + adecco-mendan 両方に存在、
 build-time + runtime 両 SA に IAM bindings 付与済み)。
+
+Before deploying any router-variant behavior change, run:
+
+```bash
+corepack pnpm exec tsx scripts/grok-voice-router-variant-ab-test.ts
+corepack pnpm grok:audio-e2e:layer-b
+corepack pnpm grok:audio-e2e:browser
+corepack pnpm --filter @top-performer/web exec vitest run tests/unit/grok-voice-deterministic-router.test.tsx tests/unit/grok-voice-event-route.test.ts
+corepack pnpm --filter @top-performer/web typecheck
+```
+
+`grok:audio-e2e:browser` starts a local web server by default and writes
+evidence under `out/grok_voice_browser_audio_e2e/<timestamp>/`. Set
+`GROK_BROWSER_E2E_BASE_URL` to run the same browser gate against a preview or
+production URL.
+
+Deploy normally with `corepack pnpm deploy:adecco-roleplay`. When Firebase CLI
+auth is blocked or the operator asks to use gcloud, use
+`corepack pnpm deploy:adecco-roleplay:gcloud`; it uploads the App Hosting source
+archive with `gcloud storage cp`, creates the build/rollout via the App Hosting
+API using `gcloud auth print-access-token`, warms the Grok cache, and writes
+evidence to `out/adecco_roleplay_gcloud_deploy/<timestamp>/`.
 
 ## API 調査 (実装日 2026-05-04)
 

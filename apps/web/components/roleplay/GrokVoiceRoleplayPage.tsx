@@ -15,6 +15,7 @@ import {
   assertGrokVoiceEnvForProduction,
   isGrokVoiceRoleplayEnabled,
 } from "@/lib/roleplay/server-env";
+import type { AdeccoGrokVoiceDemoSlug } from "@/lib/roleplay/grok-voice-router-variant";
 
 export type DemoPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -23,7 +24,11 @@ export type DemoPageProps = {
 export async function GrokVoiceRoleplayPage({
   searchParams,
   accessAction,
-}: DemoPageProps & { accessAction: string }) {
+  demoSlug,
+}: DemoPageProps & {
+  accessAction: string;
+  demoSlug?: AdeccoGrokVoiceDemoSlug | undefined;
+}) {
   if (!isGrokVoiceRoleplayEnabled()) {
     return <ServiceUnavailable />;
   }
@@ -58,6 +63,7 @@ export async function GrokVoiceRoleplayPage({
       visualTest={visualTest}
       fakeLive={fakeLive && !mock && !visualTest}
       debugMetrics={debugMetrics}
+      demoSlug={demoSlug}
     />
   );
 }

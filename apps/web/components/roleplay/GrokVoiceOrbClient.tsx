@@ -11,6 +11,7 @@ import type {
   RoleplayMode,
   RoleplayStatus,
 } from "@/lib/roleplay/conversation-types";
+import type { AdeccoGrokVoiceDemoSlug } from "@/lib/roleplay/grok-voice-router-variant";
 
 // Customer-facing demo title — no model name, no A/B label, no version
 // suffix. The backend identity is intentionally hidden in the UI; all
@@ -24,6 +25,7 @@ type GrokVoiceOrbClientProps = {
   visualTest: boolean;
   fakeLive: boolean;
   debugMetrics: boolean;
+  demoSlug?: AdeccoGrokVoiceDemoSlug | undefined;
 };
 
 export function GrokVoiceOrbClient({
@@ -31,11 +33,15 @@ export function GrokVoiceOrbClient({
   visualTest,
   fakeLive,
   debugMetrics,
+  demoSlug,
 }: GrokVoiceOrbClientProps) {
   const [mode, setMode] = useState<RoleplayMode>(() =>
     initialMode(initialMock, visualTest, fakeLive)
   );
-  const roleplay = useGrokVoiceConversation(mode, { micEnabled: true });
+  const roleplay = useGrokVoiceConversation(mode, {
+    micEnabled: true,
+    demoSlug,
+  });
 
   useEffect(() => {
     setMode(initialMode(initialMock, visualTest, fakeLive));

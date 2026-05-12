@@ -3,6 +3,10 @@
 import type {
   RegisteredSpeechBundle,
 } from "./registered-speech/types";
+import type {
+  AdeccoGrokVoiceDemoSlug,
+  GrokVoiceRouterVariant,
+} from "./grok-voice-router-variant";
 
 export type GrokVoiceMicState = "idle" | "listening" | "speaking" | "paused";
 
@@ -24,6 +28,8 @@ export type GrokVoiceAudioConfig = {
 // client needs to open the WebSocket and configure the session.
 export type GrokVoiceSession = {
   sessionId: string;
+  demoSlug?: AdeccoGrokVoiceDemoSlug;
+  routerVariant?: GrokVoiceRouterVariant;
   scenarioId: string;
   backend: "grok-voice-think-fast";
   promptVersion: string;
@@ -174,7 +180,19 @@ export type GrokVoiceTurnMetricsClient = {
     | "registered_speech_local"
     | "registered_speech_fallback"
     | "registered_speech_multi_intent_redirect"
+    | "registered_speech_decision_maker"
+    | "noise_fragment_ignored"
+    | "runtime_guarded_generation"
     | "unknown";
+  routeStage?: string | undefined;
+  fallbackReason?: string | null | undefined;
+  shouldRespond?: boolean | undefined;
+  routerVariant?: GrokVoiceRouterVariant | undefined;
+  demoSlug?: AdeccoGrokVoiceDemoSlug | undefined;
+  guardAction?: "none" | "rewrite_once" | "approved_fallback" | undefined;
+  forbiddenSuffixDetected?: boolean | undefined;
+  closingQuestionDetected?: boolean | undefined;
+  audioEmittedAfterGuard?: boolean | undefined;
   // Verified Audio Artifact telemetry (review-v2). Populated only when
   // the deterministic-mode path served the turn. Cloud Logging
   // dashboards key on `registeredSpeechIntent` to confirm zero

@@ -52,6 +52,19 @@ operator captures via `?debugMetrics=1` in the browser when needed.
 | Hook | `useRoleplayConversation.ts` | `useHaikuFishConversation.ts` | `useGrokVoiceConversation.ts` |
 | Logging scope | (none custom) | `haikuFish.{turnMetrics,stt,clientEvent}` | `grokVoice.{session.created,turnMetrics,stt,stt.skipped,mic.state,clientEvent}` |
 
+Grok Voice has route-level A/B/C router variants that share the same scenario,
+UI, voice setup, and `/api/v3/*` runtime. The variant is resolved by demo slug,
+not by a global env-only switch:
+
+| Route | Router variant | Notes |
+|---|---|---|
+| `/demo/adecco-roleplay-v3` | `A_STRICT_FALLBACK_CONTROL` | Existing control; do not change behavior when adding variants. |
+| `/demo/adecco-roleplay-v4` | `B_NARROW_FALLBACK_SEMANTIC` | Deterministic registered speech, narrower fallback, short fragments ignored. |
+| `/demo/adecco-roleplay-v5` | `C_GUARDED_FLEXIBLE_GENERATION` | Experimental flexible generation; audio must be emitted only after suffix guard. |
+
+Run `pnpm grok:audio-e2e:browser` before deploy for these variants. It writes
+browser evidence under `out/grok_voice_browser_audio_e2e/<timestamp>/`.
+
 ## Single-login UX
 
 All three AccessGate routes issue cookies with broad `Path=/demo` and `Path=/api`
@@ -174,6 +187,18 @@ pnpm deploy:adecco-roleplay -- --skip-warm     # rollout only
 pnpm deploy:adecco-roleplay -- --skip-deploy   # warm only (existing rollout)
 pnpm deploy:adecco-roleplay -- --skip-verify   # bypass post-deploy session check
 ```
+
+If Firebase CLI auth is unavailable or the operator explicitly asks for gcloud,
+use the gcloud-backed deploy path:
+
+```bash
+pnpm deploy:adecco-roleplay:gcloud
+```
+
+This path uses `gcloud auth print-access-token`, `gcloud storage cp`, and the
+Firebase App Hosting REST API to create the same source-archive build and
+rollout. It still warms the Grok cache and writes deployment evidence under
+`out/adecco_roleplay_gcloud_deploy/<timestamp>/`.
 
 If you need to invoke the underlying CLI directly (debugging Cloud Build, or
 reapplying secrets without source change), the legacy command still works:
@@ -337,7 +362,8 @@ contract — see `whenDefined` in `apps/web/app/api/v3/event/route.ts`).
 
 ### Canonical operational scripts
 
-- **`pnpm deploy:adecco-roleplay`** — baseline rollout record → `firebase deploy --only apphosting` → poll until SUCCEEDED → `pnpm grok:warm-tts-cache` → post-deploy `/api/v3/session` verification. Use this for every prod deploy; bare `firebase deploy` is debugging-only.
+- **`pnpm deploy:adecco-roleplay`** — baseline rollout record → `firebase deploy --only apphosting` → poll until SUCCEEDED → `pnpm grok:warm-tts-cache` → post-deploy `/api/v3/session` verification. Use this for normal prod deploys; bare `firebase deploy` is debugging-only.
+- **`pnpm deploy:adecco-roleplay:gcloud`** — gcloud-backed fallback/explicit path for the same App Hosting backend. It avoids Firebase CLI auth by using `gcloud auth print-access-token`, `gcloud storage cp`, App Hosting REST `builds.create` / `rollouts.create`, then cache warm + `/api/v3/session` verification.
 - **`pnpm grok:warm-tts-cache`** — synthesizes every PR60 canonical and the greeting via xAI TTS into the shared Firestore cache. Validation-aware XAI key resolver (length ≥ 32, not `test-…`). Without warm, the bundle assembler ships 0 entries → `lock_voice_network_tts` path stays cold.
 - **`pnpm grok:latency-report`** — reusable Cloud Logging aggregator. Buckets `grokVoice.turnMetrics` by `routePath × strictGateApplied × localLockedAudioHit` and prints p50 / p90 / p95 / p99 for the latency fields. Flags: `--minutes`, `--hours`, `--since <ISO>`, `--revision <name>`, `--json <path>`. Use for every per-deploy before/after diff and the 7-day organic remeasurement (issue #90).
 - **`pnpm exec node scripts/grok-voice-v21-prod-browser-audio-smoke.mjs`** — Playwright + Chromium harness that drives the live demo with a WAV fixture via `--use-file-for-fake-audio-capture`. Mode env: `GROK_BROWSER_SMOKE_MODE=voice|text`, fixture env: `GROK_BROWSER_SMOKE_VOICE_FIXTURE=<path>`. This is the canonical Production Voice E2E for any audio-routing change. The 5 existing fixtures are in `test/fixtures/audio/grok-voice-v21/`; expansion for risk-gate classes is tracked in issue #89.
