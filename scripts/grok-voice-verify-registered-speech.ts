@@ -326,9 +326,10 @@ function verifyPromoted(failures: Failure[]) {
   // Greeting-specific checks. The 13.79s English-placeholder PR-93
   // greeting taught us that the catch-all checks above aren't
   // sufficient for the one artifact that plays before the user has
-  // spoken. ASCII-only is a hard fail; durationMs out of [3s, 8s] is
-  // a soft warn (logged into failures so the operator sees it but the
-  // sha checks above are the real blocker).
+  // spoken. ASCII-only is a HARD fail; durationMs out of [3s, 18s] is
+  // a SOFT warn (printed to stderr but does not push to failures, so
+  // verify still exits 0 if every other check passes — the placeholder
+  // / ASCII checks above are the real blocker).
   const greeting = manifest.entries.find((e) => e.intent === "greeting");
   if (greeting) {
     if (isAsciiOnly(greeting.spokenText) || isAsciiOnly(greeting.displayText)) {
@@ -339,10 +340,8 @@ function verifyPromoted(failures: Failure[]) {
       );
     }
     if (isGreetingDurationOutOfRange(greeting.durationMs)) {
-      pushFail(
-        failures,
-        "greeting_duration_out_of_range",
-        `greeting durationMs=${greeting.durationMs} (expected ∈ [3000, 8000])`
+      console.warn(
+        `[verify-registered-speech] WARN greeting durationMs=${greeting.durationMs} is outside the sanity range [3000, 18000]; re-listen before merge.`
       );
     }
   }

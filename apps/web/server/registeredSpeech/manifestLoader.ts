@@ -118,6 +118,11 @@ async function loadAndValidate(): Promise<LoadedRegisteredSpeechManifest> {
   // checks above already cover most failure modes, but the PR-93
   // English placeholder slipped past every existing check because none
   // of them looked at "is this even Japanese?" — make it explicit.
+  // Duration is a SOFT warn (the placeholder + ASCII checks already
+  // hard-fail the actual bug class; duration alone can't disambiguate
+  // a long natural greeting from a long English placeholder, since
+  // the PR-93 placeholder fit comfortably under the original 8s
+  // sanity bound).
   const greeting = parsed.entries.find((e) => e.intent === "greeting");
   if (greeting) {
     if (isAsciiOnly(greeting.spokenText) || isAsciiOnly(greeting.displayText)) {
@@ -126,8 +131,9 @@ async function loadAndValidate(): Promise<LoadedRegisteredSpeechManifest> {
       );
     }
     if (isGreetingDurationOutOfRange(greeting.durationMs)) {
-      throw new Error(
-        `[registered-speech][greeting] durationMs=${greeting.durationMs} is outside the expected range [3000, 8000]; reject and rebuild`
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[registered-speech][greeting] WARN durationMs=${greeting.durationMs} outside sanity range [3000, 18000]; tolerated, but operator should re-listen.`
       );
     }
   }

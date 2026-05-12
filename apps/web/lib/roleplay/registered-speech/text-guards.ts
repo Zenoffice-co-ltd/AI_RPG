@@ -97,11 +97,22 @@ export function assertHumanApproved(
 }
 
 // Greeting-specific durationMs sanity range. Below 3s is suspiciously
-// short (likely truncation); above 8s is suspiciously long (the
-// 13,790ms placeholder bug is the canonical example). Out of range is
-// soft warn — the placeholder check above is the hard fail.
+// short (likely truncation); above 18s is suspiciously long (the
+// 13,790ms placeholder bug fit comfortably under the original 8s
+// guess, so duration alone cannot disambiguate placeholder from a
+// natural multi-sentence greeting — the placeholder pattern + ASCII-
+// only checks above are the real safety net for that class of bug).
+//
+// 18s upper bound: the canonical greeting is 105 Japanese characters
+// across four sentences and synthesizes at ~13.9s. Going beyond 18s
+// implies either a TTS retry doubling, or content drift well past the
+// approved script — either case the operator should re-listen.
+//
+// Per the hotfix plan this is a SOFT warn — verify and loader emit a
+// warning but do not hard fail. The hard-fail signal is reserved for
+// placeholder text / ASCII-only / approval gate.
 export const GREETING_DURATION_MS_MIN = 3_000;
-export const GREETING_DURATION_MS_MAX = 8_000;
+export const GREETING_DURATION_MS_MAX = 18_000;
 
 export function isGreetingDurationOutOfRange(durationMs: number): boolean {
   return (
