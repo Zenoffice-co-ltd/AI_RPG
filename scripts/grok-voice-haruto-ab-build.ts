@@ -62,6 +62,22 @@ const TTS_LANGUAGE = "ja";
 const TTS_CODEC = "pcm";
 const TTS_SAMPLE_RATE = 24_000;
 
+// Per-intent override for the B-side TTS input text. When omitted, B
+// uses the manifest entry's displayText (default behavior — that's the
+// "natural kanji form, no dictionary" baseline). When present, B uses
+// this string instead — useful for "what if we wrote it differently?"
+// variant tests where displayText alone isn't enough to express the
+// thing we want to listen to.
+//
+// 2026-05-12: billing_rate scored A-wins in the first A/B round
+// (kana-rewrite "せんななひゃくごじゅう円" beat kanji-digit "千七百五十円").
+// The user wanted to additionally test arabic digits with
+// text_normalization=true to see if xAI can normalise "1750円" into
+// the natural reading without our manual kana help.
+const B_SIDE_TEXT_OVERRIDES: Record<string, string> = {
+  billing_rate: "請求想定は経験により、1750円から1900円程度です。",
+};
+
 type CliArgs = { buildDir: string | null; limit: number | null };
 
 function parseArgs(argv: string[]): CliArgs {
@@ -245,7 +261,7 @@ type BSideArtifactMetadata = {
   glossaryApplied: false;
   lexiconApplied: false;
   preTtsRewriteApplied: false;
-  sourceTextUsed: "displayText";
+  sourceTextUsed: "displayText" | "experimentalOverride";
   sourceText: string;
   sourceDisplayTextSha256: string;
   audioPath: string;
@@ -293,8 +309,13 @@ function buildReviewAbHtml(args: {
             <pre>${escapeHtml(JSON.stringify({ sha256: entry.sha256, durationMs: entry.durationMs, source: "spokenTextForGeneration" }, null, 2))}</pre>
           </details>
         </td>
-        <td class="variant-b" data-dictionary-mode="none">
+        <td class="variant-b" data-dictionary-mode="none" data-source-text-used="${escapeHtml(bMeta.sourceTextUsed)}">
           <div class="badge badge-b">B: Haruto basic / 辞書なし</div>
+          ${
+            bMeta.sourceTextUsed === "experimentalOverride"
+              ? `<div class="override-banner">⚠ B側は experimentalOverride で生成: <code>${escapeHtml(bMeta.sourceText)}</code></div>`
+              : ""
+          }
           <audio controls preload="none" src="${escapeHtml(bMeta.audioWavPath)}"></audio>
           <details>
             <summary>metadata</summary>
@@ -314,6 +335,7 @@ function buildReviewAbHtml(args: {
               lexiconApplied: bMeta.lexiconApplied,
               preTtsRewriteApplied: bMeta.preTtsRewriteApplied,
               sourceTextUsed: bMeta.sourceTextUsed,
+              sourceText: bMeta.sourceText,
             }, null, 2))}</pre>
           </details>
         </td>
@@ -358,6 +380,16 @@ function buildReviewAbHtml(args: {
   .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; margin-bottom: 6px; }
   .badge-a { background: #e0e7ff; color: #1e3a8a; }
   .badge-b { background: #fef3c7; color: #92400e; }
+  .override-banner {
+    background: #fee2e2;
+    border-left: 3px solid #dc2626;
+    color: #7f1d1d;
+    padding: 4px 8px;
+    margin: 4px 0;
+    font-size: 11px;
+    border-radius: 2px;
+  }
+  .override-banner code { background: #fff; padding: 1px 4px; border-radius: 2px; }
   details summary { cursor: pointer; font-size: 12px; color: #555; }
   details[open] summary { color: #111; }
   details pre { background: #f9fafb; padding: 6px 8px; border-radius: 4px; max-height: 220px; overflow: auto; font-size: 11px; }
@@ -467,11 +499,17 @@ async function main() {
   const bMetadataByIntent = new Map<string, BSideArtifactMetadata>();
   for (let i = 0; i < entries.length; i += 1) {
     const entry = entries[i]!;
+    const override = B_SIDE_TEXT_OVERRIDES[entry.intent];
+    const bText = override ?? entry.displayText;
+    const sourceTextUsed: BSideArtifactMetadata["sourceTextUsed"] =
+      override !== undefined ? "experimentalOverride" : "displayText";
     console.info(
-      `[haruto-ab-build] synthesizing B intent=${entry.intent} (${i + 1}/${entries.length})`
+      `[haruto-ab-build] synthesizing B intent=${entry.intent} (${i + 1}/${entries.length})${
+        override !== undefined ? " [OVERRIDE]" : ""
+      }`
     );
     let attempt = await synthesizeHarutoBasic(
-      entry.displayText,
+      bText,
       textNormalizationGloballyEnabled
     );
     if (
@@ -486,7 +524,7 @@ async function main() {
       textNormalizationGloballyEnabled = false;
       textNormalizationGloballyApplied = false;
       probeReason = `xAI HTTP 400 mentioning text_normalization: ${attempt.bodyFragment.slice(0, 200)}`;
-      attempt = await synthesizeHarutoBasic(entry.displayText, false);
+      attempt = await synthesizeHarutoBasic(bText, false);
     }
     if (!attempt.ok) {
       throw new Error(
@@ -495,7 +533,7 @@ async function main() {
     }
     const audioSha = createHash("sha256").update(attempt.pcm).digest("hex");
     const sourceSha = createHash("sha256")
-      .update(entry.displayText, "utf8")
+      .update(bText, "utf8")
       .digest("hex");
     const pcmPath = `ab/B_HARUTO_BASIC_NO_DICT/${entry.intent}.pcm`;
     const wavPath = `ab/B_HARUTO_BASIC_NO_DICT/${entry.intent}.wav`;
@@ -521,8 +559,8 @@ async function main() {
       glossaryApplied: false,
       lexiconApplied: false,
       preTtsRewriteApplied: false,
-      sourceTextUsed: "displayText",
-      sourceText: entry.displayText,
+      sourceTextUsed,
+      sourceText: bText,
       sourceDisplayTextSha256: sourceSha,
       audioPath: pcmPath,
       audioWavPath: wavPath,

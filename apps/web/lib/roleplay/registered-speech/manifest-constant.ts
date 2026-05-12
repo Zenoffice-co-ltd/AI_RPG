@@ -8,4 +8,4 @@
 // `GROK_VOICE_PRODUCTION_DETERMINISTIC_ONLY` on with a stale client
 // build is impossible without redeploying.
 export const REGISTERED_SPEECH_CLIENT_MANIFEST_VERSION: string = "v1";
-export const REGISTERED_SPEECH_CLIENT_BUILD_ID: string = "2026-05-12T03-54-35-141Z";
+export const REGISTERED_SPEECH_CLIENT_BUILD_ID: string = "2026-05-12T05-04-25-620Z";

@@ -1,7 +1,7 @@
 [
   {
     "intent": "mission",
-    "spokenTextForGeneration": "じんじ課では、派遣スタッフの受け入れや管理を担当しています。",
+    "spokenTextForGeneration": "人事課では、派遣スタッフの受け入れや管理を担当しています。",
     "displayText": "人事課では、派遣スタッフの受け入れや管理を担当しています。"
   },
   {
@@ -16,17 +16,17 @@
   },
   {
     "intent": "start_date",
-    "spokenTextForGeneration": "開始は六月ついたちを希望しています。",
+    "spokenTextForGeneration": "開始は6月1日を希望しています。",
     "displayText": "開始は6月1日を希望しています。"
   },
   {
     "intent": "order_volume",
-    "spokenTextForGeneration": "つきあたり、ろっぴゃく件から、ななひゃっけん程度です。",
+    "spokenTextForGeneration": "月あたり、600件から700件程度です。",
     "displayText": "月あたり、600件から700件程度です。"
   },
   {
     "intent": "busy_period",
-    "spokenTextForGeneration": "月のおわりと月の初め、月曜日の午前中、商品が切り替わる時期に負荷が上がります。",
+    "spokenTextForGeneration": "げつまつとげっしょ、月曜日の午前中、商品が切り替わる時期に負荷が上がります。",
     "displayText": "月末と月初、月曜日の午前中、商品が切り替わる時期に負荷が上がります。"
   },
   {
@@ -51,7 +51,7 @@
   },
   {
     "intent": "personality",
-    "spokenTextForGeneration": "周囲と合わせて進められるタイプが合いやすく、自分のやり方にこだわりすぎる方は合いにくいです。",
+    "spokenTextForGeneration": "協調型のタイプが合いやすく、自己流にこだわりすぎる方は合いにくいです。",
     "displayText": "協調型のタイプが合いやすく、自己流にこだわりすぎる方は合いにくいです。"
   },
   {
@@ -61,12 +61,12 @@
   },
   {
     "intent": "decision_maker",
-    "spokenTextForGeneration": "ベンダー選定はじんじが主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。",
+    "spokenTextForGeneration": "ベンダー選定は人事が主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。",
     "displayText": "ベンダー選定は人事が主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。"
   },
   {
     "intent": "wednesday_followup",
-    "spokenTextForGeneration": "はい、お願いします。アデコさんの派遣の特徴やたしゃさんとの違いも、整理しておきたいと考えています。",
+    "spokenTextForGeneration": "はい、お願いします。アデコさんの派遣の特徴や他社さんとの違いも、整理しておきたいと考えています。",
     "displayText": "はい、お願いします。アデコさんの派遣の特徴や他社さんとの違いも、整理しておきたいと考えています。"
   },
   {
@@ -76,12 +76,12 @@
   },
   {
     "intent": "working_hours",
-    "spokenTextForGeneration": "平日は朝八時よんじゅうごふんから夕方五時三十分です。",
+    "spokenTextForGeneration": "平日は朝8時45分から夕方5時30分です。",
     "displayText": "平日は朝8時45分から夕方5時30分です。"
   },
   {
     "intent": "overtime",
-    "spokenTextForGeneration": "残業は、つきじゅうからじゅうごじかん程度です。",
+    "spokenTextForGeneration": "残業は、月10から15時間程度です。",
     "displayText": "残業は、月10から15時間程度です。"
   },
   {

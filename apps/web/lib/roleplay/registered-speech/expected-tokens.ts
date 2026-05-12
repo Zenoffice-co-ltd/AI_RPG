@@ -49,9 +49,14 @@ export const EXPECTED_TOKENS_BY_INTENT: Record<
   },
   busy_period: {
     primary: ["月曜日"],
+    // 2026-05-12 A/B verdict: A read 月のおわり/月の初め correctly but
+    // sounded too informal; B read 月末/月初 with the wrong reading
+    // (つきすえ / つきはじめ) and was rejected. New spokenText forces
+    // the business reading via kana ("げつまつとげっしょ"). Alternates
+    // accept any of the four phrasings the STT might produce.
     alternates: [
-      ["月のおわり", "月末"],
-      ["月の初め", "月初", "月のはじめ"],
+      ["げつまつ", "月末", "月のおわり"],
+      ["げっしょ", "月初", "月のはじめ", "月の初め"],
     ],
   },
   hiring_reason: {
