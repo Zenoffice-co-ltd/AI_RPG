@@ -1,0 +1,121 @@
+# Adecco Roleplay App Hosting deploy rules.
+#
+# Source of Truth: repository-root AGENTS.md `## Deploy (App Hosting)` section.
+# This file is the Codex-side enforcement of that SoT and is shared with
+# Claude Code / Cursor agents that read AGENTS.md.
+#
+# Canonical deploy command (allowed without prompt — wraps the destructive
+# action with baseline snapshot + warm-cache + post-deploy verification):
+#   pnpm deploy:adecco-roleplay
+#
+# Required env block (every deploy session, per AGENTS.md `## Deploy (App
+# Hosting)`):
+#   export GOOGLE_APPLICATION_CREDENTIALS="<gcloud-config-dir>/legacy_credentials/<owner-account>/adc.json"
+#   export GROK_VOICE_VOICE_ID=99c95cc8a177
+#   export GOOGLE_CLOUD_PROJECT=adecco-mendan
+#
+# Auth credential gotcha (load-bearing): the default ADC at
+# `application_default_credentials.json` is often a non-owner account that
+# fails Firebase deploy with a misleading "Failed to create backend" error.
+# Always point GOOGLE_APPLICATION_CREDENTIALS at the owner-level
+# `legacy_credentials/<owner>/adc.json`. Do NOT run
+# `gcloud auth application-default login` to "fix" it.
+#
+# NEVER:
+#   - run `gcloud run deploy roleplay-ui` for Grok Voice or registered-speech
+#     changes (that is the legacy Cloud Run service per docs/deploy.md and
+#     does NOT reach the App Hosting URL adecco-roleplay--adecco-mendan...)
+#   - run `firebase apphosting:backends:delete` (would tear down the
+#     production backend)
+#   - bare `firebase deploy` outside the `pnpm deploy:adecco-roleplay`
+#     wrapper for production traffic (the wrapper's warm-cache step is
+#     load-bearing — without it the first ~25% of turns hit a 1.5–3s
+#     synth penalty)
+#
+# This file is a SURFACE of the contract in AGENTS.md `## Deploy (App
+# Hosting)`. Any change to deploy procedure must update all six surfaces
+# in the same change:
+#   1. AGENTS.md `## Deploy (App Hosting)`
+#   2. docs/deploy-app-hosting.md (full runbook)
+#   3. .agents/skills/ai-rpg-app-hosting-deploy/SKILL.md (agent-runnable form)
+#   4. .codex/rules/deploy-app-hosting.rules (this file)
+#   5. .claude/rules/deploy-app-hosting.md
+#   6. .cursor/rules/deploy-app-hosting.mdc
+
+prefix_rule(
+    pattern = ["pnpm", "deploy:adecco-roleplay"],
+    decision = "prompt",
+    justification = "Production rollout to the Adecco App Hosting backend (adecco-roleplay@adecco-mendan, asia-east1). Confirm: (1) intended commit/PR is checked out and pushed, (2) GOOGLE_APPLICATION_CREDENTIALS points at the owner-level legacy_credentials ADC (NOT the default ADC, which fails with a misleading 'Failed to create backend' error), (3) GROK_VOICE_VOICE_ID and GOOGLE_CLOUD_PROJECT envs are set per AGENTS.md `## Deploy (App Hosting)`, (4) any registered-speech artifact rebuild has been promoted (data/generated/registered-speech/v1/manifest.json reflects intent), and (5) operator can run the post-deploy /api/v3/session verification + manual smoke. App Hosting does NOT auto-deploy on main push — this command is the only way the new code goes live.",
+    match = [
+        "pnpm deploy:adecco-roleplay",
+        "pnpm deploy:adecco-roleplay -- --skip-warm",
+        "pnpm deploy:adecco-roleplay -- --skip-deploy",
+    ],
+    not_match = [
+        "pnpm grok:warm-tts-cache",
+        "pnpm grok:verify-registered-speech",
+        "pnpm grok:audio-e2e:prod-log-assert",
+    ],
+)
+
+prefix_rule(
+    pattern = ["firebase", "deploy"],
+    decision = "prompt",
+    justification = "Bare `firebase deploy` bypasses the `pnpm deploy:adecco-roleplay` wrapper's baseline snapshot, warm-cache (load-bearing — production measured 25% cache miss without it, 1.5–3s synth penalty per affected turn), and post-deploy /api/v3/session verification. Acceptable only for Cloud Build debugging where the warm-cache step is irrelevant. For production, prefer `pnpm deploy:adecco-roleplay`. See AGENTS.md `## Deploy (App Hosting)`.",
+    match = [
+        "firebase deploy",
+        "firebase deploy --only apphosting",
+        "firebase deploy --only apphosting --project adecco-mendan",
+        "firebase deploy --only apphosting --non-interactive",
+    ],
+    not_match = [
+        "firebase apphosting:rollouts:list",
+        "firebase apphosting:backends:list",
+        "firebase login:list",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gcloud", "run", "deploy", "roleplay-ui"],
+    decision = "prompt",
+    justification = "`gcloud run deploy roleplay-ui` targets the LEGACY Cloud Run service in asia-northeast1 (covered by docs/deploy.md), NOT the current App Hosting backend `adecco-roleplay` in asia-east1 (covered by docs/deploy-app-hosting.md). Grok Voice / registered-speech changes deployed here do NOT reach the live App Hosting URL `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app`. Confirm the change actually targets the legacy ConvAI orb path before proceeding; otherwise switch to `pnpm deploy:adecco-roleplay`.",
+    match = [
+        "gcloud run deploy roleplay-ui --image asia-northeast1-docker.pkg.dev/adecco-mendan/roleplay-ui/roleplay-ui:latest --region asia-northeast1 --project adecco-mendan",
+        "gcloud run deploy roleplay-ui --region asia-northeast1 --project adecco-mendan",
+    ],
+    not_match = [
+        "gcloud run services describe roleplay-ui --region asia-northeast1 --project adecco-mendan",
+        "gcloud run services list --project adecco-mendan",
+        "gcloud run revisions list --service roleplay-ui --region asia-northeast1 --project adecco-mendan",
+    ],
+)
+
+prefix_rule(
+    pattern = ["firebase", "apphosting:backends:delete"],
+    decision = "forbidden",
+    justification = "Deleting the App Hosting backend `adecco-roleplay` tears down the production roleplay UI in a single command. Backends cannot be undeleted; recovery requires rebuilding the backend, re-binding the GitHub repo (if applicable), regenerating the IAM grants on the firebase-app-hosting-compute SA, and full cold-start. There is no scenario in this repo where deleting the backend is the right action. If the goal is to halt traffic, use the env-flag rollback path documented in AGENTS.md `## Deploy (App Hosting)` and `docs/deploy-app-hosting.md` §Rollback.",
+    match = [
+        "firebase apphosting:backends:delete adecco-roleplay --project adecco-mendan --location asia-east1",
+        "firebase apphosting:backends:delete adecco-roleplay",
+    ],
+    not_match = [
+        "firebase apphosting:backends:list --project adecco-mendan",
+        "firebase apphosting:backends:get adecco-roleplay --project adecco-mendan --location asia-east1",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gcloud", "auth", "application-default", "login"],
+    decision = "prompt",
+    justification = "`gcloud auth application-default login` overwrites the default ADC at `application_default_credentials.json` for ALL workflows on the machine — Secret Manager reads, Cloud Logging queries, every script that uses ADC. The App Hosting deploy issue this is being run to 'fix' is solved instead by setting `GOOGLE_APPLICATION_CREDENTIALS` to the owner-level `legacy_credentials/<owner>/adc.json` (per AGENTS.md `## Deploy (App Hosting)`). Confirm the operator actually intends a global ADC reset before proceeding.",
+    match = [
+        "gcloud auth application-default login",
+        "gcloud auth application-default login --account=iwase@zenoffice.co.jp",
+    ],
+    not_match = [
+        "gcloud auth application-default print-access-token",
+        "gcloud auth application-default set-quota-project adecco-mendan",
+        "gcloud auth login",
+        "gcloud auth list",
+    ],
+)

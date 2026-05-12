@@ -4,10 +4,19 @@ Canonical runbook for deploying the `adecco-roleplay` App Hosting backend.
 Replaces the legacy Cloud Run flow in `docs/deploy.md` for the production
 roleplay UI.
 
-> **For agents (Claude / Codex / Cursor)**: this is the single source of
-> truth. The skill at `.agents/skills/ai-rpg-app-hosting-deploy/SKILL.md`
-> mirrors this runbook in agent-runnable form; the AGENTS.md `## Working
-> Defaults` section cross-references it.
+> **Cross-tool Source of Truth:** repository-root [`AGENTS.md`](../AGENTS.md)
+> `## Deploy (App Hosting)`. This runbook is the procedural detail; the
+> AGENTS.md section is the contract. Tool-specific surfaces that re-state
+> the same rules:
+>
+> - Agent-runnable form: [`.agents/skills/ai-rpg-app-hosting-deploy/SKILL.md`](../.agents/skills/ai-rpg-app-hosting-deploy/SKILL.md)
+> - Codex command-approval guards: [`.codex/rules/deploy-app-hosting.rules`](../.codex/rules/deploy-app-hosting.rules)
+> - Claude Code surface: [`.claude/rules/deploy-app-hosting.md`](../.claude/rules/deploy-app-hosting.md)
+> - Cursor surface: [`.cursor/rules/deploy-app-hosting.mdc`](../.cursor/rules/deploy-app-hosting.mdc) (`alwaysApply: true`)
+>
+> **Any change to the deploy contract must update all six files in the
+> same change** (this runbook + the AGENTS.md section + the four
+> tool-specific surfaces above).
 
 ## Target
 
@@ -318,10 +327,11 @@ is the simpler path for behavior toggles.
 
 ## Related docs
 
-- Legacy Cloud Run UI deploy (different service `roleplay-ui`, kept for
-  historical reference): `docs/deploy.md`
-- Manual smoke runbook (browser turns): `docs/grok-voice-manual-smoke-runbook.md`
-- Haruto closeout (the most recent end-to-end deploy reference):
-  `docs/grok-voice-haruto-closeout-20260512.md`
-- Skill (agent-runnable form of this doc): `.agents/skills/ai-rpg-app-hosting-deploy/SKILL.md`
-- AGENTS.md `## Working Defaults` — short-form pointer for cross-tool agents
+- Cross-tool Source of Truth (canonical contract): [`AGENTS.md`](../AGENTS.md) `## Deploy (App Hosting)`
+- Agent-runnable form: [`.agents/skills/ai-rpg-app-hosting-deploy/SKILL.md`](../.agents/skills/ai-rpg-app-hosting-deploy/SKILL.md)
+- Codex command-approval guards: [`.codex/rules/deploy-app-hosting.rules`](../.codex/rules/deploy-app-hosting.rules)
+- Claude Code surface: [`.claude/rules/deploy-app-hosting.md`](../.claude/rules/deploy-app-hosting.md)
+- Cursor surface: [`.cursor/rules/deploy-app-hosting.mdc`](../.cursor/rules/deploy-app-hosting.mdc) (`alwaysApply: true`)
+- Legacy Cloud Run UI deploy (different service `roleplay-ui`, kept for historical reference): [`docs/deploy.md`](deploy.md)
+- Manual smoke runbook (browser turns): [`docs/grok-voice-manual-smoke-runbook.md`](grok-voice-manual-smoke-runbook.md)
+- Haruto closeout (the most recent end-to-end deploy reference): [`docs/grok-voice-haruto-closeout-20260512.md`](grok-voice-haruto-closeout-20260512.md)

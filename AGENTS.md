@@ -29,6 +29,30 @@
   - Cursor surface lives in [`.cursor/rules/secrets.mdc`](.cursor/rules/secrets.mdc) (`alwaysApply: true`).
   - Any change to the retrieval contract above must update **all four** files in the same change.
 
+## Deploy (App Hosting)
+
+- Production roleplay UI is the Firebase **App Hosting** backend `adecco-roleplay` in `adecco-mendan` / `asia-east1` at `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app`. The legacy Cloud Run service `roleplay-ui` covered in [`docs/deploy.md`](docs/deploy.md) is kept for older A/B routes only; do NOT run `gcloud run deploy roleplay-ui` for Grok Voice or registered-speech changes — they will not reach the live App Hosting URL.
+- **Always deploy via `pnpm deploy:adecco-roleplay`.** The wrapper records the baseline rollout, runs `firebase deploy --only apphosting`, polls until rollout `SUCCEEDED`, executes `pnpm grok:warm-tts-cache`, and post-deploy verifies via `/api/v3/session`. Bare `firebase deploy` is acceptable for Cloud Build debugging only.
+- **App Hosting is NOT auto-deployed on main push** for `adecco-roleplay`. Merging a PR to main does NOT make code live. Run the wrapper explicitly after every merge that needs to ship.
+- **Auth credential gotcha — load-bearing.** Firebase CLI uses Application Default Credentials. The default ADC at `<gcloud-config-dir>/application_default_credentials.json` is often signed in as a lower-privilege account that can read Secret Manager + list rollouts but **cannot** `firebaseapphosting.backends.get` or run `firebase deploy`. The first failure surfaces as a misleading `Failed to create backend due to missing delegation permissions for firebase-app-hosting-compute@adecco-mendan...` (the backend already exists; this is the owner-vs-non-owner identity problem).
+- **The fix:** point `GOOGLE_APPLICATION_CREDENTIALS` at the **owner-level** ADC file at `<gcloud-config-dir>/legacy_credentials/<owner-account>/adc.json`. Canonical operator-workstation path: `C:/Users/yukih/AppData/Roaming/gcloud/legacy_credentials/iwase@zenoffice.co.jp/adc.json`. Do NOT run `gcloud auth application-default login` to "fix" it — that overwrites the default ADC for every other workflow on the machine.
+- **Required env block** (every deploy session):
+  ```bash
+  export GOOGLE_APPLICATION_CREDENTIALS="<gcloud-config-dir>/legacy_credentials/<owner-account>/adc.json"
+  export GROK_VOICE_VOICE_ID=99c95cc8a177
+  export GOOGLE_CLOUD_PROJECT=adecco-mendan
+  pnpm deploy:adecco-roleplay
+  ```
+- **Post-deploy verification — always run.** The wrapper's verify step only checks `guardrailVersion`. For deploys that change registered-speech artifacts, also fetch `/api/v3/session` and confirm `registeredSpeech.buildId` matches the just-promoted buildId. Snippet in [`docs/deploy-app-hosting.md`](docs/deploy-app-hosting.md) §Step 3.
+- **AccessGate / `セッションの開始に失敗しました`** — the demo URL `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v3` is gated by an HMAC-signed cookie of `DEMO_ACCESS_TOKEN`. 401 ≈ cookie missing or 8-hour `maxAge` expired; re-enter the demo access token via the AccessGate form. Token via `gcloud secrets versions access latest --secret=demo-access-token --project=adecco-mendan`. Cookie surface in [`docs/deploy-app-hosting.md`](docs/deploy-app-hosting.md) §Step 4.
+- This `## Deploy (App Hosting)` section is the cross-tool **Source of Truth**. Tool-specific surfaces re-state it (so each tool surfaces the rule natively) without owning the contract:
+  - Full runbook (canonical procedure + rollback + pitfalls): [`docs/deploy-app-hosting.md`](docs/deploy-app-hosting.md).
+  - Agent-runnable form (`.agents/skills`): [`.agents/skills/ai-rpg-app-hosting-deploy/SKILL.md`](.agents/skills/ai-rpg-app-hosting-deploy/SKILL.md).
+  - Codex command-approval guards (prompt on `firebase deploy` and the legacy Cloud Run roleplay-ui deploy) live in [`.codex/rules/deploy-app-hosting.rules`](.codex/rules/deploy-app-hosting.rules).
+  - Claude Code surface lives in [`.claude/rules/deploy-app-hosting.md`](.claude/rules/deploy-app-hosting.md).
+  - Cursor surface lives in [`.cursor/rules/deploy-app-hosting.mdc`](.cursor/rules/deploy-app-hosting.mdc) (`alwaysApply: true`).
+  - Any change to the deploy contract above must update **all six** files in the same change.
+
 ## Working Defaults
 
 - Prefer root `pnpm` scripts over ad hoc one-off commands so operational flows stay reproducible.
@@ -52,9 +76,7 @@
 
 - **Verify the squash actually captured your latest commits.** Immediately after `gh pr merge` returns, run `git show origin/main:<path>` against a unique signature line from your latest change. Squash can pick up an older parent commit if the merge was queued before a late push (cf. PR #80 → PR #81 mismatch incident). The PR's "merged" badge, the PR body, and the head SHA are leading indicators, NOT authoritative.
 - **Every behavior-changing PR must ship with an env-flag rollback that does NOT require a client redeploy.** The flag is read fresh on the next request (typical pattern: surface it through `/api/v3/session`), so flipping the env immediately reverts behavior. Document the flag in the PR body, verify it in a unit test, and re-document it in the relevant skill. Reference implementations: `GROK_VOICE_STRICT_PLAYBACK_MODE` (PR #85), `GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED` (PR #87).
-- For Firebase App Hosting deploys, prefer `pnpm deploy:adecco-roleplay` (the wrapper records the baseline rollout, runs `firebase deploy --only apphosting`, executes `pnpm grok:warm-tts-cache`, and post-deploy verifies via `/api/v3/session`). Bare `firebase deploy` is fine for Cloud Build debugging only. Full runbook: [`docs/deploy-app-hosting.md`](docs/deploy-app-hosting.md). Agent-runnable form: [`.agents/skills/ai-rpg-app-hosting-deploy/SKILL.md`](.agents/skills/ai-rpg-app-hosting-deploy/SKILL.md).
-- **App Hosting deploy auth gotcha** — Firebase CLI requires `GOOGLE_APPLICATION_CREDENTIALS` pointing at the **owner-level** ADC file, NOT the default ADC. The default `gcloud auth application-default login` ADC is often signed in as a lower-privilege account that can read Secret Manager + list rollouts but **cannot** `firebaseapphosting.backends.get` or deploy. Use the owner credential at `<gcloud-config-dir>/legacy_credentials/<owner-account>/adc.json` (canonical path on the operator workstation: `C:/Users/yukih/AppData/Roaming/gcloud/legacy_credentials/iwase@zenoffice.co.jp/adc.json`). See [`docs/deploy-app-hosting.md`](docs/deploy-app-hosting.md) §Step 0 for diagnosis + the misleading "Failed to create backend" error.
-- **App Hosting deploy is NOT triggered by main push.** `adecco-roleplay` has no GitHub-on-push auto-deploy. After merging a PR to main, run `pnpm deploy:adecco-roleplay` explicitly or the new code never goes live (cf. `adecco_apphosting_deploy_lag` user memory).
+- For Firebase App Hosting deploys, see the dedicated [`## Deploy (App Hosting)`](#deploy-app-hosting) section above (cross-tool SoT) and the runbook at [`docs/deploy-app-hosting.md`](docs/deploy-app-hosting.md). The legacy Cloud Run flow at [`docs/deploy.md`](docs/deploy.md) is for the older `roleplay-ui` service only.
 
 ## Directory Map
 

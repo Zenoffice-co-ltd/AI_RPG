@@ -5,7 +5,14 @@ description: Use when the task requires deploying the adecco-roleplay App Hostin
 
 # AI RPG — Adecco Roleplay App Hosting Deploy
 
-Canonical source: [`docs/deploy-app-hosting.md`](../../docs/deploy-app-hosting.md). This skill is the agent-runnable form. When in doubt, prefer the runbook.
+**Cross-tool Source of Truth:** repository-root [`AGENTS.md`](../../../AGENTS.md) `## Deploy (App Hosting)`. This skill is the agent-runnable form. When in doubt, prefer the runbook at [`docs/deploy-app-hosting.md`](../../../docs/deploy-app-hosting.md).
+
+Tool-specific surfaces (re-state the same rules):
+- Codex command-approval guards: [`.codex/rules/deploy-app-hosting.rules`](../../../.codex/rules/deploy-app-hosting.rules)
+- Claude Code surface: [`.claude/rules/deploy-app-hosting.md`](../../../.claude/rules/deploy-app-hosting.md)
+- Cursor surface: [`.cursor/rules/deploy-app-hosting.mdc`](../../../.cursor/rules/deploy-app-hosting.mdc) (`alwaysApply: true`)
+
+Any change to the deploy contract must update **all six** files in the same change.
 
 ## Pre-flight checks (do these BEFORE running any deploy command)
 
