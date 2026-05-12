@@ -66,6 +66,61 @@ const FORBIDDEN_ROUTE_PATHS = new Set([
   "sanitized_response_tts",
   "greeting_tts",
 ]);
+
+// Haruto hotfix (PR-94): the broker's natural recruitment-profile
+// queries fell to fallback_unknown in PR-93 because the matcher only
+// covered the "内容 / スキル" axis. These keywords flag turns where
+// the user clearly asked a business question; if any of those land on
+// registered_speech_fallback the new matcher coverage failed.
+const BUSINESS_USER_TEXT_KEYWORDS = [
+  "今回",
+  "要件",
+  "単価",
+  "募集",
+  "経験",
+  "残業",
+  "業務時間",
+  "勤務",
+  "決定",
+  "決裁",
+  "業務",
+  "スキル",
+  "処理",
+  "繁忙",
+  "背景",
+  "候補",
+  "採用",
+];
+
+// Placeholder strings that should never appear in production assistant
+// transcripts. The PR-93 greeting shipped with these as the literal
+// spokenText / displayText.
+const FORBIDDEN_PLACEHOLDER_SUBSTRINGS = [
+  "PENDING",
+  "PLACEHOLDER",
+  "populated by",
+  "build script",
+  "Source.json",
+  "schema doesn't break",
+];
+
+// Greeting artifact-only forbidden suffixes (artifact text, not user
+// input). Kept in sync with text-guards.ts FORBIDDEN_ASSISTANT_QUESTION_SUFFIX.
+const FORBIDDEN_ASSISTANT_QUESTION_SUFFIX_PATTERNS = [
+  /ありますか[。！？!?]?$/,
+  /ございますか[。！？!?]?$/,
+  /でしょうか[。！？!?]?$/,
+  /ですか[。！？!?]?$/,
+  /よろしいでしょうか[。！？!?]?$/,
+];
+
+// Hiragana / katakana / CJK ideographs — used to detect English-only
+// greetings (the PR-93 placeholder was pure ASCII).
+const JAPANESE_CHAR_RE = /[぀-ゟ゠-ヿ一-鿿]/;
+
+// Expected voiceId (Haruto). Kept in sync with
+// apps/web/lib/roleplay/registered-speech/types.ts REGISTERED_SPEECH_VOICE_ID.
+const EXPECTED_VOICE_ID = "99c95cc8a177";
 // Pre-deterministic routes that are tolerated only on the
 // `lock_voice_local_audio` BASELINE (which we use as the p50/p95
 // reference). They are NOT acceptable in a deterministic-mode demo.
@@ -189,6 +244,13 @@ function main() {
   let manifestMismatchCount = 0;
   let registeredSpeechLocalCount = 0;
   let registeredSpeechFallbackCount = 0;
+  // Haruto hotfix (PR-94) metrics
+  const greetingPlaceholderHits = [];
+  const greetingAsciiOnlyHits = [];
+  const greetingQuestionSuffixHits = [];
+  const fallbackUnknownBusinessHits = [];
+  const voiceIdMismatchHits = [];
+  let voiceIdSeenCount = 0;
 
   for (const entry of entries) {
     const p = entry.jsonPayload ?? {};
@@ -226,6 +288,77 @@ function main() {
         break;
       }
     }
+
+    // PR-94 / Haruto hotfix metrics ------------------------------------
+
+    // VoiceId observed on every turn — emit counts and a sample of any
+    // mismatches. The session bundle includes voiceId; turnMetrics may
+    // mirror it as `voiceId` or `grokVoiceVoiceId`.
+    const observedVoiceId =
+      p.grokVoiceVoiceId ??
+      p.voiceId ??
+      (p.registeredSpeechBundle && p.registeredSpeechBundle.voiceId) ??
+      null;
+    if (typeof observedVoiceId === "string" && observedVoiceId.length > 0) {
+      voiceIdSeenCount += 1;
+      if (observedVoiceId !== EXPECTED_VOICE_ID) {
+        voiceIdMismatchHits.push({
+          timestamp: entry.timestamp,
+          observedVoiceId,
+          expected: EXPECTED_VOICE_ID,
+        });
+      }
+    }
+
+    // Greeting placeholder / ASCII / question suffix scan. Apply only to
+    // greeting turns — those are the playback texts that have a known
+    // duration window and known artifact-only constraints.
+    const intent = p.registeredSpeechIntent ?? null;
+    if (intent === "greeting") {
+      const greetingText = preview;
+      for (const sub of FORBIDDEN_PLACEHOLDER_SUBSTRINGS) {
+        if (greetingText.includes(sub)) {
+          greetingPlaceholderHits.push({
+            timestamp: entry.timestamp,
+            substring: sub,
+            preview: greetingText.slice(0, 200),
+          });
+          break;
+        }
+      }
+      if (greetingText.length > 0 && !JAPANESE_CHAR_RE.test(greetingText)) {
+        greetingAsciiOnlyHits.push({
+          timestamp: entry.timestamp,
+          preview: greetingText.slice(0, 200),
+        });
+      }
+      const trimmed = greetingText.trim();
+      for (const pat of FORBIDDEN_ASSISTANT_QUESTION_SUFFIX_PATTERNS) {
+        if (pat.test(trimmed)) {
+          greetingQuestionSuffixHits.push({
+            timestamp: entry.timestamp,
+            pattern: pat.toString(),
+            preview: greetingText.slice(0, 200),
+          });
+          break;
+        }
+      }
+    }
+
+    // fallback_unknown landing on a business utterance — DOD #6.
+    if (routePath === "registered_speech_fallback") {
+      const userText = p.userTranscriptPreview ?? p.userText ?? "";
+      const matched = BUSINESS_USER_TEXT_KEYWORDS.find((k) =>
+        typeof userText === "string" && userText.includes(k)
+      );
+      if (matched) {
+        fallbackUnknownBusinessHits.push({
+          timestamp: entry.timestamp,
+          userText: typeof userText === "string" ? userText.slice(0, 200) : "",
+          matchedKeyword: matched,
+        });
+      }
+    }
   }
 
   const forbiddenRouteCount = Object.entries(routePathCounts)
@@ -241,6 +374,15 @@ function main() {
     if (p50 === null || baselineP50 === null) return null;
     return p50 <= baselineP50 && (p95 === null || baselineP95 === null || p95 <= baselineP95 + 150);
   })();
+
+  // PR-94 / Haruto hotfix derived metrics
+  const greetingInvalidTextHit = {
+    placeholderHit: greetingPlaceholderHits.length,
+    asciiOnlyHit: greetingAsciiOnlyHits.length,
+    questionSuffixHit: greetingQuestionSuffixHits.length,
+  };
+  const voiceIdEnvObserved =
+    voiceIdSeenCount > 0 && voiceIdMismatchHits.length === 0;
 
   const summary = {
     builtAt: new Date().toISOString(),
@@ -260,6 +402,18 @@ function main() {
     shaMismatchCount,
     bundleMissCount,
     manifestMismatchCount,
+    // PR-94 / Haruto hotfix metrics
+    greetingInvalidTextHit,
+    greetingInvalidTextSample: {
+      placeholder: greetingPlaceholderHits.slice(0, 5),
+      asciiOnly: greetingAsciiOnlyHits.slice(0, 5),
+      questionSuffix: greetingQuestionSuffixHits.slice(0, 5),
+    },
+    fallbackUnknownBusinessHit: fallbackUnknownBusinessHits.length,
+    fallbackUnknownBusinessSample: fallbackUnknownBusinessHits.slice(0, 10),
+    voiceIdSeenCount,
+    voiceIdEnvObserved,
+    voiceIdMismatchHits: voiceIdMismatchHits.slice(0, 5),
     firstAudibleAudioMs: {
       registeredSpeech: { p50, p95, count: registeredSpeechFirstAudible.length },
       baselineLockVoiceLocalAudio: {
@@ -269,12 +423,23 @@ function main() {
       },
       nonRegression,
     },
-    // Final DOD gate
+    // Final DOD gate. PR-94 additions:
+    //   - greetingInvalidTextHit.* must all be 0 (placeholder / ascii-only
+    //     / question suffix in greeting playback)
+    //   - fallbackUnknownBusinessHit must be 0 (business utterance never
+    //     lands on fallback_unknown)
+    //   - voiceIdEnvObserved must be true (Haruto seen on at least one
+    //     turn and never observed as a different voice)
     overallPass:
       forbiddenRouteCount === 0 &&
       forbiddenSuffixHits.length === 0 &&
       (registeredSpeechLocalCount + registeredSpeechFallbackCount > 0) &&
-      (nonRegression !== false),
+      (nonRegression !== false) &&
+      greetingInvalidTextHit.placeholderHit === 0 &&
+      greetingInvalidTextHit.asciiOnlyHit === 0 &&
+      greetingInvalidTextHit.questionSuffixHit === 0 &&
+      fallbackUnknownBusinessHits.length === 0 &&
+      voiceIdEnvObserved === true,
   };
 
   if (args.json) {

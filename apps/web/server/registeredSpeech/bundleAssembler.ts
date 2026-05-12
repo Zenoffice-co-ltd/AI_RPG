@@ -1,5 +1,6 @@
 import { REQUIRED_REGISTERED_SPEECH_INTENTS } from "../../lib/roleplay/registered-speech/canonical-intents";
 import {
+  REGISTERED_SPEECH_VOICE_ID,
   RegisteredSpeechBundleSchema,
   type RegisteredSpeechBundle,
 } from "../../lib/roleplay/registered-speech/types";
@@ -38,6 +39,15 @@ export async function buildRegisteredSpeechBundle(): Promise<RegisteredSpeechBun
       durationMs: entry.durationMs,
     };
   });
+
+  if (loaded.manifest.voiceId !== REGISTERED_SPEECH_VOICE_ID) {
+    // The manifest schema literal already enforces this; the explicit
+    // check exists so /api/v3/session emits a self-describing error if
+    // a future schema bump is ever forgotten on the bundle side.
+    throw new Error(
+      `[registered-speech][bundleAssembler] voiceId mismatch: manifest=${loaded.manifest.voiceId} expected=${REGISTERED_SPEECH_VOICE_ID}`
+    );
+  }
 
   const bundle: RegisteredSpeechBundle = {
     manifestVersion: loaded.manifest.version,

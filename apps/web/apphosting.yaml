@@ -151,7 +151,7 @@ env:
     availability:
       - RUNTIME
   - variable: GROK_VOICE_VOICE_ID
-    value: "rex"
+    value: "99c95cc8a177"
     availability:
       - RUNTIME
   - variable: GROK_VOICE_INPUT_FORMAT

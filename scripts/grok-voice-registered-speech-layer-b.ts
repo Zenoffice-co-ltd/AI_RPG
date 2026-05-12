@@ -41,6 +41,13 @@ import type {
   VerifiedRegisteredSpeechCache,
   VerifiedRegisteredSpeechEntry,
 } from "../apps/web/lib/roleplay/registered-speech/types";
+import { REGISTERED_SPEECH_VOICE_ID } from "../apps/web/lib/roleplay/registered-speech/types";
+import {
+  findArtifactPlaceholderPattern,
+  findForbiddenAssistantQuestionSuffix,
+  isAsciiOnly,
+  isGreetingDurationOutOfRange,
+} from "../apps/web/lib/roleplay/registered-speech/text-guards";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -112,7 +119,28 @@ const SUPPLEMENTARY_TURNS: ReadonlyArray<{
     category: "B102_decision_maker_dialect",
     text: "どなたが最終判断されますか？",
   },
+  // B104-B106: 2026-05-12 Haruto hotfix manual regression. These are
+  // the broker's natural recruitment-profile / requirements queries
+  // that fell to fallback_unknown ("その点は確認します。") in the
+  // PR-93 production demo. They MUST now route to engagement_scope or
+  // skill_requirement_broad. The post-loop B107 assertion enforces
+  // fallback_unknown count = 0 across this set; B104-B106 entries here
+  // exercise the exact strings from the regression.
+  { category: "B104_manual_requirements_scope", text: "今回の要件は、" },
+  { category: "B104_manual_requirements_detail", text: "今回の要件を教えてください" },
+  { category: "B105_manual_person_requirement", text: "どういった方を募集されてますか？" },
+  { category: "B106_manual_experience_short", text: "経験は？" },
+  { category: "B106_manual_experience_question", text: "求める経験は何ですか？" },
 ];
+
+// Drives B107 — these inputs MUST resolve to a non-fallback intent.
+const B107_BUSINESS_MANUAL_FALLBACK_INPUTS: ReadonlySet<string> = new Set([
+  "今回の要件は、",
+  "今回の要件を教えてください",
+  "どういった方を募集されてますか？",
+  "経験は？",
+  "求める経験は何ですか？",
+]);
 
 type TurnResult = {
   caseId: string;
@@ -128,7 +156,12 @@ type TurnResult = {
   pass: boolean;
 };
 
-async function loadVerifiedCache(): Promise<VerifiedRegisteredSpeechCache> {
+type LoadedCacheWithRaw = {
+  cache: VerifiedRegisteredSpeechCache;
+  manifestVoiceId: string;
+};
+
+async function loadVerifiedCache(): Promise<LoadedCacheWithRaw> {
   const manifestPath = resolve(
     ROOT,
     "data",
@@ -141,7 +174,7 @@ async function loadVerifiedCache(): Promise<VerifiedRegisteredSpeechCache> {
   const manifest = JSON.parse(manifestRaw) as {
     version: "v1";
     buildId: string;
-    voiceId: "rex";
+    voiceId: string;
     sampleRateHz: 24000;
     codec: "pcm";
     entries: Array<{
@@ -151,6 +184,8 @@ async function loadVerifiedCache(): Promise<VerifiedRegisteredSpeechCache> {
       audioPath: string;
       sha256: string;
       durationMs: number;
+      approvedBy: string;
+      approvedAt: string;
     }>;
   };
 
@@ -176,7 +211,10 @@ async function loadVerifiedCache(): Promise<VerifiedRegisteredSpeechCache> {
       verified: true as const,
     });
   }
-  return { manifestVersion: "v1", buildId: manifest.buildId, entries };
+  return {
+    cache: { manifestVersion: "v1", buildId: manifest.buildId, entries },
+    manifestVoiceId: manifest.voiceId,
+  };
 }
 
 function classifyTurn(
@@ -219,12 +257,53 @@ function isAssistantTurn(role: unknown): role is "user" {
 }
 
 async function main() {
-  const cache = await loadVerifiedCache();
+  const { cache, manifestVoiceId } = await loadVerifiedCache();
   for (const required of REQUIRED_REGISTERED_SPEECH_INTENTS) {
     if (!cache.entries.has(required)) {
       throw new Error(`Layer B: cache missing required intent ${required}`);
     }
   }
+
+  // B103 — greeting artifact check. Cold-fail before iterating turns
+  // so a placeholder/English/question-suffix greeting surfaces ahead
+  // of the matcher noise. Mirrors Layer A's A48 standalone check.
+  const b103Reasons: string[] = [];
+  const greeting = cache.entries.get("greeting");
+  if (!greeting) {
+    b103Reasons.push("greeting artifact missing from cache");
+  } else {
+    const spokenP = findArtifactPlaceholderPattern(greeting.spokenText);
+    if (spokenP) b103Reasons.push(`spokenText placeholder ${spokenP}`);
+    const displayP = findArtifactPlaceholderPattern(greeting.displayText);
+    if (displayP) b103Reasons.push(`displayText placeholder ${displayP}`);
+    if (isAsciiOnly(greeting.spokenText)) b103Reasons.push("spokenText is ASCII-only");
+    if (isAsciiOnly(greeting.displayText)) b103Reasons.push("displayText is ASCII-only");
+    const spokenQ = findForbiddenAssistantQuestionSuffix(greeting.spokenText);
+    if (spokenQ) b103Reasons.push(`spokenText question suffix ${spokenQ}`);
+    const displayQ = findForbiddenAssistantQuestionSuffix(greeting.displayText);
+    if (displayQ) b103Reasons.push(`displayText question suffix ${displayQ}`);
+    if (isGreetingDurationOutOfRange(greeting.durationMs)) {
+      b103Reasons.push(`durationMs ${greeting.durationMs} outside [3000, 8000]`);
+    }
+  }
+  const b103Pass = b103Reasons.length === 0;
+  console.log(
+    `[B103] greeting artifact check ... ${b103Pass ? "PASS" : "FAIL"}${
+      b103Pass ? "" : ` (${b103Reasons.join("; ")})`
+    }`
+  );
+
+  // Voice ID gate (mirrors Layer A's A49). The manifest schema literal
+  // already enforces this at parse time — the explicit message just
+  // makes the failure mode self-describing.
+  const voiceIdPass = manifestVoiceId === REGISTERED_SPEECH_VOICE_ID;
+  console.log(
+    `[B103+] manifest voiceId check ... ${voiceIdPass ? "PASS" : "FAIL"}${
+      voiceIdPass
+        ? ""
+        : ` (manifest=${manifestVoiceId} expected=${REGISTERED_SPEECH_VOICE_ID})`
+    }`
+  );
 
   const results: TurnResult[] = [];
   // CASES is the live xAI scenario suite; we replay every user turn
@@ -241,6 +320,37 @@ async function main() {
     results.push(classifyTurn(cache, "supplementary", sup.category, sup.text));
   }
 
+  // B107 — business manual fallback gate. The 5 broker utterances
+  // listed in B107_BUSINESS_MANUAL_FALLBACK_INPUTS MUST resolve to a
+  // non-fallback intent. This is the DOD #6 enforcer for Layer B.
+  const b107Hits = results.filter(
+    (r) =>
+      B107_BUSINESS_MANUAL_FALLBACK_INPUTS.has(r.userText) &&
+      r.routePath === "registered_speech_fallback"
+  );
+  const b107Pass = b107Hits.length === 0;
+  console.log(
+    `[B107] business manual fallback gate ... ${b107Pass ? "PASS" : "FAIL"}${
+      b107Pass
+        ? ""
+        : ` (${b107Hits.length} fallback hits: ${b107Hits.map((r) => r.userText).join(" | ")})`
+    }`
+  );
+
+  const standaloneChecks = {
+    b103_greeting_artifact: { pass: b103Pass, reasons: b103Reasons },
+    b103_voice_id: {
+      pass: voiceIdPass,
+      manifestVoiceId,
+      expected: REGISTERED_SPEECH_VOICE_ID,
+    },
+    b107_business_manual_fallback_zero: {
+      pass: b107Pass,
+      hits: b107Hits.map((r) => ({ userText: r.userText, intent: r.intent })),
+    },
+  };
+  const standalonePass = b103Pass && voiceIdPass && b107Pass;
+
   const summary = {
     builtAt: new Date().toISOString(),
     bundleBuildId: cache.buildId,
@@ -248,7 +358,9 @@ async function main() {
     totalTurns: results.length,
     passCount: results.filter((r) => r.pass).length,
     failCount: results.filter((r) => !r.pass).length,
-    overallPass: results.every((r) => r.pass),
+    standaloneChecks,
+    standalonePass,
+    overallPass: results.every((r) => r.pass) && standalonePass,
     routePathDistribution: {
       registered_speech_local: results.filter(
         (r) => r.routePath === "registered_speech_local"

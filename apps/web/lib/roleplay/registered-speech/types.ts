@@ -5,6 +5,15 @@ import {
   type CanonicalIntent,
 } from "./canonical-intents";
 
+// xAI Grok Voice voice_id for the customer roleplay (Haruto). Pinned
+// here as the single source of truth so the env var, manifest schema,
+// build pipeline, runtime loader, and CI grep all agree on one
+// string. Changing voices = bumping this constant + regenerating all
+// 23 PCM artifacts (a partial change ships a manifest where one
+// artifact uses a different voice from the rest, breaking the
+// "deterministic" guarantee).
+export const REGISTERED_SPEECH_VOICE_ID = "99c95cc8a177" as const;
+
 // On-disk manifest shape. Persisted at
 // `data/generated/registered-speech/<version>/manifest.json` and verified
 // at server boot (`apps/web/server/registeredSpeech/manifestLoader.ts`).
@@ -33,7 +42,7 @@ export type RegisteredSpeechArtifact = z.infer<
 export const RegisteredSpeechManifestSchema = z.object({
   version: z.literal("v1"),
   buildId: z.string().min(1),
-  voiceId: z.literal("rex"),
+  voiceId: z.literal(REGISTERED_SPEECH_VOICE_ID),
   sampleRateHz: z.literal(24000),
   codec: z.literal("pcm"),
   entries: z.array(RegisteredSpeechArtifactSchema).min(1),
@@ -60,7 +69,7 @@ export type RegisteredSpeechBundleArtifact = z.infer<
 export const RegisteredSpeechBundleSchema = z.object({
   manifestVersion: z.literal("v1"),
   buildId: z.string().min(1),
-  voiceId: z.literal("rex"),
+  voiceId: z.literal(REGISTERED_SPEECH_VOICE_ID),
   sampleRateHz: z.literal(24000),
   codec: z.literal("pcm"),
   artifacts: z.array(RegisteredSpeechBundleArtifactSchema).min(1),
