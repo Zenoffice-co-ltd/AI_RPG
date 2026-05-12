@@ -1,4 +1,18 @@
-# Deploy: AI Roleplay UI
+# Deploy: AI Roleplay UI (LEGACY — Cloud Run `roleplay-ui`)
+
+> **⚠ For the current production roleplay UI** (the Adecco App Hosting
+> backend `adecco-roleplay` at `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app`),
+> use [`docs/deploy-app-hosting.md`](deploy-app-hosting.md) instead. The
+> wrapper is `pnpm deploy:adecco-roleplay`. AGENTS.md `## Working Defaults`
+> and `.agents/skills/ai-rpg-app-hosting-deploy/SKILL.md` cross-reference
+> it.
+>
+> **This document covers the legacy Cloud Run service** `roleplay-ui` in
+> `asia-northeast1`. That service is kept for older A/B routes (the
+> original ElevenLabs ConvAI orb path) but is not the path that current
+> Grok Voice Verified Audio Artifact deploys ship through. Do not run
+> `gcloud run deploy roleplay-ui` for Grok Voice or registered-speech
+> changes — they will not reach the live App Hosting URL.
 
 Production-like Adecco Orb deployments are pinned to:
 
