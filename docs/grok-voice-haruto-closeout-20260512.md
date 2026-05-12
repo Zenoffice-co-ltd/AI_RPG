@@ -333,3 +333,63 @@ firstAudibleAudioMs.nonRegression     = true
   noisy)
 - [ ] A-X03 — Layer A coverage of the "transcript ends with ご質問
   ありますか" race against the audio queue
+
+## Haruto pronunciation A/B harness (operator-local, on-demand)
+
+After PR #95 merged, the operator flagged that some Haruto pronunciations
+(specifically "じゅはっちゅう" → "ju-hat-chuu") sounded artificial because
+the source text was carrying a kana pre-rewrite as a poor-man's
+pronunciation dictionary. The fix landed on the head of PR #95 (受発注 /
+受注や発注 split form for `job_content` and `skill_requirement_broad`),
+but to validate the broader question — "does Haruto need our kana
+rewrites at all, or can it read the natural kanji form?" — there is a
+dedicated A/B harness:
+
+```bash
+export GROK_VOICE_VOICE_ID=99c95cc8a177
+pnpm grok:haruto-ab-build
+```
+
+Synthesizes a B side for all 23 promoted artifacts using
+`displayText` (the natural kanji form: 受発注 / 千七百五十円 / 月10
+から15時間) instead of `spokenTextForGeneration` (the kana-rewritten
+form: 受注や発注 / せんななひゃくごじゅう / つきじゅうからじゅうごじかん).
+The B side intentionally disables every "dictionary" we have:
+
+- PLS (`data/pronunciation/*.pls`)
+- pronunciation guide (system prompt injection)
+- glossary / lexicon
+- `pronunciationDictionaryLocators`
+- pre-TTS kana rewrite (the entire spokenText vs displayText split)
+- scenario-specific pronunciation patches
+
+The xAI TTS request body is the minimal `{ text, voice_id, language:
+"ja", output_format, text_normalization: true }` (we probe the
+`text_normalization` field on the first request and fall back to
+omitting it if xAI returns a 400 mentioning the field — at PR-95 head
+xAI accepts it).
+
+Outputs (operator-local, `out/registered-speech-build/<buildId>/`,
+gitignored):
+
+- `review.haruto-ab.html` — same 23 rows as `review.html`, plus a
+  side-by-side B audio cell, judgment select, and memo textarea per row
+- `ab/B_HARUTO_BASIC_NO_DICT/<intent>.{pcm,wav,metadata.json}` per
+  artifact
+- `ab-manifest.haruto-basic-no-dict.json` — aggregate manifest with
+  all B-side metadata, including whether xAI accepted
+  `text_normalization`
+
+The operator listens through both A and B for each row and records the
+judgment locally. Net result is one of:
+
+1. **B is consistently as good as / better than A** → next iteration of
+   the source.json should drop the kana rewrites in favor of the
+   natural kanji form.
+2. **A wins on specific rows** → keep those rows' kana rewrites; document
+   why.
+3. **Both bad** → re-evaluate voice or pronunciation strategy entirely.
+
+The harness is operator-local and re-runnable. It does not affect the
+deployed `v1/manifest.json` or any production code path; it is purely a
+review tool.
