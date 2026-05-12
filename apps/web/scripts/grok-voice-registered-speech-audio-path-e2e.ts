@@ -508,6 +508,53 @@ const CASES: Case[] = [
     input: "求める経験は何ですか？",
     expect: { kind: "intent_hit", intent: "skill_requirement_broad" },
   },
+  // E2E matrix coverage (2026-05-12 Haruto closeout). These mirror
+  // sections A-B / A-R of the post-merge quality maintenance gates and
+  // exercise broker phrasings that aren't yet covered by A01-A47.
+  {
+    id: "A56",
+    label: "skill_requirement_broad どんな人を募集 (matrix A-B07)",
+    input: "どんな人を募集していますか？",
+    expect: { kind: "intent_hit", intent: "skill_requirement_broad" },
+  },
+  {
+    id: "A57",
+    label: "headcount 人数は何名 (matrix A-B08)",
+    input: "人数は何名ですか？",
+    expect: { kind: "intent_hit", intent: "headcount" },
+  },
+  {
+    id: "A58",
+    label: "billing_rate 請求単価は (matrix A-B10)",
+    input: "請求単価は？",
+    expect: { kind: "intent_hit", intent: "billing_rate" },
+  },
+  {
+    id: "A59",
+    label: "decision_maker 決定される方 short (matrix A-B14)",
+    input: "決定される方はどなたですか？",
+    expect: { kind: "intent_hit", intent: "decision_maker" },
+  },
+  {
+    id: "A60",
+    label: "repeat working_hours via もう一回 (matrix A-R03)",
+    input: "業務時間は？",
+    expect: {
+      kind: "repeat_replay",
+      firstIntent: "working_hours",
+      repeatInput: "もう一回お願いします",
+    },
+  },
+  {
+    id: "A61",
+    label: "repeat overtime via 再度 (matrix A-R04)",
+    input: "残業は月どれくらいですか？",
+    expect: {
+      kind: "repeat_replay",
+      firstIntent: "overtime",
+      repeatInput: "再度お願いします",
+    },
+  },
 ];
 
 // A55 / B107 — the business-manual fallback gate. A55 checks (in main())

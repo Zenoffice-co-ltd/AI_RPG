@@ -131,6 +131,11 @@ const SUPPLEMENTARY_TURNS: ReadonlyArray<{
   { category: "B105_manual_person_requirement", text: "どういった方を募集されてますか？" },
   { category: "B106_manual_experience_short", text: "経験は？" },
   { category: "B106_manual_experience_question", text: "求める経験は何ですか？" },
+  // E2E matrix coverage (2026-05-12 Haruto closeout). Matches Layer B
+  // sections B109/B110/B115 of the post-merge quality maintenance gates.
+  { category: "B109_personality_natural", text: "どんな人柄が合いますか？" },
+  { category: "B110_recruit_short", text: "どんな人を募集していますか？" },
+  { category: "B115_decision_maker_short", text: "決定される方はどなたですか？" },
 ];
 
 // Drives B107 — these inputs MUST resolve to a non-fallback intent.
