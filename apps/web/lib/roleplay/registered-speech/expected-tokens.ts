@@ -29,7 +29,11 @@ export const EXPECTED_TOKENS_BY_INTENT: Record<
   },
   job_content: {
     primary: ["納期", "営業事務"],
-    alternates: [["じゅはっちゅう", "受発注"]],
+    // Haruto rebuild (2026-05-12): "じゅはっちゅう" kana sounded
+    // unnatural so the source was rewritten to "受注や発注". The
+    // alternates accept either the new split form or the legacy
+    // "受発注" kanji string an STT model might still emit.
+    alternates: [["受注", "受発注", "じゅはっちゅう"], ["発注", "受発注", "じゅはっちゅう"]],
   },
   start_date: {
     primary: [],
@@ -64,7 +68,9 @@ export const EXPECTED_TOKENS_BY_INTENT: Record<
   },
   skill_requirement_broad: {
     primary: ["経験", "優先"],
-    alternates: [["じゅはっちゅう", "受発注"]],
+    // Haruto rebuild (2026-05-12): "じゅはっちゅう" kana sounded
+    // unnatural so the source was rewritten to "受注や発注の経験".
+    alternates: [["受注", "受発注", "じゅはっちゅう"], ["発注", "受発注", "じゅはっちゅう"]],
   },
   personality: {
     primary: ["合いやすく", "合いにくい"],

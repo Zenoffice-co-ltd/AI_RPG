@@ -80,7 +80,7 @@ row with a yellow warning banner so it can't be skipped.
 |---|---|---|
 | H-01 | greeting | Japanese, no English, no placeholder, no question suffix, naturally long is OK |
 | H-02 | billing_rate | せんななひゃくごじゅう円 / せんきゅうひゃく円 |
-| H-03 | skill_requirement_broad | じゅはっちゅう経験 |
+| H-03 | skill_requirement_broad | 受注や発注の経験 (Haruto reads each kanji-word naturally; the prior じゅはっちゅう kana spelling sounded artificial) |
 | H-04 | overtime | つきじゅうからじゅうごじかん |
 | H-05 | working_hours | 朝八時よんじゅうごふん / 夕方五時三十分 |
 | H-06 | busy_period | 月のおわり / 月の初め |
