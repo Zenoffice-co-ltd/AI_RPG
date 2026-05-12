@@ -28,6 +28,7 @@ import type {
   LockedSpeechHit,
   VerifiedRegisteredSpeechCache,
 } from "./registered-speech/types";
+import { REGISTERED_SPEECH_VOICE_ID } from "./registered-speech/types";
 import {
   classifyUserUtteranceForRegisteredSpeech,
   isRepeatRequest,
@@ -2449,7 +2450,7 @@ export function useGrokVoiceConversation(
               mimeType: "audio/pcm",
               sampleRateHz: 24000,
               textLen: greetingEntry.spokenText.length,
-              voiceId: "rex",
+              voiceId: REGISTERED_SPEECH_VOICE_ID,
               vendorMs: 0,
               cacheStatus: "hit",
               cacheKeyHash: greetingEntry.sha256.slice(0, 16),

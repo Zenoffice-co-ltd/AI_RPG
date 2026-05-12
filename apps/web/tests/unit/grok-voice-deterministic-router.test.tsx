@@ -35,6 +35,7 @@ import type {
   RegisteredSpeechBundle,
   RegisteredSpeechBundleArtifact,
 } from "../../lib/roleplay/registered-speech/types";
+import { REGISTERED_SPEECH_VOICE_ID } from "../../lib/roleplay/registered-speech/types";
 
 import { REGISTERED_SPEECH_CLIENT_BUILD_ID } from "../../lib/roleplay/registered-speech/manifest-constant";
 
@@ -166,7 +167,7 @@ function buildBundle(): RegisteredSpeechBundle {
   return {
     manifestVersion: "v1",
     buildId: MANIFEST_BUILD_ID,
-    voiceId: "rex",
+    voiceId: REGISTERED_SPEECH_VOICE_ID,
     sampleRateHz: 24000,
     codec: "pcm",
     artifacts: REQUIRED_REGISTERED_SPEECH_INTENTS.map(buildArtifact),

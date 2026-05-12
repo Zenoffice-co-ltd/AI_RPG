@@ -64,7 +64,28 @@ const INTENT_PATTERNS: ReadonlyArray<{
   userPatterns: RegExp[];
 }> = [
   { intent: "mission", userPatterns: [/ミッション/, /担当.*ミッション/, /人事.*ミッション/] },
-  { intent: "engagement_scope", userPatterns: [/今回の内容/, /簡単.*内容/, /概要/, /案件概要/] },
+  // engagement_scope — 2026-05-12 manual regression: "今回の要件は、" /
+  // "今回の要件を教えてください" was falling to fallback_unknown because
+  // the original /今回の内容/ pattern only covered the "内容" wording.
+  // The expanded set adds the "要件" axis so the broker's natural opener
+  // ("今回の要件は…") routes to the engagement_scope artifact instead
+  // of "求人要件の範囲で整理します。" (the fallback_unknown copy).
+  {
+    intent: "engagement_scope",
+    userPatterns: [
+      /今回の内容/,
+      /簡単.*内容/,
+      /概要/,
+      /案件概要/,
+      /今回.*要件/,
+      /要件.*整理/,
+      /要件.*内容/,
+      /要件.*教えて/,
+      /募集.*要件/,
+      /今回.*募集/,
+      /^今回の要件/,
+    ],
+  },
   // Newly registered intents — placed BEFORE job_content because
   // job_content's `業務.*教えて` regex is broad enough to steal
   // "業務時間を教えてください" otherwise. These are deterministic-mode-
@@ -126,6 +147,23 @@ const INTENT_PATTERNS: ReadonlyArray<{
     intent: "skill_followup_teamwork",
     userPatterns: [/協調性.*具体/, /協調性.*聞/, /協調性.*もう少し/],
   },
+  // personality — moved BEFORE skill_requirement_broad on 2026-05-12
+  // because the expanded skill_requirement_broad set below includes
+  // /どんな.*人/ and /どういった.*人/, which would otherwise steal
+  // "どんな人柄が合いますか？" from personality (A17). Personality is
+  // already the more specific intent here (anchored on 人柄/性格/人物
+  // /合う.*人), so promoting it ahead of the broad skill match
+  // preserves the load-bearing "specific precedes broad" invariant the
+  // PR60 ordering comment encodes.
+  { intent: "personality", userPatterns: [/人柄/, /合う.*人/, /人物面/, /性格/] },
+  // skill_requirement_broad — 2026-05-12 manual regression: the
+  // broker's natural phrasings "どういった方を募集されてますか？" and
+  // bare "経験は？" were falling to fallback_unknown. The original
+  // pattern set required "どういう/どんな + スキル/経験" and didn't
+  // cover the "どういった + 方/人/募集" axis or short-form "経験は？".
+  // None of the additions overlap with headcount (/何名|人数|何人/) or
+  // hiring_reason (/募集背景/) — both require their own anchor keyword
+  // that none of the new patterns include.
   {
     intent: "skill_requirement_broad",
     userPatterns: [
@@ -138,9 +176,25 @@ const INTENT_PATTERNS: ReadonlyArray<{
       /スキル.*必要/,
       /スキル面/,
       /経験面/,
+      /スキルセット/,
+      /どういった.*方/,
+      /どういった.*人/,
+      /どういった.*募集/,
+      /どんな.*方/,
+      /どんな.*人/,
+      /どんな方.*募集/,
+      /どんな人.*募集/,
+      /求め.*経験/,
+      /求め.*スキル/,
+      /必要.*経験/,
+      /必要.*スキル/,
+      /経験.*必要/,
+      /^経験は/,
+      /経験は[？?]?$/,
+      /募集.*方/,
+      /募集.*人/,
     ],
   },
-  { intent: "personality", userPatterns: [/人柄/, /合う.*人/, /人物面/, /性格/] },
   { intent: "billing_rate", userPatterns: [/単価/, /請求/, /時給/, /いくら/] },
   // decision_maker — expanded after the 2026-05-12 manual regression
   // ("はい、ありがとうございます。今回はー、決定される方はどなたですか？")

@@ -1,7 +1,7 @@
 [
   {
     "intent": "mission",
-    "spokenTextForGeneration": "じんじ課では、派遣スタッフの受け入れや管理を担当しています。",
+    "spokenTextForGeneration": "人事課では、派遣スタッフの受け入れや管理を担当しています。",
     "displayText": "人事課では、派遣スタッフの受け入れや管理を担当しています。"
   },
   {
@@ -11,22 +11,22 @@
   },
   {
     "intent": "job_content",
-    "spokenTextForGeneration": "じゅはっちゅうや納期調整まわりの営業事務です。",
-    "displayText": "受発注や納期調整まわりの営業事務です。"
+    "spokenTextForGeneration": "受注や発注、納期調整まわりの営業事務です。",
+    "displayText": "受注や発注、納期調整まわりの営業事務です。"
   },
   {
     "intent": "start_date",
-    "spokenTextForGeneration": "開始は六月ついたちを希望しています。",
+    "spokenTextForGeneration": "開始は6月1日を希望しています。",
     "displayText": "開始は6月1日を希望しています。"
   },
   {
     "intent": "order_volume",
-    "spokenTextForGeneration": "つきあたり、ろっぴゃく件から、ななひゃっけん程度です。",
+    "spokenTextForGeneration": "月あたり、600件から700件程度です。",
     "displayText": "月あたり、600件から700件程度です。"
   },
   {
     "intent": "busy_period",
-    "spokenTextForGeneration": "月のおわりと月の初め、月曜日の午前中、商品が切り替わる時期に負荷が上がります。",
+    "spokenTextForGeneration": "げつまつとげっしょ、月曜日の午前中、商品が切り替わる時期に負荷が上がります。",
     "displayText": "月末と月初、月曜日の午前中、商品が切り替わる時期に負荷が上がります。"
   },
   {
@@ -46,27 +46,27 @@
   },
   {
     "intent": "skill_requirement_broad",
-    "spokenTextForGeneration": "じゅはっちゅう経験と対外調整の経験がある方を優先的に見ています。",
-    "displayText": "受発注経験と対外調整の経験がある方を優先的に見ています。"
+    "spokenTextForGeneration": "受注や発注の経験と対外調整の経験がある方を優先的に見ています。",
+    "displayText": "受注や発注の経験と対外調整の経験がある方を優先的に見ています。"
   },
   {
     "intent": "personality",
-    "spokenTextForGeneration": "周囲と合わせて進められるタイプが合いやすく、自分のやり方にこだわりすぎる方は合いにくいです。",
+    "spokenTextForGeneration": "協調型のタイプが合いやすく、自己流にこだわりすぎる方は合いにくいです。",
     "displayText": "協調型のタイプが合いやすく、自己流にこだわりすぎる方は合いにくいです。"
   },
   {
     "intent": "billing_rate",
-    "spokenTextForGeneration": "請求想定は経験により、せんななひゃくごじゅう円から、せんきゅうひゃく円程度です。",
-    "displayText": "請求想定は経験により、千七百五十円から、千九百円程度です。"
+    "spokenTextForGeneration": "請求想定は経験により、1750円から1900円程度です。",
+    "displayText": "請求想定は経験により、1750円から1900円程度です。"
   },
   {
     "intent": "decision_maker",
-    "spokenTextForGeneration": "ベンダー選定はじんじが主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。",
+    "spokenTextForGeneration": "ベンダー選定は人事が主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。",
     "displayText": "ベンダー選定は人事が主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。"
   },
   {
     "intent": "wednesday_followup",
-    "spokenTextForGeneration": "はい、お願いします。アデコさんの派遣の特徴やたしゃさんとの違いも、整理しておきたいと考えています。",
+    "spokenTextForGeneration": "はい、お願いします。アデコさんの派遣の特徴や他社さんとの違いも、整理しておきたいと考えています。",
     "displayText": "はい、お願いします。アデコさんの派遣の特徴や他社さんとの違いも、整理しておきたいと考えています。"
   },
   {
@@ -76,12 +76,12 @@
   },
   {
     "intent": "working_hours",
-    "spokenTextForGeneration": "平日は朝八時よんじゅうごふんから夕方五時三十分です。",
+    "spokenTextForGeneration": "平日は朝8時45分から夕方5時30分です。",
     "displayText": "平日は朝8時45分から夕方5時30分です。"
   },
   {
     "intent": "overtime",
-    "spokenTextForGeneration": "残業は、つきじゅうからじゅうごじかん程度です。",
+    "spokenTextForGeneration": "残業は、月10から15時間程度です。",
     "displayText": "残業は、月10から15時間程度です。"
   },
   {
@@ -96,8 +96,8 @@
   },
   {
     "intent": "greeting",
-    "spokenTextForGeneration": "PENDING_GREETING_FILL — populated by the build script from the scenario bundle's firstMessageJa at run time. Source.json keeps this placeholder so the manifest schema doesn't break before the first build.",
-    "displayText": "PENDING_GREETING_FILL"
+    "spokenTextForGeneration": "お時間ありがとうございます。今回は新しい派遣会社さんということで、まず弊社の状況をお伝えしながら、要件を整理いただければと思っています。進め方も含めて確認いただければと思います。",
+    "displayText": "お時間ありがとうございます。今回は新しい派遣会社さんということで、まず弊社の状況をお伝えしながら、要件を整理いただければと思っています。進め方も含めて確認いただければと思います。"
   },
   {
     "intent": "multi_intent_redirect",
@@ -106,8 +106,8 @@
   },
   {
     "intent": "fallback_unknown",
-    "spokenTextForGeneration": "その点は確認します。",
-    "displayText": "その点は確認します。"
+    "spokenTextForGeneration": "求人要件の範囲で整理します。",
+    "displayText": "求人要件の範囲で整理します。"
   },
   {
     "intent": "fallback_audio_not_ready",

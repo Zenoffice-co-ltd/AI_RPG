@@ -126,7 +126,7 @@ export function assertHaikuFishEnvForProduction() {
 const grokVoiceServerEnvSchema = z.object({
   XAI_API_KEY: z.string().min(1),
   GROK_VOICE_MODEL: z.string().min(1).default("grok-voice-think-fast-1.0"),
-  GROK_VOICE_VOICE_ID: z.string().min(1).default("rex"),
+  GROK_VOICE_VOICE_ID: z.string().min(1).default("99c95cc8a177"),
   GROK_VOICE_INPUT_FORMAT: z.string().min(1).default("audio/pcm"),
   GROK_VOICE_OUTPUT_FORMAT: z.string().min(1).default("audio/pcm"),
   GROK_VOICE_SAMPLE_RATE: z.coerce.number().int().positive().default(24_000),

@@ -8,6 +8,7 @@ import {
   type CanonicalIntent,
 } from "../../lib/roleplay/registered-speech/canonical-intents";
 import {
+  REGISTERED_SPEECH_VOICE_ID,
   RegisteredSpeechManifestSchema,
   type RegisteredSpeechManifest,
   type RegisteredSpeechArtifact,
@@ -16,6 +17,13 @@ import {
   containsVoiceStockSuffix,
   sanitizeGrokVoiceSpokenText,
 } from "../../lib/roleplay/grok-voice-pr60-shared";
+import {
+  assertHumanApproved,
+  assertNoArtifactPlaceholder,
+  findForbiddenAssistantQuestionSuffix,
+  isAsciiOnly,
+  isGreetingDurationOutOfRange,
+} from "../../lib/roleplay/registered-speech/text-guards";
 
 // On-disk manifest loader. Read once at server cold start, validates
 // the manifest against the schema, recomputes sha256 of every audio
@@ -53,6 +61,15 @@ async function loadAndValidate(): Promise<LoadedRegisteredSpeechManifest> {
   const raw = await readFile(manifestPath, "utf8");
   const parsed = RegisteredSpeechManifestSchema.parse(JSON.parse(raw));
 
+  if (parsed.voiceId !== REGISTERED_SPEECH_VOICE_ID) {
+    // The schema literal already enforces this, but a runtime check
+    // gives a clearer error than a Zod parse failure if the constant is
+    // ever bumped without a manifest rebuild.
+    throw new Error(
+      `[registered-speech] manifest voiceId mismatch: expected=${REGISTERED_SPEECH_VOICE_ID} actual=${parsed.voiceId}`
+    );
+  }
+
   const expectedIntents = new Set<string>(REQUIRED_REGISTERED_SPEECH_INTENTS);
   const seenIntents = new Set<string>();
   const audioBase64ByIntent = new Map<CanonicalIntent, string>();
@@ -70,6 +87,21 @@ async function loadAndValidate(): Promise<LoadedRegisteredSpeechManifest> {
       );
     }
     assertNoForbiddenSuffix(entry);
+    assertNoArtifactPlaceholder(entry.intent, entry.spokenText);
+    assertNoArtifactPlaceholder(entry.intent, entry.displayText);
+    const spokenQ = findForbiddenAssistantQuestionSuffix(entry.spokenText);
+    if (spokenQ) {
+      throw new Error(
+        `[registered-speech][${entry.intent}] spokenText ends with forbidden assistant question suffix: ${spokenQ}`
+      );
+    }
+    const displayQ = findForbiddenAssistantQuestionSuffix(entry.displayText);
+    if (displayQ) {
+      throw new Error(
+        `[registered-speech][${entry.intent}] displayText ends with forbidden assistant question suffix: ${displayQ}`
+      );
+    }
+    assertHumanApproved(entry.intent, entry.approvedBy, entry.approvedAt);
 
     const audioBytes = await readFile(resolve(root, entry.audioPath));
     const actualSha = createHash("sha256").update(audioBytes).digest("hex");
@@ -80,6 +112,30 @@ async function loadAndValidate(): Promise<LoadedRegisteredSpeechManifest> {
       );
     }
     audioBase64ByIntent.set(entry.intent, audioBytes.toString("base64"));
+  }
+
+  // Greeting-specific cold-start guard. The placeholder/question/sha
+  // checks above already cover most failure modes, but the PR-93
+  // English placeholder slipped past every existing check because none
+  // of them looked at "is this even Japanese?" — make it explicit.
+  // Duration is a SOFT warn (the placeholder + ASCII checks already
+  // hard-fail the actual bug class; duration alone can't disambiguate
+  // a long natural greeting from a long English placeholder, since
+  // the PR-93 placeholder fit comfortably under the original 8s
+  // sanity bound).
+  const greeting = parsed.entries.find((e) => e.intent === "greeting");
+  if (greeting) {
+    if (isAsciiOnly(greeting.spokenText) || isAsciiOnly(greeting.displayText)) {
+      throw new Error(
+        `[registered-speech][greeting] artifact text contains no Japanese characters (looks like an English placeholder): spoken=${greeting.spokenText.slice(0, 80)} display=${greeting.displayText.slice(0, 80)}`
+      );
+    }
+    if (isGreetingDurationOutOfRange(greeting.durationMs)) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[registered-speech][greeting] WARN durationMs=${greeting.durationMs} outside sanity range [3000, 18000]; tolerated, but operator should re-listen.`
+      );
+    }
   }
 
   for (const required of REQUIRED_REGISTERED_SPEECH_INTENTS) {

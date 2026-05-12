@@ -51,6 +51,12 @@ import {
   EXPECTED_TOKENS_BY_INTENT,
   checkExpectedTokens,
 } from "../apps/web/lib/roleplay/registered-speech/expected-tokens";
+import {
+  assertNoArtifactPlaceholder,
+  containsForbiddenAssistantQuestionSuffix,
+  isGreetingDurationOutOfRange,
+} from "../apps/web/lib/roleplay/registered-speech/text-guards";
+import { REGISTERED_SPEECH_VOICE_ID } from "../apps/web/lib/roleplay/registered-speech/types";
 import { synthesizeGrokVoiceTts } from "../apps/web/server/grokVoice/tts";
 import { transcribeHaikuFishAudio } from "../apps/web/server/haikuFish/transcribe";
 
@@ -238,22 +244,36 @@ function pcmToWav(pcmBytes: Buffer, sampleRateHz = 24000): Buffer {
 }
 
 function buildReviewHtml(report: BuildReport, wavDir: string): string {
-  const rows = report.intents
-    .map(
-      (entry) => `
-      <tr class="${entry.ok ? "ok" : "fail"}">
+  // Promote `greeting` to the first row so the reviewer can't miss it.
+  // PR-93 shipped a placeholder English greeting (sha256 8ed61df9..., 13.79s)
+  // that everyone overlooked when the artifact was buried mid-table.
+  const ordered = [
+    ...report.intents.filter((e) => e.intent === "greeting"),
+    ...report.intents.filter((e) => e.intent !== "greeting"),
+  ];
+  const rows = ordered
+    .map((entry) => {
+      const durationOutOfRange =
+        entry.intent === "greeting" && isGreetingDurationOutOfRange(entry.durationMs);
+      const trClass = !entry.ok
+        ? "fail"
+        : durationOutOfRange
+          ? "warn"
+          : "ok";
+      return `
+      <tr class="${trClass}">
         <td>${entry.intent}</td>
         <td>${entry.ok ? "OK" : "FAIL"}</td>
         <td>${entry.sha256.slice(0, 12)}…</td>
-        <td>${entry.durationMs} ms</td>
+        <td>${entry.durationMs} ms${durationOutOfRange ? " ⚠️" : ""}</td>
         <td><audio controls preload="none" src="wav/${entry.intent}.wav"></audio></td>
         <td>${escapeHtml(entry.asrText)}</td>
         <td>${entry.expectedTokensMatched.join(" / ")}</td>
         <td>${entry.expectedTokensMissing.join(" / ")}</td>
         <td>${entry.forbiddenSuffixHit ? "HIT" : "clean"}</td>
       </tr>
-    `
-    )
+    `;
+    })
     .join("");
   return `<!doctype html><meta charset="utf-8"><title>Registered Speech Build ${report.builtAt}</title>
 <style>
@@ -263,9 +283,24 @@ function buildReviewHtml(report: BuildReport, wavDir: string): string {
   tr.ok td:nth-child(2) { color: #16a34a; font-weight: 600; }
   tr.fail { background: #fef2f2; }
   tr.fail td:nth-child(2) { color: #b91c1c; font-weight: 600; }
+  tr.warn { background: #fefce8; }
+  tr.warn td:nth-child(2) { color: #b45309; font-weight: 600; }
+  .greeting-warn {
+    background: #fef3c7;
+    border-left: 4px solid #d97706;
+    padding: 12px 16px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
 </style>
 <h1>Registered Speech Build ${escapeHtml(report.builtAt)}</h1>
 <p>Candidate: <code>${escapeHtml(report.candidatePath)}</code></p>
+<div class="greeting-warn">
+  <strong>Critical artifact: greeting</strong> — must be Japanese, no placeholder
+  (PENDING / PLACEHOLDER / populated by ...), no question suffix
+  (ありますか / ですか / でしょうか), durationMs in [3000, 8000].
+  Listen to it FIRST.
+</div>
 <p>Listen to every artifact. If pronunciation is wrong, REJECT — the audio sha256 is the final guarantee.</p>
 <table>
   <thead><tr>
@@ -312,6 +347,20 @@ async function main() {
   if (!apiKey || apiKey.length < 32 || apiKey.startsWith("test-")) {
     console.error(
       "BLOCKED: XAI_API_KEY not available. Tried shell env + gcloud Secret Manager (zapier-transfer, adecco-mendan)."
+    );
+    process.exit(2);
+  }
+  // Voice ID env must match the schema constant. PR-93 shipped a manifest
+  // with voiceId=rex while the runtime expected the same string; bumping
+  // the schema constant without flipping the env (or vice versa) would
+  // ship a mixed-voice 23-artifact set. Fail fast here so a partial
+  // change can never reach TTS synthesis.
+  const actualVoiceEnv = process.env["GROK_VOICE_VOICE_ID"] ?? "";
+  if (actualVoiceEnv !== REGISTERED_SPEECH_VOICE_ID) {
+    console.error(
+      `BLOCKED: GROK_VOICE_VOICE_ID must be ${REGISTERED_SPEECH_VOICE_ID} (Haruto), got ${
+        actualVoiceEnv || "(empty)"
+      }`
     );
     process.exit(2);
   }
@@ -363,6 +412,25 @@ async function main() {
     throw new Error(
       `[build-registered-speech] source.json has unexpected intents (count=${sourceIntents.size} required=${REQUIRED_REGISTERED_SPEECH_INTENTS.length})`
     );
+  }
+
+  // Pre-TTS guards: catch placeholder strings (PR-93 shipped a greeting
+  // artifact whose spokenText was the literal "PENDING_GREETING_FILL...")
+  // and forbidden assistant question suffixes BEFORE burning a TTS quota
+  // request synthesizing them.
+  for (const entry of source) {
+    assertNoArtifactPlaceholder(entry.intent, entry.spokenTextForGeneration);
+    assertNoArtifactPlaceholder(entry.intent, entry.displayText);
+    if (containsForbiddenAssistantQuestionSuffix(entry.spokenTextForGeneration)) {
+      throw new Error(
+        `[build-registered-speech][${entry.intent}] spokenTextForGeneration ends with a forbidden assistant question suffix: ${entry.spokenTextForGeneration}`
+      );
+    }
+    if (containsForbiddenAssistantQuestionSuffix(entry.displayText)) {
+      throw new Error(
+        `[build-registered-speech][${entry.intent}] displayText ends with a forbidden assistant question suffix: ${entry.displayText}`
+      );
+    }
   }
 
   const builtAt = new Date().toISOString().replace(/[:.]/g, "-");
@@ -454,7 +522,7 @@ async function main() {
   const candidateManifest = {
     version: "v1" as const,
     buildId: builtAt,
-    voiceId: "rex" as const,
+    voiceId: REGISTERED_SPEECH_VOICE_ID,
     sampleRateHz: 24000 as const,
     codec: "pcm" as const,
     entries: report.intents.map((r) => {

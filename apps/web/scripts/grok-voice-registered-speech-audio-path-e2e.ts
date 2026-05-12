@@ -73,15 +73,41 @@ let GrokVoiceAudioQueue: typeof import("../lib/roleplay/grok-voice-audio-queue")
 let REQUIRED_REGISTERED_SPEECH_INTENTS: typeof import("../lib/roleplay/registered-speech/canonical-intents").REQUIRED_REGISTERED_SPEECH_INTENTS;
 let REGISTERED_SPEECH_CLIENT_MANIFEST_VERSION: string;
 let REGISTERED_SPEECH_CLIENT_BUILD_ID: string;
+let REGISTERED_SPEECH_VOICE_ID: string;
 let containsVoiceStockSuffix: typeof import("../lib/roleplay/grok-voice-pr60-shared").containsVoiceStockSuffix;
 let setGrokVoiceClientDeterministicMode: typeof import("../lib/roleplay/grok-voice-client").setGrokVoiceClientDeterministicMode;
+let findArtifactPlaceholderPattern: typeof import("../lib/roleplay/registered-speech/text-guards").findArtifactPlaceholderPattern;
+let findForbiddenAssistantQuestionSuffix: typeof import("../lib/roleplay/registered-speech/text-guards").findForbiddenAssistantQuestionSuffix;
+let isAsciiOnly: typeof import("../lib/roleplay/registered-speech/text-guards").isAsciiOnly;
+let isGreetingDurationOutOfRange: typeof import("../lib/roleplay/registered-speech/text-guards").isGreetingDurationOutOfRange;
 
 // -------- Manifest loader (real bundle from disk) --------
+
+type LoadedManifestEntry = {
+  intent: CanonicalIntent;
+  spokenText: string;
+  displayText: string;
+  audioPath: string;
+  sha256: string;
+  durationMs: number;
+  approvedBy: string;
+  approvedAt: string;
+};
 
 type LoadedBundle = {
   bundle: RegisteredSpeechBundle;
   // Map from intent → audioBase64 we expect to be played. Built once.
   expectedByIntent: Map<CanonicalIntent, string>;
+  // Raw manifest object — kept so A48/A49 can assert greeting durationMs,
+  // voiceId, approval, etc. without round-tripping through the bundle.
+  manifest: {
+    version: "v1";
+    buildId: string;
+    voiceId: string;
+    sampleRateHz: 24000;
+    codec: "pcm";
+    entries: LoadedManifestEntry[];
+  };
 };
 
 async function loadPromotedBundle(): Promise<LoadedBundle> {
@@ -103,7 +129,7 @@ async function loadPromotedBundle(): Promise<LoadedBundle> {
   const manifest = JSON.parse(manifestRaw) as {
     version: "v1";
     buildId: string;
-    voiceId: "rex";
+    voiceId: string;
     sampleRateHz: 24000;
     codec: "pcm";
     entries: Array<{
@@ -113,6 +139,8 @@ async function loadPromotedBundle(): Promise<LoadedBundle> {
       audioPath: string;
       sha256: string;
       durationMs: number;
+      approvedBy: string;
+      approvedAt: string;
     }>;
   };
 
@@ -146,15 +174,22 @@ async function loadPromotedBundle(): Promise<LoadedBundle> {
       durationMs: entry.durationMs,
     });
   }
+  // Cast to `RegisteredSpeechBundle["voiceId"]` so the literal-typed
+  // schema accepts the runtime-loaded constant. The runtime constant
+  // matches the schema literal by construction (both come from
+  // REGISTERED_SPEECH_VOICE_ID), so this is purely a TS coercion.
   const bundle: RegisteredSpeechBundle = {
     manifestVersion: "v1",
     buildId: manifest.buildId,
-    voiceId: "rex",
+    voiceId: REGISTERED_SPEECH_VOICE_ID as RegisteredSpeechBundle["voiceId"],
     sampleRateHz: 24000,
     codec: "pcm",
     artifacts,
   };
-  return { bundle, expectedByIntent };
+  // Hand back the manifest entries too — A48 (greeting artifact check)
+  // and A49 (session voiceId check) need the raw manifest fields
+  // (durationMs, voiceId) without the bundle round-trip.
+  return { bundle, expectedByIntent, manifest };
 }
 
 // -------- Stub audio queue (records every chunk) --------
@@ -283,7 +318,7 @@ function buildDeterministicSession(
     promptHash: "abc",
     guardrailVersion: "gv-test",
     grokVoiceModel: "grok-voice-think-fast-1.0",
-    grokVoiceVoiceId: "rex",
+    grokVoiceVoiceId: REGISTERED_SPEECH_VOICE_ID,
     wsUrl: "wss://api.x.ai/v1/realtime?model=grok-voice-think-fast-1.0",
     ephemeralToken: "ephemeral",
     ephemeralExpiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -437,7 +472,101 @@ const CASES: Case[] = [
     input: "では、業務時間は？",
     expect: { kind: "intent_hit", intent: "working_hours" },
   },
+  // 2026-05-12 manual-regression coverage (PR-94 / Haruto hotfix). The
+  // five A50-A54 inputs MUST route to a non-fallback intent — they are
+  // the business utterances that fell to fallback_unknown in PR-93's
+  // production demo and are now the load-bearing matcher coverage. The
+  // post-loop A55 assertion (BUSINESS_MANUAL_FALLBACK_INPUTS) re-checks
+  // that none of them landed on fallback_unknown.
+  {
+    id: "A50",
+    label: "engagement_scope manual requirements (broker opener)",
+    input: "今回の要件は、",
+    expect: { kind: "intent_hit", intent: "engagement_scope" },
+  },
+  {
+    id: "A51",
+    label: "engagement_scope requirements detail",
+    input: "今回の要件を教えてください",
+    expect: { kind: "intent_hit", intent: "engagement_scope" },
+  },
+  {
+    id: "A52",
+    label: "skill_requirement_broad manual person",
+    input: "どういった方を募集されてますか？",
+    expect: { kind: "intent_hit", intent: "skill_requirement_broad" },
+  },
+  {
+    id: "A53",
+    label: "skill_requirement_broad experience short",
+    input: "経験は？",
+    expect: { kind: "intent_hit", intent: "skill_requirement_broad" },
+  },
+  {
+    id: "A54",
+    label: "skill_requirement_broad requested experience",
+    input: "求める経験は何ですか？",
+    expect: { kind: "intent_hit", intent: "skill_requirement_broad" },
+  },
+  // E2E matrix coverage (2026-05-12 Haruto closeout). These mirror
+  // sections A-B / A-R of the post-merge quality maintenance gates and
+  // exercise broker phrasings that aren't yet covered by A01-A47.
+  {
+    id: "A56",
+    label: "skill_requirement_broad どんな人を募集 (matrix A-B07)",
+    input: "どんな人を募集していますか？",
+    expect: { kind: "intent_hit", intent: "skill_requirement_broad" },
+  },
+  {
+    id: "A57",
+    label: "headcount 人数は何名 (matrix A-B08)",
+    input: "人数は何名ですか？",
+    expect: { kind: "intent_hit", intent: "headcount" },
+  },
+  {
+    id: "A58",
+    label: "billing_rate 請求単価は (matrix A-B10)",
+    input: "請求単価は？",
+    expect: { kind: "intent_hit", intent: "billing_rate" },
+  },
+  {
+    id: "A59",
+    label: "decision_maker 決定される方 short (matrix A-B14)",
+    input: "決定される方はどなたですか？",
+    expect: { kind: "intent_hit", intent: "decision_maker" },
+  },
+  {
+    id: "A60",
+    label: "repeat working_hours via もう一回 (matrix A-R03)",
+    input: "業務時間は？",
+    expect: {
+      kind: "repeat_replay",
+      firstIntent: "working_hours",
+      repeatInput: "もう一回お願いします",
+    },
+  },
+  {
+    id: "A61",
+    label: "repeat overtime via 再度 (matrix A-R04)",
+    input: "残業は月どれくらいですか？",
+    expect: {
+      kind: "repeat_replay",
+      firstIntent: "overtime",
+      repeatInput: "再度お願いします",
+    },
+  },
 ];
+
+// A55 / B107 — the business-manual fallback gate. A55 checks (in main())
+// that none of these inputs ever landed on fallback_unknown across the
+// whole CASES run. The list MUST stay in sync with A50-A54 above.
+const BUSINESS_MANUAL_FALLBACK_INPUTS: ReadonlySet<string> = new Set([
+  "今回の要件は、",
+  "今回の要件を教えてください",
+  "どういった方を募集されてますか？",
+  "経験は？",
+  "求める経験は何ですか？",
+]);
 
 // -------- Per-case driver --------
 
@@ -782,6 +911,14 @@ async function main() {
   const clientMod = await import("../lib/roleplay/grok-voice-client");
   setGrokVoiceClientDeterministicMode =
     clientMod.setGrokVoiceClientDeterministicMode;
+  const typesMod = await import("../lib/roleplay/registered-speech/types");
+  REGISTERED_SPEECH_VOICE_ID = typesMod.REGISTERED_SPEECH_VOICE_ID;
+  const guardsMod = await import("../lib/roleplay/registered-speech/text-guards");
+  findArtifactPlaceholderPattern = guardsMod.findArtifactPlaceholderPattern;
+  findForbiddenAssistantQuestionSuffix =
+    guardsMod.findForbiddenAssistantQuestionSuffix;
+  isAsciiOnly = guardsMod.isAsciiOnly;
+  isGreetingDurationOutOfRange = guardsMod.isGreetingDurationOutOfRange;
 
   const loaded = await loadPromotedBundle();
   for (const a of loaded.bundle.artifacts) {
@@ -808,6 +945,61 @@ async function main() {
     }
   }
 
+  // Standalone bundle/manifest checks (A48 greeting, A49 voiceId).
+  // These run BEFORE the per-turn cases so a broken artifact bundle
+  // surfaces before we burn cycles on per-case turn drives.
+  const standaloneChecks: Array<{ id: string; label: string; pass: boolean; reason?: string }> = [];
+
+  // A48 — greeting artifact validation (placeholder / ASCII / question / duration)
+  {
+    const greeting = loaded.bundle.artifacts.find((a) => a.intent === "greeting");
+    const reasons: string[] = [];
+    if (!greeting) {
+      reasons.push("greeting artifact missing from bundle");
+    } else {
+      const spokenP = findArtifactPlaceholderPattern(greeting.spokenText);
+      if (spokenP) reasons.push(`spokenText placeholder ${spokenP}`);
+      const displayP = findArtifactPlaceholderPattern(greeting.displayText);
+      if (displayP) reasons.push(`displayText placeholder ${displayP}`);
+      if (isAsciiOnly(greeting.spokenText)) reasons.push("spokenText is ASCII-only (no Japanese)");
+      if (isAsciiOnly(greeting.displayText)) reasons.push("displayText is ASCII-only (no Japanese)");
+      const spokenQ = findForbiddenAssistantQuestionSuffix(greeting.spokenText);
+      if (spokenQ) reasons.push(`spokenText question suffix ${spokenQ}`);
+      const displayQ = findForbiddenAssistantQuestionSuffix(greeting.displayText);
+      if (displayQ) reasons.push(`displayText question suffix ${displayQ}`);
+      if (isGreetingDurationOutOfRange(greeting.durationMs)) {
+        reasons.push(`durationMs ${greeting.durationMs} outside [3000, 8000]`);
+      }
+    }
+    const pass = reasons.length === 0;
+    standaloneChecks.push({
+      id: "A48",
+      label: "greeting artifact validation",
+      pass,
+      ...(pass ? {} : { reason: reasons.join("; ") }),
+    });
+    process.stdout.write(`[A48] greeting artifact validation ... ${pass ? "PASS" : "FAIL"}${pass ? "" : ` (${reasons.join("; ")})`}\n`);
+  }
+
+  // A49 — session/bundle voiceId equals the schema constant
+  {
+    const reasons: string[] = [];
+    if (loaded.bundle.voiceId !== REGISTERED_SPEECH_VOICE_ID) {
+      reasons.push(`bundle.voiceId=${loaded.bundle.voiceId} expected=${REGISTERED_SPEECH_VOICE_ID}`);
+    }
+    if (loaded.manifest.voiceId !== REGISTERED_SPEECH_VOICE_ID) {
+      reasons.push(`manifest.voiceId=${loaded.manifest.voiceId} expected=${REGISTERED_SPEECH_VOICE_ID}`);
+    }
+    const pass = reasons.length === 0;
+    standaloneChecks.push({
+      id: "A49",
+      label: "session/bundle voiceId matches REGISTERED_SPEECH_VOICE_ID",
+      pass,
+      ...(pass ? {} : { reason: reasons.join("; ") }),
+    });
+    process.stdout.write(`[A49] session voiceId check ... ${pass ? "PASS" : "FAIL"}${pass ? "" : ` (${reasons.join("; ")})`}\n`);
+  }
+
   const results: CaseResult[] = [];
   for (const caseDef of CASES) {
     process.stdout.write(`[${caseDef.id}] ${caseDef.label} ... `);
@@ -816,6 +1008,33 @@ async function main() {
     process.stdout.write(`${r.pass ? "PASS" : "FAIL"}${r.reason ? ` (${r.reason})` : ""}\n`);
   }
 
+  // A55 — business manual fallback gate. None of the broker's natural
+  // recruitment-profile / requirements queries may land on
+  // fallback_unknown. Each input has a per-case A50-A54 entry above
+  // (which checks the EXACT routed intent), but A55 is the additional
+  // belt-and-braces "the route was never the fallback artifact" gate.
+  {
+    const businessFallbackHits = results.filter(
+      (r) =>
+        BUSINESS_MANUAL_FALLBACK_INPUTS.has(
+          CASES.find((c) => c.id === r.id)?.input ?? ""
+        ) && r.routePath === "registered_speech_fallback"
+    );
+    const pass = businessFallbackHits.length === 0;
+    standaloneChecks.push({
+      id: "A55",
+      label: "business manual regression set fallback_unknown count = 0",
+      pass,
+      ...(pass
+        ? {}
+        : {
+            reason: `${businessFallbackHits.length} business turns hit fallback_unknown: ${businessFallbackHits.map((r) => r.id).join(", ")}`,
+          }),
+    });
+    process.stdout.write(`[A55] business manual fallback gate ... ${pass ? "PASS" : "FAIL"}${pass ? "" : ` (${businessFallbackHits.length} hits)`}\n`);
+  }
+
+  const standalonePass = standaloneChecks.every((c) => c.pass);
   const summary = {
     builtAt: new Date().toISOString(),
     bundleBuildId: loaded.bundle.buildId,
@@ -823,7 +1042,9 @@ async function main() {
     totalCases: results.length,
     passCount: results.filter((r) => r.pass).length,
     failCount: results.filter((r) => !r.pass).length,
-    overallPass: results.every((r) => r.pass),
+    standaloneChecks,
+    standalonePass,
+    overallPass: results.every((r) => r.pass) && standalonePass,
     // Required metrics per the implementation guide:
     registeredSpeechPlaybackCount: results.filter(
       (r) =>

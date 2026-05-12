@@ -33,12 +33,22 @@ import {
   REQUIRED_REGISTERED_SPEECH_INTENTS,
   type CanonicalIntent,
 } from "../apps/web/lib/roleplay/registered-speech/canonical-intents";
-import { RegisteredSpeechManifestSchema } from "../apps/web/lib/roleplay/registered-speech/types";
+import {
+  REGISTERED_SPEECH_VOICE_ID,
+  RegisteredSpeechManifestSchema,
+} from "../apps/web/lib/roleplay/registered-speech/types";
 import {
   containsVoiceStockSuffix,
   sanitizeGrokVoiceSpokenText,
 } from "../apps/web/lib/roleplay/grok-voice-pr60-shared";
 import { EXPECTED_TOKENS_BY_INTENT } from "../apps/web/lib/roleplay/registered-speech/expected-tokens";
+import {
+  PENDING_APPROVAL_SENTINEL,
+  findArtifactPlaceholderPattern,
+  findForbiddenAssistantQuestionSuffix,
+  isAsciiOnly,
+  isGreetingDurationOutOfRange,
+} from "../apps/web/lib/roleplay/registered-speech/text-guards";
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(currentDir, "..");
@@ -127,6 +137,45 @@ function verifyCandidate(failures: Failure[]) {
         `${entry.intent}: ${displayScan.removedPatternIds.join(", ")}`
       );
     }
+    // Placeholder strings (PENDING_*, "populated by the build script"
+    // etc.) — PR-93 shipped a greeting whose spokenTextForGeneration was
+    // the placeholder docblock itself. Catch it before TTS burns quota.
+    const spokenPlaceholder = findArtifactPlaceholderPattern(entry.spokenTextForGeneration);
+    if (spokenPlaceholder) {
+      pushFail(
+        failures,
+        "candidate_placeholder_spoken",
+        `${entry.intent}: matches ${spokenPlaceholder}`
+      );
+    }
+    const displayPlaceholder = findArtifactPlaceholderPattern(entry.displayText);
+    if (displayPlaceholder) {
+      pushFail(
+        failures,
+        "candidate_placeholder_display",
+        `${entry.intent}: matches ${displayPlaceholder}`
+      );
+    }
+    // Assistant question suffix — separate from sanitize's stock-suffix
+    // patterns. Artifacts are customer roleplay responses; ending one
+    // with "ありますか？" / "ですか？" turns it into a question, which
+    // the DOD forbids.
+    const spokenQ = findForbiddenAssistantQuestionSuffix(entry.spokenTextForGeneration);
+    if (spokenQ) {
+      pushFail(
+        failures,
+        "candidate_question_suffix_spoken",
+        `${entry.intent}: matches ${spokenQ}`
+      );
+    }
+    const displayQ = findForbiddenAssistantQuestionSuffix(entry.displayText);
+    if (displayQ) {
+      pushFail(
+        failures,
+        "candidate_question_suffix_display",
+        `${entry.intent}: matches ${displayQ}`
+      );
+    }
   }
 
   for (const required of REQUIRED_REGISTERED_SPEECH_INTENTS) {
@@ -159,6 +208,14 @@ function verifyPromoted(failures: Failure[]) {
   } catch (error) {
     pushFail(failures, "manifest_schema", (error as Error).message);
     return;
+  }
+
+  if (manifest.voiceId !== REGISTERED_SPEECH_VOICE_ID) {
+    pushFail(
+      failures,
+      "voice_id_mismatch",
+      `expected=${REGISTERED_SPEECH_VOICE_ID} got=${manifest.voiceId}`
+    );
   }
 
   if (manifest.entries.length !== REQUIRED_REGISTERED_SPEECH_INTENTS.length) {
@@ -223,6 +280,69 @@ function verifyPromoted(failures: Failure[]) {
     }
     if (containsVoiceStockSuffix(entry.asrText)) {
       pushFail(failures, "forbidden_suffix_asr", entry.intent);
+    }
+    // Placeholder strings — promoted manifest must never contain them.
+    const spokenPlaceholder = findArtifactPlaceholderPattern(entry.spokenText);
+    if (spokenPlaceholder) {
+      pushFail(
+        failures,
+        "placeholder_spoken",
+        `${entry.intent}: matches ${spokenPlaceholder}`
+      );
+    }
+    const displayPlaceholder = findArtifactPlaceholderPattern(entry.displayText);
+    if (displayPlaceholder) {
+      pushFail(
+        failures,
+        "placeholder_display",
+        `${entry.intent}: matches ${displayPlaceholder}`
+      );
+    }
+    // Question suffix — artifact-only check (user utterances are
+    // unaffected; this is the assistant's spoken/display text).
+    const spokenQ = findForbiddenAssistantQuestionSuffix(entry.spokenText);
+    if (spokenQ) {
+      pushFail(failures, "question_suffix_spoken", `${entry.intent}: matches ${spokenQ}`);
+    }
+    const displayQ = findForbiddenAssistantQuestionSuffix(entry.displayText);
+    if (displayQ) {
+      pushFail(failures, "question_suffix_display", `${entry.intent}: matches ${displayQ}`);
+    }
+    // Approval gate — candidate manifests stamp PENDING_HUMAN_APPROVAL
+    // and the promote step swaps in the real reviewer. A promoted
+    // manifest with PENDING_* still in place was never reviewed.
+    if (
+      entry.approvedBy === PENDING_APPROVAL_SENTINEL ||
+      entry.approvedAt === PENDING_APPROVAL_SENTINEL
+    ) {
+      pushFail(
+        failures,
+        "pending_human_approval",
+        `${entry.intent}: approvedBy=${entry.approvedBy} approvedAt=${entry.approvedAt}`
+      );
+    }
+  }
+
+  // Greeting-specific checks. The 13.79s English-placeholder PR-93
+  // greeting taught us that the catch-all checks above aren't
+  // sufficient for the one artifact that plays before the user has
+  // spoken. ASCII-only is a HARD fail; durationMs out of [3s, 18s] is
+  // a SOFT warn (printed to stderr but does not push to failures, so
+  // verify still exits 0 if every other check passes — the placeholder
+  // / ASCII checks above are the real blocker).
+  const greeting = manifest.entries.find((e) => e.intent === "greeting");
+  if (greeting) {
+    if (isAsciiOnly(greeting.spokenText) || isAsciiOnly(greeting.displayText)) {
+      pushFail(
+        failures,
+        "greeting_ascii_only",
+        `greeting must contain Japanese characters; spoken=${greeting.spokenText.slice(0, 60)} display=${greeting.displayText.slice(0, 60)}`
+      );
+    }
+    if (isGreetingDurationOutOfRange(greeting.durationMs)) {
+      console.warn(
+        `[verify-registered-speech] WARN greeting durationMs=${greeting.durationMs} is outside the sanity range [3000, 18000]; re-listen before merge.`
+      );
     }
   }
 
