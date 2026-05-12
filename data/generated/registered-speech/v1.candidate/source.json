@@ -56,8 +56,8 @@
   },
   {
     "intent": "billing_rate",
-    "spokenTextForGeneration": "請求想定は経験により、せんななひゃくごじゅう円から、せんきゅうひゃく円程度です。",
-    "displayText": "請求想定は経験により、千七百五十円から、千九百円程度です。"
+    "spokenTextForGeneration": "請求想定は経験により、1750円から1900円程度です。",
+    "displayText": "請求想定は経験により、1750円から1900円程度です。"
   },
   {
     "intent": "decision_maker",

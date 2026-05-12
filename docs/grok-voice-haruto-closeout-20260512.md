@@ -81,6 +81,48 @@ row with a yellow warning banner so it can't be skipped.
 | H-01 | greeting | Japanese, no English, no placeholder, no question suffix, naturally long is OK |
 | H-02 | billing_rate | せんななひゃくごじゅう円 / せんきゅうひゃく円 |
 | H-03 | skill_requirement_broad | 受注や発注の経験 (Haruto reads each kanji-word naturally; the prior じゅはっちゅう kana spelling sounded artificial) |
+
+## A/B verdict (2026-05-12, 3 rounds)
+
+The Haruto pronunciation A/B harness (operator-local) was run three times.
+Operator listened through `review.haruto-ab.html` and recorded judgments.
+
+### Round 1 — kana-rewrite (A) vs displayText kanji form (B)
+
+- **21 of 23 → B-wins** → drop kana rewrite, set spoken = display.
+  8 source.json entries had real text drift (mission, start_date,
+  order_volume, personality, decision_maker, wednesday_followup,
+  working_hours, overtime); the other 13 were already spoken == display.
+- **1 of 23 → A-wins**: billing_rate (kana rewrite preserved).
+- **1 of 23 → SKIP / 対象外**: busy_period (B mis-read 月末/月初 as
+  つきすえ/つきはじめ; A's 月のおわり/月の初め was too informal).
+  Operator suggested kana variant げつまつとげっしょ for round 2.
+
+### Round 2 — busy_period kana-fix + billing_rate arabic-digit experiment
+
+- **busy_period**: new spoken `げつまつとげっしょ、…`; displayText
+  unchanged `月末と月初、…`. Operator confirmed → A-wins (the new
+  production form). Stays in production.
+- **billing_rate** (operator-local override only, no manifest change):
+  B side synthesized from `請求想定は経験により、1650円から1900円程度です。`
+  with `text_normalization: true`. Tests whether xAI's normalization
+  can read arabic digits without our manual kana help.
+
+### Round 3 — billing_rate adoption
+
+- **billing_rate → B-wins** (xAI text_normalization reads
+  `1750円`/`1900円` naturally). Production source.json updated:
+  spoken = display = `請求想定は経験により、1750円から1900円程度です。`
+  (kana rewrite dropped). Override removed from `B_SIDE_TEXT_OVERRIDES`
+  so future A/B runs use displayText by default.
+
+### Final source.json shape post round-3
+
+All 23 intents now have `spokenText === displayText` except busy_period,
+which intentionally keeps spoken=`げつまつとげっしょ…` /
+display=`月末と月初…` for the business reading. The kana-rewrite
+strategy is otherwise retired in favor of natural kanji + xAI
+text_normalization.
 | H-04 | overtime | つきじゅうからじゅうごじかん |
 | H-05 | working_hours | 朝八時よんじゅうごふん / 夕方五時三十分 |
 | H-06 | busy_period | 月のおわり / 月の初め |

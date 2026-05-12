@@ -69,19 +69,24 @@ const TTS_SAMPLE_RATE = 24_000;
 // variant tests where displayText alone isn't enough to express the
 // thing we want to listen to.
 //
-// 2026-05-12: billing_rate scored A-wins in the first A/B round
-// (kana-rewrite "せんななひゃくごじゅう円" beat kanji-digit "千七百五十円").
-// The user wanted to additionally test arabic digits with
-// text_normalization=true to see if xAI can normalise the digits into
-// the natural Japanese reading without our manual kana help.
+// Per-intent override for the B-side TTS input text. When omitted, B
+// uses the manifest entry's displayText (the default "natural kanji
+// form, no dictionary" baseline). When present, B uses this string
+// instead — useful for "what if we wrote it differently?" variant
+// tests where displayText alone isn't enough to express the thing we
+// want to listen to.
 //
-// Round 2 (2026-05-12 evening) tests "1650円から1900円" instead of the
-// production figure "1750円から1900円" — the lower bound is shifted to
-// see if Haruto's reading is robust across different sen-units. The
-// production source.json's spoken/displayText is unchanged.
-const B_SIDE_TEXT_OVERRIDES: Record<string, string> = {
-  billing_rate: "請求想定は経験により、1650円から1900円程度です。",
-};
+// History:
+//   - 2026-05-12 round 1: billing_rate A=kana-rewrite vs B=kanji-digit
+//     (千七百五十円 form). A-wins; production kept the kana rewrite.
+//   - 2026-05-12 round 2: override added so B = arabic-digit
+//     "1650円から1900円" + text_normalization=true to test whether xAI
+//     can normalise without our manual kana help. B-wins.
+//   - 2026-05-12 round 3: production billing_rate adopted arabic-digit
+//     form (1750円 / 1900円), so the override was removed and B now
+//     defaults back to displayText (which equals spoken). Future
+//     overrides for any intent can be added here.
+const B_SIDE_TEXT_OVERRIDES: Record<string, string> = {};
 
 type CliArgs = { buildDir: string | null; limit: number | null };
 
