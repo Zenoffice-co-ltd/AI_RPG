@@ -72,10 +72,15 @@ const TTS_SAMPLE_RATE = 24_000;
 // 2026-05-12: billing_rate scored A-wins in the first A/B round
 // (kana-rewrite "せんななひゃくごじゅう円" beat kanji-digit "千七百五十円").
 // The user wanted to additionally test arabic digits with
-// text_normalization=true to see if xAI can normalise "1750円" into
-// the natural reading without our manual kana help.
+// text_normalization=true to see if xAI can normalise the digits into
+// the natural Japanese reading without our manual kana help.
+//
+// Round 2 (2026-05-12 evening) tests "1650円から1900円" instead of the
+// production figure "1750円から1900円" — the lower bound is shifted to
+// see if Haruto's reading is robust across different sen-units. The
+// production source.json's spoken/displayText is unchanged.
 const B_SIDE_TEXT_OVERRIDES: Record<string, string> = {
-  billing_rate: "請求想定は経験により、1750円から1900円程度です。",
+  billing_rate: "請求想定は経験により、1650円から1900円程度です。",
 };
 
 type CliArgs = { buildDir: string | null; limit: number | null };
