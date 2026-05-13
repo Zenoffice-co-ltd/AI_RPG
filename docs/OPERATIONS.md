@@ -703,6 +703,21 @@ Latest execution:
   はこの latency gate により overall FAIL を返す。Product が latency threshold
   を変更または明示受容するまで、v50 を Ready for Review / merge / production
   canonical に進めない。
+- 2026-05-14: same-condition 探索として、local v3 を
+  `GROK_VOICE_PRODUCTION_DETERMINISTIC_ONLY=false`,
+  `GROK_VOICE_REGISTERED_SPEECH_BUNDLE_ENABLED=false`,
+  `GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED=false` で起動し、同じ
+  browser/WebAudio harness を `/demo/adecco-roleplay-v3` に対して実行。
+  evidence:
+  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-11-09-579Z/summary.json`。
+  結果は `firstAudibleAudioMs p50=1094ms / p95=2239ms` で、PR head v50
+  (`1179ms / 2157ms`) との差分は `+85ms / -82ms`。これは Grok realtime
+  同士の体感 first-audio 比較としては悪化なしに近い。ただし v3 側に
+  `routePath=lock_text` と `/api/v3/locked-response-tts` が 1 件混在し、
+  `firstAudioDeltaMs` は n/a のままなので、本番採用 DOD の代替証跡には
+  しない。Draft 解除条件は引き続き、product が deterministic baseline ではなく
+  realtime baseline を正式採用するか、production/preview の PR-head v50 で
+  agreed baseline comparison を再実測すること。
 
 ## Adecco Roleplay — Grok Voice Think Fast 1.0 A/B backend
 
