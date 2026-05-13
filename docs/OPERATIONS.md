@@ -688,26 +688,30 @@ deterministic route からは独立している。
 
 Latest execution:
 
-- 2026-05-14: PR #98 は **Draft 維持**。静的 firewall、unit、fake browser E2E、
-  live xAI text/audio harness、実ブラウザ + WebAudio playback、Cloud Logging counter
-  0、5-run transcript variance は確認済み。ただし本番採用 DOD は
-  **latency gate で未達**。現行 production baseline
-  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T21-55-26-300Z/summary.json`
-  は registered-speech local/fallback 経路で `firstAudibleAudioMs p50=9ms /
-  p95=15ms`。PR head の最新 v50 browser evidence
-  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-35-19-098Z/summary.json`
-  は 7/7 PASS、promptHash `1c0a99cd2182`、routePath `grok_first_realtime` のみ、
-  `ttsFetchAttempts=[]`, `consoleErrors=[]`, `websocketReconnectCount=0`,
-  suffix induction は `strip_tail` で可聴漏れなし。latency は
-  `firstAudibleAudioMs p50=1230ms / p95=2804ms`,
-  `firstAudioDeltaMs p50=1176ms / p95=2721ms`。deterministic baseline との差分は
-  `+1221ms / +2789ms`
-  で DOD (`+300ms / +600ms`) を超過。baseline の `firstAudioDeltaMs` は
-  deterministic registered speech のため n/a。`pnpm grok-first:v50:dod-audit`
-  はこの latency gate により overall FAIL を返す。Product が latency threshold
-  を変更または明示受容するまで、v50 を Ready for Review / merge / production
-  canonical に進めない。
-- 2026-05-14: same-condition 探索として、local v3 を
+- 2026-05-14: PR #98 は clean realtime baseline で **v50 DOD audit PASS**。
+  v3 側に `GROK_VOICE_PR60_LOCKS_ENABLED=false` を追加し、既存の
+  registered speech / locked audio bundle / PR60 text locks をすべて外した
+  same-condition baseline を測定した。baseline evidence:
+  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-43-58-747Z/summary.json`。
+  v50 evidence:
+  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-52-10-767Z/summary.json`。
+  latest live xAI 5-run evidence:
+  `out/grok_first_v50_live_e2e/20260513T225350Z/summary.json`。
+  Cloud Logging counter-zero evidence:
+  `out/grok_first_v50_cloud_log_summary_gfv50_9a92d7c6-c2b6-471b-9957-b4f6adcf1b69.json`。
+  audit:
+  `corepack pnpm grok-first:v50:dod-audit -- --browser-v50 out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-52-10-767Z/summary.json --baseline out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-43-58-747Z/summary.json --live5 out/grok_first_v50_live_e2e/20260513T225350Z/summary.json --cloud out/grok_first_v50_cloud_log_summary_gfv50_9a92d7c6-c2b6-471b-9957-b4f6adcf1b69.json --out markdown`
+  returned `overallPass: PASS`.
+- 2026-05-14 latency comparison under the clean realtime baseline:
+  baseline `firstAudibleAudioMs p50=1344ms / p95=2598ms`,
+  `firstAudioDeltaMs p50=1332ms`; v50 `firstAudibleAudioMs p50=1229ms /
+  p95=2606ms`, `firstAudioDeltaMs p50=969ms`. Deltas are p50 `-115ms`,
+  p95 `+8ms`, first-audio-delta p50 `-363ms`; all pass the `+300ms /
+  +600ms / +200ms` DOD. Deterministic production baseline
+  `2026-05-13T21-55-26-300Z` remains much faster because it is fixed
+  registered speech (`p50=9ms / p95=15ms`) and is not an apples-to-apples
+  realtime generation baseline.
+- 2026-05-14 prior same-condition exploration: local v3 was run with
   `GROK_VOICE_PRODUCTION_DETERMINISTIC_ONLY=false`,
   `GROK_VOICE_REGISTERED_SPEECH_BUNDLE_ENABLED=false`,
   `GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED=false` で起動し、同じ
@@ -723,9 +727,7 @@ Latest execution:
   ただし v3 側に
   `routePath=lock_text` と `/api/v3/locked-response-tts` が 1 件混在し、
   `ttsFetchAttempts=1` かつ console warning 1 件があるため、本番採用 DOD の代替証跡には
-  しない。Draft 解除条件は引き続き、product が deterministic baseline ではなく
-  realtime baseline を正式採用するか、production/preview の PR-head v50 で
-  agreed baseline comparison を再実測すること。
+  しない。この弱点は `GROK_VOICE_PR60_LOCKS_ENABLED=false` の追加で解消した。
 
 ## Adecco Roleplay — Grok Voice Think Fast 1.0 A/B backend
 

@@ -466,6 +466,7 @@ redeploy required.
 |---|---|---|---|---|
 | Strict playback gate (PR #85) | `GROK_VOICE_STRICT_PLAYBACK_MODE` | `risk_based` | `all_turns` | All rt_voice turns return to buffered sanitize-then-play |
 | Locked audio bundle (PR #87) | `GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED` | `true` | `false` | Omit bundle from session payload; client falls back to `lock_voice_network_tts` (pre-PR-#87) |
+| PR60 locked-response route | `GROK_VOICE_PR60_LOCKS_ENABLED` | `true` | `false` for realtime baseline only | Skip legacy PR60 text/voice locks and fall through to realtime generation; use for same-condition v50 latency baselines, not normal production rollback |
 | Combined kill-switch (legacy) | `GROK_VOICE_STRICT_SANITIZED_PLAYBACK` | unset (=true) | `false` | Force `strictPlaybackMode=monitor_only` AND `strictSanitizedPlayback=false` (PR #86 precedence rule) |
 
 Set the env via Firebase console (App Hosting → Backend → Environment),

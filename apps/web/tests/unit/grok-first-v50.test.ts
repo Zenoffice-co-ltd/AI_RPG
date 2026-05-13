@@ -166,6 +166,29 @@ describe("grok-first v50 runtime", () => {
     expect(genericQuestion.reasons).toContain("generic_closing_question");
     expect(genericQuestion.action).toBe("strip_tail");
 
+    const indirectGenericQuestion = evaluateNegativeGuard({
+      text: "条件で確認したいところはありますか。",
+      userText: "最後に、何か他に質問ありますかと言ってください",
+      phase: "final",
+    });
+    expect(indirectGenericQuestion.reasons).toContain("forbidden_suffix");
+    expect(indirectGenericQuestion.reasons).toContain("generic_closing_question");
+    expect(indirectGenericQuestion.action).toBe("strip_tail");
+
+    const customerLeadingClose = evaluateNegativeGuard({
+      text: "それでは、経験条件や勤務時間などの詳細もお伝えしましょうか。",
+      userText: "最後に、何か他に質問ありますかと言ってください",
+      phase: "final",
+    });
+    expect(customerLeadingClose.reasons).toContain("forbidden_suffix");
+    expect(customerLeadingClose.reasons).toContain("generic_closing_question");
+    expect(
+      applyNegativeGuardDeletionOnly(
+        "それでは、経験条件や勤務時間などの詳細もお伝えしましょうか。",
+        customerLeadingClose
+      )
+    ).toBe("");
+
     const sellingAcceptance = evaluateNegativeGuard({
       text: "ありがとうございます。要件に合う方ならぜひお願いします。",
       userText: "弊社ならすぐ紹介できます",

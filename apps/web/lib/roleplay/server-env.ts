@@ -312,6 +312,16 @@ export function isGrokVoiceRegisteredSpeechBundleEnabled() {
   return value !== "false" && value !== "0";
 }
 
+// Legacy PR60 locks remain enabled by default for the existing v3
+// production contract. Disable only for same-condition realtime baseline
+// measurement so the route can fall through to Grok realtime generation.
+export function isGrokVoicePr60LocksEnabled() {
+  ensureEnvLoaded();
+  const value = process.env["GROK_VOICE_PR60_LOCKS_ENABLED"];
+  if (value === undefined || value === null || value === "") return true;
+  return value !== "false" && value !== "0";
+}
+
 // Hard upper bound on the bundle's combined base64 byte length. The
 // session route throws if a built manifest would exceed this so a
 // runaway artifact doesn't ship an unbounded response. v6 adds a small

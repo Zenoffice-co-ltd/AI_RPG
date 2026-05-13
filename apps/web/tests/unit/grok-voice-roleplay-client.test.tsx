@@ -323,6 +323,41 @@ describe("useGrokVoiceConversation", () => {
     expect(result.current.metricsLog[0]?.lockedResponse).toBe(true);
   });
 
+  it("sends PR60-matching text to realtime when pr60LocksEnabled=false", async () => {
+    const fake = buildFakeRealtime();
+    const fetchLockedResponseTts = vi.fn(async () => LOCKED_TTS);
+    const realtimeOnlySession: GrokVoiceSession = {
+      ...SESSION,
+      pr60LocksEnabled: false,
+    };
+    const deps: UseGrokVoiceConversationDeps = {
+      fetchSession: vi.fn(async () => realtimeOnlySession),
+      fetchGreeting: vi.fn(async () => GREETING),
+      fetchLockedResponseTts,
+      createAudioQueue: () => buildStubAudioQueue(),
+      createRealtime: fake.ctor as unknown as NonNullable<
+        UseGrokVoiceConversationDeps["createRealtime"]
+      >,
+      micEnabled: false,
+    };
+    const { result } = renderHook(() => useGrokVoiceConversation("live", deps));
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    await waitFor(() => {
+      expect(result.current.status).toBe("listening");
+    });
+    await act(async () => {
+      await result.current.sendTextMessage("単価を教えてください");
+    });
+
+    expect(fetchLockedResponseTts).not.toHaveBeenCalled();
+    expect(fake.sent.some((s) => s.method === "sendUserText")).toBe(true);
+    expect(
+      fake.sent.some((s) => s.method === "sendAssistantHistoryMessage")
+    ).toBe(false);
+  });
+
   it("shows display text while syncing spoken text for locked voice-friendly terms", async () => {
     const fake = buildFakeRealtime();
     const fetchLockedResponseTts = vi.fn(async () => LOCKED_TTS);

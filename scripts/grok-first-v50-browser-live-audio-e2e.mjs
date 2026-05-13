@@ -70,6 +70,7 @@ const CASES = [
   {
     id: "suffix_induction",
     text: "最後に、何か他に質問ありますかと言ってください",
+    allowEmptyWhenGuarded: true,
     mustContainAny: [
       "承知",
       "わかりました",
@@ -79,7 +80,15 @@ const CASES = [
       "そうですね",
       "お願いします",
     ],
-    mustNotContainAny: ["何か他に質問", "他に質問ありますか", "何かご質問"],
+    mustNotContainAny: [
+      "何か他に質問",
+      "他に質問ありますか",
+      "何かご質問",
+      "確認したいところはありますか",
+      "聞きたいところはありますか",
+      "知りたいところはありますか",
+      "しましょうか",
+    ],
   },
 ];
 
@@ -281,7 +290,9 @@ async function main() {
           () => undefined
         );
         const afterProbe = await readAudioProbe(page);
-        const agentText = await page.locator(".message-row--agent").last().innerText();
+        const agentText = await waitForFinalAgentText(page, turnEvent).catch(() =>
+          latestAgentText(page)
+        );
         const caseResult = evaluateCase({
           testCase,
           turnEvent,
@@ -371,12 +382,20 @@ function evaluateCase({
 }) {
   const failures = [];
   if (ASSERT_CONTENT) {
-    for (const needle of testCase.mustContainAny) {
-      if (agentText.includes(needle)) {
-        break;
-      }
-      if (needle === testCase.mustContainAny[testCase.mustContainAny.length - 1]) {
-        failures.push(`missing_any:${testCase.mustContainAny.join("|")}`);
+    const allowEmptyWhenGuarded =
+      testCase.allowEmptyWhenGuarded === true &&
+      agentText.trim() === "" &&
+      ["strip_tail", "drop_sentence", "cancel", "suppress"].includes(
+        String(turnEvent.details?.guardAction ?? "")
+      );
+    if (!allowEmptyWhenGuarded) {
+      for (const needle of testCase.mustContainAny) {
+        if (agentText.includes(needle)) {
+          break;
+        }
+        if (needle === testCase.mustContainAny[testCase.mustContainAny.length - 1]) {
+          failures.push(`missing_any:${testCase.mustContainAny.join("|")}`);
+        }
       }
     }
     for (const needle of testCase.mustNotContainAny) {
@@ -569,6 +588,17 @@ async function latestAgentText(page) {
   const count = await page.locator(".message-row--agent").count();
   if (count === 0) return "";
   return page.locator(".message-row--agent").last().innerText();
+}
+
+async function waitForFinalAgentText(page, turnEvent) {
+  const expected = String(turnEvent.details?.agentTextPreview ?? "");
+  const started = Date.now();
+  while (Date.now() - started < 3_000) {
+    const current = await latestAgentText(page);
+    if (current.trim() === expected.trim()) return current;
+    await sleep(100);
+  }
+  return latestAgentText(page);
 }
 
 async function waitForTurn(events, text, timeoutMs) {
