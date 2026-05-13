@@ -679,6 +679,31 @@ https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-rolepla
 [docs/GROK_VOICE_ROLEPLAY.md](./GROK_VOICE_ROLEPLAY.md) を参照。
 A/B 切替や新 backend 追加の playbook は skill `ai-rpg-adecco-roleplay-ab-backends` を参照。
 
+## Adecco Roleplay — Grok-first v50 adoption blocker
+
+`/demo/adecco-roleplay-v50` は、Grok Voice Think Fast 1.0 が business answer
+を realtime 生成し、rule code は NG 検出・抑止・計測だけを担当する
+research runtime。既存 `/api/v3/*` の PR60 lock / registered speech /
+deterministic route からは独立している。
+
+Latest execution:
+
+- 2026-05-14: PR #98 は **Draft 維持**。静的 firewall、unit、fake browser E2E、
+  live xAI text/audio harness、実ブラウザ + WebAudio playback、Cloud Logging counter
+  0、5-run transcript variance は確認済み。ただし本番採用 DOD は
+  **latency gate で未達**。現行 production baseline
+  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T21-55-26-300Z/summary.json`
+  は registered-speech local/fallback 経路で `firstAudibleAudioMs p50=9ms /
+  p95=15ms`。PR head の v50 browser evidence
+  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T21-30-44-644Z/summary.json`
+  は `firstAudibleAudioMs p50=1179ms / p95=2157ms`,
+  `firstAudioDeltaMs p50=1109ms / p95=1931ms`。delta は `+1170ms / +2142ms`
+  で DOD (`+300ms / +600ms`) を超過。baseline の `firstAudioDeltaMs` は
+  deterministic registered speech のため n/a。`pnpm grok-first:v50:dod-audit`
+  はこの latency gate により overall FAIL を返す。Product が latency threshold
+  を変更または明示受容するまで、v50 を Ready for Review / merge / production
+  canonical に進めない。
+
 ## Adecco Roleplay — Grok Voice Think Fast 1.0 A/B backend
 
 既存 `/demo/adecco-roleplay` (ElevenLabs ConvAI) と
