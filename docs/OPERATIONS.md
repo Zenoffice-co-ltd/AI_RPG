@@ -790,11 +790,17 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 Known blockers outside the v25 relay DOD:
 
-- `corepack pnpm verify:acceptance` is still blocked by
-  `[vendor_failure] 7 PERMISSION_DENIED: Permission 'secretmanager.secrets.get' denied`.
-  Owner placeholder: platform/GCP IAM operator. Acceptance criterion: rerun
-  `corepack pnpm verify:acceptance` after fixing Secret Manager read access and
-  capture the resulting pass/fail evidence.
+- `corepack pnpm verify:acceptance` now passes the previous Secret Manager IAM
+  blocker when vendor credentials are supplied via process env using the
+  AGENTS.md precedence. The latest full run reached the ElevenLabs publish
+  stage and failed after 3 vendor judge attempts:
+  `shallow-questions-stay-shallow` + `no-coaching` on retry 1,
+  `no-coaching` on retry 2, and `next-step-close` + `no-coaching` on retry 3.
+  This is no longer a Secret Manager blocker; it is the legacy ConvAI judge
+  instability already tracked in the Follow-up Backlog. Acceptance criterion:
+  either obtain a clean `corepack pnpm verify:acceptance` run in a quieter
+  vendor window, or explicitly approve this legacy ConvAI vendor failure as
+  outside PR #99's v25 Cloud Run relay DOD.
 - Direct xAI session checks for `adecco-roleplay-v23` and `adecco-roleplay-v5`
   briefly returned HTTP 429 during closeout, then recovered on focused retry.
   Five consecutive focused checks returned HTTP 200 with
