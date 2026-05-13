@@ -283,9 +283,15 @@ async function main() {
     for (const testCase of CASES) {
       try {
         const beforeProbe = await readAudioProbe(page);
+        const beforeTurnCount = events.filter((event) => event.kind === "turn.completed").length;
         await sendText(page, testCase.text);
         const caseStartedAt = Date.now();
-        const turnEvent = await waitForTurn(events, testCase.text, 90_000);
+        const turnEvent = await waitForTurn(
+          events,
+          testCase.text,
+          beforeTurnCount,
+          90_000
+        );
         await waitForAudioProgress(page, beforeProbe.sources.length, 20_000).catch(
           () => undefined
         );
@@ -601,15 +607,16 @@ async function waitForFinalAgentText(page, turnEvent) {
   return latestAgentText(page);
 }
 
-async function waitForTurn(events, text, timeoutMs) {
+async function waitForTurn(events, text, previousTurnCount, timeoutMs) {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
-    const match = events.find(
+    const completed = events.filter((event) => event.kind === "turn.completed");
+    const previewMatch = completed.find(
       (event) =>
-        event.kind === "turn.completed" &&
         String(event.details?.userTextPreview ?? "").includes(text)
     );
-    if (match) return match;
+    if (previewMatch) return previewMatch;
+    if (completed.length > previousTurnCount) return completed[previousTurnCount];
     await sleep(100);
   }
   throw new Error(`Timed out waiting for turn.completed: ${text}`);
