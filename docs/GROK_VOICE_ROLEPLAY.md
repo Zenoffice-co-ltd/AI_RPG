@@ -244,6 +244,22 @@ This helper compares `firstAudibleAudioMs.p50`, `firstAudibleAudioMs.p95`, and
 when the latency DOD is not met. Use it to generate the PR latency table from
 evidence files instead of hand-editing numbers.
 
+Full v50 DOD audit helper:
+
+```bash
+corepack pnpm grok-first:v50:dod-audit -- \
+  --browser-v50 out/grok_first_v50_browser_live_audio_e2e/<v50>/summary.json \
+  --baseline out/grok_first_v50_browser_live_audio_e2e/<baseline>/summary.json \
+  --live5 out/grok_first_v50_live_e2e/<live5>/summary.json \
+  --cloud out/grok_first_v50_cloud_log_summary_<session>.json \
+  --out markdown
+```
+
+This helper combines the browser/WebAudio, live xAI five-run, Cloud Logging,
+and latency evidence into a single PASS/FAIL checklist. It exits non-zero until
+every DOD gate, including latency, is satisfied; use that non-zero result as a
+blocker for taking v50 out of Draft.
+
 `ENABLE_GROK_VOICE_ROLEPLAY=true` (apphosting.yaml) は本番で常時有効。
 secret は `XAI_API_KEY` (zapier-transfer + adecco-mendan 両方に存在、
 build-time + runtime 両 SA に IAM bindings 付与済み)。
