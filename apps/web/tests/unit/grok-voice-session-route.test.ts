@@ -337,6 +337,25 @@ describe("grok-voice session route", () => {
     expect(typeof auth["expiresAt"]).toBe("string");
   });
 
+  it("fails v25 closed when the relay ticket secret is unavailable", async () => {
+    vi.stubEnv(
+      "GROK_VOICE_RELAY_WS_URL",
+      "wss://voice.mendan.biz/api/v3/realtime-relay"
+    );
+    vi.stubEnv("GROK_VOICE_RELAY_EXPECTED_AUD", "voice.mendan.biz");
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const { POST } = await import("../../app/api/v3/session/route");
+    const response = await POST(
+      validRequest({
+        referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v25",
+        body: { demoSlug: "adecco-roleplay-v25" },
+      })
+    );
+
+    expect(response.status).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   // PR #86 Codex P1 follow-up on PR #85. The new client decides
   // buffering from `strictPlaybackMode`. Without this fix, setting the
   // legacy global kill-switch (`GROK_VOICE_STRICT_SANITIZED_PLAYBACK=
