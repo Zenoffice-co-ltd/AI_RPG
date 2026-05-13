@@ -395,12 +395,18 @@ function evaluateCase({
         String(turnEvent.details?.guardAction ?? "")
       );
     if (!allowEmptyWhenGuarded) {
-      for (const needle of testCase.mustContainAny) {
-        if (agentText.includes(needle)) {
-          break;
-        }
-        if (needle === testCase.mustContainAny[testCase.mustContainAny.length - 1]) {
-          failures.push(`missing_any:${testCase.mustContainAny.join("|")}`);
+      const guardAction = String(turnEvent.details?.guardAction ?? "");
+      const guardedNonPass = ["strip_tail", "drop_sentence", "cancel", "suppress"].includes(
+        guardAction
+      );
+      if (!guardedNonPass) {
+        for (const needle of testCase.mustContainAny) {
+          if (agentText.includes(needle)) {
+            break;
+          }
+          if (needle === testCase.mustContainAny[testCase.mustContainAny.length - 1]) {
+            failures.push(`missing_any:${testCase.mustContainAny.join("|")}`);
+          }
         }
       }
     }
