@@ -230,6 +230,20 @@ counters. Set `GROK_FIRST_V50_BROWSER_BASE_URL=http://127.0.0.1:3000` to run
 the same browser-audio gate against a local server. Evidence is written under
 `out/grok_first_v50_browser_live_audio_e2e/` and must stay out of commits.
 
+Latency DOD comparison helper:
+
+```bash
+corepack pnpm grok-first:v50:latency-dod -- \
+  --baseline out/grok_first_v50_browser_live_audio_e2e/<baseline>/summary.json \
+  --v50 out/grok_first_v50_browser_live_audio_e2e/<v50>/summary.json \
+  --out markdown
+```
+
+This helper compares `firstAudibleAudioMs.p50`, `firstAudibleAudioMs.p95`, and
+`firstAudioDeltaMs.p50` against the v50 adoption thresholds and exits non-zero
+when the latency DOD is not met. Use it to generate the PR latency table from
+evidence files instead of hand-editing numbers.
+
 `ENABLE_GROK_VOICE_ROLEPLAY=true` (apphosting.yaml) は本番で常時有効。
 secret は `XAI_API_KEY` (zapier-transfer + adecco-mendan 両方に存在、
 build-time + runtime 両 SA に IAM bindings 付与済み)。
