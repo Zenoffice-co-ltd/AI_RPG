@@ -694,10 +694,14 @@ Latest execution:
   **latency gate で未達**。現行 production baseline
   `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T21-55-26-300Z/summary.json`
   は registered-speech local/fallback 経路で `firstAudibleAudioMs p50=9ms /
-  p95=15ms`。PR head の v50 browser evidence
-  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T21-30-44-644Z/summary.json`
-  は `firstAudibleAudioMs p50=1179ms / p95=2157ms`,
-  `firstAudioDeltaMs p50=1109ms / p95=1931ms`。delta は `+1170ms / +2142ms`
+  p95=15ms`。PR head の最新 v50 browser evidence
+  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-35-19-098Z/summary.json`
+  は 7/7 PASS、promptHash `1c0a99cd2182`、routePath `grok_first_realtime` のみ、
+  `ttsFetchAttempts=[]`, `consoleErrors=[]`, `websocketReconnectCount=0`,
+  suffix induction は `strip_tail` で可聴漏れなし。latency は
+  `firstAudibleAudioMs p50=1230ms / p95=2804ms`,
+  `firstAudioDeltaMs p50=1176ms / p95=2721ms`。deterministic baseline との差分は
+  `+1221ms / +2789ms`
   で DOD (`+300ms / +600ms`) を超過。baseline の `firstAudioDeltaMs` は
   deterministic registered speech のため n/a。`pnpm grok-first:v50:dod-audit`
   はこの latency gate により overall FAIL を返す。Product が latency threshold
@@ -709,12 +713,16 @@ Latest execution:
   `GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED=false` で起動し、同じ
   browser/WebAudio harness を `/demo/adecco-roleplay-v3` に対して実行。
   evidence:
-  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-11-09-579Z/summary.json`。
-  結果は `firstAudibleAudioMs p50=1094ms / p95=2239ms` で、PR head v50
-  (`1179ms / 2157ms`) との差分は `+85ms / -82ms`。これは Grok realtime
-  同士の体感 first-audio 比較としては悪化なしに近い。ただし v3 側に
+  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-18-46-535Z/summary.json`。
+  結果は `firstAudibleAudioMs p50=1158ms / p95=2233ms`,
+  `firstAudioDeltaMs p50=1153ms / p95=2226ms`。PR head 最新 v50
+  (`firstAudibleAudioMs p50=1230ms / p95=2804ms`,
+  `firstAudioDeltaMs p50=1176ms / p95=2721ms`) との差分は
+  first-audible `+72ms / +571ms`, first-audio-delta `+23ms / +495ms`。
+  これは Grok realtime 同士の体感 first-audio 比較としては DOD 範囲内に近い。
+  ただし v3 側に
   `routePath=lock_text` と `/api/v3/locked-response-tts` が 1 件混在し、
-  `firstAudioDeltaMs` は n/a のままなので、本番採用 DOD の代替証跡には
+  `ttsFetchAttempts=1` かつ console warning 1 件があるため、本番採用 DOD の代替証跡には
   しない。Draft 解除条件は引き続き、product が deterministic baseline ではなく
   realtime baseline を正式採用するか、production/preview の PR-head v50 で
   agreed baseline comparison を再実測すること。

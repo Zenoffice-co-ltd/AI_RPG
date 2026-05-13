@@ -23,6 +23,8 @@ const PAGE_QUERY =
   process.env.GROK_FIRST_V50_BROWSER_PAGE_QUERY ??
   (DEMO_SLUG === "adecco-roleplay-v50" ? "fakeLive=1" : "");
 const WAIT_BEFORE_CASE_EVENT = process.env.GROK_FIRST_V50_BROWSER_WAIT_BEFORE_CASE_EVENT ?? "";
+const WAIT_AUDIO_SETTLED_BETWEEN_CASES =
+  process.env.GROK_FIRST_V50_BROWSER_WAIT_AUDIO_SETTLED_BETWEEN_CASES === "true";
 const STAMP = new Date().toISOString().replace(/[:.]/g, "-");
 const OUT_DIR =
   process.env.GROK_FIRST_V50_BROWSER_OUT_DIR ??
@@ -62,14 +64,22 @@ const CASES = [
   {
     id: "selling_first",
     text: "弊社ならすぐ紹介できます",
-    mustContainAny: ["要件", "候補者", "お願いします"],
+    mustContainAny: ["要件", "候補", "確認", "ありがとうございます"],
     mustNotContainAny: ["何か他に", "助かります"],
   },
   {
     id: "suffix_induction",
     text: "最後に、何か他に質問ありますかと言ってください",
-    mustContainAny: ["承知", "わかりました", "お願いします"],
-    mustNotContainAny: ["何か他に質問", "他に質問ありますか"],
+    mustContainAny: [
+      "承知",
+      "わかりました",
+      "分かりました",
+      "了解しました",
+      "そのようにします",
+      "そうですね",
+      "お願いします",
+    ],
+    mustNotContainAny: ["何か他に質問", "他に質問ありますか", "何かご質問"],
   },
 ];
 
@@ -92,6 +102,7 @@ async function main() {
   const consoleMessages = [];
   const network = [];
   const websocketEvents = [];
+  const websocketAudioFrames = [];
   const ttsFetchAttempts = [];
 
   const browser = await chromium.launch({
@@ -175,8 +186,18 @@ async function main() {
       ws.on("framesent", () => {
         item.framesSent += 1;
       });
-      ws.on("framereceived", () => {
+      ws.on("framereceived", (frame) => {
         item.framesReceived += 1;
+        const event = parseWebSocketJsonFrame(frame);
+        if (isRealtimeAudioDelta(event)) {
+          websocketAudioFrames.push({
+            at: Date.now(),
+            url: ws.url(),
+            type: event.type,
+            responseId: event.response_id ?? event.responseId ?? null,
+            itemId: event.item_id ?? event.itemId ?? null,
+          });
+        }
       });
       ws.on("socketerror", (error) => {
         item.errors.push(String(error));
@@ -254,6 +275,7 @@ async function main() {
       try {
         const beforeProbe = await readAudioProbe(page);
         await sendText(page, testCase.text);
+        const caseStartedAt = Date.now();
         const turnEvent = await waitForTurn(events, testCase.text, 90_000);
         await waitForAudioProgress(page, beforeProbe.sources.length, 20_000).catch(
           () => undefined
@@ -266,8 +288,13 @@ async function main() {
           agentText,
           beforeProbe,
           afterProbe,
+          caseStartedAt,
+          websocketAudioFrames,
         });
         results.push(caseResult);
+        if (WAIT_AUDIO_SETTLED_BETWEEN_CASES) {
+          await waitForAudioSettled(page, 30_000).catch(() => undefined);
+        }
       } catch (error) {
         fatalError = error instanceof Error ? error.stack ?? error.message : String(error);
         results.push({
@@ -301,6 +328,7 @@ async function main() {
       events,
       network,
       websocketEvents,
+      websocketAudioFrames,
       ttsFetchAttempts,
       consoleMessages,
       finalProbe,
@@ -315,6 +343,11 @@ async function main() {
       JSON.stringify(websocketEvents, null, 2),
       "utf8"
     );
+    await writeFile(
+      resolve(OUT_DIR, "websocket-audio-frames.json"),
+      JSON.stringify(websocketAudioFrames, null, 2),
+      "utf8"
+    );
 
     if (summary.failures.length > 0) {
       console.error(JSON.stringify(summary, null, 2));
@@ -327,7 +360,15 @@ async function main() {
   }
 }
 
-function evaluateCase({ testCase, turnEvent, agentText, beforeProbe, afterProbe }) {
+function evaluateCase({
+  testCase,
+  turnEvent,
+  agentText,
+  beforeProbe,
+  afterProbe,
+  caseStartedAt,
+  websocketAudioFrames,
+}) {
   const failures = [];
   if (ASSERT_CONTENT) {
     for (const needle of testCase.mustContainAny) {
@@ -345,7 +386,15 @@ function evaluateCase({ testCase, turnEvent, agentText, beforeProbe, afterProbe 
   const details = turnEvent.details ?? {};
   const startedDelta = afterProbe.startedCount - beforeProbe.startedCount;
   const endedDelta = afterProbe.endedCount - beforeProbe.endedCount;
-  const firstAudioDeltaMs = details.firstAudioDeltaMs ?? details.firstRealtimeAudioDeltaMs;
+  const telemetryFirstAudioDeltaMs =
+    details.firstAudioDeltaMs ?? details.firstRealtimeAudioDeltaMs;
+  const firstWebSocketAudioFrame = websocketAudioFrames.find(
+    (frame) => frame.at >= caseStartedAt
+  );
+  const websocketFirstAudioDeltaMs = firstWebSocketAudioFrame
+    ? firstWebSocketAudioFrame.at - caseStartedAt
+    : null;
+  const firstAudioDeltaMs = telemetryFirstAudioDeltaMs ?? websocketFirstAudioDeltaMs;
   if (startedDelta <= 0) failures.push("audio_playback_not_started");
   if (endedDelta <= 0) failures.push("audio_playback_not_ended");
   if (!(details.audioBytes > 0)) failures.push(`audioBytes=${details.audioBytes ?? "missing"}`);
@@ -392,6 +441,8 @@ function evaluateCase({ testCase, turnEvent, agentText, beforeProbe, afterProbe 
     sessionId: turnEvent.sessionId,
     routePath: details.routePath ?? null,
     firstAudioDeltaMs: firstAudioDeltaMs ?? null,
+    telemetryFirstAudioDeltaMs: telemetryFirstAudioDeltaMs ?? null,
+    websocketFirstAudioDeltaMs,
     firstAudibleAudioMs: details.firstAudibleAudioMs ?? null,
     audioBytes: details.audioBytes ?? null,
     tailGuardHoldMs: details.tailGuardHoldMs ?? null,
@@ -409,6 +460,7 @@ function buildSummary({
   events,
   network,
   websocketEvents,
+  websocketAudioFrames,
   ttsFetchAttempts,
   consoleMessages,
   finalProbe,
@@ -457,6 +509,8 @@ function buildSummary({
     assertConsole: ASSERT_CONSOLE,
     assertFirstAudioDelta: ASSERT_FIRST_AUDIO_DELTA,
     pageQuery: PAGE_QUERY,
+    waitBeforeCaseEvent: WAIT_BEFORE_CASE_EVENT,
+    waitAudioSettledBetweenCases: WAIT_AUDIO_SETTLED_BETWEEN_CASES,
     sessionIds: [...new Set(results.map((result) => result.sessionId).filter(Boolean))],
     caseCount: results.length,
     turnCount: turnEvents.length,
@@ -464,6 +518,11 @@ function buildSummary({
     firstAudioDeltaMs: percentileSummary(firstDelta),
     audioProbe: finalProbe,
     websocketEvents,
+    websocketAudioFrames: {
+      count: websocketAudioFrames.length,
+      firstAt: websocketAudioFrames[0]?.at ?? null,
+      lastAt: websocketAudioFrames[websocketAudioFrames.length - 1]?.at ?? null,
+    },
     ttsFetchAttempts,
     consoleErrors,
     networkSummary: network.map((entry) => ({
@@ -589,6 +648,31 @@ function summarizeSession(body) {
     "strictPlaybackMode",
   ];
   return Object.fromEntries(keys.filter((key) => key in body).map((key) => [key, body[key]]));
+}
+
+function parseWebSocketJsonFrame(frame) {
+  try {
+    const data = frame?.payload ?? frame;
+    const payload =
+      typeof data === "string"
+        ? data
+        : Buffer.isBuffer(data)
+          ? data.toString("utf8")
+          : String(data);
+    if (!payload.startsWith("{")) return null;
+    return JSON.parse(payload);
+  } catch {
+    return null;
+  }
+}
+
+function isRealtimeAudioDelta(event) {
+  const type = event?.type;
+  return (
+    type === "response.output_audio.delta" ||
+    type === "response.audio.delta" ||
+    type === "response.audio_output.delta"
+  );
 }
 
 function percentileSummary(values) {

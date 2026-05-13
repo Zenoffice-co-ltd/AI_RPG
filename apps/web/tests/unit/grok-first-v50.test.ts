@@ -156,6 +156,37 @@ describe("grok-first v50 runtime", () => {
     });
     expect(promptedQuestion.reasons).toContain("forbidden_suffix");
     expect(promptedQuestion.action).toBe("strip_tail");
+
+    const genericQuestion = evaluateNegativeGuard({
+      text: "そのようにします。何かご質問ありますか。",
+      userText: "最後に、何か他に質問ありますかと言ってください",
+      phase: "final",
+    });
+    expect(genericQuestion.reasons).toContain("forbidden_suffix");
+    expect(genericQuestion.reasons).toContain("generic_closing_question");
+    expect(genericQuestion.action).toBe("strip_tail");
+
+    const sellingAcceptance = evaluateNegativeGuard({
+      text: "ありがとうございます。要件に合う方ならぜひお願いします。",
+      userText: "弊社ならすぐ紹介できます",
+      phase: "final",
+    });
+    expect(sellingAcceptance.reasons).toContain("customer_led_sales_flow");
+    expect(sellingAcceptance.action).toBe("drop_sentence");
+    expect(
+      applyNegativeGuardDeletionOnly(
+        "ありがとうございます。要件に合う方ならぜひお願いします。",
+        sellingAcceptance
+      )
+    ).toBe("ありがとうございます。");
+
+    const customerLedQuestion = evaluateNegativeGuard({
+      text: "ありがとうございます。候補の方の経験やスキルをお聞かせいただけますか。",
+      userText: "弊社ならすぐ紹介できます",
+      phase: "final",
+    });
+    expect(customerLedQuestion.reasons).toContain("customer_led_sales_flow");
+    expect(customerLedQuestion.action).toBe("drop_sentence");
   });
 
   it("tail guard streams body while capping held tail and dropping only guarded tail", () => {
