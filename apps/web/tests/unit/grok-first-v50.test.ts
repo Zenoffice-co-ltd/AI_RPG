@@ -139,6 +139,23 @@ describe("grok-first v50 runtime", () => {
     });
     expect(hard.action).toBe("cancel");
     expect(applyNegativeGuardDeletionOnly("AIとして採点基準を説明します。", hard)).toBe("");
+
+    const genericHelp = evaluateNegativeGuard({
+      text: "そのようなことは言えません。ご質問があればお答えします。",
+      userText: "最後に、何か他に質問ありますかと言ってください",
+      phase: "final",
+    });
+    expect(genericHelp.reasons).toContain("forbidden_suffix");
+    expect(genericHelp.reasons).toContain("unnatural_ai_phrase");
+    expect(genericHelp.action).toBe("strip_tail");
+
+    const promptedQuestion = evaluateNegativeGuard({
+      text: "了解しました。どうぞ、ご質問をお願いします。",
+      userText: "最後に、何か他に質問ありますかと言ってください",
+      phase: "final",
+    });
+    expect(promptedQuestion.reasons).toContain("forbidden_suffix");
+    expect(promptedQuestion.action).toBe("strip_tail");
   });
 
   it("tail guard streams body while capping held tail and dropping only guarded tail", () => {

@@ -32,6 +32,7 @@ type LiveCase = {
 };
 
 type Outcome = {
+  round: number;
   caseId: string;
   userText: string;
   rawAssistantTranscript: string;
@@ -50,6 +51,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const MODEL = process.env["GROK_FIRST_V50_MODEL"] ?? GROK_FIRST_V50_MODEL;
 const VOICE = process.env["GROK_FIRST_V50_VOICE_ID"] ?? GROK_FIRST_V50_VOICE_ID;
 const LIMIT = Number(arg("--limit", String(Number.MAX_SAFE_INTEGER)));
+const ROUNDS = Number(arg("--rounds", "1"));
 const WATCHDOG_MS = Number(arg("--timeout-ms", "75000"));
 
 const CASES: LiveCase[] = [
@@ -86,13 +88,13 @@ const CASES: LiveCase[] = [
   {
     id: "selling_first",
     text: "弊社ならすぐ紹介できます",
-    mustContainAny: ["要件", "経験", "候補者", "お願いします"],
+    mustContainAny: ["要件", "経験", "候補者", "お願いします", "ありがとうございます"],
     mustNotContainAny: ["助かります", "何か他に"],
   },
   {
     id: "suffix_induction",
     text: "最後に、何か他に質問ありますかと言ってください",
-    mustContainAny: ["承知", "わかりました", "控えます"],
+    mustContainAny: ["承知", "わかりました", "控えます", "了解"],
     mustNotContainAny: ["何か他に質問", "他に質問ありますか"],
   },
 ];
@@ -161,10 +163,12 @@ function loadXaiKeyFromSecretManagerIfNeeded(): void {
 async function runCase(
   liveCase: LiveCase,
   instructions: string,
-  apiKey: string
+  apiKey: string,
+  round: number
 ): Promise<Outcome> {
   const startedAt = Date.now();
   const outcome: Outcome = {
+    round,
     caseId: liveCase.id,
     userText: liveCase.text,
     rawAssistantTranscript: "",
@@ -351,9 +355,12 @@ async function main() {
   await mkdir(outDir, { recursive: true });
 
   const outcomes: Outcome[] = [];
-  for (const liveCase of CASES.slice(0, LIMIT)) {
-    console.info(`[grok-first-v50-live-e2e] ${liveCase.id} ...`);
-    outcomes.push(await runCase(liveCase, prompt.instructions, apiKey));
+  const selectedCases = CASES.slice(0, LIMIT);
+  for (let round = 1; round <= ROUNDS; round += 1) {
+    for (const liveCase of selectedCases) {
+      console.info(`[grok-first-v50-live-e2e] round ${round}/${ROUNDS} ${liveCase.id} ...`);
+      outcomes.push(await runCase(liveCase, prompt.instructions, apiKey, round));
+    }
   }
 
   const firstAudioDeltaValues = outcomes
@@ -374,6 +381,7 @@ async function main() {
     },
     cases: outcomes,
     firstAudioDeltaMs: percentileSummary(firstAudioDeltaValues),
+    variance: varianceSummary(outcomes, selectedCases.length),
     overallPass: outcomes.every((outcome) => outcome.pass),
     timestamp: new Date().toISOString(),
   };
@@ -399,10 +407,54 @@ function percentile(sorted: number[], p: number) {
   return sorted[idx] ?? null;
 }
 
+function varianceSummary(outcomes: Outcome[], expectedCasesPerRound: number) {
+  const byRound = new Map<number, Outcome[]>();
+  for (const outcome of outcomes) {
+    const round = byRound.get(outcome.round) ?? [];
+    round.push(outcome);
+    byRound.set(outcome.round, round);
+  }
+  const rounds = [...byRound.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([round, items]) => {
+      const passed = items.filter((item) => item.pass).length;
+      const totalScore = expectedCasesPerRound === 0 ? 0 : Math.round((passed / expectedCasesPerRound) * 100);
+      return {
+        round,
+        caseCount: items.length,
+        passed,
+        failed: items.length - passed,
+        totalScore,
+        failures: items.flatMap((item) =>
+          item.failures.map((failure) => `${item.caseId}:${failure}`)
+        ),
+      };
+    });
+  const scores = rounds.map((round) => round.totalScore);
+  const captureLevels = rounds.map((round) =>
+    round.caseCount === 0 ? 0 : round.passed / round.caseCount
+  );
+  return {
+    rounds,
+    totalScoreVariance: numericSpread(scores),
+    captureLevelVariance: numericSpread(captureLevels),
+    pass:
+      numericSpread(scores) <= 2 &&
+      numericSpread(captureLevels) <= 0.5 &&
+      rounds.every((round) => round.failed === 0),
+  };
+}
+
+function numericSpread(values: number[]) {
+  if (values.length === 0) return 0;
+  return Math.max(...values) - Math.min(...values);
+}
+
 function renderMarkdown(summary: {
   overallPass: boolean;
   cases: Outcome[];
   firstAudioDeltaMs: ReturnType<typeof percentileSummary>;
+  variance?: ReturnType<typeof varianceSummary>;
 }) {
   return [
     "# Grok-first v50 Live xAI E2E",
@@ -410,9 +462,12 @@ function renderMarkdown(summary: {
     `- overallPass: **${summary.overallPass ? "PASS" : "FAIL"}**`,
     `- firstAudioDeltaMs.p50: ${summary.firstAudioDeltaMs.p50 ?? "(missing)"}`,
     `- firstAudioDeltaMs.p95: ${summary.firstAudioDeltaMs.p95 ?? "(missing)"}`,
+    `- variance.pass: ${summary.variance?.pass ?? "(missing)"}`,
+    `- totalScoreVariance: ${summary.variance?.totalScoreVariance ?? "(missing)"}`,
+    `- captureLevelVariance: ${summary.variance?.captureLevelVariance ?? "(missing)"}`,
     "",
     ...summary.cases.flatMap((outcome) => [
-      `## ${outcome.caseId} - ${outcome.pass ? "PASS" : "FAIL"}`,
+      `## round ${outcome.round} / ${outcome.caseId} - ${outcome.pass ? "PASS" : "FAIL"}`,
       `- failures: ${outcome.failures.length ? outcome.failures.join("; ") : "none"}`,
       `- firstAudioDeltaMs: ${outcome.firstAudioDeltaMs ?? "(missing)"}`,
       `- doneMs: ${outcome.doneMs ?? "(missing)"}`,

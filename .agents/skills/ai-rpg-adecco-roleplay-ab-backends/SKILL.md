@@ -147,6 +147,12 @@ unless browser voice E2E shows `firstAudibleAudioMs p95 <= 5000ms` and
 `doneMs p95 <= 8000ms`; quality PASS alone is not enough for production
 adoption.
 
+For v50 adoption, use `corepack pnpm grok-first:v50:browser-live-audio-e2e`
+for the live browser + real xAI WebAudio playback gate. Use
+`corepack pnpm grok-first:v50:live-e2e -- --rounds 5` for the live transcript
+five-run variance gate. Keep evidence under `out/` and do not commit raw
+transcripts, audio, screenshots, or Cloud Logging JSON.
+
 ## Single-login UX
 
 All three AccessGate routes issue cookies with broad `Path=/demo` and `Path=/api`

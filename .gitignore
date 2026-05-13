@@ -28,7 +28,10 @@ data/generated/registered-speech/v1.candidate/manifest.json
 # never committed.
 out/registered-speech-build/
 out/grok_first_v50_browser_dod_e2e/
+out/grok_first_v50_browser_live_audio_e2e/
 out/grok_first_v50_live_e2e/
+out/grok_first_v50_cloud_*.json
+out/grok_first_v50_local_next*.log
 # Ignore Claude Code local state (worktrees, scheduled task locks, etc.).
 # Carve out .claude/rules/ so the cross-tool rules surface (mirrors
 # AGENTS.md SoT) is committed alongside .codex/rules/ and .cursor/rules/.

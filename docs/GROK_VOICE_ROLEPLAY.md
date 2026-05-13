@@ -203,6 +203,8 @@ Live xAI transcript/latency harness:
 
 ```bash
 corepack pnpm grok-first:v50:live-e2e
+# Five-run variance gate:
+corepack pnpm grok-first:v50:live-e2e -- --rounds 5
 ```
 
 This opens `grok-voice-think-fast-1.0` directly, sends the v50 prompt, runs the
@@ -212,6 +214,21 @@ negative-guard sanitized transcripts, and writes evidence under
 precedence for `XAI_API_KEY` and exits with `BLOCKED: XAI_API_KEY not available`
 if no real key is available. It is live model evidence, but it does not replace
 the final browser + audible playback production DOD.
+
+Live browser + WebAudio playback harness:
+
+```bash
+corepack pnpm grok-first:v50:browser-live-audio-e2e
+```
+
+By default this drives `/demo/adecco-roleplay-v50?fakeLive=1` against the
+production App Hosting URL, opens the real xAI WebSocket from the browser,
+patches WebAudio `createBufferSource()` to prove playback started/ended, and
+asserts zero runtime/replacement TTS fetch attempts, zero legacy route paths,
+zero fixed-answer counters, and zero audible forbidden suffix / closing-question
+counters. Set `GROK_FIRST_V50_BROWSER_BASE_URL=http://127.0.0.1:3000` to run
+the same browser-audio gate against a local server. Evidence is written under
+`out/grok_first_v50_browser_live_audio_e2e/` and must stay out of commits.
 
 `ENABLE_GROK_VOICE_ROLEPLAY=true` (apphosting.yaml) は本番で常時有効。
 secret は `XAI_API_KEY` (zapier-transfer + adecco-mendan 両方に存在、
