@@ -27,6 +27,7 @@ data/generated/registered-speech/v1.candidate/manifest.json
 # build attempt). Reviewers download them from `out/` locally; they are
 # never committed.
 out/registered-speech-build/
+out/grok_first_v50_browser_dod_e2e/
 # Ignore Claude Code local state (worktrees, scheduled task locks, etc.).
 # Carve out .claude/rules/ so the cross-tool rules surface (mirrors
 # AGENTS.md SoT) is committed alongside .codex/rules/ and .cursor/rules/.

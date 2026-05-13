@@ -186,6 +186,19 @@ v18 additionally disables the post-generation shallow/over-answering guard so
 Grok-generated job-context answers are spoken instead of being replaced by
 business-low-confidence fixed fallback.
 
+Local browser DOD harness:
+
+```bash
+corepack pnpm grok-first:v50:dod-e2e
+```
+
+The harness starts the local v50 page, injects a fake realtime WebSocket, drives
+the shallow/deep/culture/broad/wrong-premise/selling-first/suffix-induction
+cases through the browser UI, and asserts fixed-answer route counters, runtime
+TTS fetch attempts, tail guard metrics, and forbidden suffix transcript leakage.
+It is a browser-path regression gate; production adoption still requires live
+xAI voice measurement against the latency and audible-leak DOD above.
+
 `ENABLE_GROK_VOICE_ROLEPLAY=true` (apphosting.yaml) は本番で常時有効。
 secret は `XAI_API_KEY` (zapier-transfer + adecco-mendan 両方に存在、
 build-time + runtime 両 SA に IAM bindings 付与済み)。

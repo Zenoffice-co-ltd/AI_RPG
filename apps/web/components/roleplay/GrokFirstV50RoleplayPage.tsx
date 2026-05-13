@@ -21,7 +21,13 @@ export async function GrokFirstV50RoleplayPage({
 }: GrokFirstV50PageProps) {
   try {
     assertDemoAccessEnvForProduction();
-    if (!process.env["XAI_API_KEY"] && process.env["NODE_ENV"] === "production") {
+    const browserDodE2E =
+      process.env["GROK_FIRST_V50_BROWSER_DOD_E2E"] === "1";
+    if (
+      !browserDodE2E &&
+      !process.env["XAI_API_KEY"] &&
+      process.env["NODE_ENV"] === "production"
+    ) {
       throw new Error("XAI_API_KEY missing");
     }
   } catch {
