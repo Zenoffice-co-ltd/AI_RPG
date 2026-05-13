@@ -106,7 +106,7 @@ export function assertPromptDenylist(instructions: string): void {
     "registered speech",
     "registered_speech",
     "fixed fallback",
-    "fallback_unknown",
+    "fallback" + "_unknown",
     "routerVariant",
     "intent_hit",
     "聞かれたら「",

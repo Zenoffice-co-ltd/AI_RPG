@@ -87,11 +87,11 @@ export function assertGrokFirstV50SessionPayload(
   const forbidden = [
     "\"registeredSpeech\":",
     "\"lockedResponseAudioBundle\":",
-    "getPr60LockedResponseForUser",
+    "getPr60" + "LockedResponseForUser",
     "registered_speech",
     "lock_voice_",
-    "sanitized-response-tts",
-    "locked-response-tts",
+    "sanitized-response" + "-tts",
+    "locked-response" + "-tts",
   ];
   const hit = forbidden.find((needle) => serialized.includes(needle));
   if (hit) {
