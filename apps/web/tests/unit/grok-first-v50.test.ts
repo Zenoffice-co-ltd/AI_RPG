@@ -19,6 +19,10 @@ import {
   assertPromptDenylist,
   buildGrokFirstV50Prompt,
 } from "../../lib/grok-first-roleplay/prompt";
+import {
+  logGrokFirstV50ServerEvent,
+  sanitizeGrokFirstV50Details,
+} from "../../lib/grok-first-roleplay/metrics";
 import type {
   GrokFirstV50ServerEvent,
   GrokFirstV50Session,
@@ -79,6 +83,7 @@ describe("grok-first v50 runtime", () => {
     expect(body["runtimeTtsEnabled"]).toBe(false);
     expect(body["replacementTtsEnabled"]).toBe(false);
     expect(body["fullTurnBufferEnabled"]).toBe(false);
+    expect(body["debugTranscriptPreviewEnabled"]).toBe(false);
     expect(body["registeredSpeech"]).toBeUndefined();
     expect(body["lockedResponseAudioBundle"]).toBeUndefined();
 
@@ -105,6 +110,67 @@ describe("grok-first v50 runtime", () => {
         }),
       })
     );
+  });
+
+  it("gates v50 transcript previews out of production event logs by default", () => {
+    const sanitized = sanitizeGrokFirstV50Details({
+      userTextPreview: "業務内容を教えてください",
+      agentTextPreview: "受発注入力が中心です",
+      sttTextPreview: "業務内容",
+      userTextLen: 12,
+      agentTextLen: 10,
+      promptHash: "abc123",
+      instructions: "internal role prompt",
+      xaiClientSecretToken: "secret-token",
+      audioBase64: "raw-audio",
+    });
+
+    expect(sanitized).toEqual({
+      userTextLen: 12,
+      agentTextLen: 10,
+      promptHash: "abc123",
+    });
+  });
+
+  it("allows short v50 transcript previews only behind the debug flag", () => {
+    const longPreview = "あ".repeat(230);
+    const sanitized = sanitizeGrokFirstV50Details(
+      {
+        userTextPreview: longPreview,
+        agentTextPreview: "受発注入力です",
+        sttTextPreview: "業務内容",
+        userTextLen: 230,
+        instructions: "internal role prompt",
+      },
+      { debugTranscriptPreviewEnabled: true }
+    );
+
+    expect(String(sanitized["userTextPreview"])).toHaveLength(203);
+    expect(String(sanitized["userTextPreview"])).toMatch(/\.\.\.$/);
+    expect(sanitized["agentTextPreview"]).toBe("受発注入力です");
+    expect(sanitized["sttTextPreview"]).toBe("業務内容");
+    expect(sanitized["instructions"]).toBeUndefined();
+  });
+
+  it("applies transcript preview gating at the v50 event logger boundary", () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    logGrokFirstV50ServerEvent({
+      kind: "turn.completed",
+      sessionId: "gfv50_test",
+      details: {
+        userTextPreview: "業務内容を教えてください",
+        agentTextPreview: "受発注入力です",
+        routePath: "grok_first_realtime",
+      },
+      debugTranscriptPreviewEnabled: false,
+    });
+
+    const logged = JSON.parse(String(consoleSpy.mock.calls[0]?.[0])) as {
+      details: Record<string, unknown>;
+    };
+    expect(logged.details["userTextPreview"]).toBeUndefined();
+    expect(logged.details["agentTextPreview"]).toBeUndefined();
+    expect(logged.details["routePath"]).toBe("grok_first_realtime");
   });
 
   it("keeps prompt free of exact-answer locks and evaluation-role framing", () => {
@@ -339,6 +405,7 @@ function testSession(sessionId: string): GrokFirstV50Session {
     runtimeTtsEnabled: false,
     replacementTtsEnabled: false,
     fullTurnBufferEnabled: false,
+    debugTranscriptPreviewEnabled: false,
   };
 }
 

@@ -26,6 +26,9 @@ const envSchema = z.object({
     .min(1)
     .default("https://api.x.ai/v1/realtime/client_secrets"),
   GROK_FIRST_V50_VOICE_ID: z.string().min(1).optional(),
+  GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED: z
+    .enum(["true", "false"])
+    .optional(),
 });
 
 export async function createGrokFirstV50Session(): Promise<GrokFirstV50Session> {
@@ -72,6 +75,8 @@ export async function createGrokFirstV50Session(): Promise<GrokFirstV50Session> 
     runtimeTtsEnabled: false,
     replacementTtsEnabled: false,
     fullTurnBufferEnabled: false,
+    debugTranscriptPreviewEnabled:
+      env.GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED === "true",
   };
 }
 

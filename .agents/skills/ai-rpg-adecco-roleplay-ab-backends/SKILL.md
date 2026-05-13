@@ -90,7 +90,11 @@ sanitized-response TTS, or locked-response TTS. Its guard may only pass, strip,
 drop, cancel, suppress, or emit metrics; it must not generate fallback text or
 select a business answer. The v50 session payload must keep
 `registeredSpeechPayloadIncluded=false` and
-`lockedResponseAudioBundleIncluded=false`.
+`lockedResponseAudioBundleIncluded=false`. Production v50 event logs must not
+include `userTextPreview`, `agentTextPreview`, or `sttTextPreview` unless
+`GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` is explicitly set for a
+controlled debug run; even then, previews are capped and secret/instruction/raw
+audio fields are stripped.
 
 For v6/v7/v8/v9/v10/v15/v16/v17/v18/v19, never route to the legacy `fallback_unknown` artifact text
 `求人要件の範囲で整理します。`; that remains only for the existing v3/v4/v5

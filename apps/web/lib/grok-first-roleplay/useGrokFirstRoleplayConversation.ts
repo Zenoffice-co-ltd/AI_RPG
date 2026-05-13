@@ -194,8 +194,12 @@ export function useGrokFirstRoleplayConversation(
         sessionId: activeSession.sessionId,
         details: {
           ...metric,
-          userTextPreview: currentUserTextRef.current.slice(0, 200),
-          agentTextPreview: finalText.slice(0, 200),
+          ...(activeSession.debugTranscriptPreviewEnabled
+            ? {
+                userTextPreview: currentUserTextRef.current.slice(0, 200),
+                agentTextPreview: finalText.slice(0, 200),
+              }
+            : {}),
         },
       });
     },

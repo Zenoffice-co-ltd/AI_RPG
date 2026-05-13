@@ -66,6 +66,11 @@ Session defaults:
 - `server_vad`: threshold `0.65`, silence `650ms`, prefix padding `333ms`
 - Tail guard: normal turn hold `300ms`, risk turn hold `800ms`, max hold
   `1000ms`
+- Transcript preview logging: production default omits `userTextPreview`,
+  `agentTextPreview`, and `sttTextPreview` from `/api/grok-first-v50/event`
+  logs. Set `GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` only for
+  controlled local debugging; previews are capped at 200 characters and secret,
+  instruction, and raw audio fields are dropped at the logger boundary.
 
 DOD:
 

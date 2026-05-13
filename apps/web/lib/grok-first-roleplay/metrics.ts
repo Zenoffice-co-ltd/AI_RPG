@@ -23,13 +23,18 @@ export function logGrokFirstV50ServerEvent(input: {
   kind: GrokFirstV50EventKind;
   sessionId?: string | undefined;
   details?: Record<string, unknown> | undefined;
+  debugTranscriptPreviewEnabled?: boolean | undefined;
 }) {
   console.log(
     JSON.stringify({
       scope: "grokFirstV50",
       kind: input.kind,
       sessionId: input.sessionId ?? null,
-      details: sanitizeDetails(input.details ?? {}),
+      details: sanitizeGrokFirstV50Details(input.details ?? {}, {
+        debugTranscriptPreviewEnabled:
+          input.debugTranscriptPreviewEnabled ??
+          isGrokFirstV50DebugTranscriptPreviewEnabled(),
+      }),
       timestamp: new Date().toISOString(),
     })
   );
@@ -49,11 +54,38 @@ export function assertFixedAnswerEliminationMetric(metric: GrokFirstV50Metric) {
   }
 }
 
-function sanitizeDetails(details: Record<string, unknown>) {
+const TRANSCRIPT_PREVIEW_KEYS = new Set([
+  "sttTextPreview",
+  "userTextPreview",
+  "agentTextPreview",
+]);
+
+const SENSITIVE_DETAIL_KEY_PATTERN =
+  /(?:token|secret|apiKey|authorization|instructions|audioBase64|rawAudio|pcmBase64|wavBase64)/i;
+
+export function isGrokFirstV50DebugTranscriptPreviewEnabled(
+  env: NodeJS.ProcessEnv = process.env
+) {
+  return env["GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED"] === "true";
+}
+
+export function sanitizeGrokFirstV50Details(
+  details: Record<string, unknown>,
+  options: { debugTranscriptPreviewEnabled?: boolean | undefined } = {}
+) {
+  const debugTranscriptPreviewEnabled =
+    options.debugTranscriptPreviewEnabled ??
+    isGrokFirstV50DebugTranscriptPreviewEnabled();
   const trimmed: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(details)) {
+    if (SENSITIVE_DETAIL_KEY_PATTERN.test(key)) continue;
+    if (TRANSCRIPT_PREVIEW_KEYS.has(key) && !debugTranscriptPreviewEnabled) {
+      continue;
+    }
     if (typeof value === "string") {
-      trimmed[key] = value.length > 500 ? `${value.slice(0, 500)}...` : value;
+      const maxLen = TRANSCRIPT_PREVIEW_KEYS.has(key) ? 200 : 500;
+      trimmed[key] =
+        value.length > maxLen ? `${value.slice(0, maxLen)}...` : value;
     } else {
       trimmed[key] = value;
     }
