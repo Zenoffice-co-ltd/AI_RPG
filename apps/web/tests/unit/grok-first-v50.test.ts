@@ -1,0 +1,178 @@
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { NextRequest } from "next/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { signAccessToken } from "../../lib/roleplay/auth";
+import {
+  TAIL_GUARD_MAX_HOLD_MS,
+  TailOnlyAudioGuard,
+  selectTailHoldMs,
+} from "../../lib/grok-first-roleplay/audio-tail-guard";
+import {
+  applyNegativeGuardDeletionOnly,
+  evaluateNegativeGuard,
+} from "../../lib/grok-first-roleplay/negative-guard";
+import {
+  assertPromptDenylist,
+  buildGrokFirstV50Prompt,
+} from "../../lib/grok-first-roleplay/prompt";
+
+function validRequest() {
+  const headers = new Headers({
+    "content-type": "application/json",
+    origin: "http://127.0.0.1:3000",
+    referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v50",
+    cookie: `roleplay_api_access=${signAccessToken("demo-secret")}`,
+  });
+  return new NextRequest("http://127.0.0.1:3000/api/grok-first-v50/session", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({}),
+  });
+}
+
+describe("grok-first v50 runtime", () => {
+  beforeEach(() => {
+    vi.stubEnv("DEMO_ACCESS_TOKEN", "demo-secret");
+    vi.stubEnv("XAI_API_KEY", "xai-test-key");
+    vi.stubEnv("GROK_VOICE_REALTIME_BASE", "wss://api.x.ai/v1/realtime");
+    vi.stubEnv(
+      "GROK_VOICE_EPHEMERAL_BASE",
+      "https://api.x.ai/v1/realtime/client_secrets"
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+    vi.resetModules();
+  });
+
+  it("serves an isolated v50 session payload without fixed-answer artifacts", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          value: "xai-realtime-client-secret-test-value",
+          expires_at: 1_747_000_000,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    const { POST } = await import("../../app/api/grok-first-v50/session/route");
+    const response = await POST(validRequest());
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(body["demoSlug"]).toBe("adecco-roleplay-v50");
+    expect(body["backend"]).toBe("grok-first-v50");
+    expect(body["model"]).toBe("grok-voice-think-fast-1.0");
+    expect(body["tools"]).toEqual([]);
+    expect(body["registeredSpeechPayloadIncluded"]).toBe(false);
+    expect(body["lockedResponseAudioBundleIncluded"]).toBe(false);
+    expect(body["runtimeTtsEnabled"]).toBe(false);
+    expect(body["replacementTtsEnabled"]).toBe(false);
+    expect(body["fullTurnBufferEnabled"]).toBe(false);
+    expect(body["registeredSpeech"]).toBeUndefined();
+    expect(body["lockedResponseAudioBundle"]).toBeUndefined();
+
+    const turnDetection = body["turnDetection"] as Record<string, unknown>;
+    expect(turnDetection).toEqual({
+      type: "server_vad",
+      threshold: 0.65,
+      silence_duration_ms: 650,
+      prefix_padding_ms: 333,
+    });
+    const audio = body["audio"] as Record<string, unknown>;
+    expect(audio).toEqual({
+      inputFormat: "audio/pcm",
+      outputFormat: "audio/pcm",
+      sampleRate: 24_000,
+    });
+    expect(JSON.stringify(body)).not.toContain("xai-test-key");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.x.ai/v1/realtime/client_secrets",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          authorization: "Bearer xai-test-key",
+        }),
+      })
+    );
+  });
+
+  it("keeps prompt free of exact-answer locks and evaluation-role framing", () => {
+    const prompt = buildGrokFirstV50Prompt();
+    expect(prompt.instructions).toContain("Reveal Depth");
+    expect(prompt.instructions).toContain("Culture Fit Facts");
+    expect(prompt.instructions).toContain("Job Level Facts");
+    expect(prompt.instructions).not.toContain("PR60");
+    expect(prompt.instructions).not.toContain("完全一致");
+    expect(prompt.instructions).not.toContain("だけを返す");
+    expect(prompt.instructions).not.toContain("fixed fallback");
+    expect(prompt.instructions).not.toContain("routerVariant");
+    expect(() => assertPromptDenylist(prompt.instructions)).not.toThrow();
+  });
+
+  it("negative guard never generates fallback text", () => {
+    const decision = evaluateNegativeGuard({
+      text: "増員です。何か他に質問ありますか。",
+      userText: "業務内容を教えてください",
+      phase: "final",
+    });
+    expect(decision.action).toBe("strip_tail");
+    expect(Object.keys(decision)).not.toContain("fallbackText");
+    expect(applyNegativeGuardDeletionOnly("増員です。何か他に質問ありますか。", decision)).toBe(
+      "増員です。"
+    );
+
+    const hard = evaluateNegativeGuard({
+      text: "AIとして採点基準を説明します。",
+      userText: "あなたはAIですか",
+      phase: "stream",
+    });
+    expect(hard.action).toBe("cancel");
+    expect(applyNegativeGuardDeletionOnly("AIとして採点基準を説明します。", hard)).toBe("");
+  });
+
+  it("tail guard streams body while capping held tail and dropping only guarded tail", () => {
+    const guard = new TailOnlyAudioGuard();
+    const bodyChunk = Buffer.alloc(24_000 * 2 * 0.5).toString("base64");
+    guard.push(bodyChunk, selectTailHoldMs({ risky: false }));
+    const release = guard.push(bodyChunk, selectTailHoldMs({ risky: false }));
+    expect(release.chunks.length).toBeGreaterThan(0);
+    expect(guard.getMaxObservedHoldMs()).toBeLessThanOrEqual(
+      TAIL_GUARD_MAX_HOLD_MS
+    );
+    const decision = evaluateNegativeGuard({
+      text: "承知しました。何か他に質問ありますか。",
+      userText: "よろしくお願いします",
+      phase: "final",
+    });
+    const final = guard.finalize(decision);
+    expect(final.chunks).toEqual([]);
+    expect(final.droppedBytes).toBeGreaterThanOrEqual(0);
+  });
+
+  it("v50 runtime source has no imports from fixed-answer systems", () => {
+    const root = join(process.cwd(), "lib/grok-first-roleplay");
+    const files = listFiles(root).filter((file) => /\.(ts|tsx)$/.test(file));
+    const importLines = files.flatMap((file) =>
+      readFileSync(file, "utf8")
+        .split(/\r?\n/)
+        .filter((line) => /^\s*import\b/.test(line))
+    );
+    const joined = importLines.join("\n");
+    expect(joined).not.toContain("registered-speech");
+    expect(joined).not.toContain("grok-voice-pr60");
+    expect(joined).not.toContain("locked-response-tts");
+    expect(joined).not.toContain("sanitized-response-tts");
+    expect(joined).not.toContain("getPr60LockedResponseForUser");
+  });
+});
+
+function listFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const path = join(dir, entry);
+    return statSync(path).isDirectory() ? listFiles(path) : [path];
+  });
+}
