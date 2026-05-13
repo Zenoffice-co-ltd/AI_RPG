@@ -14,7 +14,10 @@ describe("Grok Voice router variant and transport mapping", () => {
     );
   });
 
-  it("keeps v4 and v5 on direct xAI WebSocket transport", () => {
+  it("keeps v23, v4, and v5 on direct xAI WebSocket transport", () => {
+    expect(getGrokVoiceRealtimeTransportForDemoSlug("adecco-roleplay-v23")).toBe(
+      "xai_direct_wss"
+    );
     expect(getGrokVoiceRealtimeTransportForDemoSlug("adecco-roleplay-v4")).toBe(
       "xai_direct_wss"
     );
