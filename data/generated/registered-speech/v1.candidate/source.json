@@ -50,6 +50,16 @@
     "displayText": "受注や発注の経験と対外調整の経験がある方を優先的に見ています。"
   },
   {
+    "intent": "skill_requirement_short_01",
+    "spokenTextForGeneration": "受発注の経験を重視しています。",
+    "displayText": "受発注の経験を重視しています。"
+  },
+  {
+    "intent": "manufacturer_experience_optional",
+    "spokenTextForGeneration": "メーカー経験は必須ではありません。受発注や対外調整の経験を優先しています。",
+    "displayText": "メーカー経験は必須ではありません。受発注や対外調整の経験を優先しています。"
+  },
+  {
     "intent": "personality",
     "spokenTextForGeneration": "協調型のタイプが合いやすく、自己流にこだわりすぎる方は合いにくいです。",
     "displayText": "協調型のタイプが合いやすく、自己流にこだわりすぎる方は合いにくいです。"
@@ -63,6 +73,11 @@
     "intent": "decision_maker",
     "spokenTextForGeneration": "ベンダー選定は人事が主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。",
     "displayText": "ベンダー選定は人事が主導しますが、候補者が現場に合うかどうかの最終判断は現場課長の意見が強く反映されます。"
+  },
+  {
+    "intent": "decision_maker_short_01",
+    "spokenTextForGeneration": "決裁者は人事課長です。",
+    "displayText": "決裁者は人事課長です。"
   },
   {
     "intent": "wednesday_followup",
@@ -108,6 +123,66 @@
     "intent": "fallback_unknown",
     "spokenTextForGeneration": "求人要件の範囲で整理します。",
     "displayText": "求人要件の範囲で整理します。"
+  },
+  {
+    "intent": "fallback_business_low_confidence_01",
+    "spokenTextForGeneration": "そこまでは、まだ明確になっていません。",
+    "displayText": "そこまでは、まだ明確になっていません。"
+  },
+  {
+    "intent": "fallback_business_low_confidence_02",
+    "spokenTextForGeneration": "現時点では、そこまでは決まっていません。",
+    "displayText": "現時点では、そこまでは決まっていません。"
+  },
+  {
+    "intent": "fallback_business_low_confidence_03",
+    "spokenTextForGeneration": "確認できている範囲では、まだ具体化していません。",
+    "displayText": "確認できている範囲では、まだ具体化していません。"
+  },
+  {
+    "intent": "fallback_rapid_fire_01",
+    "spokenTextForGeneration": "項目が多いので、分かっている範囲に限ってお伝えします。",
+    "displayText": "項目が多いので、分かっている範囲に限ってお伝えします。"
+  },
+  {
+    "intent": "fallback_rapid_fire_02",
+    "spokenTextForGeneration": "一度にすべてはお伝えしきれないため、確認できている内容に絞ります。",
+    "displayText": "一度にすべてはお伝えしきれないため、確認できている内容に絞ります。"
+  },
+  {
+    "intent": "fallback_rapid_fire_short_01",
+    "spokenTextForGeneration": "項目が多いため、要点に絞ります。",
+    "displayText": "項目が多いため、要点に絞ります。"
+  },
+  {
+    "intent": "fallback_out_of_scope_01",
+    "spokenTextForGeneration": "その点は、今回の採用要件とは直接関係していません。",
+    "displayText": "その点は、今回の採用要件とは直接関係していません。"
+  },
+  {
+    "intent": "fallback_out_of_scope_02",
+    "spokenTextForGeneration": "その内容は、こちらでは確認していません。",
+    "displayText": "その内容は、こちらでは確認していません。"
+  },
+  {
+    "intent": "fallback_safety_01",
+    "spokenTextForGeneration": "その点はお答えできません。",
+    "displayText": "その点はお答えできません。"
+  },
+  {
+    "intent": "fallback_safety_02",
+    "spokenTextForGeneration": "その内容については開示できません。",
+    "displayText": "その内容については開示できません。"
+  },
+  {
+    "intent": "fallback_unknown_01",
+    "spokenTextForGeneration": "その内容だけでは、こちらでは判断できません。",
+    "displayText": "その内容だけでは、こちらでは判断できません。"
+  },
+  {
+    "intent": "fallback_pr92_unknown_01",
+    "spokenTextForGeneration": "その点は確認します。",
+    "displayText": "その点は確認します。"
   },
   {
     "intent": "fallback_audio_not_ready",

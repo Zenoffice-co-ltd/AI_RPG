@@ -33,7 +33,15 @@ const ALLOWED_FILE = "apps/web/lib/roleplay/grok-voice-ws-url.ts";
 // followed by `?model=` (a bare connection / template fragment).
 const BARE_PATTERN = String.raw`wss:\/\/api\.x\.ai\/v1\/realtime(?![?])`;
 
-const stdout = rg(["-n", "--type", "ts", "--glob", "apps/web/**", BARE_PATTERN]);
+const stdout = rg([
+  "-n",
+  "--pcre2",
+  "--type",
+  "ts",
+  "--glob",
+  "apps/web/**",
+  BARE_PATTERN,
+]);
 const offenders = stdout
   .split("\n")
   .filter((line) => line.length > 0)

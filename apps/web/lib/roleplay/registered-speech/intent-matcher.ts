@@ -55,7 +55,7 @@ export function isRepeatRequest(input: string): boolean {
 }
 
 const SHORT_FRAGMENT_RE =
-  /^(?:あ|あっ|え|えっ|えっと|ええと|うーん|うん|よ|はい|なるほど|そうですね|ん|まあ)[。！？!?、,\s]*$/;
+  /^(?:あ|あっ|え|えっと|えっ|ええと|うーん|うん|よ|yo|jo|ja|ya|はい|なるほど|そうですね|ん|まあ)[。！？!?、,\s]*$/i;
 
 export function isShortNoiseFragment(input: string): boolean {
   const normalized = normalizeUserUtteranceForIntent(input);
@@ -114,7 +114,19 @@ const INTENT_PATTERNS: ReadonlyArray<{
     intent: "remote_work",
     userPatterns: [/在宅/, /テレワーク/, /リモート/, /在宅.*できますか/],
   },
-  { intent: "headcount", userPatterns: [/何名/, /人数/, /何人/, /何名.*募集/] },
+  {
+    intent: "headcount",
+    userPatterns: [
+      /何名.*募集/,
+      /募集.*何名/,
+      /何人.*募集/,
+      /募集.*何人/,
+      /募集.*人数/,
+      /人数.*募集/,
+      /何名.*(?:お願い|必要|採用|依頼)/,
+      /(?:お願い|必要|採用|依頼).*何名/,
+    ],
+  },
   {
     intent: "job_content",
     userPatterns: [
@@ -195,6 +207,7 @@ const INTENT_PATTERNS: ReadonlyArray<{
       /経験面/,
       /スキルセット/,
       /必須条件/,
+      /必修条件/,
       /歓迎条件/,
       /必要条件/,
       /応募条件/,

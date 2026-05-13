@@ -8,6 +8,7 @@ import { getGrokVoiceRegisteredSpeechBundleHardLimitBytes } from "../../lib/role
 
 import {
   loadRegisteredSpeechManifest,
+  type RegisteredSpeechManifestProfile,
   type LoadedRegisteredSpeechManifest,
 } from "./manifestLoader";
 
@@ -19,9 +20,11 @@ import {
 // fall through to the runtime-TTS path the deterministic mode is
 // trying to eliminate.
 
-export async function buildRegisteredSpeechBundle(): Promise<RegisteredSpeechBundle> {
-  const loaded = await loadRegisteredSpeechManifest();
-  assertManifestExhaustive(loaded);
+export async function buildRegisteredSpeechBundle(
+  profile: RegisteredSpeechManifestProfile = "current"
+): Promise<RegisteredSpeechBundle> {
+  const loaded = await loadRegisteredSpeechManifest(profile);
+  assertManifestExhaustive(loaded, profile);
 
   const artifacts = loaded.manifest.entries.map((entry) => {
     const audioBase64 = loaded.audioBase64ByIntent.get(entry.intent);
@@ -75,7 +78,21 @@ export async function buildRegisteredSpeechBundle(): Promise<RegisteredSpeechBun
   return RegisteredSpeechBundleSchema.parse(bundle);
 }
 
-function assertManifestExhaustive(loaded: LoadedRegisteredSpeechManifest) {
+function assertManifestExhaustive(
+  loaded: LoadedRegisteredSpeechManifest,
+  profile: RegisteredSpeechManifestProfile
+) {
+  if (profile === "haruto_20260512_23") {
+    if (
+      loaded.manifest.buildId !== "2026-05-12T05-31-48-094Z" ||
+      loaded.manifest.entries.length !== 23
+    ) {
+      throw new Error(
+        `[registered-speech][bundleAssembler] legacy Haruto manifest mismatch: buildId=${loaded.manifest.buildId} entries=${loaded.manifest.entries.length}`
+      );
+    }
+    return;
+  }
   const seen = new Set(loaded.manifest.entries.map((e) => e.intent));
   for (const required of REQUIRED_REGISTERED_SPEECH_INTENTS) {
     if (!seen.has(required)) {

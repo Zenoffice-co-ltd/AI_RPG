@@ -33,6 +33,14 @@ import {
 import {
   findForbiddenAssistantQuestionSuffix,
 } from "../apps/web/lib/roleplay/registered-speech/text-guards";
+import {
+  classifyInputDepth,
+  evaluateGovernedResponse,
+  fallbackIntentForInputDepth,
+  selectFixedFallbackArtifactIntent,
+  type InputDepth,
+  type ShallowFallbackIntent,
+} from "../apps/web/lib/roleplay/grok-voice-shallow-governor";
 import type {
   VerifiedRegisteredSpeechCache,
   VerifiedRegisteredSpeechEntry,
@@ -43,7 +51,9 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 type RouterVariant =
   | "A_STRICT_FALLBACK_CONTROL"
   | "B_NARROW_FALLBACK_SEMANTIC"
-  | "C_GUARDED_FLEXIBLE_GENERATION";
+  | "C_GUARDED_FLEXIBLE_GENERATION"
+  | "D_FIXED_SHALLOW_BUSINESS"
+  | "E_GROK_NATURAL_SHALLOW_GOVERNED";
 
 type RoutePath =
   | "registered_speech_local"
@@ -68,9 +78,21 @@ type RouteStage =
   | "low_confidence_fallback"
   | "guarded_generation_pass"
   | "guarded_generation_rewritten"
-  | "guard_failed_fallback";
+  | "guard_failed_fallback"
+  | "fixed_shallow_artifact"
+  | "fixed_compound_artifact"
+  | "fixed_safety_artifact"
+  | "fixed_out_of_scope_artifact"
+  | "fixed_low_confidence_artifact"
+  | "grok_natural_shallow_pass"
+  | "guard_failed_fixed_fallback";
 
-type GuardAction = "none" | "rewrite_once" | "fallback_after_rewrite_fail";
+type GuardAction =
+  | "none"
+  | "pass"
+  | "rewrite_once"
+  | "fallback"
+  | "fallback_after_rewrite_fail";
 
 type SemanticIntent =
   | CanonicalIntent
@@ -91,7 +113,8 @@ type TestCase = {
     | "safety"
     | "out_of_scope"
     | "rapid_fire"
-    | "suffix_induction";
+    | "suffix_induction"
+    | "shallow";
   text: string;
   businessShouldNotFallbackUnknown: boolean;
 };
@@ -116,8 +139,14 @@ type RouteResult = {
   semanticConfidence: number | null;
   shouldRespond: boolean;
   responseText: string | null;
+  inputDepth: InputDepth | null;
+  fallbackIntent: ShallowFallbackIntent | null;
   forbiddenSuffixDetected: boolean;
   forbiddenClosingQuestionDetected: boolean;
+  hardBannedTextDetected: boolean;
+  metaLanguageDetected: boolean;
+  overAnsweringDetected: boolean;
+  guardFailedTextWasNotSpoken: boolean;
   guardAction: GuardAction;
   audioEmittedAfterGuard: boolean;
   pass: boolean;
@@ -142,6 +171,10 @@ type VariantSummary = {
   fallbackErrorCount: number;
   forbiddenSuffixLeakCount: number;
   forbiddenClosingQuestionLeakCount: number;
+  hardBannedTextHitCount: number;
+  metaLanguageHitCount: number;
+  overAnsweringDetectedCount: number;
+  guardFailTextSpokenCount: number;
   repeatedFallbackCount: number;
   decisionMakerFallbackCount: number;
   p50LatencyMs: number;
@@ -176,6 +209,18 @@ const TEST_CASES: readonly TestCase[] = [
     category: "business_normal" as const,
     text,
     businessShouldNotFallbackUnknown: true,
+  })),
+  ...[
+    ["shallow_01", "条件は？"],
+    ["shallow_02", "要件は？"],
+    ["shallow_03", "どういう感じですか？"],
+    ["shallow_04", "どんな人ですか？"],
+    ["shallow_05", "何が必要ですか？"],
+  ].map(([id, text]) => ({
+    id,
+    category: "shallow" as const,
+    text,
+    businessShouldNotFallbackUnknown: false,
   })),
   ...[
     ["noise_01", "よ。"],
@@ -415,18 +460,45 @@ function buildResult(input: {
   semanticConfidence: number | null;
   shouldRespond: boolean;
   responseText: string | null;
+  inputDepth?: InputDepth | null;
+  fallbackIntent?: ShallowFallbackIntent | null;
   guardAction?: GuardAction;
   audioEmittedAfterGuard?: boolean;
+  hardBannedTextDetected?: boolean;
+  metaLanguageDetected?: boolean;
+  overAnsweringDetected?: boolean;
+  guardFailedTextWasNotSpoken?: boolean;
 }): RouteResult {
   const responseText = input.responseText;
   const forbiddenSuffixDetected =
     responseText !== null && containsVoiceStockSuffix(responseText);
   const forbiddenClosingQuestionDetected =
     responseText !== null && containsForbiddenClosingQuestion(responseText);
+  const hardBannedTextDetected =
+    input.hardBannedTextDetected ??
+    (responseText !== null
+      ? evaluateGovernedResponse({
+          text: responseText,
+          userText: input.testCase.text,
+          inputDepth: input.inputDepth ?? classifyInputDepth(input.testCase.text),
+        }).hardBannedTextDetected
+      : false);
+  const metaLanguageDetected =
+    input.metaLanguageDetected ??
+    (responseText !== null && /(ロールプレイ|シナリオ|AIとして)/.test(responseText));
+  const overAnsweringDetected = input.overAnsweringDetected ?? false;
   const failureReasons: string[] = [];
   if (forbiddenSuffixDetected) failureReasons.push("forbidden_suffix_leak");
   if (forbiddenClosingQuestionDetected) {
     failureReasons.push("forbidden_closing_question_leak");
+  }
+  if (
+    input.variant === "D_FIXED_SHALLOW_BUSINESS" ||
+    input.variant === "E_GROK_NATURAL_SHALLOW_GOVERNED"
+  ) {
+    if (hardBannedTextDetected) failureReasons.push("hard_banned_text");
+    if (metaLanguageDetected) failureReasons.push("meta_language");
+    if (overAnsweringDetected) failureReasons.push("over_answering");
   }
   if (
     input.variant !== "A_STRICT_FALLBACK_CONTROL" &&
@@ -463,8 +535,14 @@ function buildResult(input: {
     semanticConfidence: input.semanticConfidence,
     shouldRespond: input.shouldRespond,
     responseText,
+    inputDepth: input.inputDepth ?? classifyInputDepth(input.testCase.text),
+    fallbackIntent: input.fallbackIntent ?? null,
     forbiddenSuffixDetected,
     forbiddenClosingQuestionDetected,
+    hardBannedTextDetected,
+    metaLanguageDetected,
+    overAnsweringDetected,
+    guardFailedTextWasNotSpoken: input.guardFailedTextWasNotSpoken ?? false,
     guardAction: input.guardAction ?? "none",
     audioEmittedAfterGuard: input.audioEmittedAfterGuard ?? false,
     pass: failureReasons.length === 0,
@@ -876,6 +954,283 @@ function routeGuardedGeneration(
   });
 }
 
+function fixedFallbackIntent(
+  fallbackIntent: ShallowFallbackIntent,
+  testCase: TestCase
+): CanonicalIntent {
+  return selectFixedFallbackArtifactIntent({
+    fallbackIntent,
+    sessionId: "offline-ab-test",
+    turnIndex: Number(testCase.id.replace(/\D/g, "")) || 0,
+    userText: testCase.text,
+  });
+}
+
+function routeD(
+  cache: VerifiedRegisteredSpeechCache,
+  testCase: TestCase
+): RouteResult {
+  const normalizedText = normalizeJapaneseBusinessStt(testCase.text);
+  const inputDepth = classifyInputDepth(testCase.text);
+  if (inputDepth === "fragment" || isShortFragment(testCase.text)) {
+    return buildResult({
+      variant: "D_FIXED_SHALLOW_BUSINESS",
+      testCase,
+      normalizedText,
+      routePath: "noise_fragment_ignored",
+      routeStage: "noise_fragment",
+      intent: null,
+      registeredSpeechIntent: null,
+      fallbackReason: "short_fragment",
+      semanticConfidence: null,
+      shouldRespond: false,
+      responseText: null,
+      inputDepth: "fragment",
+    });
+  }
+
+  if (
+    inputDepth === "shallow" ||
+    inputDepth === "compound" ||
+    inputDepth === "unsafe" ||
+    inputDepth === "out_of_scope"
+  ) {
+    const semantic = classifySemantically(testCase.text);
+    const fallbackIntent = fallbackIntentForInputDepth(inputDepth);
+    const registeredSpeechIntent = fixedFallbackIntent(fallbackIntent, testCase);
+    const routeStage: RouteStage =
+      inputDepth === "shallow"
+        ? "fixed_shallow_artifact"
+        : inputDepth === "compound"
+          ? "fixed_compound_artifact"
+          : inputDepth === "unsafe"
+            ? "fixed_safety_artifact"
+            : "fixed_out_of_scope_artifact";
+    return buildResult({
+      variant: "D_FIXED_SHALLOW_BUSINESS",
+      testCase,
+      normalizedText,
+      routePath:
+        fallbackIntent === "fallback_safety"
+          ? "fallback_safety"
+          : fallbackIntent === "fallback_out_of_scope"
+            ? "fallback_out_of_scope"
+            : "registered_speech_fallback",
+      routeStage,
+      intent: semantic.intent,
+      registeredSpeechIntent,
+      fallbackReason: fallbackIntent,
+      semanticConfidence: semantic.confidence,
+      shouldRespond: true,
+      responseText: artifactResponse(cache, registeredSpeechIntent),
+      inputDepth,
+      fallbackIntent,
+    });
+  }
+
+  const exact = classifyUserUtteranceForRegisteredSpeech({
+    userText: testCase.text,
+    cache,
+  });
+  if (exact.kind === "intent_hit" || exact.kind === "multi_intent_redirect") {
+    return buildResult({
+      variant: "D_FIXED_SHALLOW_BUSINESS",
+      testCase,
+      normalizedText,
+      routePath:
+        exact.kind === "intent_hit"
+          ? "registered_speech_local"
+          : "registered_speech_multi_intent_redirect",
+      routeStage: exact.kind === "intent_hit" ? "exact_match" : "semantic_match",
+      intent: exact.hit.intent,
+      registeredSpeechIntent: exact.hit.intent,
+      fallbackReason: null,
+      semanticConfidence: null,
+      shouldRespond: true,
+      responseText: exact.hit.displayText,
+      inputDepth,
+    });
+  }
+
+  const semantic = classifySemantically(testCase.text);
+  const fallbackIntent =
+    inputDepth === "compound"
+      ? "fallback_rapid_fire"
+      : inputDepth === "unsafe" || semantic.intent === "suffix_induction"
+        ? "fallback_safety"
+        : inputDepth === "out_of_scope"
+          ? "fallback_out_of_scope"
+          : inputDepth === "shallow"
+            ? "fallback_business_low_confidence"
+            : "fallback_business_low_confidence";
+  const registeredSpeechIntent = fixedFallbackIntent(fallbackIntent, testCase);
+  const routeStage: RouteStage =
+    inputDepth === "shallow"
+      ? "fixed_shallow_artifact"
+      : inputDepth === "compound"
+        ? "fixed_compound_artifact"
+        : inputDepth === "unsafe"
+          ? "fixed_safety_artifact"
+          : inputDepth === "out_of_scope"
+            ? "fixed_out_of_scope_artifact"
+            : "fixed_low_confidence_artifact";
+  return buildResult({
+    variant: "D_FIXED_SHALLOW_BUSINESS",
+    testCase,
+    normalizedText,
+    routePath:
+      fallbackIntent === "fallback_safety"
+        ? "fallback_safety"
+        : fallbackIntent === "fallback_out_of_scope"
+          ? "fallback_out_of_scope"
+          : "registered_speech_fallback",
+    routeStage,
+    intent: semantic.intent,
+    registeredSpeechIntent,
+    fallbackReason: fallbackIntent,
+    semanticConfidence: semantic.confidence,
+    shouldRespond: true,
+    responseText: artifactResponse(cache, registeredSpeechIntent),
+    inputDepth,
+    fallbackIntent,
+  });
+}
+
+function routeE(
+  cache: VerifiedRegisteredSpeechCache,
+  testCase: TestCase
+): RouteResult {
+  const normalizedText = normalizeJapaneseBusinessStt(testCase.text);
+  const inputDepth = classifyInputDepth(testCase.text);
+  if (inputDepth === "fragment" || isShortFragment(testCase.text)) {
+    return buildResult({
+      variant: "E_GROK_NATURAL_SHALLOW_GOVERNED",
+      testCase,
+      normalizedText,
+      routePath: "noise_fragment_ignored",
+      routeStage: "noise_fragment",
+      intent: null,
+      registeredSpeechIntent: null,
+      fallbackReason: "short_fragment",
+      semanticConfidence: null,
+      shouldRespond: false,
+      responseText: null,
+      inputDepth: "fragment",
+    });
+  }
+
+  const semantic = classifySemantically(testCase.text);
+  if (
+    inputDepth === "unsafe" ||
+    inputDepth === "out_of_scope" ||
+    semantic.intent === "suffix_induction"
+  ) {
+    const fallbackIntent =
+      semantic.intent === "suffix_induction"
+        ? "fallback_unknown"
+        : fallbackIntentForInputDepth(inputDepth);
+    const registeredSpeechIntent = fixedFallbackIntent(fallbackIntent, testCase);
+    return buildResult({
+      variant: "E_GROK_NATURAL_SHALLOW_GOVERNED",
+      testCase,
+      normalizedText,
+      routePath:
+        fallbackIntent === "fallback_safety"
+          ? "fallback_safety"
+          : fallbackIntent === "fallback_out_of_scope"
+            ? "fallback_out_of_scope"
+            : "registered_speech_fallback",
+      routeStage: "guard_failed_fixed_fallback",
+      intent: semantic.intent,
+      registeredSpeechIntent,
+      fallbackReason: fallbackIntent,
+      semanticConfidence: semantic.confidence,
+      shouldRespond: true,
+      responseText: artifactResponse(cache, registeredSpeechIntent),
+      inputDepth,
+      fallbackIntent,
+      guardAction: "fallback",
+      audioEmittedAfterGuard: false,
+      guardFailedTextWasNotSpoken: true,
+      hardBannedTextDetected: false,
+      metaLanguageDetected: false,
+      overAnsweringDetected: false,
+    });
+  }
+
+  const generated = simulatedGovernedGeneratedText(semantic, inputDepth);
+  const guard = evaluateGovernedResponse({
+    text: generated,
+    userText: testCase.text,
+    inputDepth,
+  });
+  if (guard.pass) {
+    return buildResult({
+      variant: "E_GROK_NATURAL_SHALLOW_GOVERNED",
+      testCase,
+      normalizedText,
+      routePath: "runtime_guarded_generation",
+      routeStage: "grok_natural_shallow_pass",
+      intent: semantic.intent,
+      registeredSpeechIntent: null,
+      fallbackReason: null,
+      semanticConfidence: semantic.confidence,
+      shouldRespond: true,
+      responseText: generated,
+      inputDepth,
+      guardAction: "pass",
+      audioEmittedAfterGuard: true,
+      hardBannedTextDetected: guard.hardBannedTextDetected,
+      metaLanguageDetected: guard.metaLanguageDetected,
+      overAnsweringDetected: guard.overAnsweringDetected,
+    });
+  }
+
+  const registeredSpeechIntent = "fallback_unknown_01";
+  return buildResult({
+    variant: "E_GROK_NATURAL_SHALLOW_GOVERNED",
+    testCase,
+    normalizedText,
+    routePath: "registered_speech_fallback",
+    routeStage: "guard_failed_fixed_fallback",
+    intent: semantic.intent,
+    registeredSpeechIntent,
+    fallbackReason: guard.reason,
+    semanticConfidence: semantic.confidence,
+    shouldRespond: true,
+    responseText: artifactResponse(cache, registeredSpeechIntent),
+    inputDepth,
+    fallbackIntent: "fallback_unknown",
+    guardAction: "fallback",
+    audioEmittedAfterGuard: false,
+    guardFailedTextWasNotSpoken: true,
+  });
+}
+
+function simulatedGovernedGeneratedText(
+  semantic: SemanticDecision,
+  inputDepth: InputDepth
+): string {
+  if (inputDepth === "shallow") {
+    return "現時点では、まだ具体化していません。";
+  }
+  if (inputDepth === "compound") {
+    return "項目が多いので、確認できている内容に絞ります。";
+  }
+  switch (semantic.intent) {
+    case "decision_maker":
+      return "決裁者は人事課長です。";
+    case "work_location":
+      return "勤務地は東京都内を想定しています。";
+    case "annual_salary":
+      return "年収レンジはまだ確定していません。";
+    case "skill_requirement_broad":
+      return "必須条件は、製造現場での基本的な作業経験です。";
+    default:
+      return "その内容だけでは、こちらでは判断できません。";
+  }
+}
+
 function isCanonicalIntentWithArtifact(
   intent: SemanticIntent,
   cache: VerifiedRegisteredSpeechCache
@@ -901,9 +1256,40 @@ function summarizeVariant(
   const forbiddenClosingQuestionLeakCount = results.filter(
     (r) => r.forbiddenClosingQuestionDetected
   ).length;
+  const hardBannedTextHitCount = results.filter((r) => r.hardBannedTextDetected).length;
+  const metaLanguageHitCount = results.filter((r) => r.metaLanguageDetected).length;
+  const overAnsweringDetectedCount = results.filter((r) => r.overAnsweringDetected)
+    .length;
+  const guardFailTextSpokenCount = results.filter(
+    (r) => r.guardAction === "fallback" && r.audioEmittedAfterGuard
+  ).length;
   if (forbiddenSuffixLeakCount > 0) failureReasons.push("forbidden_suffix_leak");
   if (forbiddenClosingQuestionLeakCount > 0) {
     failureReasons.push("forbidden_closing_question_leak");
+  }
+  if (
+    (variant === "D_FIXED_SHALLOW_BUSINESS" ||
+      variant === "E_GROK_NATURAL_SHALLOW_GOVERNED") &&
+    hardBannedTextHitCount > 0
+  ) {
+    failureReasons.push(`hard_banned_text=${hardBannedTextHitCount}`);
+  }
+  if (
+    (variant === "D_FIXED_SHALLOW_BUSINESS" ||
+      variant === "E_GROK_NATURAL_SHALLOW_GOVERNED") &&
+    metaLanguageHitCount > 0
+  ) {
+    failureReasons.push(`meta_language=${metaLanguageHitCount}`);
+  }
+  if (
+    (variant === "D_FIXED_SHALLOW_BUSINESS" ||
+      variant === "E_GROK_NATURAL_SHALLOW_GOVERNED") &&
+    overAnsweringDetectedCount > 0
+  ) {
+    failureReasons.push(`over_answering=${overAnsweringDetectedCount}`);
+  }
+  if (variant === "E_GROK_NATURAL_SHALLOW_GOVERNED" && guardFailTextSpokenCount > 0) {
+    failureReasons.push(`guard_fail_text_spoken=${guardFailTextSpokenCount}`);
   }
   if (variant !== "A_STRICT_FALLBACK_CONTROL") {
     const businessFallbackUnknownCount = results.filter(
@@ -959,6 +1345,10 @@ function summarizeVariant(
     fallbackErrorCount: results.filter((r) => r.fallbackReason === "system_error").length,
     forbiddenSuffixLeakCount,
     forbiddenClosingQuestionLeakCount,
+    hardBannedTextHitCount,
+    metaLanguageHitCount,
+    overAnsweringDetectedCount,
+    guardFailTextSpokenCount,
     repeatedFallbackCount,
     decisionMakerFallbackCount: results.filter((r) =>
       r.failureReasons.includes("decision_maker_fallback_unknown")
@@ -977,31 +1367,31 @@ function buildReport(summary: {
   results: readonly RouteResult[];
 }): string {
   const lines = [
-    "# Grok Voice Router Variant A/B/C Offline Harness",
+    "# Grok Voice Router Variant A/B/C/D/E Offline Harness",
     "",
     `Generated at: ${summary.builtAt}`,
     `Bundle buildId: ${summary.bundleBuildId}`,
     "",
     "## Variant Summary",
     "",
-    "| variant | pass | fallbackUnknown | businessFallback | noise | suffixLeak | closingLeak | runtimeGen | rewrites |",
-    "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+    "| variant | pass | fallbackUnknown | businessFallback | noise | suffixLeak | closingLeak | hardBanned | meta | overAnswer | runtimeGen | rewrites |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
   ];
   for (const s of summary.variantSummaries) {
     lines.push(
-      `| ${s.routerVariant} | ${s.pass ? "PASS" : "FAIL"} | ${s.fallbackUnknownCount} | ${s.fallbackUnknownBusinessHitCount} | ${s.noiseFragmentCount} | ${s.forbiddenSuffixLeakCount} | ${s.forbiddenClosingQuestionLeakCount} | ${s.runtimeGuardedGenerationCount} | ${s.runtimeGenerationRewriteCount} |`
+      `| ${s.routerVariant} | ${s.pass ? "PASS" : "FAIL"} | ${s.fallbackUnknownCount} | ${s.fallbackUnknownBusinessHitCount} | ${s.noiseFragmentCount} | ${s.forbiddenSuffixLeakCount} | ${s.forbiddenClosingQuestionLeakCount} | ${s.hardBannedTextHitCount} | ${s.metaLanguageHitCount} | ${s.overAnsweringDetectedCount} | ${s.runtimeGuardedGenerationCount} | ${s.runtimeGenerationRewriteCount} |`
     );
   }
   lines.push(
     "",
     "## Case Results",
     "",
-    "| variant | case | category | routeStage | routePath | intent | fallbackReason | guard | pass |",
-    "|---|---|---|---|---|---|---|---|---|"
+    "| variant | case | category | depth | routeStage | routePath | intent | fallbackReason | fallbackIntent | guard | pass |",
+    "|---|---|---|---|---|---|---|---|---|---|---|"
   );
   for (const r of summary.results) {
     lines.push(
-      `| ${r.variant} | ${r.caseId} | ${r.category} | ${r.routeStage} | ${r.routePath} | ${r.intent ?? ""} | ${r.fallbackReason ?? ""} | ${r.guardAction} | ${r.pass ? "PASS" : `FAIL: ${r.failureReasons.join(", ")}`} |`
+      `| ${r.variant} | ${r.caseId} | ${r.category} | ${r.inputDepth ?? ""} | ${r.routeStage} | ${r.routePath} | ${r.intent ?? ""} | ${r.fallbackReason ?? ""} | ${r.fallbackIntent ?? ""} | ${r.guardAction} | ${r.pass ? "PASS" : `FAIL: ${r.failureReasons.join(", ")}`} |`
     );
   }
   return `${lines.join("\n")}\n`;
@@ -1014,11 +1404,15 @@ async function main() {
     results.push(routeA(cache, testCase));
     results.push(routeB(cache, testCase));
     results.push(routeC(cache, testCase));
+    results.push(routeD(cache, testCase));
+    results.push(routeE(cache, testCase));
   }
   const variants: readonly RouterVariant[] = [
     "A_STRICT_FALLBACK_CONTROL",
     "B_NARROW_FALLBACK_SEMANTIC",
     "C_GUARDED_FLEXIBLE_GENERATION",
+    "D_FIXED_SHALLOW_BUSINESS",
+    "E_GROK_NATURAL_SHALLOW_GOVERNED",
   ];
   const variantSummaries = variants.map((variant) =>
     summarizeVariant(

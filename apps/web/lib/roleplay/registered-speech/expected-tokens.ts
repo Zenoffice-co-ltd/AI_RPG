@@ -77,6 +77,14 @@ export const EXPECTED_TOKENS_BY_INTENT: Record<
     // unnatural so the source was rewritten to "受注や発注の経験".
     alternates: [["受注", "受発注", "じゅはっちゅう"], ["発注", "受発注", "じゅはっちゅう"]],
   },
+  skill_requirement_short_01: {
+    primary: ["受発注", "経験"],
+    alternates: [],
+  },
+  manufacturer_experience_optional: {
+    primary: ["必須", "受発注"],
+    alternates: [["メーカー", "業界"]],
+  },
   personality: {
     primary: ["合いやすく", "合いにくい"],
     alternates: [],
@@ -91,6 +99,10 @@ export const EXPECTED_TOKENS_BY_INTENT: Record<
   decision_maker: {
     primary: ["最終判断", "現場課長"],
     alternates: [["じんじ", "人事"]],
+  },
+  decision_maker_short_01: {
+    primary: ["決裁者", "人事課長"],
+    alternates: [],
   },
   wednesday_followup: {
     primary: ["お願いします", "アデコ"],
@@ -138,7 +150,55 @@ export const EXPECTED_TOKENS_BY_INTENT: Record<
     alternates: [],
   },
   fallback_unknown: {
-    primary: ["確認します"],
+    primary: ["求人要件"],
+    alternates: [],
+  },
+  fallback_business_low_confidence_01: {
+    primary: ["明確"],
+    alternates: [],
+  },
+  fallback_business_low_confidence_02: {
+    primary: ["現時点"],
+    alternates: [],
+  },
+  fallback_business_low_confidence_03: {
+    primary: ["具体化"],
+    alternates: [],
+  },
+  fallback_rapid_fire_01: {
+    primary: ["項目", "範囲"],
+    alternates: [],
+  },
+  fallback_rapid_fire_02: {
+    primary: ["内容", "絞ります"],
+    alternates: [],
+  },
+  fallback_rapid_fire_short_01: {
+    primary: ["要点", "絞ります"],
+    alternates: [],
+  },
+  fallback_out_of_scope_01: {
+    primary: ["採用要件"],
+    alternates: [],
+  },
+  fallback_out_of_scope_02: {
+    primary: ["確認"],
+    alternates: [],
+  },
+  fallback_safety_01: {
+    primary: ["答え"],
+    alternates: [],
+  },
+  fallback_safety_02: {
+    primary: ["開示"],
+    alternates: [],
+  },
+  fallback_unknown_01: {
+    primary: ["判断"],
+    alternates: [],
+  },
+  fallback_pr92_unknown_01: {
+    primary: ["確認"],
     alternates: [],
   },
   fallback_audio_not_ready: {

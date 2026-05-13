@@ -49,17 +49,77 @@ export type LoadedRegisteredSpeechManifest = {
   audioBase64ByIntent: Map<CanonicalIntent, string>;
 };
 
-let cached: Promise<LoadedRegisteredSpeechManifest> | null = null;
+export type RegisteredSpeechManifestProfile =
+  | "current"
+  | "haruto_20260512_23";
 
-function resolveManifestRoot(version: "v1"): string {
-  return resolve(REPO_ROOT, "data", "generated", "registered-speech", version);
+const LEGACY_HARUTO_20260512_23_INTENTS: readonly CanonicalIntent[] = [
+  "mission",
+  "engagement_scope",
+  "job_content",
+  "start_date",
+  "order_volume",
+  "busy_period",
+  "hiring_reason",
+  "ack_short",
+  "skill_followup_teamwork",
+  "skill_requirement_broad",
+  "personality",
+  "billing_rate",
+  "decision_maker",
+  "wednesday_followup",
+  "closing_short",
+  "working_hours",
+  "overtime",
+  "remote_work",
+  "headcount",
+  "greeting",
+  "multi_intent_redirect",
+  "fallback_unknown",
+  "fallback_audio_not_ready",
+];
+
+const LEGACY_HARUTO_20260512_BUILD_ID = "2026-05-12T05-31-48-094Z";
+
+let cached = new Map<RegisteredSpeechManifestProfile, Promise<LoadedRegisteredSpeechManifest>>();
+
+function resolveManifestRoot(
+  version: "v1",
+  profile: RegisteredSpeechManifestProfile
+): string {
+  return resolve(
+    REPO_ROOT,
+    "data",
+    "generated",
+    "registered-speech",
+    profile === "haruto_20260512_23" ? "v1.haruto-20260512" : version
+  );
 }
 
-async function loadAndValidate(): Promise<LoadedRegisteredSpeechManifest> {
-  const root = resolveManifestRoot("v1");
+function requiredIntentsForProfile(
+  profile: RegisteredSpeechManifestProfile
+): readonly CanonicalIntent[] {
+  return profile === "haruto_20260512_23"
+    ? LEGACY_HARUTO_20260512_23_INTENTS
+    : REQUIRED_REGISTERED_SPEECH_INTENTS;
+}
+
+async function loadAndValidate(
+  profile: RegisteredSpeechManifestProfile
+): Promise<LoadedRegisteredSpeechManifest> {
+  const root = resolveManifestRoot("v1", profile);
   const manifestPath = resolve(root, "manifest.json");
   const raw = await readFile(manifestPath, "utf8");
   const parsed = RegisteredSpeechManifestSchema.parse(JSON.parse(raw));
+  const requiredIntents = requiredIntentsForProfile(profile);
+  if (
+    profile === "haruto_20260512_23" &&
+    parsed.buildId !== LEGACY_HARUTO_20260512_BUILD_ID
+  ) {
+    throw new Error(
+      `[registered-speech] legacy Haruto manifest buildId mismatch: expected=${LEGACY_HARUTO_20260512_BUILD_ID} actual=${parsed.buildId}`
+    );
+  }
 
   if (parsed.voiceId !== REGISTERED_SPEECH_VOICE_ID) {
     // The schema literal already enforces this, but a runtime check
@@ -138,34 +198,36 @@ async function loadAndValidate(): Promise<LoadedRegisteredSpeechManifest> {
     }
   }
 
-  for (const required of REQUIRED_REGISTERED_SPEECH_INTENTS) {
+  for (const required of requiredIntents) {
     if (!seenIntents.has(required)) {
       throw new Error(
         `[registered-speech] manifest missing required intent: ${required}`
       );
     }
   }
-  if (parsed.entries.length !== REQUIRED_REGISTERED_SPEECH_INTENTS.length) {
+  if (parsed.entries.length !== requiredIntents.length) {
     throw new Error(
-      `[registered-speech] manifest entry count mismatch: expected=${REQUIRED_REGISTERED_SPEECH_INTENTS.length} actual=${parsed.entries.length}`
+      `[registered-speech] manifest entry count mismatch: expected=${requiredIntents.length} actual=${parsed.entries.length}`
     );
   }
 
   return { manifest: parsed, audioBase64ByIntent };
 }
 
-export function loadRegisteredSpeechManifest(): Promise<LoadedRegisteredSpeechManifest> {
-  if (!cached) {
-    cached = loadAndValidate().catch((error) => {
-      cached = null;
+export function loadRegisteredSpeechManifest(
+  profile: RegisteredSpeechManifestProfile = "current"
+): Promise<LoadedRegisteredSpeechManifest> {
+  if (!cached.has(profile)) {
+    cached.set(profile, loadAndValidate(profile).catch((error) => {
+      cached.delete(profile);
       throw error;
-    });
+    }));
   }
-  return cached;
+  return cached.get(profile)!;
 }
 
 export function clearRegisteredSpeechManifestCache() {
-  cached = null;
+  cached = new Map();
 }
 
 function assertNoForbiddenSuffix(entry: RegisteredSpeechArtifact) {
