@@ -8,8 +8,10 @@ import type {
 } from "./grok-voice-types";
 import {
   getGrokVoiceRouterVariantForDemoSlug,
+  getGrokVoiceRealtimeTransportForDemoSlug,
   resolveGrokVoiceDemoSlug,
   type AdeccoGrokVoiceDemoSlug,
+  type GrokVoiceRealtimeTransport,
   type GrokVoiceRouterVariant,
 } from "./grok-voice-router-variant";
 
@@ -32,14 +34,19 @@ let deterministicModeActive = false;
 let clientDemoSlug: AdeccoGrokVoiceDemoSlug = "adecco-roleplay-v3";
 let clientRouterVariant: GrokVoiceRouterVariant =
   "A_STRICT_FALLBACK_CONTROL";
+let clientRealtimeTransport: GrokVoiceRealtimeTransport = "xai_direct_wss";
 
 export function configureGrokVoiceClientContext(input: {
   demoSlug?: AdeccoGrokVoiceDemoSlug | undefined;
   routerVariant?: GrokVoiceRouterVariant | undefined;
+  realtimeTransport?: GrokVoiceRealtimeTransport | undefined;
 }): void {
   clientDemoSlug = resolveGrokVoiceDemoSlug(input.demoSlug);
   clientRouterVariant =
     input.routerVariant ?? getGrokVoiceRouterVariantForDemoSlug(clientDemoSlug);
+  clientRealtimeTransport =
+    input.realtimeTransport ??
+    getGrokVoiceRealtimeTransportForDemoSlug(clientDemoSlug);
 }
 
 export function setGrokVoiceClientDeterministicMode(active: boolean): void {
@@ -91,6 +98,7 @@ export async function fetchGrokVoiceSession(
   configureGrokVoiceClientContext({
     demoSlug: session.demoSlug,
     routerVariant: session.routerVariant,
+    realtimeTransport: session.realtimeTransport,
   });
   return session;
 }
@@ -192,11 +200,13 @@ export type GrokVoiceEventKind =
   | "response.pr60_locked_cancelled"
   // Strict sanitized playback events.
   | "response.stock_suffix_detected"
+  | "response.governed_guard_failed"
   | "response.unverified_audio_suppressed"
   | "sanitized_response.tts.requested"
   | "sanitized_response.tts.completed"
   | "sanitized_response.tts.failed"
   | "sanitized_response.playback.started"
+  | "sanitized_response.playback.skipped"
   | "sanitized_response.playback.completed"
   | "realtime.reseed.started"
   | "realtime.reseed.completed"
@@ -238,6 +248,7 @@ export function postGrokVoiceEvent(
       details: {
         demoSlug: clientDemoSlug,
         routerVariant: clientRouterVariant,
+        realtimeTransport: clientRealtimeTransport,
         ...(payload?.details ?? {}),
       },
     }),

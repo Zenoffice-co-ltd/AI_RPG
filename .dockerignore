@@ -13,3 +13,4 @@ yarn-error.log*
 coverage
 test-results
 playwright-report
+out

@@ -170,6 +170,40 @@ describe("grok-voice event route", () => {
     expect(JSON.stringify(lines)).not.toContain("カーの営業事務");
   });
 
+  it("drops v25 relay transcript previews even when preview logging is enabled", async () => {
+    vi.stubEnv("GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED", "true");
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            demoSlug: "adecco-roleplay-v25",
+            realtimeTransport: "mendan_cloud_run_relay_wss",
+            turnIndex: 1,
+            inputMode: "text",
+            userTextLen: 7,
+            agentTextLen: 9,
+            firstAudioMs: 10,
+            doneMs: 20,
+            audioBytes: 100,
+            error: null,
+            userTextPreview: "ユーザー本文",
+            agentTextPreview: "エージェント本文",
+            agentSpokenTextPreview: "音声本文",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const serialized = JSON.stringify(logSpy.mock.calls);
+    expect(serialized).toContain("mendan_cloud_run_relay_wss");
+    expect(serialized).not.toContain("ユーザー本文");
+    expect(serialized).not.toContain("エージェント本文");
+    expect(serialized).not.toContain("音声本文");
+  });
+
   it("does not trust client-provided transcript Base64 fields", async () => {
     vi.stubEnv("GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED", "true");
     vi.stubEnv("GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_MAX_CHARS", "20");

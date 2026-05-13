@@ -138,6 +138,12 @@ const grokVoiceServerEnvSchema = z.object({
     .string()
     .min(1)
     .default("https://api.x.ai/v1/realtime/client_secrets"),
+  GROK_VOICE_RELAY_WS_URL: z
+    .string()
+    .min(1)
+    .default("wss://voice.mendan.biz/api/v3/realtime-relay"),
+  GROK_VOICE_RELAY_EXPECTED_AUD: z.string().min(1).default("voice.mendan.biz"),
+  XAI_RELAY_TICKET_SECRET: z.string().min(32).optional(),
   GROK_VOICE_TURN_DETECTION_THRESHOLD: z.coerce.number().default(0.5),
   GROK_VOICE_TURN_DETECTION_SILENCE_MS: z.coerce
     .number()
@@ -308,14 +314,15 @@ export function isGrokVoiceRegisteredSpeechBundleEnabled() {
 
 // Hard upper bound on the bundle's combined base64 byte length. The
 // session route throws if a built manifest would exceed this so a
-// runaway artifact doesn't ship a multi-megabyte response. 8 MiB is the
-// review-v2 agreed limit; raise it deliberately, never accidentally.
+// runaway artifact doesn't ship an unbounded response. v6 adds a small
+// fixed-fallback taxonomy to the deterministic catalog, so the deliberate
+// default is 12 MiB until IndexedDB delivery replaces the inline bundle.
 export function getGrokVoiceRegisteredSpeechBundleHardLimitBytes(): number {
   ensureEnvLoaded();
   const raw =
     process.env["GROK_VOICE_REGISTERED_SPEECH_BUNDLE_HARD_LIMIT_BYTES"];
-  const parsed = Number(raw ?? `${8 * 1024 * 1024}`);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 8 * 1024 * 1024;
+  const parsed = Number(raw ?? `${12 * 1024 * 1024}`);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 12 * 1024 * 1024;
   return Math.trunc(parsed);
 }
 

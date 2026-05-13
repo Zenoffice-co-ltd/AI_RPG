@@ -12,6 +12,7 @@ export type GrokVoiceProvenance = {
   grokVoiceVoiceId: string;
   demoSlug?: string;
   routerVariant?: string;
+  realtimeTransport?: string;
 };
 
 type LogPayload = Record<string, unknown>;
@@ -22,16 +23,22 @@ function emit(scope: string, payload: LogPayload) {
 
 export function logGrokVoiceSessionCreated(payload: {
   sessionId: string;
-  ephemeralExpiresAt: string;
+  ephemeralExpiresAt?: string | undefined;
   provenance: GrokVoiceProvenance;
   demoSlug?: string;
   routerVariant?: string;
+  realtimeTransport?: string;
 }) {
   emit("grokVoice.session.created", {
     sessionId: payload.sessionId,
-    ephemeralExpiresAt: payload.ephemeralExpiresAt,
+    ...(payload.ephemeralExpiresAt
+      ? { ephemeralExpiresAt: payload.ephemeralExpiresAt }
+      : {}),
     ...(payload.demoSlug ? { demoSlug: payload.demoSlug } : {}),
     ...(payload.routerVariant ? { routerVariant: payload.routerVariant } : {}),
+    ...(payload.realtimeTransport
+      ? { realtimeTransport: payload.realtimeTransport }
+      : {}),
     ...payload.provenance,
   });
 }
@@ -46,6 +53,10 @@ export function logGrokVoiceClientEvent(payload: {
     ...payload,
     demoSlug: stringFromDetails(payload.details, "demoSlug"),
     routerVariant: stringFromDetails(payload.details, "routerVariant"),
+    realtimeTransport: stringFromDetails(
+      payload.details,
+      "realtimeTransport"
+    ),
   });
 }
 
@@ -102,6 +113,7 @@ export function logGrokVoiceTurnMetrics(payload: {
   provenance: GrokVoiceProvenance;
   demoSlug?: string;
   routerVariant?: string;
+  realtimeTransport?: string;
   // PR A latency observability (all optional — backwards compatible).
   routePath?: GrokVoiceRoutePath;
   routeStage?: string | null;
@@ -111,8 +123,14 @@ export function logGrokVoiceTurnMetrics(payload: {
   registeredSpeechSha256?: string | null;
   registeredSpeechManifestBuildId?: string | null;
   guardAction?: string | null;
+  inputDepth?: string | null;
+  fallbackIntent?: string | null;
   forbiddenSuffixDetected?: boolean;
   closingQuestionDetected?: boolean;
+  hardBannedTextDetected?: boolean;
+  metaLanguageDetected?: boolean;
+  overAnsweringDetected?: boolean;
+  guardFailedTextWasNotSpoken?: boolean;
   audioEmittedAfterGuard?: boolean;
   firstAudibleAudioMs?: number | null;
   firstRealtimeAudioDeltaMs?: number | null;
@@ -170,6 +188,9 @@ export function logGrokVoiceTurnMetrics(payload: {
     ...(payload.routePath !== undefined ? { routePath: payload.routePath } : {}),
     ...(payload.demoSlug ? { demoSlug: payload.demoSlug } : {}),
     ...(payload.routerVariant ? { routerVariant: payload.routerVariant } : {}),
+    ...(payload.realtimeTransport
+      ? { realtimeTransport: payload.realtimeTransport }
+      : {}),
     ...(payload.routeStage !== undefined ? { routeStage: payload.routeStage } : {}),
     ...(payload.fallbackReason !== undefined
       ? { fallbackReason: payload.fallbackReason }
@@ -190,11 +211,27 @@ export function logGrokVoiceTurnMetrics(payload: {
         }
       : {}),
     ...(payload.guardAction !== undefined ? { guardAction: payload.guardAction } : {}),
+    ...(payload.inputDepth !== undefined ? { inputDepth: payload.inputDepth } : {}),
+    ...(payload.fallbackIntent !== undefined
+      ? { fallbackIntent: payload.fallbackIntent }
+      : {}),
     ...(payload.forbiddenSuffixDetected !== undefined
       ? { forbiddenSuffixDetected: payload.forbiddenSuffixDetected }
       : {}),
     ...(payload.closingQuestionDetected !== undefined
       ? { closingQuestionDetected: payload.closingQuestionDetected }
+      : {}),
+    ...(payload.hardBannedTextDetected !== undefined
+      ? { hardBannedTextDetected: payload.hardBannedTextDetected }
+      : {}),
+    ...(payload.metaLanguageDetected !== undefined
+      ? { metaLanguageDetected: payload.metaLanguageDetected }
+      : {}),
+    ...(payload.overAnsweringDetected !== undefined
+      ? { overAnsweringDetected: payload.overAnsweringDetected }
+      : {}),
+    ...(payload.guardFailedTextWasNotSpoken !== undefined
+      ? { guardFailedTextWasNotSpoken: payload.guardFailedTextWasNotSpoken }
       : {}),
     ...(payload.audioEmittedAfterGuard !== undefined
       ? { audioEmittedAfterGuard: payload.audioEmittedAfterGuard }

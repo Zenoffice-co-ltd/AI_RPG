@@ -1,0 +1,15 @@
+substitutions:
+  _IMAGE: gcr.io/adecco-mendan/xai-realtime-relay:latest
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - apps/xai-realtime-relay/Dockerfile
+      - -t
+      - ${_IMAGE}
+      - .
+
+images:
+  - ${_IMAGE}

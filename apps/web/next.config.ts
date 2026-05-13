@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   transpilePackages: [
     "@top-performer/domain",
     "@top-performer/firestore",
+    "@top-performer/grok-realtime-relay-auth",
     "@top-performer/vendors",
     "@top-performer/scenario-engine",
     "@top-performer/scoring"
@@ -55,7 +56,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob:",
               "font-src 'self' data:",
               "media-src 'self' blob:",
-              "connect-src 'self' https://api.elevenlabs.io wss://*.elevenlabs.io https://*.elevenlabs.io https://*.livekit.cloud wss://*.livekit.cloud https://api.x.ai wss://api.x.ai",
+              "connect-src 'self' https://api.elevenlabs.io wss://*.elevenlabs.io https://*.elevenlabs.io https://*.livekit.cloud wss://*.livekit.cloud https://api.x.ai wss://api.x.ai https://voice.mendan.biz wss://voice.mendan.biz wss://*.hosted.app ws://localhost:* ws://127.0.0.1:*",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
             ].join("; "),

@@ -9,13 +9,14 @@
 
 import type {
   GrokVoiceAudioConfig,
+  GrokVoiceRealtimeAuth,
   GrokVoiceServerEvent,
   GrokVoiceTurnDetectionConfig,
 } from "./grok-voice-types";
 
 export type GrokVoiceRealtimeOptions = {
   url: string;
-  ephemeralToken: string;
+  auth: GrokVoiceRealtimeAuth;
   onMessage: (event: GrokVoiceServerEvent) => void;
   onOpen?: () => void;
   onReady?: () => void;
@@ -64,9 +65,7 @@ export class GrokVoiceRealtime {
   open(): void {
     this.readyState = "connecting";
     const Ctor = this.opts.WebSocketCtor ?? WebSocket;
-    this.socket = new Ctor(this.opts.url, [
-      `xai-client-secret.${this.opts.ephemeralToken}`,
-    ]);
+    this.socket = new Ctor(this.opts.url, buildProtocols(this.opts.auth));
     this.socket.onopen = () => {
       this.readyState = "socket_open";
       this.opts.onOpen?.();
@@ -329,6 +328,13 @@ export class GrokVoiceRealtime {
       ...(details ? { details } : {}),
     });
   }
+}
+
+export function buildProtocols(auth: GrokVoiceRealtimeAuth): string[] {
+  if (auth.mode === "xai_ephemeral_subprotocol") {
+    return [`xai-client-secret.${auth.token}`];
+  }
+  return [auth.protocol, `mendan-relay-ticket.${auth.ticket}`];
 }
 
 function payloadType(payload: unknown) {

@@ -17,7 +17,84 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 - **Production A / control**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v3
 - **Production B / narrow fallback semantic**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v4
 - **Production C / guarded flexible generation**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v5
-- Local A/B/C: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5}`
+- **Production D / fixed shallow business**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v6
+- **Production E / Grok natural shallow governed**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v7
+- **Production F / Grok natural short governed**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v8
+- **Production G / hybrid fast governed**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v9
+- **Production H / v3-style fast registered guarded**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v10
+- **Production I / v10 recruit-unknown Grok guarded**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v11
+- **Production J / v10 PR-92 unknown fallback**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v12
+- **Production K / v12 recruit-unknown Grok guarded**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v13
+- **Production L / v13 manufacturer-experience fast guarded**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v14
+- **Production M / v10 Haruto fast meta-unknown-only**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v15
+- **Production N / v14 fast matcher text guarded**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v16
+- **Production O / v14 recruit-unknown all Grok guarded**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v17
+- **Production P / v17 unknown Grok unguarded**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v18
+- **Production Q / v17 meta-safety-only fixed fallback**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v19
+- **Production R / v18 legacy Haruto 23-base**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v20
+- **Production S / v20 short streaming runtime**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v21
+- **Production T / v21 ack-stream compact prompt**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v23
+- **Internal v24 / failed App Hosting relay evidence**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v24
+- **Enterprise v25 / Cloud Run relay transport**: https://mendan.biz/demo/adecco-roleplay-v25
+- **Research v50 / Grok-first negative guard only**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v50
+- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50}`
+
+## v50 Grok-first negative guard runtime
+
+`/demo/adecco-roleplay-v50` is a separate runtime, not a `routerVariant` in the
+legacy `/api/v3/*` stack. Its source lives under
+`apps/web/lib/grok-first-roleplay/` and its API namespace is
+`/api/grok-first-v50/*`.
+
+Contract:
+
+- Grok Voice Think Fast generates every business answer in realtime.
+- Rule code only detects, strips, suppresses, cancels, and measures NG output.
+- No PR60 exact locks, registered-speech business answers, semantic positive
+  routing, fixed business fallback, runtime replacement TTS, or all-turn full
+  buffering.
+- The v50 session payload must not include `registeredSpeech` or
+  `lockedResponseAudioBundle`.
+- v50 runtime imports from `registered-speech`, `grok-voice-pr60-*`,
+  `locked-response-tts`, and `sanitized-response-tts` are forbidden.
+
+Session defaults:
+
+- `model=grok-voice-think-fast-1.0`
+- `tools=[]`
+- `audio/pcm` input/output at 24kHz
+- `server_vad`: threshold `0.65`, silence `650ms`, prefix padding `333ms`
+- Tail guard: normal turn hold `300ms`, risk turn hold `800ms`, max hold
+  `1000ms`
+
+DOD:
+
+- Latency: `firstAudibleAudioMs.p50 <= baseline + 300ms`,
+  `firstAudibleAudioMs.p95 <= baseline + 600ms`,
+  `firstAudioDeltaMs.p50 <= baseline + 200ms`,
+  `tailGuardHoldMs.p95 <= 1000ms`, `toolCallCount=0`,
+  `runtimeTtsCount=0`, `fullTurnBufferCount=0`, `regenerationRate=0`,
+  WebSocket reconnects per session `<= 1`, and VAD premature cutoff rate no
+  worse than baseline.
+- Fixed-answer elimination: `businessRegisteredSpeechHitCount=0`,
+  `businessPr60LockHitCount=0`, `fixedFallbackBusinessHitCount=0`,
+  `registeredSpeechPayloadIncluded=false`,
+  `lockedResponseAudioBundleIncluded=false`, and no `registered_speech_*` or
+  `lock_voice_*` route paths.
+- Conversation quality: shallow/deep questions change answer depth; same topic
+  does not collapse to one fixed sentence; `整理します`-style phrases and
+  generic closing questions are zero; the customer does not coach the sales
+  rep or lead the sales flow.
+- Culture/job level: management style, fit/mismatch traits, and job timeline
+  are disclosed only when specifically asked; shallow business questions do
+  not pre-leak culture detail or six-month expectations.
+- Evaluation: schema validation passes; same-transcript five-run total score
+  variance is `<= ±2`; must-capture level variance is `<= 0.5`; all scored
+  evidence has `turn_id` and `quote`; AI-preleaked facts are not counted as
+  learner capture; `culture_fit`, `management_style`, and
+  `job_level_timeline` are rubric keys; learner feedback includes strengths,
+  missing perspectives, next-question examples, and at least three priority
+  improvement actions.
 
 The three Grok Voice routes share the same Adecco scenario, UI, voice setup,
 and `/api/v3/*` runtime. The router variant is resolved from the demo slug,
@@ -28,6 +105,86 @@ not from a global environment variable:
 | `adecco-roleplay-v3` | `A_STRICT_FALLBACK_CONTROL` | Existing production control. Do not mix B/C behavior into this route. |
 | `adecco-roleplay-v4` | `B_NARROW_FALLBACK_SEMANTIC` | Deterministic registered speech with narrower fallback and noise-fragment ignore. |
 | `adecco-roleplay-v5` | `C_GUARDED_FLEXIBLE_GENERATION` | Experimental flexible path. Runtime output is buffered/guarded before audio playback. |
+| `adecco-roleplay-v6` | `D_FIXED_SHALLOW_BUSINESS` | Fast deterministic fixed fallback taxonomy for shallow/compound/safety/out-of-scope turns. Does not use runtime generation/TTS/rt_voice. |
+| `adecco-roleplay-v7` | `E_GROK_NATURAL_SHALLOW_GOVERNED` | Experimental Grok natural response path with input-depth governor and post guard before audio. Guard failures play fixed fallback artifacts. |
+| `adecco-roleplay-v8` | `F_GROK_NATURAL_SHORT_GOVERNED` | v7-derived Grok natural response path with a stricter one-sentence short-answer governor. |
+| `adecco-roleplay-v9` | `G_HYBRID_FAST_GOVERNED` | v7-derived hybrid path: registered-speech exact hits use local audio, unmatched specific turns use guarded short Grok generation. |
+| `adecco-roleplay-v10` | `H_V3_STYLE_FAST_REGISTERED_GUARDED` | v4-speed deterministic path using the Haruto registered-speech bank and v6+ fixed fallbacks instead of legacy `fallback_unknown`. |
+| `adecco-roleplay-v11` | `I_V10_RECRUIT_UNKNOWN_GROK_GUARDED` | v10-style exact-match speed; unmatched recruitment-like turns fall through to guarded Grok runtime, while unsafe/out-of-scope/suffix induction remain fixed fallback. |
+| `adecco-roleplay-v12` | `J_V10_PR92_UNKNOWN_FALLBACK` | v10 deterministic path, but fallback turns use a separate PR #92-style artifact (`その点は確認します。`) without changing legacy `fallback_unknown`. |
+| `adecco-roleplay-v13` | `K_V12_RECRUIT_UNKNOWN_GROK_GUARDED` | v12 baseline, but recruitment-like unknown turns alone fall through to guarded Grok runtime; other unknown/safety/out-of-scope turns keep the PR #92-style artifact. |
+| `adecco-roleplay-v14` | `L_V13_MANUFACTURER_EXPERIENCE_FAST_GUARDED` | v13 baseline, but manufacturer/industry experience mandatory follow-ups use a short registered-speech artifact before falling through to guarded Grok runtime. |
+| `adecco-roleplay-v15` | `M_V10_HARUTO_FAST_META_UNKNOWN_ONLY` | v10-speed deterministic Haruto route. Recruitment-like unmatched turns use fixed business fallbacks; `fallback_unknown_01` is reserved for system prompt / AI / roleplay / suffix-induction probes. PR #92 `その点は確認します。` is not used. |
+| `adecco-roleplay-v16` | `N_V14_FAST_MATCHER_TEXT_GUARDED` | v14 baseline with minimal fast-path fixes for manual-log misses: STT variants of maker-experience questions, busy-period follow-ups, and "営業事務1名ですね" acknowledgements use registered speech; interim runtime text stays hidden until guard/finalization. |
+| `adecco-roleplay-v17` | `O_V14_RECRUIT_UNKNOWN_ALL_GROK_GUARDED` | v14 baseline, but recruitment-like unknown matcher/fallback paths are removed: unmatched job-related questions fall through to guarded Grok runtime instead of `fallback_pr92_unknown_01`, `fallback_unknown`, or business-low-confidence artifacts. Exact registered-speech hits remain fast. |
+| `adecco-roleplay-v18` | `P_V17_UNKNOWN_GROK_UNGUARDED` | v17 baseline, but matcher-miss unknown and rapid-fire paths go to Grok runtime and the post-generation shallow/over-answering guard is disabled. Exact registered-speech hits and safety/suffix fixed fallbacks remain unchanged. |
+| `adecco-roleplay-v19` | `Q_V17_META_SAFETY_ONLY_FIXED_FALLBACK` | v17/v18-derived route where normal business turns bypass fixed matchers and go to Grok. The registered-speech intent matcher and PR60 locked response matcher are disabled for v19 business input, including billing rate, requested staffing headcount, job content, start date, and decision maker. Fixed fallback remains only for system prompt / AI / instruction override / suffix-induction, safety, and fully out-of-scope turns. |
+| `adecco-roleplay-v20` | `R_V18_LEGACY_HARUTO_23_BASE` | v18 behavior, but registered-speech exact hits and safety/suffix fixed fallback use the reviewed Haruto 23-entry bundle from build `2026-05-12T05-31-48-094Z`. Matcher-miss unknown and rapid-fire turns still go to Grok runtime. |
+| `adecco-roleplay-v21` | `S_V20_LEGACY_HARUTO_SHORT_STREAMING_RUNTIME` | v20 baseline with the reviewed Haruto 23-entry bundle, but runtime Grok turns use shorter answer instructions and `strictPlaybackMode=risk_based` so low-risk audio can begin before `response.done`. |
+| `adecco-roleplay-v23` | `T_V21_ACK_STREAM_COMPACT_PROMPT` | v21 baseline with the same Haruto 23-entry bundle, but ack-prefixed business questions can stream, VAD silence is 350ms, and the runtime prompt is compact for faster `response.done`. |
+| `adecco-roleplay-v24` | `U_V23_SERVER_RELAYED_WSS` | Failed App Hosting same-origin relay experiment retained as internal evidence only. App Hosting blocked the WebSocket upgrade before relay logs appeared, so this is not the enterprise production path. |
+| `adecco-roleplay-v25` | `B_NARROW_FALLBACK_SEMANTIC` | Enterprise transport route. Conversation behavior stays on the stable v4-style B variant, while `realtimeTransport=mendan_cloud_run_relay_wss` sends browser WSS to `voice.mendan.biz` instead of direct `api.x.ai`. |
+
+`routerVariant` is only the conversation behavior axis. Transport is a separate
+session field:
+
+| Demo slug | realtimeTransport | Browser WebSocket |
+|---|---|---|
+| `adecco-roleplay-v3` / `v4` / `v5` and existing research routes | `xai_direct_wss` | `wss://api.x.ai/v1/realtime?model=grok-voice-think-fast-1.0` |
+| `adecco-roleplay-v25` | `mendan_cloud_run_relay_wss` | `wss://voice.mendan.biz/api/v3/realtime-relay` |
+
+For v25, `/api/v3/session` does not issue an xAI ephemeral token. It returns a
+short-lived MENDAN relay ticket in `realtimeAuth`, and the browser sends it via
+`Sec-WebSocket-Protocol` as `mendan-relay-ticket.<ticket>`.
+
+v6/v7/v8/v9/v10/v15/v16/v17/v18/v19 must not route to the legacy `fallback_unknown` artifact that says
+`求人要件の範囲で整理します。`; that artifact remains only for the existing
+v3/v4/v5 comparison baseline. v6+ fixed fallbacks are separate registered-speech
+intents (`fallback_business_low_confidence_*`, `fallback_rapid_fire_*`,
+`fallback_out_of_scope_*`, `fallback_safety_*`, `fallback_unknown_01`,
+`fallback_pr92_unknown_01`). v15 also excludes the PR #92 comparison artifact
+`fallback_pr92_unknown_01` from recruitment-like fallback paths. v17 excludes
+all recruitment-like unknown fallback artifacts from the pre-Grok path; safety,
+out-of-scope, and suffix-induction probes still use guarded fixed fallback. v19
+also excludes fixed fallback for normal shallow/compound/unknown and
+over-answering-only Grok responses. For v19, the registered-speech intent
+matcher and PR60 locked response matcher are disabled for business input;
+meta/AI/suffix/safety/out-of-scope remains guarded. v19 keeps the answer-ending
+stock-question sanitizer on the normal Grok path: generated audio is buffered,
+tail sentences such as `何か他に気になる点はありますか？` are stripped, and only
+the cleaned answer is played.
+v20 is the exception for the requested legacy voice comparison: it loads
+`data/generated/registered-speech/v1.haruto-20260512/manifest.json`
+(`buildId=2026-05-12T05-31-48-094Z`, 23 entries, Haruto voice
+`99c95cc8a177`) instead of the current 38-entry bundle. v20 should be treated as
+an audio-baseline comparison route, not a new fallback taxonomy.
+v21 keeps the same 23-entry Haruto base and the same Grok fall-through policy,
+but shortens the runtime instruction and uses `strictPlaybackMode=risk_based`
+so ordinary low-risk Grok audio can start before `response.done`; this is meant
+to reduce barge-in cancellation on varied job-related utterances without adding
+phrase-specific fixed matchers.
+v23 keeps v21's base but narrows the remaining latency bottleneck: business
+questions that begin with an acknowledgement such as `そういうことですね` no
+longer trigger the ack-prefix playback buffer, the session VAD silence window is
+350ms, and the Voice Agent instructions are reduced to a compact roleplay fact
+sheet. The sample rate stays 24kHz because the reviewed Haruto local artifacts
+are PCM 24kHz; lowering the single session rate would distort those artifacts.
+v24 keeps v23's prompt, VAD, Haruto 23-entry bundle, and `risk_based` playback
+unchanged, but changes the browser realtime endpoint to same-origin
+`/api/v3/realtime-relay`. The App Hosting Node server
+(`node apps/web/relay-server.mjs`) opens the upstream xAI WebSocket and forwards
+messages, which targets customer environments where direct browser access to
+`wss://api.x.ai/v1/realtime` is blocked. v23 must remain direct-to-xAI for
+baseline comparison.
+
+For non-v19 registered-speech variants, headcount registered speech means the
+requested staffing headcount only. Team, department, branch, or workplace-size
+questions such as `部署の人数` and `チームの人数` must not use the `headcount`
+artifact. On v19, both categories fall through to Grok because business
+matchers are disabled.
+v18 additionally disables the post-generation shallow/over-answering guard so
+Grok-generated job-context answers are spoken instead of being replaced by
+business-low-confidence fixed fallback.
 
 `ENABLE_GROK_VOICE_ROLEPLAY=true` (apphosting.yaml) は本番で常時有効。
 secret は `XAI_API_KEY` (zapier-transfer + adecco-mendan 両方に存在、
@@ -38,15 +195,27 @@ Before deploying any router-variant behavior change, run:
 ```bash
 corepack pnpm exec tsx scripts/grok-voice-router-variant-ab-test.ts
 corepack pnpm grok:audio-e2e:layer-b
+corepack pnpm grok:audio-e2e:browser:text
+corepack pnpm grok:audio-e2e:browser:voice
 corepack pnpm grok:audio-e2e:browser
 corepack pnpm --filter @top-performer/web exec vitest run tests/unit/grok-voice-deterministic-router.test.tsx tests/unit/grok-voice-event-route.test.ts
 corepack pnpm --filter @top-performer/web typecheck
+corepack pnpm --filter @top-performer/web test
+corepack pnpm --filter @top-performer/web build
 ```
 
-`grok:audio-e2e:browser` starts a local web server by default and writes
-evidence under `out/grok_voice_browser_audio_e2e/<timestamp>/`. Set
-`GROK_BROWSER_E2E_BASE_URL` to run the same browser gate against a preview or
+`grok:audio-e2e:browser:text` starts a local web server by default and writes
+evidence under `out/grok_voice_browser_audio_e2e/<timestamp>/`.
+`grok:audio-e2e:browser:voice` uses Playwright Chromium fake microphone WAV
+fixtures from `test/fixtures/audio/grok-voice-v6-v7/` and writes evidence under
+`out/grok_voice_browser_voice_audio_e2e/<timestamp>/`. Set
+`GROK_BROWSER_E2E_BASE_URL` to run the same browser gates against a preview or
 production URL.
+
+The v7 production-adoption latency gate is `firstAudibleAudioMs p95 <= 5000ms`
+and `doneMs p95 <= 8000ms` in browser voice E2E. If quality counters pass but
+latency exceeds this gate, v7 remains experimental and deployment/adoption is
+blocked until the latency evidence improves.
 
 Deploy normally with `corepack pnpm deploy:adecco-roleplay`. When Firebase CLI
 auth is blocked or the operator asks to use gcloud, use

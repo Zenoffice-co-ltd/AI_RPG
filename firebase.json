@@ -9,6 +9,7 @@
       "firebase-debug.*.log",
       "playwright-report",
       "test-results",
+      "out",
       "tmp-next-start.err.log",
       "tmp-next-start.out.log"
     ],

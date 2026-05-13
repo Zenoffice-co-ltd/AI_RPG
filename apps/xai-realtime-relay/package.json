@@ -1,0 +1,23 @@
+{
+  "name": "@top-performer/xai-realtime-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/server.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint src --ext .ts --ignore-pattern \"src/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ../../vitest.config.ts --passWithNoTests",
+    "start": "tsx src/server.ts"
+  },
+  "dependencies": {
+    "@top-performer/grok-realtime-relay-auth": "workspace:*",
+    "ws": "8.20.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
+  }
+}
