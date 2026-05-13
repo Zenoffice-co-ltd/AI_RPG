@@ -16,6 +16,13 @@ const ASSERT_V50 = process.env.GROK_FIRST_V50_BROWSER_ASSERT_V50 !== "false";
 const ASSERT_CONTENT = process.env.GROK_FIRST_V50_BROWSER_ASSERT_CONTENT !== "false";
 const ASSERT_NO_TTS = process.env.GROK_FIRST_V50_BROWSER_ASSERT_NO_TTS !== "false";
 const ASSERT_GUARD = process.env.GROK_FIRST_V50_BROWSER_ASSERT_GUARD !== "false";
+const ASSERT_CONSOLE = process.env.GROK_FIRST_V50_BROWSER_ASSERT_CONSOLE !== "false";
+const ASSERT_FIRST_AUDIO_DELTA =
+  process.env.GROK_FIRST_V50_BROWSER_ASSERT_FIRST_AUDIO_DELTA !== "false";
+const PAGE_QUERY =
+  process.env.GROK_FIRST_V50_BROWSER_PAGE_QUERY ??
+  (DEMO_SLUG === "adecco-roleplay-v50" ? "fakeLive=1" : "");
+const WAIT_BEFORE_CASE_EVENT = process.env.GROK_FIRST_V50_BROWSER_WAIT_BEFORE_CASE_EVENT ?? "";
 const STAMP = new Date().toISOString().replace(/[:.]/g, "-");
 const OUT_DIR =
   process.env.GROK_FIRST_V50_BROWSER_OUT_DIR ??
@@ -89,7 +96,11 @@ async function main() {
 
   const browser = await chromium.launch({
     headless: true,
-    args: ["--autoplay-policy=no-user-gesture-required"],
+    args: [
+      "--autoplay-policy=no-user-gesture-required",
+      "--use-fake-ui-for-media-stream",
+      "--use-fake-device-for-media-stream",
+    ],
   });
   try {
     const context = await browser.newContext({
@@ -224,7 +235,8 @@ async function main() {
       network.push(entry);
     });
 
-    await page.goto(`${BASE_URL}/demo/${DEMO_SLUG}?fakeLive=1`, {
+    const pageUrl = `${BASE_URL}/demo/${DEMO_SLUG}${PAGE_QUERY ? `?${PAGE_QUERY}` : ""}`;
+    await page.goto(pageUrl, {
       waitUntil: "domcontentloaded",
       timeout: 90_000,
     });
@@ -232,6 +244,9 @@ async function main() {
       timeout: 60_000,
     });
     await ensureConversationReady(page);
+    if (WAIT_BEFORE_CASE_EVENT) {
+      await waitForEventKind(events, WAIT_BEFORE_CASE_EVENT, 120_000);
+    }
 
     const results = [];
     let fatalError = null;
@@ -334,7 +349,10 @@ function evaluateCase({ testCase, turnEvent, agentText, beforeProbe, afterProbe 
   if (startedDelta <= 0) failures.push("audio_playback_not_started");
   if (endedDelta <= 0) failures.push("audio_playback_not_ended");
   if (!(details.audioBytes > 0)) failures.push(`audioBytes=${details.audioBytes ?? "missing"}`);
-  if (firstAudioDeltaMs === null || firstAudioDeltaMs === undefined) {
+  if (
+    ASSERT_FIRST_AUDIO_DELTA &&
+    (firstAudioDeltaMs === null || firstAudioDeltaMs === undefined)
+  ) {
     failures.push("firstAudioDeltaMs_missing");
   }
   if (details.firstAudibleAudioMs === null || details.firstAudibleAudioMs === undefined) {
@@ -418,7 +436,7 @@ function buildSummary({
   if (wsErrors.length > 0) {
     failures.push(`ws.error count=${wsErrors.length}`);
   }
-  if (consoleErrors.length > 0) {
+  if (ASSERT_CONSOLE && consoleErrors.length > 0) {
     failures.push(`consoleErrors=${consoleErrors.length}`);
   }
   const firstAudible = results
@@ -436,6 +454,9 @@ function buildSummary({
     assertContent: ASSERT_CONTENT,
     assertNoTts: ASSERT_NO_TTS,
     assertGuard: ASSERT_GUARD,
+    assertConsole: ASSERT_CONSOLE,
+    assertFirstAudioDelta: ASSERT_FIRST_AUDIO_DELTA,
+    pageQuery: PAGE_QUERY,
     sessionIds: [...new Set(results.map((result) => result.sessionId).filter(Boolean))],
     caseCount: results.length,
     turnCount: turnEvents.length,
@@ -503,6 +524,16 @@ async function waitForTurn(events, text, timeoutMs) {
     await sleep(100);
   }
   throw new Error(`Timed out waiting for turn.completed: ${text}`);
+}
+
+async function waitForEventKind(events, kind, timeoutMs) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const match = events.find((event) => event.kind === kind);
+    if (match) return match;
+    await sleep(100);
+  }
+  throw new Error(`Timed out waiting for event kind: ${kind}`);
 }
 
 async function waitForAudioProgress(page, previousCount, timeoutMs) {
