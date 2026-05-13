@@ -792,10 +792,12 @@ Known blockers outside the v25 relay DOD:
 
 - `corepack pnpm verify:acceptance` now passes the previous Secret Manager IAM
   blocker when vendor credentials are supplied via process env using the
-  AGENTS.md precedence. The latest full run reached the ElevenLabs publish
-  stage and failed after 3 vendor judge attempts:
+  AGENTS.md precedence. The first full run reached the ElevenLabs publish stage
+  and failed after 3 vendor judge attempts:
   `shallow-questions-stay-shallow` + `no-coaching` on retry 1,
   `no-coaching` on retry 2, and `next-step-close` + `no-coaching` on retry 3.
+  A second full run reached the same legacy publish step and failed only
+  `staffing_order_hearing_busy_manager_medium::no-coaching` on all 3 retries.
   This is no longer a Secret Manager blocker; it is the legacy ConvAI judge
   instability already tracked in the Follow-up Backlog. Acceptance criterion:
   either obtain a clean `corepack pnpm verify:acceptance` run in a quieter
