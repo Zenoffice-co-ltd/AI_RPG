@@ -32,6 +32,7 @@ const PROMPT_LEAK_PATTERNS: RegExp[] = [
   /開発者指示/u,
   /プロンプト.*(内容|全文|指示)/u,
   /隠された.*(指示|情報)/u,
+  /指示にない/u,
 ];
 
 const EVALUATION_LEAK_PATTERNS: RegExp[] = [
@@ -51,6 +52,7 @@ const UNNATURAL_AI_PHRASE_PATTERNS: RegExp[] = [
   /共有させていただきます/u,
   /お聞かせください/u,
   /いただければと思います/u,
+  /できません/u,
 ];
 
 const NUMERIC_CONTRADICTION_PATTERNS: RegExp[] = [
@@ -84,6 +86,8 @@ const CUSTOMER_LED_SALES_FLOW_PATTERNS: RegExp[] = [
   /順番に/u,
   /まず.*確認しましょう/u,
   /進めてください/u,
+  /教えていただけますか/u,
+  /どんな方を想定/u,
 ];
 
 export function evaluateNegativeGuard(input: {

@@ -199,6 +199,20 @@ TTS fetch attempts, tail guard metrics, and forbidden suffix transcript leakage.
 It is a browser-path regression gate; production adoption still requires live
 xAI voice measurement against the latency and audible-leak DOD above.
 
+Live xAI transcript/latency harness:
+
+```bash
+corepack pnpm grok-first:v50:live-e2e
+```
+
+This opens `grok-voice-think-fast-1.0` directly, sends the v50 prompt, runs the
+same seven text cases, records `firstAudioDeltaMs`, raw transcripts, and
+negative-guard sanitized transcripts, and writes evidence under
+`out/grok_first_v50_live_e2e/`. It follows the repository Secret Manager
+precedence for `XAI_API_KEY` and exits with `BLOCKED: XAI_API_KEY not available`
+if no real key is available. It is live model evidence, but it does not replace
+the final browser + audible playback production DOD.
+
 `ENABLE_GROK_VOICE_ROLEPLAY=true` (apphosting.yaml) は本番で常時有効。
 secret は `XAI_API_KEY` (zapier-transfer + adecco-mendan 両方に存在、
 build-time + runtime 両 SA に IAM bindings 付与済み)。

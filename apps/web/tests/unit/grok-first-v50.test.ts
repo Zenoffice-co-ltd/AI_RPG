@@ -1,8 +1,11 @@
+// @vitest-environment jsdom
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { signAccessToken } from "../../lib/roleplay/auth";
+import { useGrokFirstRoleplayConversation } from "../../lib/grok-first-roleplay/useGrokFirstRoleplayConversation";
 import {
   TAIL_GUARD_MAX_HOLD_MS,
   TailOnlyAudioGuard,
@@ -16,6 +19,10 @@ import {
   assertPromptDenylist,
   buildGrokFirstV50Prompt,
 } from "../../lib/grok-first-roleplay/prompt";
+import type {
+  GrokFirstV50ServerEvent,
+  GrokFirstV50Session,
+} from "../../lib/grok-first-roleplay/types";
 
 function validRequest() {
   const headers = new Headers({
@@ -168,6 +175,54 @@ describe("grok-first v50 runtime", () => {
     expect(joined).not.toContain("sanitized-response-tts");
     expect(joined).not.toContain("getPr60LockedResponseForUser");
   });
+
+  it("does not count intentional closes as reconnects and resets reconnect metrics for new sessions", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+    const realtimeInstances: FakeRealtime[] = [];
+    const sessions = [testSession("session-one"), testSession("session-two")];
+    const { result } = renderHook(() =>
+      useGrokFirstRoleplayConversation("live", {
+        micEnabled: false,
+        fetchSession: vi.fn(async () => sessions.shift() ?? testSession("extra")),
+        createRealtime: (opts) => {
+          const realtime = new FakeRealtime(opts);
+          realtimeInstances.push(realtime);
+          return realtime as never;
+        },
+        createAudioQueue: () => fakeAudioQueue() as never,
+      })
+    );
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    expect(realtimeInstances).toHaveLength(1);
+
+    await act(async () => {
+      await result.current.endConversation();
+      await result.current.startConversation();
+    });
+    expect(realtimeInstances).toHaveLength(2);
+
+    await act(async () => {
+      await result.current.sendTextMessage("業務内容を教えてください");
+      realtimeInstances[1]?.emit({ type: "response.created" });
+      realtimeInstances[1]?.emit({
+        type: "response.audio_transcript.delta",
+        delta: "受注入力や納期調整が中心です。",
+      });
+      realtimeInstances[1]?.emit({ type: "response.done" });
+    });
+
+    await waitFor(() => expect(result.current.metricsLog).toHaveLength(1));
+    expect(result.current.metricsLog[0]?.websocketReconnectCount).toBe(0);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/grok-first-v50/event",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
 });
 
 function listFiles(dir: string): string[] {
@@ -175,4 +230,101 @@ function listFiles(dir: string): string[] {
     const path = join(dir, entry);
     return statSync(path).isDirectory() ? listFiles(path) : [path];
   });
+}
+
+function testSession(sessionId: string): GrokFirstV50Session {
+  return {
+    sessionId,
+    demoSlug: "adecco-roleplay-v50",
+    backend: "grok-first-v50",
+    scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50",
+    promptVersion: "test",
+    promptHash: "test",
+    guardrailVersion: "test",
+    model: "grok-voice-think-fast-1.0",
+    voiceId: "99c95cc8a177",
+    wsUrl: "wss://example.invalid/realtime",
+    realtimeAuth: {
+      mode: "xai_ephemeral_subprotocol",
+      token: "test",
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    },
+    audio: {
+      inputFormat: "audio/pcm",
+      outputFormat: "audio/pcm",
+      sampleRate: 24_000,
+    },
+    turnDetection: {
+      type: "server_vad",
+      threshold: 0.65,
+      silence_duration_ms: 650,
+      prefix_padding_ms: 333,
+    },
+    tools: [],
+    instructions: "test instructions",
+    firstMessage: "お電話ありがとうございます。",
+    registeredSpeechPayloadIncluded: false,
+    lockedResponseAudioBundleIncluded: false,
+    runtimeTtsEnabled: false,
+    replacementTtsEnabled: false,
+    fullTurnBufferEnabled: false,
+  };
+}
+
+class FakeRealtime {
+  private ready = false;
+  private closedByUs = false;
+
+  constructor(
+    private readonly opts: {
+      onMessage: (event: GrokFirstV50ServerEvent) => void;
+      onOpen?: () => void;
+      onReady?: () => void;
+      onClose?: (event: { code: number; reason: string }) => void;
+    }
+  ) {}
+
+  open() {
+    this.opts.onOpen?.();
+  }
+
+  isReady() {
+    return this.ready;
+  }
+
+  sendSessionUpdate() {}
+
+  sendAssistantHistory() {
+    this.ready = true;
+    this.opts.onReady?.();
+  }
+
+  sendUserText() {}
+
+  appendAudio() {}
+
+  cancelResponse() {}
+
+  close() {
+    this.closedByUs = true;
+    this.ready = false;
+    this.opts.onClose?.({ code: 1000, reason: "client_close" });
+  }
+
+  wasClosedByUs() {
+    return this.closedByUs;
+  }
+
+  emit(event: GrokFirstV50ServerEvent) {
+    this.opts.onMessage(event);
+  }
+}
+
+function fakeAudioQueue() {
+  return {
+    enqueueBase64: vi.fn(),
+    setVolume: vi.fn(),
+    stop: vi.fn(async () => undefined),
+    getOutputVolume: vi.fn(() => 0),
+  };
 }

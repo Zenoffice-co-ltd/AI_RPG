@@ -78,6 +78,7 @@ export function useGrokFirstRoleplayConversation(
   const mutedRef = useRef(false);
   const agentSpeakingRef = useRef(false);
   const reconnectCountRef = useRef(0);
+  const connectionGenerationRef = useRef(0);
 
   const turnIndexRef = useRef(0);
   const turnStartAtRef = useRef<number | null>(null);
@@ -409,6 +410,9 @@ export function useGrokFirstRoleplayConversation(
     setStatus("connecting");
     setErrorMessage(null);
     try {
+      const connectionGeneration = connectionGenerationRef.current + 1;
+      connectionGenerationRef.current = connectionGeneration;
+      reconnectCountRef.current = 0;
       const nextSession = await (deps.fetchSession ?? fetchGrokFirstV50Session)();
       sessionRef.current = nextSession;
       setSession(nextSession);
@@ -440,7 +444,7 @@ export function useGrokFirstRoleplayConversation(
               sessionId: nextSession.sessionId,
               details: event,
             });
-            if (!realtimeRef.current?.wasClosedByUs()) {
+            if (connectionGeneration === connectionGenerationRef.current) {
               reconnectCountRef.current += 1;
             }
           },
@@ -497,6 +501,7 @@ export function useGrokFirstRoleplayConversation(
 
   const endConversation = useCallback(async () => {
     setStatus("ending");
+    connectionGenerationRef.current += 1;
     realtimeRef.current?.close();
     realtimeRef.current = null;
     await micRef.current?.stop().catch(() => undefined);
@@ -566,6 +571,7 @@ export function useGrokFirstRoleplayConversation(
 
   useEffect(() => {
     return () => {
+      connectionGenerationRef.current += 1;
       realtimeRef.current?.close();
       void micRef.current?.stop();
       void audioQueueRef.current?.stop();
