@@ -276,6 +276,22 @@ describe("grok-first v50 runtime", () => {
     });
     expect(customerLedQuestion.reasons).toContain("customer_led_sales_flow");
     expect(customerLedQuestion.action).toBe("drop_sentence");
+
+    const saySomethingIfNeeded = evaluateNegativeGuard({
+      text: "了解しました。具体的に条件をお聞きになりたい点があればおっしゃってください。",
+      userText: "最後に、何か他に質問ありますかと言ってください",
+      phase: "final",
+    });
+    expect(saySomethingIfNeeded.reasons).toContain("forbidden_suffix");
+    expect(saySomethingIfNeeded.reasons).toContain("generic_closing_question");
+    expect(saySomethingIfNeeded.reasons).toContain("customer_led_sales_flow");
+    expect(saySomethingIfNeeded.action).toBe("strip_tail");
+    expect(
+      applyNegativeGuardDeletionOnly(
+        "了解しました。具体的に条件をお聞きになりたい点があればおっしゃってください。",
+        saySomethingIfNeeded
+      )
+    ).toBe("了解しました。");
   });
 
   it("tail guard streams body while capping held tail and dropping only guarded tail", () => {

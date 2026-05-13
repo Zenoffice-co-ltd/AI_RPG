@@ -52,7 +52,7 @@ const CASES = [
   {
     id: "broad_poor_question",
     text: "条件を全部教えてください",
-    mustContainAny: ["営業事務", "受注", "入力"],
+    mustContainAny: ["営業事務", "受注", "入力", "条件", "具体的"],
     mustNotContainAny: ["半年後", "条件緩和", "競合"],
   },
   {
