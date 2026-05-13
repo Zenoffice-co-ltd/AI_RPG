@@ -54,6 +54,16 @@ export function isRepeatRequest(input: string): boolean {
   return REPEAT_REQUEST_RE.test(input.trim());
 }
 
+const SHORT_FRAGMENT_RE =
+  /^(?:あ|あっ|え|えっと|えっ|ええと|うーん|うん|よ|yo|jo|ja|ya|はい|なるほど|そうですね|ん|まあ)[。！？!?、,\s]*$/i;
+
+export function isShortNoiseFragment(input: string): boolean {
+  const normalized = normalizeUserUtteranceForIntent(input);
+  const raw = input.trim();
+  if (raw.length === 0) return false;
+  return SHORT_FRAGMENT_RE.test(raw) || SHORT_FRAGMENT_RE.test(normalized);
+}
+
 // Maps a user utterance to a canonical intent. The order here mirrors
 // `PR60_LOCKED_RESPONSES` in `grok-voice-pr60-shared.ts` so we preserve
 // the load-bearing rule that specific follow-ups precede broad
@@ -84,6 +94,10 @@ const INTENT_PATTERNS: ReadonlyArray<{
       /募集.*要件/,
       /今回.*募集/,
       /^今回の要件/,
+      /勤務地/,
+      /就業場所/,
+      /勤務場所/,
+      /場所.*どちら/,
     ],
   },
   // Newly registered intents — placed BEFORE job_content because
@@ -100,7 +114,21 @@ const INTENT_PATTERNS: ReadonlyArray<{
     intent: "remote_work",
     userPatterns: [/在宅/, /テレワーク/, /リモート/, /在宅.*できますか/],
   },
-  { intent: "headcount", userPatterns: [/何名/, /人数/, /何人/, /何名.*募集/] },
+  {
+    intent: "headcount",
+    userPatterns: [
+      /何名.*募集/,
+      /募集.*何名/,
+      /何人.*募集/,
+      /募集.*何人/,
+      /募集.*人数/,
+      /人数.*募集/,
+      /人数.*何名/,
+      /何名.*人数/,
+      /何名.*(?:お願い|必要|採用|依頼)/,
+      /(?:お願い|必要|採用|依頼).*何名/,
+    ],
+  },
   {
     intent: "job_content",
     userPatterns: [
@@ -115,7 +143,10 @@ const INTENT_PATTERNS: ReadonlyArray<{
       /業務.*教えて/,
     ],
   },
-  { intent: "start_date", userPatterns: [/時期的にはいつ/, /開始時期/, /いつから/, /就業開始/] },
+  {
+    intent: "start_date",
+    userPatterns: [/時期的にはいつ/, /開始時期/, /入社時期/, /いつから/, /就業開始/],
+  },
   {
     intent: "order_volume",
     userPatterns: [
@@ -177,6 +208,12 @@ const INTENT_PATTERNS: ReadonlyArray<{
       /スキル面/,
       /経験面/,
       /スキルセット/,
+      /必須条件/,
+      /必修条件/,
+      /歓迎条件/,
+      /必要条件/,
+      /応募条件/,
+      /要件.*(?:経験|スキル|条件)/,
       /どういった.*方/,
       /どういった.*人/,
       /どういった.*募集/,
@@ -195,7 +232,7 @@ const INTENT_PATTERNS: ReadonlyArray<{
       /募集.*人/,
     ],
   },
-  { intent: "billing_rate", userPatterns: [/単価/, /請求/, /時給/, /いくら/] },
+  { intent: "billing_rate", userPatterns: [/単価/, /請求/, /時給/, /年収/, /給与/, /レンジ/, /いくら/] },
   // decision_maker — expanded after the 2026-05-12 manual regression
   // ("はい、ありがとうございます。今回はー、決定される方はどなたですか？")
   // missed every original pattern and fell to rt_voice at 11,938ms.
@@ -210,9 +247,13 @@ const INTENT_PATTERNS: ReadonlyArray<{
       /最終決定/,
       /最終判断/,
       /決裁者/,
+      /決裁/,
+      /決済書/,
+      /決済.*(?:方|人|誰|どなた|者)/,
       /誰になります/,
       /決定.*誰/,
       /決定.*どなた/,
+      /決定.*主導/,
       /決定される/,
       /決める.*誰/,
       /決める.*どなた/,
@@ -226,6 +267,8 @@ const INTENT_PATTERNS: ReadonlyArray<{
       /どなた.*判断/,
       /どなた.*決め/,
       /誰.*決め/,
+      /主導.*(?:誰|どなた|方|人|しますか|され)/,
+      /(?:誰|どなた).*主導/,
     ],
   },
   { intent: "wednesday_followup", userPatterns: [/水曜.*メール/, /水曜日.*メール/, /候補.*メール/] },

@@ -17,6 +17,7 @@ import {
   fetchGrokVoiceSanitizedResponseTts,
   fetchGrokVoiceSession,
   postGrokVoiceEvent,
+  configureGrokVoiceClientContext,
   setGrokVoiceClientDeterministicMode,
 } from "./grok-voice-client";
 import { buildVerifiedRegisteredSpeechCache } from "./registered-speech/verified-cache";
@@ -26,14 +27,17 @@ import {
 } from "./registered-speech/manifest-constant";
 import type {
   LockedSpeechHit,
+  VerifiedRegisteredSpeechEntry,
   VerifiedRegisteredSpeechCache,
 } from "./registered-speech/types";
 import { REGISTERED_SPEECH_VOICE_ID } from "./registered-speech/types";
 import {
   classifyUserUtteranceForRegisteredSpeech,
+  isShortNoiseFragment,
   isRepeatRequest,
   type MatcherDecision,
 } from "./registered-speech/intent-matcher";
+import type { CanonicalIntent } from "./registered-speech/canonical-intents";
 import {
   GrokVoiceAudioQueue,
   type GrokVoiceAudioQueueOptions,
@@ -53,9 +57,30 @@ import {
 import { GrokVoiceMicRecorder } from "./grok-voice-mic-recorder";
 import { GrokVoiceRealtime } from "./grok-voice-realtime";
 import type {
+  AdeccoGrokVoiceDemoSlug,
+  GrokVoiceRouterVariant,
+} from "./grok-voice-router-variant";
+import {
+  getGrokVoiceRouterVariantForDemoSlug,
+  isGrokVoiceNaturalGovernedVariant,
+  isGrokVoiceNarrowFallbackVariant,
+  isGrokVoiceShortGovernedVariant,
+  resolveGrokVoiceDemoSlug,
+} from "./grok-voice-router-variant";
+import {
+  classifyInputDepth,
+  evaluateGovernedResponse,
+  fallbackIntentForInputDepth,
+  isRecruitmentLikeInput,
+  selectFixedFallbackArtifactIntent,
+  type InputDepth,
+  type ShallowFallbackIntent,
+} from "./grok-voice-shallow-governor";
+import type {
   GrokVoiceMicState,
   GrokVoiceGreeting,
   GrokVoiceLockedResponseTts,
+  GrokVoiceRealtimeAuth,
   GrokVoiceServerEvent,
   GrokVoiceSession,
   GrokVoiceTurnMetricsClient,
@@ -68,6 +93,164 @@ const AUDIO_ERROR =
   "音声の再生に失敗しました。ページを再読み込みして再試行してください。";
 const LOCKED_REALTIME_DRAIN_MS = 5_000;
 const LOCKED_TURN_MIC_TAIL_IGNORE_MS = 1_500;
+
+const SAFETY_OR_IDENTITY_PROBE_RE =
+  /システムプロンプト|前の指示|指示を無視|採点基準|正体|何のモデル|あなたは.*モデル|あなたは.*担当者|プロンプト.*教えて/;
+const META_OR_AI_UNKNOWN_RE =
+  /システムプロンプト|前の指示|指示を無視|採点基準|正体|何のモデル|あなたは.*(?:AI|モデル|担当者)|AIですか|ロールプレイ|シナリオ|プロンプト.*教えて/;
+const OUT_OF_SCOPE_RE =
+  /今日の天気|天気を教えて|株価|ラーメン屋|おすすめ.*(?:店|屋)|ニュース|為替/;
+const SUFFIX_INDUCTION_RE =
+  /他に質問はありますか|他に確認したい点はありますか|最後.*言って|最後.*締めて|語尾.*質問/;
+const MANUFACTURER_EXPERIENCE_FOLLOWUP_RE =
+  /(?:メーカー|メーカ|メイカー|ベーカー|業界|住宅設備).*経験.*(?:必須|必要|厳しい|マスト)|経験.*(?:メーカー|メーカ|メイカー|ベーカー|業界|住宅設備).*(?:必須|必要|厳しい|マスト)|(?:メーカー|メーカ|メイカー|ベーカー|業界|住宅設備).*必須|必須.*(?:メーカー|メーカ|メイカー|ベーカー|業界|住宅設備)/;
+const HEADCOUNT_ACK_RE =
+  /営業事務.*(?:一名|1名).*ですね|(?:一名|1名).*営業事務.*ですね/;
+const BUSY_PERIOD_FOLLOWUP_RE =
+  /(?:いつぐらい|いつ頃|いつごろ|いつ).*繁忙|繁忙.*(?:なります|あります|時期|タイミング|いつ|いつぐらい|いつ頃|いつごろ)/;
+const LEGACY_HARUTO_20260512_BUILD_ID = "2026-05-12T05-31-48-094Z";
+const LEGACY_HARUTO_20260512_REQUIRED_INTENTS: readonly CanonicalIntent[] = [
+  "mission",
+  "engagement_scope",
+  "job_content",
+  "start_date",
+  "order_volume",
+  "busy_period",
+  "hiring_reason",
+  "ack_short",
+  "skill_followup_teamwork",
+  "skill_requirement_broad",
+  "personality",
+  "billing_rate",
+  "decision_maker",
+  "wednesday_followup",
+  "closing_short",
+  "working_hours",
+  "overtime",
+  "remote_work",
+  "headcount",
+  "greeting",
+  "multi_intent_redirect",
+  "fallback_unknown",
+  "fallback_audio_not_ready",
+];
+
+function resolveRealtimeAuth(session: GrokVoiceSession): GrokVoiceRealtimeAuth {
+  if (session.realtimeAuth) return session.realtimeAuth;
+  if (session.ephemeralToken && session.ephemeralExpiresAt) {
+    return {
+      mode: "xai_ephemeral_subprotocol",
+      token: session.ephemeralToken,
+      expiresAt: session.ephemeralExpiresAt,
+    };
+  }
+  throw new Error("Grok Voice session did not include realtime auth.");
+}
+
+function isV19MetaSafetyOnlyVariant(
+  variant: GrokVoiceRouterVariant | undefined
+) {
+  return variant === "Q_V17_META_SAFETY_ONLY_FIXED_FALLBACK";
+}
+
+function isV20LegacyHarutoBaseVariant(
+  variant: GrokVoiceRouterVariant | undefined
+) {
+  return (
+    variant === "R_V18_LEGACY_HARUTO_23_BASE" ||
+    variant === "S_V20_LEGACY_HARUTO_SHORT_STREAMING_RUNTIME" ||
+    variant === "T_V21_ACK_STREAM_COMPACT_PROMPT" ||
+    variant === "U_V23_SERVER_RELAYED_WSS"
+  );
+}
+
+function isV23AckStreamCompactPromptVariant(
+  variant: GrokVoiceRouterVariant | undefined
+) {
+  return (
+    variant === "T_V21_ACK_STREAM_COMPACT_PROMPT" ||
+    variant === "U_V23_SERVER_RELAYED_WSS"
+  );
+}
+
+function isV23StreamableAckQuestion(userText: string) {
+  if (
+    SAFETY_OR_IDENTITY_PROBE_RE.test(userText) ||
+    META_OR_AI_UNKNOWN_RE.test(userText) ||
+    OUT_OF_SCOPE_RE.test(userText) ||
+    SUFFIX_INDUCTION_RE.test(userText)
+  ) {
+    return false;
+  }
+  return (
+    isRecruitmentLikeInput(userText) ||
+    /[？?]|(?:ですか|ますか|でしょうか|どの|どんな|何|いつ|くらい|ぐらい|内訳|忙しさ|忙しい|必要|必須|経験|単価|決裁|開始)/.test(
+      userText
+    )
+  );
+}
+
+function expectedRegisteredSpeechBuildIdForSession(
+  session: GrokVoiceSession,
+  serverBuildId: string | null | undefined
+) {
+  if (isV20LegacyHarutoBaseVariant(session.routerVariant)) {
+    return LEGACY_HARUTO_20260512_BUILD_ID;
+  }
+  return REGISTERED_SPEECH_CLIENT_BUILD_ID === "uninitialized"
+    ? serverBuildId
+    : REGISTERED_SPEECH_CLIENT_BUILD_ID;
+}
+
+function requiredRegisteredSpeechIntentsForSession(
+  session: GrokVoiceSession
+): readonly CanonicalIntent[] | undefined {
+  return isV20LegacyHarutoBaseVariant(session.routerVariant)
+    ? LEGACY_HARUTO_20260512_REQUIRED_INTENTS
+    : undefined;
+}
+
+function isOverAnsweringOnlyGovernedFailure(
+  governed: { pass: boolean; reason: string | null } | null
+) {
+  if (!governed || governed.pass || !governed.reason) return false;
+  return governed.reason
+    .split(",")
+    .map((reason) => reason.trim())
+    .filter(Boolean)
+    .every((reason) => reason === "over_answering");
+}
+
+function effectiveStrictPlaybackModeForTurn(session: GrokVoiceSession) {
+  if (isV19MetaSafetyOnlyVariant(session.routerVariant)) {
+    return "all_turns";
+  }
+  return session.strictPlaybackMode;
+}
+
+function effectiveStrictGateDecisionForTurn(
+  session: GrokVoiceSession,
+  decision: StrictGateDecision,
+  userText: string
+): StrictGateDecision {
+  if (
+    isV23AckStreamCompactPromptVariant(session.routerVariant) &&
+    decision.reason?.startsWith("ack_prefix:") &&
+    isV23StreamableAckQuestion(userText)
+  ) {
+    return { apply: false, reason: null };
+  }
+  if (!isV19MetaSafetyOnlyVariant(session.routerVariant)) {
+    return decision;
+  }
+  if (
+    decision.reason?.startsWith("ack_prefix:") ||
+    decision.reason === "post_sanitizer_or_reseed"
+  ) {
+    return { apply: false, reason: null };
+  }
+  return decision;
+}
 
 export type GrokVoiceConversation = UseRoleplayConversationReturn & {
   mode: RoleplayMode;
@@ -83,6 +266,8 @@ export type GrokVoiceConversation = UseRoleplayConversationReturn & {
 export type UseGrokVoiceConversationDeps = {
   fetchSession?: (input?: {
     reseedFromSessionId?: string;
+    demoSlug?: AdeccoGrokVoiceDemoSlug;
+    routerVariant?: GrokVoiceRouterVariant;
   }) => Promise<GrokVoiceSession>;
   fetchGreeting?: (input: {
     sessionId: string;
@@ -95,6 +280,7 @@ export type UseGrokVoiceConversationDeps = {
   fetchSanitizedResponseTts?: (input: {
     sessionId: string;
     text: string;
+    routerVariant?: GrokVoiceRouterVariant | undefined;
   }) => Promise<import("./grok-voice-types").GrokVoiceSanitizedResponseTts>;
   audioQueueOptions?: GrokVoiceAudioQueueOptions;
   createAudioQueue?: (options: GrokVoiceAudioQueueOptions) => GrokVoiceAudioQueue;
@@ -109,6 +295,7 @@ export type UseGrokVoiceConversationDeps = {
     }
   ) => GrokVoiceMicRecorder;
   micEnabled?: boolean;
+  demoSlug?: AdeccoGrokVoiceDemoSlug | undefined;
 };
 
 export function useGrokVoiceConversation(
@@ -116,6 +303,12 @@ export function useGrokVoiceConversation(
   deps: UseGrokVoiceConversationDeps = {}
 ): GrokVoiceConversation {
   const isInteractive = mode === "live";
+  const demoSlug = resolveGrokVoiceDemoSlug(deps.demoSlug);
+  const routerVariant = getGrokVoiceRouterVariantForDemoSlug(demoSlug);
+
+  useEffect(() => {
+    configureGrokVoiceClientContext({ demoSlug, routerVariant });
+  }, [demoSlug, routerVariant]);
 
   const [status, setStatus] = useState<RoleplayStatus>(() =>
     isInteractive ? "idle" : "ended"
@@ -190,6 +383,7 @@ export function useGrokVoiceConversation(
   const turnInputModeRef = useRef<"voice" | "text">("voice");
   const turnUserTextLenRef = useRef(0);
   const turnUserTextPreviewRef = useRef("");
+  const turnInputDepthRef = useRef<InputDepth>("specific");
   // PR D — risk-based strict playback. `turnStrictGateRef` is computed
   // once per turn from the finalized user text (STT-confirmed for voice,
   // input-submit for text). The audio routing then reads it to decide
@@ -373,6 +567,7 @@ export function useGrokVoiceConversation(
     turnAccumulatedAudioBytesRef.current = 0;
     turnUserTextLenRef.current = 0;
     turnUserTextPreviewRef.current = "";
+    turnInputDepthRef.current = "specific";
     // PR D — reset the gate decision to the safe default for the next
     // turn. The `previousTurnSanitizerOrReseedRef` survives this reset
     // because it captures inter-turn state.
@@ -476,6 +671,8 @@ export function useGrokVoiceConversation(
 
         const next = await fetchSession({
           reseedFromSessionId: parentSessionId,
+          demoSlug,
+          routerVariant,
         });
         sessionRef.current = next;
         setSession(next);
@@ -486,7 +683,7 @@ export function useGrokVoiceConversation(
           typeof GrokVoiceRealtime
         >[0] = {
           url: next.wsUrl,
-          ephemeralToken: next.ephemeralToken,
+          auth: resolveRealtimeAuth(next),
           onMessage: (e) => handleServerEventRef.current?.(e),
           onOpen: () => {
             void postGrokVoiceEvent("ws.connected", {
@@ -574,7 +771,7 @@ export function useGrokVoiceConversation(
         return { ok: false, reseedMs };
       }
     },
-    [createRealtime, fetchSession]
+    [createRealtime, demoSlug, fetchSession, routerVariant]
   );
 
   // P1B: text- and voice-input-shared gate that retries reseed before any
@@ -633,6 +830,7 @@ export function useGrokVoiceConversation(
     | "sanitized_to_empty"
     | "sanitized_tts_played"
     | "sanitized_tts_failed"
+    | "sanitized_tts_stale_suppressed"
     | "reseed_failed_after_play";
 
   const finalizeStrictResponseDone = useCallback(
@@ -645,6 +843,30 @@ export function useGrokVoiceConversation(
       // see a "clean" turn and we'd play raw audio.
       const rawText = turnAccumulatedTextRef.current;
       const sanitized = sanitizeGrokVoiceSpokenText(rawText);
+      const inputDepth = turnInputDepthRef.current;
+      const skipGovernedResponseGuard =
+        activeSession.routerVariant === "P_V17_UNKNOWN_GROK_UNGUARDED" ||
+        isV20LegacyHarutoBaseVariant(activeSession.routerVariant);
+      const governed =
+        isGrokVoiceNaturalGovernedVariant(activeSession.routerVariant) &&
+        !skipGovernedResponseGuard
+          ? evaluateGovernedResponse({
+              text: sanitized.detected ? sanitized.text : rawText,
+              userText: turnUserTextPreviewRef.current,
+              inputDepth,
+              policy: isGrokVoiceShortGovernedVariant(
+                activeSession.routerVariant
+              )
+                ? "short"
+                : "natural",
+            })
+          : null;
+      const governedFallbackRequired =
+        Boolean(governed && !governed.pass) &&
+        !(
+          isV19MetaSafetyOnlyVariant(activeSession.routerVariant) &&
+          isOverAnsweringOnlyGovernedFailure(governed)
+        );
       sanitizerDecidedAtRef.current = Date.now();
       const accumulatedTextEmpty = rawText.trim().length === 0;
       const audioBuffered = pendingRealtimeAudioChunksRef.current.length > 0;
@@ -654,19 +876,86 @@ export function useGrokVoiceConversation(
       // transcript-display behavior (broad stock-suffix scrub + voice-friendly
       // term reflow) is preserved. For suffix-detected turns, use ONLY the
       // sanitized fragment to make sure the stripped tail can never reach UI.
-      const spokenForHistory = sanitized.detected
+      let spokenForHistory = sanitized.detected
         ? sanitized.text
         : normalizePr60AssistantText(
             turnUserTextPreviewRef.current,
             rawText
           );
-      const displayForUi = normalizeGrokVoiceDisplayText(spokenForHistory);
+      let displayForUi = normalizeGrokVoiceDisplayText(spokenForHistory);
 
       let outcome: StrictOutcome = "clean";
       let error: GrokVoiceTurnMetricsClient["error"] = null;
       let audioBytesActuallyPlayed = 0;
+      let governedFallbackEntry: VerifiedRegisteredSpeechEntry | undefined;
 
-      if (audioBuffered && accumulatedTextEmpty) {
+      if (governedFallbackRequired) {
+        pendingRealtimeAudioChunksRef.current = [];
+        pendingRealtimeAudioBytesRef.current = 0;
+        const cache = verifiedRegisteredSpeechCacheRef.current;
+        const fallbackEntry = cache?.entries.get(
+          activeSession.routerVariant ===
+            "I_V10_RECRUIT_UNKNOWN_GROK_GUARDED"
+            ? "fallback_pr92_unknown_01"
+            : activeSession.routerVariant ===
+                "N_V14_FAST_MATCHER_TEXT_GUARDED"
+              ? "fallback_business_low_confidence_01"
+            : "fallback_unknown_01"
+        );
+        governedFallbackEntry = fallbackEntry;
+        spokenForHistory =
+          fallbackEntry?.spokenText ??
+          "その内容だけでは、こちらでは判断できません。";
+        displayForUi = normalizeGrokVoiceDisplayText(spokenForHistory);
+        void postGrokVoiceEvent("response.governed_guard_failed", {
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex: turnIndexRef.current,
+            inputDepth,
+            reason: governed?.reason ?? "unknown",
+            audioBytesDropped: bufferedBytes,
+            guardFailedTextWasNotSpoken: true,
+          },
+        });
+        if (fallbackEntry) {
+          const queue = ensureAudioQueue();
+          await queue.resume().catch(() => undefined);
+          queue.clearAllScheduledAudioForLock();
+          void postGrokVoiceEvent("audio.queue.flushed", {
+            sessionId: activeSession.sessionId,
+            details: {
+              reason: "guard_failed_fixed_fallback",
+              turnIndex: turnIndexRef.current,
+              intent: fallbackEntry.intent,
+            },
+          });
+          void postGrokVoiceEvent("registered_speech.playback.started", {
+            sessionId: activeSession.sessionId,
+            details: {
+              turnIndex: turnIndexRef.current,
+              intent: fallbackEntry.intent,
+              decisionKind: "guard_failed_fixed_fallback",
+              audioBytes: fallbackEntry.decodedByteLength,
+              sha256: fallbackEntry.sha256,
+            },
+          });
+          if (firstAudibleAudioAtRef.current === null) {
+            firstAudibleAudioAtRef.current = Date.now();
+          }
+          await queue.enqueueBase64AndWait(fallbackEntry.audioBase64);
+          void postGrokVoiceEvent("registered_speech.playback.completed", {
+            sessionId: activeSession.sessionId,
+            details: {
+              turnIndex: turnIndexRef.current,
+              intent: fallbackEntry.intent,
+              audioBytes: fallbackEntry.decodedByteLength,
+            },
+          });
+          audioBytesActuallyPlayed = fallbackEntry.decodedByteLength;
+        } else {
+          error = "governed_guard_failed_missing_fallback";
+        }
+      } else if (audioBuffered && accumulatedTextEmpty) {
         // Audio without any transcript — we cannot inspect what's in those
         // bytes, so we drop them. This is the "unverifiable audio" gate.
         pendingRealtimeAudioChunksRef.current = [];
@@ -709,10 +998,12 @@ export function useGrokVoiceConversation(
         } else {
           // Try sanitized-TTS. On failure, NEVER fall back to raw audio.
           sanitizedTurnInFlightRef.current = true;
+          const sanitizedTurnIndex = turnIndexRef.current;
+          const sanitizedSessionId = activeSession.sessionId;
           void postGrokVoiceEvent("sanitized_response.tts.requested", {
-            sessionId: activeSession.sessionId,
+            sessionId: sanitizedSessionId,
             details: {
-              turnIndex: turnIndexRef.current,
+              turnIndex: sanitizedTurnIndex,
               textLen: sanitized.text.length,
             },
           });
@@ -721,30 +1012,48 @@ export function useGrokVoiceConversation(
             const tts = await fetchSanitizedResponseTts({
               sessionId: activeSession.sessionId,
               text: sanitized.text,
+              routerVariant: activeSession.routerVariant,
             });
             sanitizedTtsMsRef.current = Date.now() - startedAt;
             const ttsBytes = Math.floor((tts.audioBase64.length * 3) / 4);
             void postGrokVoiceEvent("sanitized_response.tts.completed", {
-              sessionId: activeSession.sessionId,
+              sessionId: sanitizedSessionId,
               details: {
-                turnIndex: turnIndexRef.current,
+                turnIndex: sanitizedTurnIndex,
                 textLen: tts.textLen,
                 audioBytes: ttsBytes,
                 voiceId: tts.voiceId,
                 vendorMs: tts.vendorMs ?? null,
               },
             });
+            if (
+              sessionRef.current?.sessionId !== sanitizedSessionId ||
+              turnIndexRef.current !== sanitizedTurnIndex
+            ) {
+              outcome = "sanitized_tts_stale_suppressed";
+              error = "sanitized_tts_stale_suppressed";
+              void postGrokVoiceEvent("sanitized_response.playback.skipped", {
+                sessionId: sanitizedSessionId,
+                details: {
+                  turnIndex: sanitizedTurnIndex,
+                  currentTurnIndex: turnIndexRef.current,
+                  reason: "stale_turn",
+                  audioBytes: ttsBytes,
+                },
+              });
+              return;
+            }
             void postGrokVoiceEvent("sanitized_response.playback.started", {
-              sessionId: activeSession.sessionId,
-              details: { turnIndex: turnIndexRef.current, audioBytes: ttsBytes },
+              sessionId: sanitizedSessionId,
+              details: { turnIndex: sanitizedTurnIndex, audioBytes: ttsBytes },
             });
             if (firstAudibleAudioAtRef.current === null) {
               firstAudibleAudioAtRef.current = Date.now();
             }
             await ensureAudioQueue().enqueueBase64AndWait(tts.audioBase64);
             void postGrokVoiceEvent("sanitized_response.playback.completed", {
-              sessionId: activeSession.sessionId,
-              details: { turnIndex: turnIndexRef.current, audioBytes: ttsBytes },
+              sessionId: sanitizedSessionId,
+              details: { turnIndex: sanitizedTurnIndex, audioBytes: ttsBytes },
             });
             outcome = "sanitized_tts_played";
             audioBytesActuallyPlayed = ttsBytes;
@@ -876,7 +1185,14 @@ export function useGrokVoiceConversation(
       // Lock turns short-circuit before reaching this branch so they never
       // emit `rt_*` here.
       const routePath: GrokVoiceTurnMetricsClient["routePath"] =
-        turnInputModeRef.current === "text" ? "rt_text" : "rt_voice";
+        finalSession.routerVariant === "C_GUARDED_FLEXIBLE_GENERATION" ||
+        isGrokVoiceNaturalGovernedVariant(finalSession.routerVariant)
+          ? governedFallbackRequired
+            ? "registered_speech_fallback"
+            : "runtime_guarded_generation"
+          : turnInputModeRef.current === "text"
+            ? "rt_text"
+            : "rt_voice";
       // PR D — strict-gate decision was computed once at user-input
       // finalization. The buffered (strict) path went through the
       // sanitizer; the streaming path did not. Both report the same
@@ -901,6 +1217,9 @@ export function useGrokVoiceConversation(
         guardrailVersion: finalSession.guardrailVersion,
         grokVoiceModel: finalSession.grokVoiceModel,
         grokVoiceVoiceId: finalSession.grokVoiceVoiceId,
+        demoSlug: finalSession.demoSlug,
+        routerVariant: finalSession.routerVariant,
+        inputDepth,
         firstRealtimeAudioDeltaMs: firstAudioMs,
         firstAudibleAudioMs,
         sanitizerDelayMs,
@@ -913,7 +1232,109 @@ export function useGrokVoiceConversation(
           finalSession.parentSessionId ??
           null,
         routePath,
-        localLockedAudioHit: false,
+        routeStage:
+          governedFallbackRequired
+            ? "guard_failed_fixed_fallback"
+            : isGrokVoiceNaturalGovernedVariant(finalSession.routerVariant) &&
+                routePath === "runtime_guarded_generation"
+              ? finalSession.routerVariant ===
+                "F_GROK_NATURAL_SHORT_GOVERNED"
+                ? "grok_natural_short_pass"
+                : finalSession.routerVariant === "G_HYBRID_FAST_GOVERNED"
+                  ? "hybrid_grok_natural_pass"
+                  : finalSession.routerVariant ===
+                      "I_V10_RECRUIT_UNKNOWN_GROK_GUARDED"
+                    ? "v10_recruit_unknown_grok_pass"
+                    : finalSession.routerVariant ===
+                        "K_V12_RECRUIT_UNKNOWN_GROK_GUARDED"
+                      ? "v12_recruit_unknown_grok_pass"
+                    : finalSession.routerVariant ===
+                        "L_V13_MANUFACTURER_EXPERIENCE_FAST_GUARDED"
+                      ? "v13_recruit_unknown_grok_pass"
+                      : finalSession.routerVariant ===
+                          "P_V17_UNKNOWN_GROK_UNGUARDED"
+                        ? "v18_unknown_grok_unguarded_pass"
+                        : finalSession.routerVariant ===
+                        "Q_V17_META_SAFETY_ONLY_FIXED_FALLBACK"
+                          ? "v19_meta_safety_only_grok_pass"
+                          : isV20LegacyHarutoBaseVariant(
+                                finalSession.routerVariant
+                              )
+                            ? finalSession.routerVariant ===
+                              "S_V20_LEGACY_HARUTO_SHORT_STREAMING_RUNTIME" ||
+                              finalSession.routerVariant ===
+                                "T_V21_ACK_STREAM_COMPACT_PROMPT" ||
+                              finalSession.routerVariant ===
+                                "U_V23_SERVER_RELAYED_WSS"
+                              ? "v21_legacy_haruto_unknown_grok_unguarded_pass"
+                              : "v20_legacy_haruto_unknown_grok_unguarded_pass"
+                            : "grok_natural_shallow_pass"
+              : routePath === "runtime_guarded_generation"
+            ? sanitized.detected
+              ? outcome === "sanitized_tts_played"
+                ? "guarded_generation_rewritten"
+                : "guard_failed_fallback"
+              : "guarded_generation_pass"
+            : undefined,
+        guardAction:
+          governedFallbackRequired
+            ? "fallback"
+            : (finalSession.routerVariant ===
+                  "P_V17_UNKNOWN_GROK_UNGUARDED" ||
+                isV20LegacyHarutoBaseVariant(finalSession.routerVariant)) &&
+                routePath === "runtime_guarded_generation"
+              ? "none"
+            : isGrokVoiceNaturalGovernedVariant(finalSession.routerVariant) &&
+                routePath === "runtime_guarded_generation"
+              ? "pass"
+              : routePath === "runtime_guarded_generation"
+            ? sanitized.detected
+              ? "rewrite_once"
+              : "none"
+            : undefined,
+        fallbackIntent:
+          governedFallbackRequired ? "fallback_unknown" : undefined,
+        forbiddenSuffixDetected: sanitized.detected,
+        closingQuestionDetected:
+          governedFallbackRequired
+            ? false
+            : sanitized.detected || governed?.closingQuestionDetected,
+        hardBannedTextDetected:
+          governedFallbackRequired ? false : governed?.hardBannedTextDetected,
+        metaLanguageDetected:
+          governedFallbackRequired ? false : governed?.metaLanguageDetected,
+        overAnsweringDetected:
+          governedFallbackRequired ? false : governed?.overAnsweringDetected,
+        guardFailedTextWasNotSpoken:
+          governedFallbackRequired ? true : undefined,
+        audioEmittedAfterGuard:
+          routePath === "runtime_guarded_generation"
+            ? audioBytesActuallyPlayed > 0
+            : governedFallbackRequired
+              ? false
+            : undefined,
+        localLockedAudioHit:
+          governedFallbackRequired ? Boolean(governedFallbackEntry) : false,
+        lockedResponseKey:
+          governedFallbackRequired
+            ? governedFallbackEntry?.intent ?? null
+            : undefined,
+        cacheStatus:
+          governedFallbackRequired
+            ? governedFallbackEntry
+              ? "hit"
+              : "miss"
+            : undefined,
+        networkTtsMs:
+          governedFallbackRequired && governedFallbackEntry ? 0 : undefined,
+        registeredSpeechIntent:
+          governedFallbackRequired ? governedFallbackEntry?.intent : undefined,
+        registeredSpeechSha256:
+          governedFallbackRequired ? governedFallbackEntry?.sha256 : undefined,
+        registeredSpeechManifestBuildId:
+          governedFallbackRequired
+            ? verifiedRegisteredSpeechCacheRef.current?.buildId
+            : undefined,
         strictPlaybackMode: finalSession.strictPlaybackMode,
         strictGateApplied: usedBufferedPath,
         strictGateReason: strictGate.reason,
@@ -948,7 +1369,27 @@ export function useGrokVoiceConversation(
           sessionTainted: metrics.sessionTainted,
           parentSessionId: metrics.parentSessionId,
           routePath: metrics.routePath,
+          routeStage: metrics.routeStage,
+          demoSlug: metrics.demoSlug,
+          routerVariant: metrics.routerVariant,
+          inputDepth: metrics.inputDepth,
+          fallbackIntent: metrics.fallbackIntent,
+          guardAction: metrics.guardAction,
+          forbiddenSuffixDetected: metrics.forbiddenSuffixDetected,
+          closingQuestionDetected: metrics.closingQuestionDetected,
+          hardBannedTextDetected: metrics.hardBannedTextDetected,
+          metaLanguageDetected: metrics.metaLanguageDetected,
+          overAnsweringDetected: metrics.overAnsweringDetected,
+          guardFailedTextWasNotSpoken: metrics.guardFailedTextWasNotSpoken,
+          audioEmittedAfterGuard: metrics.audioEmittedAfterGuard,
           localLockedAudioHit: metrics.localLockedAudioHit,
+          lockedResponseKey: metrics.lockedResponseKey,
+          cacheStatus: metrics.cacheStatus,
+          networkTtsMs: metrics.networkTtsMs,
+          registeredSpeechIntent: metrics.registeredSpeechIntent,
+          registeredSpeechSha256: metrics.registeredSpeechSha256,
+          registeredSpeechManifestBuildId:
+            metrics.registeredSpeechManifestBuildId,
           strictPlaybackMode: metrics.strictPlaybackMode,
           strictGateApplied: metrics.strictGateApplied,
           strictGateReason: metrics.strictGateReason,
@@ -1229,6 +1670,8 @@ export function useGrokVoiceConversation(
           guardrailVersion: activeSession.guardrailVersion,
           grokVoiceModel: activeSession.grokVoiceModel,
           grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
+          demoSlug: activeSession.demoSlug,
+          routerVariant: activeSession.routerVariant,
           lockedResponse: true,
           lockedResponseSource: "client_tts",
           routePath,
@@ -1264,6 +1707,8 @@ export function useGrokVoiceConversation(
             lockedResponse: true,
             lockedResponseSource: "client_tts",
             routePath: metrics.routePath,
+            demoSlug: metrics.demoSlug,
+            routerVariant: metrics.routerVariant,
             localLockedAudioHit: metrics.localLockedAudioHit,
             lockedResponseKey: metrics.lockedResponseKey,
             cacheStatus: metrics.cacheStatus,
@@ -1332,6 +1777,16 @@ export function useGrokVoiceConversation(
       channel: "voice" | "chat";
       userInputFinalizedAt: number;
       intentClassifiedAt: number;
+      inputDepth?: InputDepth;
+      fallbackIntent?: ShallowFallbackIntent | null;
+      routeStageOverride?: string;
+      guardAction?: GrokVoiceTurnMetricsClient["guardAction"];
+      closingQuestionDetected?: boolean | undefined;
+      hardBannedTextDetected?: boolean | undefined;
+      metaLanguageDetected?: boolean | undefined;
+      overAnsweringDetected?: boolean | undefined;
+      guardFailedTextWasNotSpoken?: boolean | undefined;
+      audioEmittedAfterGuard?: boolean | undefined;
     }) => {
       const activeSession = sessionRef.current;
       const realtime = realtimeRef.current;
@@ -1358,19 +1813,27 @@ export function useGrokVoiceConversation(
       const turnIndex = turnIndexRef.current;
       const routePath: GrokVoiceTurnMetricsClient["routePath"] =
         input.decision.kind === "intent_hit"
-          ? "registered_speech_local"
+          ? activeSession.routerVariant !== undefined &&
+            activeSession.routerVariant !== "A_STRICT_FALLBACK_CONTROL" &&
+            hit.intent === "decision_maker"
+            ? "registered_speech_decision_maker"
+            : "registered_speech_local"
           : input.decision.kind === "multi_intent_redirect"
             ? "registered_speech_multi_intent_redirect"
             : "registered_speech_fallback";
+      const routeStage =
+        input.routeStageOverride ??
+        (input.decision.kind === "intent_hit" ? "exact_match" : input.decision.kind);
 
       lockedTurnActiveRef.current = true;
       suppressNextRealtimeResponseRef.current = true;
       lockedTurnIndexRef.current = turnIndex;
       lockedTurnUserTextRef.current = input.userText;
+      const artifactPlaybackIgnoreMs =
+        Math.ceil((entry.decodedByteLength / (24_000 * 2)) * 1000) +
+        LOCKED_TURN_MIC_TAIL_IGNORE_MS;
       lockedTurnMicTailIgnoreUntilRef.current =
-        input.channel === "voice"
-          ? Date.now() + LOCKED_TURN_MIC_TAIL_IGNORE_MS
-          : 0;
+        Date.now() + artifactPlaybackIgnoreMs;
       discardStaleResponseDeltasRef.current = true;
       if (currentResponseItemIdRef.current) {
         staleResponseItemIdsRef.current.add(currentResponseItemIdRef.current);
@@ -1470,9 +1933,21 @@ export function useGrokVoiceConversation(
           guardrailVersion: activeSession.guardrailVersion,
           grokVoiceModel: activeSession.grokVoiceModel,
           grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
+          demoSlug: activeSession.demoSlug,
+          routerVariant: activeSession.routerVariant,
           lockedResponse: true,
           lockedResponseSource: "registered_speech_local",
           routePath,
+          routeStage,
+          inputDepth: input.inputDepth,
+          fallbackIntent: input.fallbackIntent ?? undefined,
+          guardAction: input.guardAction,
+          closingQuestionDetected: input.closingQuestionDetected,
+          hardBannedTextDetected: input.hardBannedTextDetected,
+          metaLanguageDetected: input.metaLanguageDetected,
+          overAnsweringDetected: input.overAnsweringDetected,
+          guardFailedTextWasNotSpoken: input.guardFailedTextWasNotSpoken,
+          audioEmittedAfterGuard: input.audioEmittedAfterGuard,
           localLockedAudioHit: true,
           lockedResponseKey: hit.intent,
           cacheStatus: "hit",
@@ -1510,6 +1985,18 @@ export function useGrokVoiceConversation(
             lockedResponse: true,
             lockedResponseSource: "registered_speech_local",
             routePath: metrics.routePath,
+            routeStage: metrics.routeStage,
+            inputDepth: metrics.inputDepth,
+            fallbackIntent: metrics.fallbackIntent,
+            guardAction: metrics.guardAction,
+            closingQuestionDetected: metrics.closingQuestionDetected,
+            hardBannedTextDetected: metrics.hardBannedTextDetected,
+            metaLanguageDetected: metrics.metaLanguageDetected,
+            overAnsweringDetected: metrics.overAnsweringDetected,
+            guardFailedTextWasNotSpoken: metrics.guardFailedTextWasNotSpoken,
+            audioEmittedAfterGuard: metrics.audioEmittedAfterGuard,
+            demoSlug: activeSession.demoSlug,
+            routerVariant: activeSession.routerVariant,
             localLockedAudioHit: metrics.localLockedAudioHit,
             lockedResponseKey: metrics.lockedResponseKey,
             cacheStatus: metrics.cacheStatus,
@@ -1559,6 +2046,78 @@ export function useGrokVoiceConversation(
     ]
   );
 
+  const completeNoiseFragmentTurn = useCallback(
+    (input: { userText: string; channel: "voice" | "chat" }) => {
+      const activeSession = sessionRef.current;
+      if (!activeSession) return;
+      const startedAt = turnStartAtRef.current ?? Date.now();
+      turnStartAtRef.current = startedAt;
+      const metrics: GrokVoiceTurnMetricsClient = {
+        sessionId: activeSession.sessionId,
+        turnIndex: turnIndexRef.current,
+        inputMode: input.channel === "chat" ? "text" : "voice",
+        userTextLen: input.userText.length,
+        agentTextLen: 0,
+        firstAudioMs: null,
+        firstAudibleAudioMs: null,
+        doneMs: Date.now() - startedAt,
+        audioBytes: 0,
+        error: null,
+        promptHash: activeSession.promptHash,
+        promptVersion: activeSession.promptVersion,
+        guardrailVersion: activeSession.guardrailVersion,
+        grokVoiceModel: activeSession.grokVoiceModel,
+        grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
+        demoSlug: activeSession.demoSlug,
+        routerVariant: activeSession.routerVariant,
+        routePath: "noise_fragment_ignored",
+        routeStage: "noise_fragment",
+        inputDepth: "fragment",
+        fallbackReason: "short_fragment",
+        shouldRespond: false,
+        strictPlaybackMode: activeSession.strictPlaybackMode,
+      };
+      previousTurnSanitizerOrReseedRef.current = false;
+      setMetricsLog((current) => [...current, metrics]);
+      void postGrokVoiceEvent("turn.completed", {
+        sessionId: activeSession.sessionId,
+        details: {
+          turnIndex: metrics.turnIndex,
+          inputMode: metrics.inputMode,
+          userTextLen: metrics.userTextLen,
+          agentTextLen: metrics.agentTextLen,
+          firstAudioMs: metrics.firstAudioMs,
+          firstAudibleAudioMs: metrics.firstAudibleAudioMs,
+          doneMs: metrics.doneMs,
+          audioBytes: metrics.audioBytes,
+          error: metrics.error,
+          demoSlug: metrics.demoSlug,
+          routerVariant: metrics.routerVariant,
+          routePath: metrics.routePath,
+          routeStage: metrics.routeStage,
+          inputDepth: metrics.inputDepth,
+          fallbackReason: metrics.fallbackReason,
+          shouldRespond: metrics.shouldRespond,
+          strictPlaybackMode: metrics.strictPlaybackMode,
+          userTextPreview: input.userText.slice(0, 200),
+          agentTextPreview: "",
+          agentSpokenTextPreview: "",
+          promptHash: metrics.promptHash,
+          promptVersion: metrics.promptVersion,
+          guardrailVersion: metrics.guardrailVersion,
+          grokVoiceModel: metrics.grokVoiceModel,
+          grokVoiceVoiceId: metrics.grokVoiceVoiceId,
+        },
+      });
+      resetTurnBookkeeping();
+      setStatus("listening");
+      if (micEnabled && !isMutedRef.current) {
+        micRecorderRef.current?.setEnabled(true);
+      }
+    },
+    [micEnabled, resetTurnBookkeeping]
+  );
+
   // Single-entry router for both voice-STT and text-input turn starts.
   // Returns true if deterministic-mode handling took place (in which
   // case the caller MUST NOT fall through to PR60 / realtime). Returns
@@ -1567,10 +2126,506 @@ export function useGrokVoiceConversation(
     (trimmed: string, channel: "voice" | "chat"): boolean => {
       const activeSession = sessionRef.current;
       if (!activeSession) return false;
-      if (activeSession.productionDeterministicOnly !== true) return false;
+      const activeVariant =
+        activeSession.routerVariant ?? "A_STRICT_FALLBACK_CONTROL";
+      if (
+        activeVariant === "A_STRICT_FALLBACK_CONTROL" &&
+        activeSession.productionDeterministicOnly !== true
+      ) {
+        return false;
+      }
       const cache = verifiedRegisteredSpeechCacheRef.current;
       if (!cache) return false;
       const userInputFinalizedAt = Date.now();
+      const inputDepth = classifyInputDepth(trimmed);
+      turnInputDepthRef.current = inputDepth;
+
+      const hitFromIntent = (intent: LockedSpeechHit["intent"]): LockedSpeechHit => {
+        const entry = cache.entries.get(intent);
+        if (!entry) {
+          throw new Error(`[registered-speech] cache missing required intent ${intent}`);
+        }
+        return {
+          intent: entry.intent,
+          spokenText: entry.spokenText,
+          displayText: entry.displayText,
+          sha256: entry.sha256,
+        };
+      };
+
+      const playFixedFallback = (input: {
+        fallbackIntent: ShallowFallbackIntent;
+        routeStage: string;
+        guardAction?: GrokVoiceTurnMetricsClient["guardAction"];
+        closingQuestionDetected?: boolean;
+        hardBannedTextDetected?: boolean;
+        metaLanguageDetected?: boolean;
+        overAnsweringDetected?: boolean;
+        guardFailedTextWasNotSpoken?: boolean;
+        audioEmittedAfterGuard?: boolean;
+      }) => {
+        const artifactIntent = selectFixedFallbackArtifactIntent({
+          fallbackIntent: input.fallbackIntent,
+          sessionId: activeSession.sessionId,
+          turnIndex: turnIndexRef.current,
+          userText: trimmed,
+        });
+        const decision: MatcherDecision = {
+          kind: "unknown_fallback",
+          hit: hitFromIntent(artifactIntent),
+        };
+        const intentClassifiedAt = Date.now();
+        void postGrokVoiceEvent("registered_speech.intent_matched", {
+          sessionId: activeSession.sessionId,
+          details: {
+            decisionKind: input.routeStage,
+            intent: artifactIntent,
+            routeStage: input.routeStage,
+            inputDepth,
+            fallbackIntent: input.fallbackIntent,
+            guardAction: input.guardAction ?? "none",
+            closingQuestionDetected: input.closingQuestionDetected ?? false,
+            hardBannedTextDetected: input.hardBannedTextDetected ?? false,
+            metaLanguageDetected: input.metaLanguageDetected ?? false,
+            overAnsweringDetected: input.overAnsweringDetected ?? false,
+            guardFailedTextWasNotSpoken:
+              input.guardFailedTextWasNotSpoken ?? false,
+            audioEmittedAfterGuard: input.audioEmittedAfterGuard,
+            classificationMs: intentClassifiedAt - userInputFinalizedAt,
+          },
+        });
+        void playRegisteredSpeechArtifact({
+          userText: trimmed,
+          decision,
+          channel,
+          userInputFinalizedAt,
+          intentClassifiedAt,
+          inputDepth,
+          fallbackIntent: input.fallbackIntent,
+          routeStageOverride: input.routeStage,
+          guardAction: input.guardAction,
+          closingQuestionDetected: input.closingQuestionDetected,
+          hardBannedTextDetected: input.hardBannedTextDetected,
+          metaLanguageDetected: input.metaLanguageDetected,
+          overAnsweringDetected: input.overAnsweringDetected,
+          guardFailedTextWasNotSpoken: input.guardFailedTextWasNotSpoken,
+          audioEmittedAfterGuard: input.audioEmittedAfterGuard,
+        });
+      };
+
+      const playShortIntentArtifact = (input: {
+        intent: LockedSpeechHit["intent"];
+        routeStage: string;
+        fallbackIntent?: ShallowFallbackIntent | null;
+        guardAction?: GrokVoiceTurnMetricsClient["guardAction"];
+        guardFailedTextWasNotSpoken?: boolean;
+        audioEmittedAfterGuard?: boolean;
+      }) => {
+        const decision: MatcherDecision = {
+          kind: input.fallbackIntent ? "unknown_fallback" : "intent_hit",
+          hit: hitFromIntent(input.intent),
+        };
+        const intentClassifiedAt = Date.now();
+        void postGrokVoiceEvent("registered_speech.intent_matched", {
+          sessionId: activeSession.sessionId,
+          details: {
+            decisionKind: input.routeStage,
+            intent: input.intent,
+            routeStage: input.routeStage,
+            inputDepth,
+            fallbackReason: input.fallbackIntent ?? null,
+            fallbackIntent: input.fallbackIntent ?? null,
+            guardAction: input.guardAction ?? "none",
+            guardFailedTextWasNotSpoken:
+              input.guardFailedTextWasNotSpoken ?? false,
+            audioEmittedAfterGuard: input.audioEmittedAfterGuard,
+            classificationMs: intentClassifiedAt - userInputFinalizedAt,
+          },
+        });
+        void playRegisteredSpeechArtifact({
+          userText: trimmed,
+          decision,
+          channel,
+          userInputFinalizedAt,
+          intentClassifiedAt,
+          inputDepth,
+          fallbackIntent: input.fallbackIntent ?? null,
+          routeStageOverride: input.routeStage,
+          guardAction: input.guardAction,
+          guardFailedTextWasNotSpoken: input.guardFailedTextWasNotSpoken,
+          audioEmittedAfterGuard: input.audioEmittedAfterGuard,
+        });
+      };
+
+      if (
+        isGrokVoiceNarrowFallbackVariant(activeVariant) &&
+        (inputDepth === "fragment" || isShortNoiseFragment(trimmed))
+      ) {
+        void postGrokVoiceEvent("registered_speech.intent_matched", {
+          sessionId: activeSession.sessionId,
+          details: {
+            decisionKind: "noise_fragment",
+            intent: null,
+            routePath: "noise_fragment_ignored",
+            routeStage: "noise_fragment",
+            inputDepth: "fragment",
+            fallbackReason: "short_fragment",
+            shouldRespond: false,
+            classificationMs: Date.now() - userInputFinalizedAt,
+          },
+        });
+        completeNoiseFragmentTurn({ userText: trimmed, channel });
+        return true;
+      }
+
+      if (
+        activeVariant === "D_FIXED_SHALLOW_BUSINESS" ||
+        activeVariant === "H_V3_STYLE_FAST_REGISTERED_GUARDED" ||
+        activeVariant === "J_V10_PR92_UNKNOWN_FALLBACK" ||
+        activeVariant === "M_V10_HARUTO_FAST_META_UNKNOWN_ONLY"
+      ) {
+        if (
+          inputDepth === "shallow" ||
+          inputDepth === "compound" ||
+          inputDepth === "unsafe" ||
+          inputDepth === "out_of_scope"
+        ) {
+          if (activeVariant === "J_V10_PR92_UNKNOWN_FALLBACK") {
+            playShortIntentArtifact({
+              intent: "fallback_pr92_unknown_01",
+              routeStage: "pr92_unknown_artifact",
+              fallbackIntent: "fallback_unknown",
+            });
+          } else if (
+            activeVariant === "M_V10_HARUTO_FAST_META_UNKNOWN_ONLY" &&
+            (META_OR_AI_UNKNOWN_RE.test(trimmed) ||
+              SUFFIX_INDUCTION_RE.test(trimmed))
+          ) {
+            playShortIntentArtifact({
+              intent: "fallback_unknown_01",
+              routeStage: "meta_unknown_artifact",
+              fallbackIntent: "fallback_unknown",
+              guardAction: "fallback",
+              guardFailedTextWasNotSpoken: true,
+              audioEmittedAfterGuard: false,
+            });
+          } else {
+            playFixedFallback({
+              fallbackIntent: fallbackIntentForInputDepth(inputDepth),
+              routeStage:
+                inputDepth === "shallow"
+                  ? "fixed_shallow_artifact"
+                  : inputDepth === "compound"
+                    ? "fixed_compound_artifact"
+                    : inputDepth === "unsafe"
+                      ? "fixed_safety_artifact"
+                      : "fixed_out_of_scope_artifact",
+            });
+          }
+          return true;
+        }
+      }
+
+      if (
+        activeVariant === "I_V10_RECRUIT_UNKNOWN_GROK_GUARDED" ||
+        activeVariant === "K_V12_RECRUIT_UNKNOWN_GROK_GUARDED" ||
+        activeVariant === "L_V13_MANUFACTURER_EXPERIENCE_FAST_GUARDED" ||
+        activeVariant === "N_V14_FAST_MATCHER_TEXT_GUARDED" ||
+        activeVariant === "O_V14_RECRUIT_UNKNOWN_ALL_GROK_GUARDED" ||
+        activeVariant === "P_V17_UNKNOWN_GROK_UNGUARDED" ||
+        activeVariant === "Q_V17_META_SAFETY_ONLY_FIXED_FALLBACK" ||
+        activeVariant === "R_V18_LEGACY_HARUTO_23_BASE" ||
+        activeVariant === "S_V20_LEGACY_HARUTO_SHORT_STREAMING_RUNTIME" ||
+        activeVariant === "T_V21_ACK_STREAM_COMPACT_PROMPT" ||
+        activeVariant === "U_V23_SERVER_RELAYED_WSS"
+      ) {
+        const suffixInductionDetected = SUFFIX_INDUCTION_RE.test(trimmed);
+        const metaOrAiUnknownDetected = META_OR_AI_UNKNOWN_RE.test(trimmed);
+        if (
+          inputDepth === "unsafe" ||
+          inputDepth === "out_of_scope" ||
+          suffixInductionDetected ||
+          (activeVariant === "Q_V17_META_SAFETY_ONLY_FIXED_FALLBACK" &&
+            metaOrAiUnknownDetected)
+        ) {
+          if (isV20LegacyHarutoBaseVariant(activeVariant)) {
+            playShortIntentArtifact({
+              intent: "fallback_unknown",
+              routeStage:
+                activeVariant ===
+                "S_V20_LEGACY_HARUTO_SHORT_STREAMING_RUNTIME" ||
+                activeVariant === "T_V21_ACK_STREAM_COMPACT_PROMPT" ||
+                activeVariant === "U_V23_SERVER_RELAYED_WSS"
+                  ? "v21_legacy_haruto_fixed_fallback"
+                  : "v20_legacy_haruto_fixed_fallback",
+              fallbackIntent: "fallback_unknown",
+              guardAction: "fallback",
+              guardFailedTextWasNotSpoken: true,
+              audioEmittedAfterGuard: false,
+            });
+            return true;
+          }
+          if (activeVariant === "Q_V17_META_SAFETY_ONLY_FIXED_FALLBACK") {
+            if (
+              suffixInductionDetected ||
+              metaOrAiUnknownDetected
+            ) {
+              playShortIntentArtifact({
+                intent: "fallback_unknown_01",
+                routeStage: "meta_safety_fixed_fallback",
+                fallbackIntent: "fallback_unknown",
+                guardAction: "fallback",
+                guardFailedTextWasNotSpoken: true,
+                audioEmittedAfterGuard: false,
+              });
+            } else {
+              playFixedFallback({
+                fallbackIntent: fallbackIntentForInputDepth(inputDepth),
+                routeStage: "meta_safety_fixed_fallback",
+                guardAction: "fallback",
+                closingQuestionDetected: false,
+                hardBannedTextDetected: false,
+                metaLanguageDetected: false,
+                overAnsweringDetected: false,
+                guardFailedTextWasNotSpoken: true,
+                audioEmittedAfterGuard: false,
+              });
+            }
+            return true;
+          }
+          if (
+            suffixInductionDetected ||
+            activeVariant === "K_V12_RECRUIT_UNKNOWN_GROK_GUARDED" ||
+            activeVariant === "L_V13_MANUFACTURER_EXPERIENCE_FAST_GUARDED" ||
+            activeVariant === "N_V14_FAST_MATCHER_TEXT_GUARDED" ||
+            activeVariant === "O_V14_RECRUIT_UNKNOWN_ALL_GROK_GUARDED" ||
+            activeVariant === "P_V17_UNKNOWN_GROK_UNGUARDED"
+          ) {
+            playShortIntentArtifact({
+              intent: "fallback_pr92_unknown_01",
+              routeStage: "guard_failed_fixed_fallback",
+              fallbackIntent: "fallback_unknown",
+              guardAction: "fallback",
+              guardFailedTextWasNotSpoken: true,
+              audioEmittedAfterGuard: false,
+            });
+            return true;
+          }
+          playFixedFallback({
+            fallbackIntent: fallbackIntentForInputDepth(inputDepth),
+            routeStage: "guard_failed_fixed_fallback",
+            guardAction: "fallback",
+            closingQuestionDetected: false,
+            hardBannedTextDetected: false,
+            metaLanguageDetected: false,
+            overAnsweringDetected: false,
+            guardFailedTextWasNotSpoken: true,
+            audioEmittedAfterGuard: false,
+          });
+          return true;
+        }
+        if (
+          activeVariant === "N_V14_FAST_MATCHER_TEXT_GUARDED" &&
+          HEADCOUNT_ACK_RE.test(trimmed)
+        ) {
+          playShortIntentArtifact({
+            intent: "ack_short",
+            routeStage: "v16_fast_headcount_ack",
+            fallbackIntent: null,
+            guardAction: "approved_fallback",
+            audioEmittedAfterGuard: true,
+          });
+          return true;
+        }
+        if (
+          activeVariant === "N_V14_FAST_MATCHER_TEXT_GUARDED" &&
+          BUSY_PERIOD_FOLLOWUP_RE.test(trimmed)
+        ) {
+          playShortIntentArtifact({
+            intent: "busy_period",
+            routeStage: "v16_fast_busy_period_followup",
+            fallbackIntent: null,
+            guardAction: "approved_fallback",
+            audioEmittedAfterGuard: true,
+          });
+          return true;
+        }
+        if (
+          (activeVariant === "L_V13_MANUFACTURER_EXPERIENCE_FAST_GUARDED" ||
+            activeVariant === "N_V14_FAST_MATCHER_TEXT_GUARDED") &&
+          MANUFACTURER_EXPERIENCE_FOLLOWUP_RE.test(trimmed)
+        ) {
+          playShortIntentArtifact({
+            intent: "manufacturer_experience_optional",
+            routeStage:
+              activeVariant === "N_V14_FAST_MATCHER_TEXT_GUARDED"
+                ? "v16_fast_manufacturer_experience_followup"
+                : "v14_fast_manufacturer_experience_followup",
+            fallbackIntent: null,
+            guardAction: "approved_fallback",
+            audioEmittedAfterGuard: true,
+          });
+          return true;
+        }
+        if (activeVariant === "Q_V17_META_SAFETY_ONLY_FIXED_FALLBACK") {
+          return false;
+        }
+        const decision = classifyUserUtteranceForRegisteredSpeech({
+          userText: trimmed,
+          cache,
+        });
+        if (
+          decision.kind === "intent_hit" ||
+          decision.kind === "multi_intent_redirect"
+        ) {
+          const intentClassifiedAt = Date.now();
+          void postGrokVoiceEvent("registered_speech.intent_matched", {
+            sessionId: activeSession.sessionId,
+            details: {
+              decisionKind: "v10_fast_exact_match",
+              intent: decision.hit.intent,
+              inputDepth,
+              routeStage:
+                decision.kind === "intent_hit"
+                  ? "v10_fast_exact_match"
+                  : "v10_multi_intent_redirect",
+              classificationMs: intentClassifiedAt - userInputFinalizedAt,
+            },
+          });
+          if (
+            decision.kind === "intent_hit" &&
+            decision.hit.intent !== "fallback_unknown" &&
+            decision.hit.intent !== "fallback_audio_not_ready"
+          ) {
+            lastRegisteredSpeechHitRef.current = decision.hit;
+          }
+          void playRegisteredSpeechArtifact({
+            userText: trimmed,
+            decision,
+            channel,
+            userInputFinalizedAt,
+            intentClassifiedAt,
+            inputDepth,
+            routeStageOverride:
+              decision.kind === "intent_hit"
+                ? "v10_fast_exact_match"
+                : "v10_multi_intent_redirect",
+          });
+          return true;
+        }
+        if (
+          isRecruitmentLikeInput(trimmed) &&
+          (activeVariant === "I_V10_RECRUIT_UNKNOWN_GROK_GUARDED" ||
+            decision.kind === "unknown_fallback")
+        ) {
+          return false;
+        }
+        if (
+          (activeVariant === "O_V14_RECRUIT_UNKNOWN_ALL_GROK_GUARDED" ||
+            activeVariant === "P_V17_UNKNOWN_GROK_UNGUARDED" ||
+            activeVariant === "R_V18_LEGACY_HARUTO_23_BASE") &&
+          (decision.kind === "unknown_fallback" ||
+            decision.kind === "rapid_fire_fallback")
+        ) {
+          return false;
+        }
+        if (
+          (activeVariant ===
+            "S_V20_LEGACY_HARUTO_SHORT_STREAMING_RUNTIME" ||
+            activeVariant === "T_V21_ACK_STREAM_COMPACT_PROMPT" ||
+            activeVariant === "U_V23_SERVER_RELAYED_WSS") &&
+          (decision.kind === "unknown_fallback" ||
+            decision.kind === "rapid_fire_fallback")
+        ) {
+          return false;
+        }
+        if (
+          activeVariant === "K_V12_RECRUIT_UNKNOWN_GROK_GUARDED" ||
+          activeVariant === "L_V13_MANUFACTURER_EXPERIENCE_FAST_GUARDED" ||
+          activeVariant === "N_V14_FAST_MATCHER_TEXT_GUARDED"
+        ) {
+          playShortIntentArtifact({
+            intent: "fallback_pr92_unknown_01",
+            routeStage: "pr92_unknown_artifact",
+            fallbackIntent: "fallback_unknown",
+          });
+          return true;
+        }
+        return false;
+      }
+
+      if (isGrokVoiceNaturalGovernedVariant(activeVariant)) {
+        const suffixInductionDetected = SUFFIX_INDUCTION_RE.test(trimmed);
+        if (
+          activeVariant === "G_HYBRID_FAST_GOVERNED" &&
+          channel === "voice" &&
+          inputDepth === "specific"
+        ) {
+          const decision = classifyUserUtteranceForRegisteredSpeech({
+            userText: trimmed,
+            cache,
+          });
+          if (decision.kind === "intent_hit") {
+            const intentClassifiedAt = Date.now();
+            void postGrokVoiceEvent("registered_speech.intent_matched", {
+              sessionId: activeSession.sessionId,
+              details: {
+                decisionKind: "hybrid_fast_exact_match",
+                intent: decision.hit.intent,
+                inputDepth,
+                routeStage: "hybrid_fast_exact_match",
+                classificationMs: intentClassifiedAt - userInputFinalizedAt,
+              },
+            });
+            void playRegisteredSpeechArtifact({
+              userText: trimmed,
+              decision,
+              channel,
+              userInputFinalizedAt,
+              intentClassifiedAt,
+              inputDepth,
+              routeStageOverride: "hybrid_fast_exact_match",
+            });
+            return true;
+          }
+        }
+        if (channel === "voice" && inputDepth === "compound") {
+          playShortIntentArtifact({
+            intent: "fallback_rapid_fire_short_01",
+            routeStage: "guard_failed_fixed_fallback",
+            fallbackIntent: "fallback_rapid_fire",
+            guardAction: "fallback",
+            guardFailedTextWasNotSpoken: true,
+            audioEmittedAfterGuard: false,
+          });
+          return true;
+        }
+        const voiceFastFallback =
+          channel === "voice" &&
+          (inputDepth === "shallow" || inputDepth === "compound");
+        if (
+          inputDepth === "unsafe" ||
+          inputDepth === "out_of_scope" ||
+          suffixInductionDetected ||
+          voiceFastFallback
+        ) {
+          playFixedFallback({
+            fallbackIntent: suffixInductionDetected
+              ? "fallback_unknown"
+              : fallbackIntentForInputDepth(inputDepth),
+            routeStage: "guard_failed_fixed_fallback",
+            guardAction: "fallback",
+            closingQuestionDetected: false,
+            hardBannedTextDetected: false,
+            metaLanguageDetected: false,
+            overAnsweringDetected: false,
+            guardFailedTextWasNotSpoken: true,
+            audioEmittedAfterGuard: false,
+          });
+          return true;
+        }
+        return false;
+      }
 
       // Repeat-request fast path: 2026-05-12 manual regression showed
       // "もう一度お願いします" falling through to rt_voice on the
@@ -1610,11 +2665,86 @@ export function useGrokVoiceConversation(
         cache,
       });
       const intentClassifiedAt = Date.now();
+      if (
+        (activeVariant === "D_FIXED_SHALLOW_BUSINESS" ||
+          activeVariant === "H_V3_STYLE_FAST_REGISTERED_GUARDED" ||
+          activeVariant === "J_V10_PR92_UNKNOWN_FALLBACK" ||
+          activeVariant === "M_V10_HARUTO_FAST_META_UNKNOWN_ONLY") &&
+        (decision.kind === "unknown_fallback" ||
+          decision.kind === "rapid_fire_fallback")
+      ) {
+        if (activeVariant === "J_V10_PR92_UNKNOWN_FALLBACK") {
+          playShortIntentArtifact({
+            intent: "fallback_pr92_unknown_01",
+            routeStage: "pr92_unknown_artifact",
+            fallbackIntent: "fallback_unknown",
+          });
+          return true;
+        }
+        if (
+          activeVariant === "M_V10_HARUTO_FAST_META_UNKNOWN_ONLY" &&
+          (META_OR_AI_UNKNOWN_RE.test(trimmed) ||
+            SUFFIX_INDUCTION_RE.test(trimmed))
+        ) {
+          playShortIntentArtifact({
+            intent: "fallback_unknown_01",
+            routeStage: "meta_unknown_artifact",
+            fallbackIntent: "fallback_unknown",
+            guardAction: "fallback",
+            guardFailedTextWasNotSpoken: true,
+            audioEmittedAfterGuard: false,
+          });
+          return true;
+        }
+        playFixedFallback({
+          fallbackIntent:
+            (activeVariant === "H_V3_STYLE_FAST_REGISTERED_GUARDED" ||
+              activeVariant === "M_V10_HARUTO_FAST_META_UNKNOWN_ONLY") &&
+            decision.kind === "rapid_fire_fallback"
+              ? "fallback_rapid_fire"
+              : activeVariant === "M_V10_HARUTO_FAST_META_UNKNOWN_ONLY"
+                ? fallbackIntentForInputDepth(inputDepth)
+                : "fallback_business_low_confidence",
+          routeStage:
+            (activeVariant === "H_V3_STYLE_FAST_REGISTERED_GUARDED" ||
+              activeVariant === "M_V10_HARUTO_FAST_META_UNKNOWN_ONLY") &&
+            decision.kind === "rapid_fire_fallback"
+              ? "fixed_compound_artifact"
+              : activeVariant === "M_V10_HARUTO_FAST_META_UNKNOWN_ONLY" &&
+                  inputDepth === "out_of_scope"
+                ? "fixed_out_of_scope_artifact"
+                : activeVariant === "M_V10_HARUTO_FAST_META_UNKNOWN_ONLY" &&
+                    inputDepth === "unsafe"
+                  ? "fixed_safety_artifact"
+                  : "fixed_low_confidence_artifact",
+        });
+        return true;
+      }
+      if (
+        activeVariant === "C_GUARDED_FLEXIBLE_GENERATION" &&
+        decision.kind !== "intent_hit" &&
+        decision.kind !== "rapid_fire_fallback" &&
+        !SAFETY_OR_IDENTITY_PROBE_RE.test(trimmed) &&
+        !OUT_OF_SCOPE_RE.test(trimmed) &&
+        !SUFFIX_INDUCTION_RE.test(trimmed)
+      ) {
+        return false;
+      }
       void postGrokVoiceEvent("registered_speech.intent_matched", {
         sessionId: activeSession.sessionId,
         details: {
           decisionKind: decision.kind,
           intent: decision.hit.intent,
+          inputDepth,
+          routeStage:
+            decision.kind === "intent_hit" ? "exact_match" : decision.kind,
+          fallbackReason:
+            decision.hit.intent === "fallback_unknown" ? decision.kind : null,
+          guardAction:
+            activeVariant === "C_GUARDED_FLEXIBLE_GENERATION" &&
+            SUFFIX_INDUCTION_RE.test(trimmed)
+              ? "approved_fallback"
+              : "none",
           classificationMs: intentClassifiedAt - userInputFinalizedAt,
         },
       });
@@ -1635,10 +2765,11 @@ export function useGrokVoiceConversation(
         channel,
         userInputFinalizedAt,
         intentClassifiedAt,
+        inputDepth,
       });
       return true;
     },
-    [playRegisteredSpeechArtifact]
+    [completeNoiseFragmentTurn, playRegisteredSpeechArtifact]
   );
 
   const handleServerEvent = useCallback(
@@ -1792,16 +2923,21 @@ export function useGrokVoiceConversation(
           const trimmed = text.trim();
           turnUserTextLenRef.current = trimmed.length;
           turnUserTextPreviewRef.current = trimmed;
+          turnInputDepthRef.current = classifyInputDepth(trimmed);
           // PR D — capture the strict-gate decision once STT is final
           // and BEFORE any audio delta arrives. Voice latency benefits
           // require this decision to be ready in the
           // response.output_audio.delta handler.
-          turnStrictGateRef.current = shouldStrictGateTurn({
-            userText: trimmed,
-            inputMode: "voice",
-            postSanitizerOrReseed:
-              previousTurnSanitizerOrReseedRef.current,
-          });
+          turnStrictGateRef.current = effectiveStrictGateDecisionForTurn(
+            activeSession,
+            shouldStrictGateTurn({
+              userText: trimmed,
+              inputMode: "voice",
+              postSanitizerOrReseed:
+                previousTurnSanitizerOrReseedRef.current,
+            }),
+            trimmed
+          );
           if (trimmed.length === 0) {
             void postGrokVoiceEvent("stt.skipped", {
               sessionId: activeSession.sessionId,
@@ -1863,13 +2999,15 @@ export function useGrokVoiceConversation(
           if (tryRouteToRegisteredSpeech(trimmed, "voice")) {
             break;
           }
-          const lockedText = getPr60LockedResponseForUser(trimmed);
-          if (lockedText) {
-            void playLockedResponse({
-              userText: trimmed,
-              assistantText: lockedText,
-              channel: "voice",
-            });
+          if (!isV19MetaSafetyOnlyVariant(activeSession.routerVariant)) {
+            const lockedText = getPr60LockedResponseForUser(trimmed);
+            if (lockedText) {
+              void playLockedResponse({
+                userText: trimmed,
+                assistantText: lockedText,
+                channel: "voice",
+              });
+            }
           }
           break;
         }
@@ -1955,10 +3093,12 @@ export function useGrokVoiceConversation(
           const delta = event.delta ?? "";
           if (delta.length === 0) break;
           turnAccumulatedTextRef.current += delta;
-          const lockedResponseMatched = shouldStopAtPr60LockedResponse(
-            turnUserTextPreviewRef.current,
-            turnAccumulatedTextRef.current
-          );
+          const lockedResponseMatched =
+            !isV19MetaSafetyOnlyVariant(activeSession.routerVariant) &&
+            shouldStopAtPr60LockedResponse(
+              turnUserTextPreviewRef.current,
+              turnAccumulatedTextRef.current
+            );
           if (!pr60LockCancelSentRef.current && lockedResponseMatched) {
             pr60LockCancelSentRef.current = true;
             turnAccumulatedTextRef.current = normalizePr60AssistantText(
@@ -1981,7 +3121,15 @@ export function useGrokVoiceConversation(
             });
           }
           const id = interimAgentClientIdRef.current;
-          if (id) {
+          const suppressInterimTextBeforeGuard =
+            activeSession.routerVariant ===
+              "N_V14_FAST_MATCHER_TEXT_GUARDED" ||
+            activeSession.routerVariant ===
+              "P_V17_UNKNOWN_GROK_UNGUARDED" ||
+            activeSession.routerVariant ===
+              "Q_V17_META_SAFETY_ONLY_FIXED_FALLBACK" ||
+            isV20LegacyHarutoBaseVariant(activeSession.routerVariant);
+          if (id && !suppressInterimTextBeforeGuard) {
             dispatchMessages({
               type: "updateTextAndStatus",
               clientMessageId: id,
@@ -2021,7 +3169,7 @@ export function useGrokVoiceConversation(
           // `risk_based` stream immediately (and `monitor_only` always
           // streams, only for evidence collection in non-prod).
           const shouldBuffer = shouldBufferForTurn({
-            mode: activeSession.strictPlaybackMode,
+            mode: effectiveStrictPlaybackModeForTurn(activeSession),
             gateDecision: turnStrictGateRef.current,
           });
           if (shouldBuffer) {
@@ -2074,7 +3222,7 @@ export function useGrokVoiceConversation(
           // has already reached the user; finalize on the legacy path
           // to update metrics + history without re-playing.
           const usedBufferedPath = shouldBufferForTurn({
-            mode: activeSession.strictPlaybackMode,
+            mode: effectiveStrictPlaybackModeForTurn(activeSession),
             gateDecision: turnStrictGateRef.current,
           });
           if (usedBufferedPath) {
@@ -2126,7 +3274,7 @@ export function useGrokVoiceConversation(
             turnInputModeRef.current === "text" ? "rt_text" : "rt_voice";
           const strictGateStreaming = turnStrictGateRef.current;
           const usedBufferedPathStreaming = shouldBufferForTurn({
-            mode: activeSession.strictPlaybackMode,
+            mode: effectiveStrictPlaybackModeForTurn(activeSession),
             gateDecision: strictGateStreaming,
           });
           const metrics: GrokVoiceTurnMetricsClient = {
@@ -2147,6 +3295,8 @@ export function useGrokVoiceConversation(
             guardrailVersion: activeSession.guardrailVersion,
             grokVoiceModel: activeSession.grokVoiceModel,
             grokVoiceVoiceId: activeSession.grokVoiceVoiceId,
+            demoSlug: activeSession.demoSlug,
+            routerVariant: activeSession.routerVariant,
             routePath,
             localLockedAudioHit: false,
             strictPlaybackMode: activeSession.strictPlaybackMode,
@@ -2171,6 +3321,8 @@ export function useGrokVoiceConversation(
               doneMs: metrics.doneMs,
               audioBytes: metrics.audioBytes,
               routePath: metrics.routePath,
+              demoSlug: metrics.demoSlug,
+              routerVariant: metrics.routerVariant,
               localLockedAudioHit: metrics.localLockedAudioHit,
               strictPlaybackMode: metrics.strictPlaybackMode,
               strictGateApplied: metrics.strictGateApplied,
@@ -2326,7 +3478,7 @@ export function useGrokVoiceConversation(
     setStatus("connecting");
     setErrorMessage(null);
     try {
-      const next = await fetchSession();
+        const next = await fetchSession({ demoSlug, routerVariant });
       sessionRef.current = next;
       setSession(next);
 
@@ -2340,23 +3492,31 @@ export function useGrokVoiceConversation(
         next.productionDeterministicOnly === true
       );
 
-      if (next.productionDeterministicOnly === true) {
+      const shouldVerifyRegisteredSpeech =
+        next.productionDeterministicOnly === true ||
+        next.routerVariant === "C_GUARDED_FLEXIBLE_GENERATION" ||
+        isGrokVoiceNaturalGovernedVariant(next.routerVariant);
+
+      if (shouldVerifyRegisteredSpeech) {
         // Manifest version handshake. We refuse to enable the mic
         // when the server's bundle version doesn't match the client
         // build constant, OR when the bundle is missing entirely.
         const expectedVersion = next.registeredSpeechManifestVersion;
         const buildId = next.registeredSpeechBuildId;
+        const expectedBuildId = expectedRegisteredSpeechBuildIdForSession(
+          next,
+          buildId
+        );
         if (
           !next.registeredSpeech ||
           expectedVersion !== REGISTERED_SPEECH_CLIENT_MANIFEST_VERSION ||
-          (REGISTERED_SPEECH_CLIENT_BUILD_ID !== "uninitialized" &&
-            buildId !== REGISTERED_SPEECH_CLIENT_BUILD_ID)
+          buildId !== expectedBuildId
         ) {
           void postGrokVoiceEvent("registered_speech.manifest_version_mismatch", {
             sessionId: next.sessionId,
             details: {
               clientVersion: REGISTERED_SPEECH_CLIENT_MANIFEST_VERSION,
-              clientBuildId: REGISTERED_SPEECH_CLIENT_BUILD_ID,
+              clientBuildId: expectedBuildId,
               serverVersion: expectedVersion ?? null,
               serverBuildId: buildId ?? null,
               bundlePresent: Boolean(next.registeredSpeech),
@@ -2364,19 +3524,21 @@ export function useGrokVoiceConversation(
           });
           setStatus("error");
           setErrorMessage(
-            "音声バンドルの整合性が確認できないため接続を停止しました。再読み込みしてください。"
+            next.productionDeterministicOnly === true
+              ? "音声バンドルの整合性が確認できないため接続を停止しました。再読み込みしてください。"
+              : "音声バンドルの整合性が確認できないため、柔軟応答モードを開始できません。再読み込みしてください。"
           );
           return;
         }
 
-        const cacheResult = await buildVerifiedRegisteredSpeechCache({
+        const requiredIntents = requiredRegisteredSpeechIntentsForSession(next);
+        const cacheInput = {
           bundle: next.registeredSpeech,
           clientManifestVersion: REGISTERED_SPEECH_CLIENT_MANIFEST_VERSION,
-          clientBuildId:
-            REGISTERED_SPEECH_CLIENT_BUILD_ID === "uninitialized"
-              ? null
-              : REGISTERED_SPEECH_CLIENT_BUILD_ID,
-        });
+          clientBuildId: expectedBuildId ?? null,
+          ...(requiredIntents ? { requiredIntents } : {}),
+        };
+        const cacheResult = await buildVerifiedRegisteredSpeechCache(cacheInput);
         if (cacheResult.kind !== "ok") {
           void postGrokVoiceEvent("registered_speech.sha_mismatch", {
             sessionId: next.sessionId,
@@ -2439,7 +3601,8 @@ export function useGrokVoiceConversation(
           const verifiedCacheForGreeting =
             verifiedRegisteredSpeechCacheRef.current;
           const greetingEntry =
-            next.productionDeterministicOnly === true &&
+            (next.productionDeterministicOnly === true ||
+              next.routerVariant === "C_GUARDED_FLEXIBLE_GENERATION") &&
             verifiedCacheForGreeting
               ? verifiedCacheForGreeting.entries.get("greeting")
               : undefined;
@@ -2545,7 +3708,7 @@ export function useGrokVoiceConversation(
       // Open the realtime WebSocket.
       const realtimeOptions: ConstructorParameters<typeof GrokVoiceRealtime>[0] = {
         url: next.wsUrl,
-        ephemeralToken: next.ephemeralToken,
+        auth: resolveRealtimeAuth(next),
         onMessage: handleServerEvent,
         onOpen: () => {
           void postGrokVoiceEvent("ws.connected", {
@@ -2602,12 +3765,14 @@ export function useGrokVoiceConversation(
     }
   }, [
     createRealtime,
+    demoSlug,
     ensureAudioQueue,
     fetchSession,
     fetchGreeting,
     handleServerEvent,
     isInteractive,
     maybeStartMicAfterGreeting,
+    routerVariant,
   ]);
 
   const endConversation = useCallback(async () => {
@@ -2718,13 +3883,18 @@ export function useGrokVoiceConversation(
       turnInputModeRef.current = "text";
       turnUserTextLenRef.current = trimmed.length;
       turnUserTextPreviewRef.current = trimmed;
+      turnInputDepthRef.current = classifyInputDepth(trimmed);
       // PR D — strict-gate decision for text input is computed at submit
       // time, before any model response is initiated.
-      turnStrictGateRef.current = shouldStrictGateTurn({
-        userText: trimmed,
-        inputMode: "text",
-        postSanitizerOrReseed: previousTurnSanitizerOrReseedRef.current,
-      });
+      turnStrictGateRef.current = effectiveStrictGateDecisionForTurn(
+        activeSession,
+        shouldStrictGateTurn({
+          userText: trimmed,
+          inputMode: "text",
+          postSanitizerOrReseed: previousTurnSanitizerOrReseedRef.current,
+        }),
+        trimmed
+      );
       turnIndexRef.current += 1;
       turnStartAtRef.current = Date.now();
       firstAudioAtRef.current = null;
@@ -2746,14 +3916,16 @@ export function useGrokVoiceConversation(
       if (tryRouteToRegisteredSpeech(trimmed, "chat")) {
         return;
       }
-      const lockedText = getPr60LockedResponseForUser(trimmed);
-      if (lockedText) {
-        void playLockedResponse({
-          userText: trimmed,
-          assistantText: lockedText,
-          channel: "chat",
-        });
-        return;
+      if (!isV19MetaSafetyOnlyVariant(activeSession.routerVariant)) {
+        const lockedText = getPr60LockedResponseForUser(trimmed);
+        if (lockedText) {
+          void playLockedResponse({
+            userText: trimmed,
+            assistantText: lockedText,
+            channel: "chat",
+          });
+          return;
+        }
       }
       realtimeRef.current.sendUserText(trimmed);
       setStatus("thinking");

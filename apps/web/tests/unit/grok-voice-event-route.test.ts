@@ -170,6 +170,40 @@ describe("grok-voice event route", () => {
     expect(JSON.stringify(lines)).not.toContain("カーの営業事務");
   });
 
+  it("drops v25 relay transcript previews even when preview logging is enabled", async () => {
+    vi.stubEnv("GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED", "true");
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            demoSlug: "adecco-roleplay-v25",
+            realtimeTransport: "mendan_cloud_run_relay_wss",
+            turnIndex: 1,
+            inputMode: "text",
+            userTextLen: 7,
+            agentTextLen: 9,
+            firstAudioMs: 10,
+            doneMs: 20,
+            audioBytes: 100,
+            error: null,
+            userTextPreview: "ユーザー本文",
+            agentTextPreview: "エージェント本文",
+            agentSpokenTextPreview: "音声本文",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const serialized = JSON.stringify(logSpy.mock.calls);
+    expect(serialized).toContain("mendan_cloud_run_relay_wss");
+    expect(serialized).not.toContain("ユーザー本文");
+    expect(serialized).not.toContain("エージェント本文");
+    expect(serialized).not.toContain("音声本文");
+  });
+
   it("does not trust client-provided transcript Base64 fields", async () => {
     vi.stubEnv("GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_ENABLED", "true");
     vi.stubEnv("GROK_VOICE_DEBUG_TRANSCRIPT_PREVIEW_MAX_CHARS", "20");
@@ -471,6 +505,43 @@ describe("grok-voice event route", () => {
       "請求想定は経験により、千七百五十円から、千九百円程度です。"
     );
     expect(metricsLine!["localLockedAudioHit"]).toBe(false);
+  });
+
+  it("forwards registered-speech routePath values to grokVoice.turnMetrics", async () => {
+    const { POST } = await import("../../app/api/v3/event/route");
+    const response = await POST(
+      validRequest({
+        body: {
+          kind: "turn.completed",
+          sessionId: "gv_sess_test",
+          details: {
+            turnIndex: 4,
+            inputMode: "voice",
+            userTextLen: 8,
+            agentTextLen: 14,
+            firstAudioMs: 0,
+            firstAudibleAudioMs: 0,
+            doneMs: 2500,
+            audioBytes: 122400,
+            error: null,
+            routePath: "registered_speech_fallback",
+            lockedResponseKey: "fallback_unknown",
+            registeredSpeechIntent: "fallback_unknown",
+          },
+        },
+      })
+    );
+    expect(response.status).toBe(200);
+    const lines = logSpy.mock.calls.map(
+      (c: unknown[]) => JSON.parse(String(c[0])) as Record<string, unknown>
+    );
+    const metricsLine = lines.find(
+      (line: Record<string, unknown>) =>
+        (line as { scope?: string }).scope === "grokVoice.turnMetrics"
+    ) as Record<string, unknown> | undefined;
+    expect(metricsLine).toBeDefined();
+    expect(metricsLine!["routePath"]).toBe("registered_speech_fallback");
+    expect(metricsLine!["lockedResponseKey"]).toBe("fallback_unknown");
   });
 
   // Codex P2 follow-up on PR #83: missing optional latency keys must be

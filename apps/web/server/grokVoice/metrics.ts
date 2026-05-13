@@ -10,6 +10,9 @@ export type GrokVoiceProvenance = {
   guardrailVersion: string;
   grokVoiceModel: string;
   grokVoiceVoiceId: string;
+  demoSlug?: string;
+  routerVariant?: string;
+  realtimeTransport?: string;
 };
 
 type LogPayload = Record<string, unknown>;
@@ -20,12 +23,22 @@ function emit(scope: string, payload: LogPayload) {
 
 export function logGrokVoiceSessionCreated(payload: {
   sessionId: string;
-  ephemeralExpiresAt: string;
+  ephemeralExpiresAt?: string | undefined;
   provenance: GrokVoiceProvenance;
+  demoSlug?: string;
+  routerVariant?: string;
+  realtimeTransport?: string;
 }) {
   emit("grokVoice.session.created", {
     sessionId: payload.sessionId,
-    ephemeralExpiresAt: payload.ephemeralExpiresAt,
+    ...(payload.ephemeralExpiresAt
+      ? { ephemeralExpiresAt: payload.ephemeralExpiresAt }
+      : {}),
+    ...(payload.demoSlug ? { demoSlug: payload.demoSlug } : {}),
+    ...(payload.routerVariant ? { routerVariant: payload.routerVariant } : {}),
+    ...(payload.realtimeTransport
+      ? { realtimeTransport: payload.realtimeTransport }
+      : {}),
     ...payload.provenance,
   });
 }
@@ -36,7 +49,15 @@ export function logGrokVoiceClientEvent(payload: {
   details: Record<string, unknown>;
   ip: string;
 }) {
-  emit("grokVoice.clientEvent", payload);
+  emit("grokVoice.clientEvent", {
+    ...payload,
+    demoSlug: stringFromDetails(payload.details, "demoSlug"),
+    routerVariant: stringFromDetails(payload.details, "routerVariant"),
+    realtimeTransport: stringFromDetails(
+      payload.details,
+      "realtimeTransport"
+    ),
+  });
 }
 
 // Voice latency observability fields (PR A — Phase 0 of latency-first roadmap).
@@ -65,6 +86,12 @@ export type GrokVoiceRoutePath =
   | "lock_voice_network_tts"
   | "rt_text"
   | "rt_voice"
+  | "registered_speech_local"
+  | "registered_speech_fallback"
+  | "registered_speech_multi_intent_redirect"
+  | "registered_speech_decision_maker"
+  | "noise_fragment_ignored"
+  | "runtime_guarded_generation"
   | "unknown";
 
 export function logGrokVoiceTurnMetrics(payload: {
@@ -84,8 +111,27 @@ export function logGrokVoiceTurnMetrics(payload: {
   agentTextPreviewUtf8Base64?: string;
   agentSpokenTextPreviewUtf8Base64?: string;
   provenance: GrokVoiceProvenance;
+  demoSlug?: string;
+  routerVariant?: string;
+  realtimeTransport?: string;
   // PR A latency observability (all optional — backwards compatible).
   routePath?: GrokVoiceRoutePath;
+  routeStage?: string | null;
+  fallbackReason?: string | null;
+  shouldRespond?: boolean;
+  registeredSpeechIntent?: string | null;
+  registeredSpeechSha256?: string | null;
+  registeredSpeechManifestBuildId?: string | null;
+  guardAction?: string | null;
+  inputDepth?: string | null;
+  fallbackIntent?: string | null;
+  forbiddenSuffixDetected?: boolean;
+  closingQuestionDetected?: boolean;
+  hardBannedTextDetected?: boolean;
+  metaLanguageDetected?: boolean;
+  overAnsweringDetected?: boolean;
+  guardFailedTextWasNotSpoken?: boolean;
+  audioEmittedAfterGuard?: boolean;
   firstAudibleAudioMs?: number | null;
   firstRealtimeAudioDeltaMs?: number | null;
   sttFinalMs?: number | null;
@@ -140,6 +186,56 @@ export function logGrokVoiceTurnMetrics(payload: {
     // Latency observability fields. Emit each one only when defined so
     // the BigQuery / Logs Explorer schema stays sparse and queryable.
     ...(payload.routePath !== undefined ? { routePath: payload.routePath } : {}),
+    ...(payload.demoSlug ? { demoSlug: payload.demoSlug } : {}),
+    ...(payload.routerVariant ? { routerVariant: payload.routerVariant } : {}),
+    ...(payload.realtimeTransport
+      ? { realtimeTransport: payload.realtimeTransport }
+      : {}),
+    ...(payload.routeStage !== undefined ? { routeStage: payload.routeStage } : {}),
+    ...(payload.fallbackReason !== undefined
+      ? { fallbackReason: payload.fallbackReason }
+      : {}),
+    ...(payload.shouldRespond !== undefined
+      ? { shouldRespond: payload.shouldRespond }
+      : {}),
+    ...(payload.registeredSpeechIntent !== undefined
+      ? { registeredSpeechIntent: payload.registeredSpeechIntent }
+      : {}),
+    ...(payload.registeredSpeechSha256 !== undefined
+      ? { registeredSpeechSha256: payload.registeredSpeechSha256 }
+      : {}),
+    ...(payload.registeredSpeechManifestBuildId !== undefined
+      ? {
+          registeredSpeechManifestBuildId:
+            payload.registeredSpeechManifestBuildId,
+        }
+      : {}),
+    ...(payload.guardAction !== undefined ? { guardAction: payload.guardAction } : {}),
+    ...(payload.inputDepth !== undefined ? { inputDepth: payload.inputDepth } : {}),
+    ...(payload.fallbackIntent !== undefined
+      ? { fallbackIntent: payload.fallbackIntent }
+      : {}),
+    ...(payload.forbiddenSuffixDetected !== undefined
+      ? { forbiddenSuffixDetected: payload.forbiddenSuffixDetected }
+      : {}),
+    ...(payload.closingQuestionDetected !== undefined
+      ? { closingQuestionDetected: payload.closingQuestionDetected }
+      : {}),
+    ...(payload.hardBannedTextDetected !== undefined
+      ? { hardBannedTextDetected: payload.hardBannedTextDetected }
+      : {}),
+    ...(payload.metaLanguageDetected !== undefined
+      ? { metaLanguageDetected: payload.metaLanguageDetected }
+      : {}),
+    ...(payload.overAnsweringDetected !== undefined
+      ? { overAnsweringDetected: payload.overAnsweringDetected }
+      : {}),
+    ...(payload.guardFailedTextWasNotSpoken !== undefined
+      ? { guardFailedTextWasNotSpoken: payload.guardFailedTextWasNotSpoken }
+      : {}),
+    ...(payload.audioEmittedAfterGuard !== undefined
+      ? { audioEmittedAfterGuard: payload.audioEmittedAfterGuard }
+      : {}),
     ...(payload.firstAudibleAudioMs !== undefined
       ? { firstAudibleAudioMs: payload.firstAudibleAudioMs }
       : {}),
@@ -196,6 +292,14 @@ export function logGrokVoiceTurnMetrics(payload: {
       : {}),
     ...payload.provenance,
   });
+}
+
+function stringFromDetails(
+  details: Record<string, unknown>,
+  key: string
+): string | undefined {
+  const value = details[key];
+  return typeof value === "string" ? value : undefined;
 }
 
 export function logGrokVoiceStt(payload: {

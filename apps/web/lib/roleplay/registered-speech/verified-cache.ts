@@ -93,6 +93,7 @@ export type BuildVerifiedCacheInput = {
   // For unit tests + Layer A stubs the caller passes the test value.
   clientManifestVersion: string;
   clientBuildId?: string | null;
+  requiredIntents?: readonly CanonicalIntent[];
 };
 
 export async function buildVerifiedRegisteredSpeechCache(
@@ -150,7 +151,7 @@ export async function buildVerifiedRegisteredSpeechCache(
   }
 
   const missing: CanonicalIntent[] = [];
-  for (const required of REQUIRED_REGISTERED_SPEECH_INTENTS) {
+  for (const required of input.requiredIntents ?? REQUIRED_REGISTERED_SPEECH_INTENTS) {
     if (!seenIntents.has(required)) missing.push(required);
   }
   if (missing.length > 0) {

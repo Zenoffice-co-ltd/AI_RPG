@@ -3,6 +3,15 @@
 import type {
   RegisteredSpeechBundle,
 } from "./registered-speech/types";
+import type {
+  AdeccoGrokVoiceDemoSlug,
+  GrokVoiceRealtimeTransport,
+  GrokVoiceRouterVariant,
+} from "./grok-voice-router-variant";
+import type {
+  InputDepth,
+  ShallowFallbackIntent,
+} from "./grok-voice-shallow-governor";
 
 export type GrokVoiceMicState = "idle" | "listening" | "speaking" | "paused";
 
@@ -19,11 +28,28 @@ export type GrokVoiceAudioConfig = {
   sampleRate: number; // Hz
 };
 
+export type GrokVoiceRealtimeAuth =
+  | {
+      mode: "xai_ephemeral_subprotocol";
+      token: string;
+      expiresAt: string;
+    }
+  | {
+      mode: "mendan_relay_subprotocol";
+      protocol: "mendan-relay-v1";
+      ticket: string;
+      expiresAt: string;
+    };
+
 // What the server returns from POST /api/v3/session — the API key is
 // never present here; only a short-lived ephemeral token plus metadata the
 // client needs to open the WebSocket and configure the session.
 export type GrokVoiceSession = {
   sessionId: string;
+  demoSlug?: AdeccoGrokVoiceDemoSlug;
+  routerVariant?: GrokVoiceRouterVariant;
+  realtimeTransport?: GrokVoiceRealtimeTransport;
+  realtimeAuth?: GrokVoiceRealtimeAuth;
   scenarioId: string;
   backend: "grok-voice-think-fast";
   promptVersion: string;
@@ -32,8 +58,8 @@ export type GrokVoiceSession = {
   grokVoiceModel: string;
   grokVoiceVoiceId: string;
   wsUrl: string;
-  ephemeralToken: string;
-  ephemeralExpiresAt: string;
+  ephemeralToken?: string;
+  ephemeralExpiresAt?: string;
   audio: GrokVoiceAudioConfig;
   turnDetection: GrokVoiceTurnDetectionConfig;
   instructions: string;
@@ -159,6 +185,7 @@ export type GrokVoiceTurnMetricsClient = {
     | "sanitized_to_empty"
     | "sanitized_tts_played"
     | "sanitized_tts_failed"
+    | "sanitized_tts_stale_suppressed"
     | "reseed_failed_after_play";
   sessionTainted?: boolean;
   parentSessionId?: string | null;
@@ -174,14 +201,39 @@ export type GrokVoiceTurnMetricsClient = {
     | "registered_speech_local"
     | "registered_speech_fallback"
     | "registered_speech_multi_intent_redirect"
+    | "registered_speech_decision_maker"
+    | "noise_fragment_ignored"
+    | "runtime_guarded_generation"
     | "unknown";
+  routeStage?: string | undefined;
+  fallbackReason?: string | null | undefined;
+  shouldRespond?: boolean | undefined;
+  routerVariant?: GrokVoiceRouterVariant | undefined;
+  realtimeTransport?: GrokVoiceRealtimeTransport | undefined;
+  demoSlug?: AdeccoGrokVoiceDemoSlug | undefined;
+  guardAction?:
+    | "none"
+    | "pass"
+    | "rewrite_once"
+    | "approved_fallback"
+    | "fallback"
+    | undefined;
+  inputDepth?: InputDepth | undefined;
+  fallbackIntent?: ShallowFallbackIntent | undefined;
+  forbiddenSuffixDetected?: boolean | undefined;
+  closingQuestionDetected?: boolean | undefined;
+  hardBannedTextDetected?: boolean | undefined;
+  metaLanguageDetected?: boolean | undefined;
+  overAnsweringDetected?: boolean | undefined;
+  guardFailedTextWasNotSpoken?: boolean | undefined;
+  audioEmittedAfterGuard?: boolean | undefined;
   // Verified Audio Artifact telemetry (review-v2). Populated only when
   // the deterministic-mode path served the turn. Cloud Logging
   // dashboards key on `registeredSpeechIntent` to confirm zero
   // runtime-TTS path leakage across canonical intents.
-  registeredSpeechIntent?: string;
-  registeredSpeechSha256?: string;
-  registeredSpeechManifestBuildId?: string;
+  registeredSpeechIntent?: string | undefined;
+  registeredSpeechSha256?: string | undefined;
+  registeredSpeechManifestBuildId?: string | undefined;
   registeredSpeechLatency?: {
     userInputFinalizedAt: number;
     intentClassifiedAt: number;
@@ -191,15 +243,15 @@ export type GrokVoiceTurnMetricsClient = {
     manifestVerifiedBeforeMicEnable: boolean;
     sha256ComputedOnTurnPath: boolean;
   };
-  localLockedAudioHit?: boolean;
-  lockedResponseKey?: string | null;
-  cacheStatus?: "hit" | "miss" | null;
-  cacheLookupMs?: number | null;
-  ttsVendorMsAtCreation?: number | null;
-  networkTtsMs?: number | null;
-  audioDecodeMs?: number | null;
-  sttFinalMs?: number | null;
-  lockDecisionMs?: number | null;
+  localLockedAudioHit?: boolean | undefined;
+  lockedResponseKey?: string | null | undefined;
+  cacheStatus?: "hit" | "miss" | null | undefined;
+  cacheLookupMs?: number | null | undefined;
+  ttsVendorMsAtCreation?: number | null | undefined;
+  networkTtsMs?: number | null | undefined;
+  audioDecodeMs?: number | null | undefined;
+  sttFinalMs?: number | null | undefined;
+  lockDecisionMs?: number | null | undefined;
   // PR D — risk-based strict playback observability. The dashboard
   // uses these to confirm `risk_based` is gating the right turns and
   // streaming the rest.

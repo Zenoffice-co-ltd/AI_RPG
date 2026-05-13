@@ -69,7 +69,7 @@ describe("GrokVoiceRealtime", () => {
   it("opens the WebSocket with xai-client-secret subprotocol", () => {
     const realtime = new GrokVoiceRealtime({
       url: "wss://api.x.ai/v1/realtime?model=grok-voice-think-fast-1.0",
-      ephemeralToken: "ephemeral-xyz",
+      auth: { mode: "xai_ephemeral_subprotocol", token: "ephemeral-xyz", expiresAt: "2026-05-13T00:01:00.000Z" },
       onMessage: () => undefined,
       WebSocketCtor: FakeWebSocketCtor,
     });
@@ -81,10 +81,34 @@ describe("GrokVoiceRealtime", () => {
     expect(sockets[0]!.protocols).toEqual(["xai-client-secret.ephemeral-xyz"]);
   });
 
+  it("opens the relay WebSocket with MENDAN relay ticket subprotocols", () => {
+    const realtime = new GrokVoiceRealtime({
+      url: "wss://voice.mendan.biz/api/v3/realtime-relay",
+      auth: {
+        mode: "mendan_relay_subprotocol",
+        protocol: "mendan-relay-v1",
+        ticket: "ticket-value",
+        expiresAt: "2026-05-13T00:01:00.000Z",
+      },
+      onMessage: () => undefined,
+      WebSocketCtor: FakeWebSocketCtor,
+    });
+    realtime.open();
+    expect(sockets).toHaveLength(1);
+    expect(sockets[0]!.url).toBe(
+      "wss://voice.mendan.biz/api/v3/realtime-relay"
+    );
+    expect(sockets[0]!.protocols).toEqual([
+      "mendan-relay-v1",
+      "mendan-relay-ticket.ticket-value",
+    ]);
+    expect(sockets[0]!.protocols.join(",")).not.toContain("xai-client-secret");
+  });
+
   it("sends session.update with voice + instructions + audio + turn_detection (incl. prefix_padding_ms)", () => {
     const realtime = new GrokVoiceRealtime({
       url: "wss://example",
-      ephemeralToken: "t",
+      auth: { mode: "xai_ephemeral_subprotocol", token: "t", expiresAt: "2026-05-13T00:01:00.000Z" },
       onMessage: () => undefined,
       onOpen: () => {
         realtime.sendSessionUpdate(SESSION_UPDATE);
@@ -125,7 +149,7 @@ describe("GrokVoiceRealtime", () => {
   it("injects firstMessage as a prior assistant turn via conversation.item.create", () => {
     const realtime = new GrokVoiceRealtime({
       url: "wss://example",
-      ephemeralToken: "t",
+      auth: { mode: "xai_ephemeral_subprotocol", token: "t", expiresAt: "2026-05-13T00:01:00.000Z" },
       onMessage: () => undefined,
       WebSocketCtor: FakeWebSocketCtor,
     });
@@ -146,7 +170,7 @@ describe("GrokVoiceRealtime", () => {
   it("sendUserText creates a user message and triggers response.create", () => {
     const realtime = new GrokVoiceRealtime({
       url: "wss://example",
-      ephemeralToken: "t",
+      auth: { mode: "xai_ephemeral_subprotocol", token: "t", expiresAt: "2026-05-13T00:01:00.000Z" },
       onMessage: () => undefined,
       WebSocketCtor: FakeWebSocketCtor,
     });
@@ -173,7 +197,7 @@ describe("GrokVoiceRealtime", () => {
   it("sendUserHistory creates a user item without response.create", () => {
     const realtime = new GrokVoiceRealtime({
       url: "wss://example",
-      ephemeralToken: "t",
+      auth: { mode: "xai_ephemeral_subprotocol", token: "t", expiresAt: "2026-05-13T00:01:00.000Z" },
       onMessage: () => undefined,
       WebSocketCtor: FakeWebSocketCtor,
     });
@@ -198,7 +222,7 @@ describe("GrokVoiceRealtime", () => {
     const telemetry: string[] = [];
     const realtime = new GrokVoiceRealtime({
       url: "wss://example",
-      ephemeralToken: "t",
+      auth: { mode: "xai_ephemeral_subprotocol", token: "t", expiresAt: "2026-05-13T00:01:00.000Z" },
       onMessage: () => undefined,
       onReady: ready,
       onTelemetry: (event) => telemetry.push(event.kind),
@@ -228,7 +252,7 @@ describe("GrokVoiceRealtime", () => {
     const messages: Array<{ type: string }> = [];
     const realtime = new GrokVoiceRealtime({
       url: "wss://example",
-      ephemeralToken: "t",
+      auth: { mode: "xai_ephemeral_subprotocol", token: "t", expiresAt: "2026-05-13T00:01:00.000Z" },
       onMessage: (m) => messages.push(m as { type: string }),
       WebSocketCtor: FakeWebSocketCtor,
     });
@@ -247,7 +271,7 @@ describe("GrokVoiceRealtime", () => {
   it("appendAudio writes input_audio_buffer.append with the base64 payload", () => {
     const realtime = new GrokVoiceRealtime({
       url: "wss://example",
-      ephemeralToken: "t",
+      auth: { mode: "xai_ephemeral_subprotocol", token: "t", expiresAt: "2026-05-13T00:01:00.000Z" },
       onMessage: () => undefined,
       WebSocketCtor: FakeWebSocketCtor,
     });
@@ -268,7 +292,7 @@ describe("GrokVoiceRealtime", () => {
     const telemetry: string[] = [];
     const realtime = new GrokVoiceRealtime({
       url: "wss://example",
-      ephemeralToken: "t",
+      auth: { mode: "xai_ephemeral_subprotocol", token: "t", expiresAt: "2026-05-13T00:01:00.000Z" },
       onMessage: () => undefined,
       onTelemetry: (event) => telemetry.push(event.kind),
       WebSocketCtor: FakeWebSocketCtor,
@@ -286,7 +310,7 @@ describe("GrokVoiceRealtime", () => {
     const telemetry: string[] = [];
     const realtime = new GrokVoiceRealtime({
       url: "wss://example",
-      ephemeralToken: "t",
+      auth: { mode: "xai_ephemeral_subprotocol", token: "t", expiresAt: "2026-05-13T00:01:00.000Z" },
       onMessage: () => undefined,
       onTelemetry: (event) => telemetry.push(event.kind),
       WebSocketCtor: FakeWebSocketCtor,
@@ -314,7 +338,7 @@ describe("GrokVoiceRealtime", () => {
     const errors: string[] = [];
     const realtime = new GrokVoiceRealtime({
       url: "wss://example",
-      ephemeralToken: "t",
+      auth: { mode: "xai_ephemeral_subprotocol", token: "t", expiresAt: "2026-05-13T00:01:00.000Z" },
       onMessage: () => undefined,
       onTelemetry: (event) => telemetry.push(event),
       onError: (error) => errors.push(error.message),

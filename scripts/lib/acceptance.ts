@@ -148,11 +148,14 @@ export async function buildBasePreflightReport(
     );
   }
 
-  const openAiSecretAvailable = await dependencies.secretExists(
-    DEFAULT_OPENAI_SECRET_NAME,
-    secretSourceProjectId
-  );
-  if (!openAiSecretAvailable && !getConfiguredValue(env, "OPENAI_API_KEY")) {
+  const openAiEnvValue = getConfiguredValue(env, "OPENAI_API_KEY");
+  const openAiSecretAvailable = openAiEnvValue
+    ? false
+    : await dependencies.secretExists(
+        DEFAULT_OPENAI_SECRET_NAME,
+        secretSourceProjectId
+      );
+  if (!openAiSecretAvailable && !openAiEnvValue) {
     blockers.push({
       kind: "missing_secret",
       step: "build:playbooks / analyze-session",
@@ -169,11 +172,14 @@ export async function buildBasePreflightReport(
     );
   }
 
-  const elevenLabsSecretAvailable = await dependencies.secretExists(
-    DEFAULT_ELEVENLABS_SECRET_NAME,
-    secretSourceProjectId
-  );
-  if (!elevenLabsSecretAvailable && !getConfiguredValue(env, "ELEVENLABS_API_KEY")) {
+  const elevenLabsEnvValue = getConfiguredValue(env, "ELEVENLABS_API_KEY");
+  const elevenLabsSecretAvailable = elevenLabsEnvValue
+    ? false
+    : await dependencies.secretExists(
+        DEFAULT_ELEVENLABS_SECRET_NAME,
+        secretSourceProjectId
+      );
+  if (!elevenLabsSecretAvailable && !elevenLabsEnvValue) {
     blockers.push({
       kind: "missing_secret",
       step: "bootstrap:vendors / publish:scenario / smoke:eleven",
@@ -190,11 +196,14 @@ export async function buildBasePreflightReport(
     );
   }
 
-  const liveAvatarSecretAvailable = await dependencies.secretExists(
-    DEFAULT_LIVEAVATAR_SECRET_NAME,
-    secretSourceProjectId
-  );
-  if (!liveAvatarSecretAvailable && !getConfiguredValue(env, "LIVEAVATAR_API_KEY")) {
+  const liveAvatarEnvValue = getConfiguredValue(env, "LIVEAVATAR_API_KEY");
+  const liveAvatarSecretAvailable = liveAvatarEnvValue
+    ? false
+    : await dependencies.secretExists(
+        DEFAULT_LIVEAVATAR_SECRET_NAME,
+        secretSourceProjectId
+      );
+  if (!liveAvatarSecretAvailable && !liveAvatarEnvValue) {
     blockers.push({
       kind: "missing_secret",
       step: "bootstrap:vendors / smoke:liveavatar / sessions",

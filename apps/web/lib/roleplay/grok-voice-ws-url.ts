@@ -21,6 +21,16 @@ export type BuildGrokRealtimeWsUrlInput = {
   model?: string;
 };
 
+export type BuildGrokRealtimeRelayWsUrlInput = {
+  origin: string;
+  sessionId: string;
+  model?: string;
+};
+
+export type BuildMendanCloudRunRelayWsUrlInput = {
+  base?: string | undefined;
+};
+
 export function buildGrokRealtimeWsUrl(input: BuildGrokRealtimeWsUrlInput): string {
   const model = input.model ?? REQUIRED_GROK_VOICE_REALTIME_MODEL;
   if (typeof model !== "string" || model.length === 0) {
@@ -49,6 +59,62 @@ export function buildGrokRealtimeWsUrl(input: BuildGrokRealtimeWsUrlInput): stri
     );
   }
   parsed.searchParams.set("model", model);
+  return parsed.toString();
+}
+
+export function buildGrokRealtimeRelayWsUrl(
+  input: BuildGrokRealtimeRelayWsUrlInput
+): string {
+  const model = input.model ?? REQUIRED_GROK_VOICE_REALTIME_MODEL;
+  if (typeof input.sessionId !== "string" || input.sessionId.length === 0) {
+    throw new Error("buildGrokRealtimeRelayWsUrl: sessionId is required");
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL("/api/v3/realtime-relay", input.origin);
+  } catch {
+    throw new Error(
+      `buildGrokRealtimeRelayWsUrl: origin must be a parseable URL (received "${input.origin}")`
+    );
+  }
+  if (parsed.protocol === "https:") {
+    parsed.protocol = "wss:";
+  } else if (parsed.protocol === "http:") {
+    parsed.protocol = "ws:";
+  } else if (parsed.protocol !== "wss:" && parsed.protocol !== "ws:") {
+    throw new Error(
+      `buildGrokRealtimeRelayWsUrl: origin must use http(s) or ws(s) protocol (received "${parsed.protocol}")`
+    );
+  }
+  parsed.searchParams.set("model", model);
+  parsed.searchParams.set("sessionId", input.sessionId);
+  return parsed.toString();
+}
+
+export function buildMendanCloudRunRelayWsUrl(
+  input: BuildMendanCloudRunRelayWsUrlInput = {}
+): string {
+  const base =
+    input.base ?? "wss://voice.mendan.biz/api/v3/realtime-relay";
+  let parsed: URL;
+  try {
+    parsed = new URL(base);
+  } catch {
+    throw new Error(
+      `buildMendanCloudRunRelayWsUrl: base must be a parseable URL (received "${base}")`
+    );
+  }
+  if (parsed.protocol !== "wss:" && parsed.protocol !== "ws:") {
+    throw new Error(
+      `buildMendanCloudRunRelayWsUrl: base must use ws/wss protocol (received "${parsed.protocol}")`
+    );
+  }
+  if (parsed.pathname !== "/api/v3/realtime-relay") {
+    throw new Error(
+      `buildMendanCloudRunRelayWsUrl: path must be /api/v3/realtime-relay (received "${parsed.pathname}")`
+    );
+  }
+  parsed.search = "";
   return parsed.toString();
 }
 

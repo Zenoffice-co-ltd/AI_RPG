@@ -110,6 +110,12 @@ describe("grok-voice session route", () => {
     expect(body["ephemeralToken"]).toBe(
       "xai-realtime-client-secret-test-value"
     );
+    expect(body["realtimeTransport"]).toBe("xai_direct_wss");
+    expect(body["realtimeAuth"]).toEqual({
+      mode: "xai_ephemeral_subprotocol",
+      token: "xai-realtime-client-secret-test-value",
+      expiresAt: expect.any(String),
+    });
     expect(body["grokVoiceModel"]).toBe("grok-voice-think-fast-1.0");
     expect(body["grokVoiceVoiceId"]).toBe("rex");
     expect(typeof body["firstMessage"]).toBe("string");
@@ -212,6 +218,142 @@ describe("grok-voice session route", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as Record<string, unknown>;
     expect(body["strictSanitizedPlayback"]).toBe(false);
+  });
+
+  it("serves v23 with compact instructions, faster VAD silence, and 24k Haruto-safe sample rate", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          value: "xai-realtime-client-secret-test-value",
+          expires_at: 1747_000_000,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    const { POST } = await import("../../app/api/v3/session/route");
+    const response = await POST(
+      validRequest({
+        referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v23",
+        body: { demoSlug: "adecco-roleplay-v23" },
+      })
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body["demoSlug"]).toBe("adecco-roleplay-v23");
+    expect(body["routerVariant"]).toBe("T_V21_ACK_STREAM_COMPACT_PROMPT");
+    expect(body["strictPlaybackMode"]).toBe("risk_based");
+    expect(body["registeredSpeechBuildId"]).toBe(
+      "2026-05-12T05-31-48-094Z"
+    );
+    const turnDetection = body["turnDetection"] as Record<string, unknown>;
+    expect(turnDetection["silence_duration_ms"]).toBe(350);
+    const audio = body["audio"] as Record<string, unknown>;
+    expect(audio["sampleRate"]).toBe(24_000);
+    const instructions = body["instructions"] as string;
+    expect(instructions.length).toBeLessThan(2_500);
+    expect(instructions).toContain("相槌から始まる質問でも");
+    expect(instructions).not.toContain("v2.1 Customer Attitude");
+  });
+
+  it("serves v24 as v23 behavior over the same-origin realtime relay", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          value: "xai-realtime-client-secret-test-value",
+          expires_at: 1747_000_000,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    const { POST } = await import("../../app/api/v3/session/route");
+    const response = await POST(
+      validRequest({
+        referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v24",
+        body: { demoSlug: "adecco-roleplay-v24" },
+      })
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body["demoSlug"]).toBe("adecco-roleplay-v24");
+    expect(body["routerVariant"]).toBe("U_V23_SERVER_RELAYED_WSS");
+    expect(body["strictPlaybackMode"]).toBe("risk_based");
+    expect(body["registeredSpeechBuildId"]).toBe(
+      "2026-05-12T05-31-48-094Z"
+    );
+    const wsUrl = new URL(body["wsUrl"] as string);
+    expect(wsUrl.protocol).toBe("ws:");
+    expect(wsUrl.host).toBe("127.0.0.1:3000");
+    expect(wsUrl.pathname).toBe("/api/v3/realtime-relay");
+    expect(wsUrl.searchParams.get("model")).toBe(
+      "grok-voice-think-fast-1.0"
+    );
+    expect(wsUrl.searchParams.get("sessionId")).toBe(
+      body["sessionId"] as string
+    );
+    expect(body["wsUrl"]).not.toContain("api.x.ai");
+    expect(body["ephemeralToken"]).toBe(
+      "xai-realtime-client-secret-test-value"
+    );
+    const turnDetection = body["turnDetection"] as Record<string, unknown>;
+    expect(turnDetection["silence_duration_ms"]).toBe(350);
+    const audio = body["audio"] as Record<string, unknown>;
+    expect(audio["sampleRate"]).toBe(24_000);
+  });
+
+  it("serves v25 over the MENDAN Cloud Run relay without issuing an xAI ephemeral token", async () => {
+    vi.stubEnv(
+      "XAI_RELAY_TICKET_SECRET",
+      "0123456789abcdef0123456789abcdef"
+    );
+    vi.stubEnv(
+      "GROK_VOICE_RELAY_WS_URL",
+      "wss://voice.mendan.biz/api/v3/realtime-relay"
+    );
+    vi.stubEnv("GROK_VOICE_RELAY_EXPECTED_AUD", "voice.mendan.biz");
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const { POST } = await import("../../app/api/v3/session/route");
+    const response = await POST(
+      validRequest({
+        referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v25",
+        body: { demoSlug: "adecco-roleplay-v25" },
+      })
+    );
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(body["demoSlug"]).toBe("adecco-roleplay-v25");
+    expect(body["routerVariant"]).toBe("B_NARROW_FALLBACK_SEMANTIC");
+    expect(body["realtimeTransport"]).toBe("mendan_cloud_run_relay_wss");
+    expect(body["wsUrl"]).toBe(
+      "wss://voice.mendan.biz/api/v3/realtime-relay"
+    );
+    expect(body["ephemeralToken"]).toBeUndefined();
+    expect(body["ephemeralExpiresAt"]).toBeUndefined();
+    const auth = body["realtimeAuth"] as Record<string, unknown>;
+    expect(auth["mode"]).toBe("mendan_relay_subprotocol");
+    expect(auth["protocol"]).toBe("mendan-relay-v1");
+    expect(typeof auth["ticket"]).toBe("string");
+    expect(auth["ticket"]).toMatch(/^mra1\./);
+    expect(typeof auth["expiresAt"]).toBe("string");
+  });
+
+  it("fails v25 closed when the relay ticket secret is unavailable", async () => {
+    vi.stubEnv(
+      "GROK_VOICE_RELAY_WS_URL",
+      "wss://voice.mendan.biz/api/v3/realtime-relay"
+    );
+    vi.stubEnv("GROK_VOICE_RELAY_EXPECTED_AUD", "voice.mendan.biz");
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const { POST } = await import("../../app/api/v3/session/route");
+    const response = await POST(
+      validRequest({
+        referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v25",
+        body: { demoSlug: "adecco-roleplay-v25" },
+      })
+    );
+
+    expect(response.status).toBe(503);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   // PR #86 Codex P1 follow-up on PR #85. The new client decides

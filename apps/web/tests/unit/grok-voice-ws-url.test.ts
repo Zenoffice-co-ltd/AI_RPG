@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   REQUIRED_GROK_VOICE_REALTIME_MODEL,
   assertGrokRealtimeWsUrl,
+  buildGrokRealtimeRelayWsUrl,
   buildGrokRealtimeWsUrl,
+  buildMendanCloudRunRelayWsUrl,
 } from "../../lib/roleplay/grok-voice-ws-url";
 
 // review-v2 P0: omitting the `model=` query parameter on the xAI
@@ -67,5 +69,53 @@ describe("assertGrokRealtimeWsUrl", () => {
         "wss://api.x.ai/v1/realtime?model=grok-voice-fast-1.0"
       )
     ).toThrow(/model query must be/);
+  });
+});
+
+describe("buildGrokRealtimeRelayWsUrl", () => {
+  it("builds a same-origin wss relay URL with model and sessionId", () => {
+    const wsUrl = buildGrokRealtimeRelayWsUrl({
+      origin: "https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app",
+      sessionId: "gv_sess_test",
+    });
+    const parsed = new URL(wsUrl);
+    expect(parsed.protocol).toBe("wss:");
+    expect(parsed.host).toBe(
+      "adecco-roleplay--adecco-mendan.asia-east1.hosted.app"
+    );
+    expect(parsed.pathname).toBe("/api/v3/realtime-relay");
+    expect(parsed.searchParams.get("model")).toBe(
+      REQUIRED_GROK_VOICE_REALTIME_MODEL
+    );
+    expect(parsed.searchParams.get("sessionId")).toBe("gv_sess_test");
+  });
+
+  it("uses ws for local http origins", () => {
+    const wsUrl = buildGrokRealtimeRelayWsUrl({
+      origin: "http://127.0.0.1:3000",
+      sessionId: "gv_sess_test",
+    });
+    expect(new URL(wsUrl).protocol).toBe("ws:");
+  });
+});
+
+describe("buildMendanCloudRunRelayWsUrl", () => {
+  it("builds the v25 Cloud Run relay URL without query parameters", () => {
+    expect(buildMendanCloudRunRelayWsUrl()).toBe(
+      "wss://voice.mendan.biz/api/v3/realtime-relay"
+    );
+  });
+
+  it("rejects query-bearing or wrong-path relay URLs by normalizing path-only output", () => {
+    expect(
+      buildMendanCloudRunRelayWsUrl({
+        base: "wss://voice.mendan.biz/api/v3/realtime-relay?ticket=bad",
+      })
+    ).toBe("wss://voice.mendan.biz/api/v3/realtime-relay");
+    expect(() =>
+      buildMendanCloudRunRelayWsUrl({
+        base: "wss://voice.mendan.biz/api/v3/other",
+      })
+    ).toThrow(/path must be/);
   });
 });

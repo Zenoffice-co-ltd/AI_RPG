@@ -759,3 +759,52 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 `/demo/adecco-roleplay-v3` は ServiceUnavailable、`/api/v3/*`
 は 503。既存 `/demo/adecco-roleplay` / `/demo/adecco-roleplay-haiku-fish` は
 完全に独立しているので影響なし。
+
+## Latest execution log
+
+### 2026-05-13 — Adecco Grok Voice v25 Cloud Run relay closeout
+
+- DNS: Value Domain / dnsv.jp で `voice.mendan.biz. A 34.149.106.144`
+  を追加。既存の root A / www A / NS / MX / TXT は変更なし。
+- DNS propagation: `01.dnsv.jp` through `04.dnsv.jp` all returned
+  `voice.mendan.biz -> 34.149.106.144`; local `Resolve-DnsName` also returned
+  `34.149.106.144`.
+- Certificate: `voice-mendan-biz-cert` became `ACTIVE` with
+  `voice.mendan.biz: ACTIVE`.
+- Relay health: `curl.exe -i https://voice.mendan.biz/healthz` returned
+  `HTTP/1.1 200 OK` and `{"ok":true}`.
+- Browser E2E:
+  `GROK_BROWSER_E2E_BASE_URL=https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app`
+  and `GROK_BROWSER_E2E_VARIANTS=adecco-roleplay-v25`
+  with `corepack pnpm grok:audio-e2e:browser:text` passed. Evidence:
+  `out/grok_voice_browser_audio_e2e/20260513T105705Z/summary.json`.
+- Browser WebSocket evidence: E2E recorded only
+  `wss://voice.mendan.biz/api/v3/realtime-relay` and no direct
+  `wss://api.x.ai` browser connection.
+- Relay Cloud Logging: `grokVoice.realtimeRelay` emitted
+  `client.connected`, `ticket.accepted`, and `upstream.connected` for
+  `adecco-roleplay-v25`.
+- v25 app logging: `grokVoice.turnMetrics` emitted metadata including
+  `realtimeTransport=mendan_cloud_run_relay_wss` and did not emit transcript
+  preview fields for v25.
+
+Known blockers outside the v25 relay DOD:
+
+- `corepack pnpm verify:acceptance` now passes the previous Secret Manager IAM
+  blocker when vendor credentials are supplied via process env using the
+  AGENTS.md precedence. The first full run reached the ElevenLabs publish stage
+  and failed after 3 vendor judge attempts:
+  `shallow-questions-stay-shallow` + `no-coaching` on retry 1,
+  `no-coaching` on retry 2, and `next-step-close` + `no-coaching` on retry 3.
+  A second full run reached the same legacy publish step and failed only
+  `staffing_order_hearing_busy_manager_medium::no-coaching` on all 3 retries.
+  This is no longer a Secret Manager blocker; it is the legacy ConvAI judge
+  instability already tracked in the Follow-up Backlog. Acceptance criterion:
+  either obtain a clean `corepack pnpm verify:acceptance` run in a quieter
+  vendor window, or explicitly approve this legacy ConvAI vendor failure as
+  outside PR #99's v25 Cloud Run relay DOD.
+- Direct xAI session checks for `adecco-roleplay-v23` and `adecco-roleplay-v5`
+  briefly returned HTTP 429 during closeout, then recovered on focused retry.
+  Five consecutive focused checks returned HTTP 200 with
+  `realtimeTransport=xai_direct_wss`, `realtimeAuth.mode=xai_ephemeral_subprotocol`,
+  and legacy `ephemeralToken`.

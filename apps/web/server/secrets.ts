@@ -43,12 +43,12 @@ export async function secretExists(
   secretName: string,
   secretProjectId: string
 ) {
-  const client = getSecretManagerClient();
-
   try {
-    await client.getSecret({
-      name: client.secretPath(secretProjectId, secretName),
-    });
+    // Acceptance preflight only needs to know whether the current principal can
+    // use the secret through the same path as runtime code. `getSecret` requires
+    // secretmanager.secrets.get, while AGENTS.md standardizes on reading
+    // `versions/latest` with secretmanager.versions.access.
+    await accessSecretValue(secretName, secretProjectId);
     return true;
   } catch (error) {
     if (

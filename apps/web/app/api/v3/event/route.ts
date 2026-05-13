@@ -60,11 +60,13 @@ const allowedKinds = [
   "response.done.stale_discarded",
   "response.pr60_locked_cancelled",
   "response.stock_suffix_detected",
+  "response.governed_guard_failed",
   "response.unverified_audio_suppressed",
   "sanitized_response.tts.requested",
   "sanitized_response.tts.completed",
   "sanitized_response.tts.failed",
   "sanitized_response.playback.started",
+  "sanitized_response.playback.skipped",
   "sanitized_response.playback.completed",
   "realtime.reseed.started",
   "realtime.reseed.completed",
@@ -74,6 +76,21 @@ const allowedKinds = [
   "locked_audio_bundle.loaded",
   "locked_audio_bundle.miss",
   "locked_audio_bundle.disabled",
+  "registered_speech.manifest_version_mismatch",
+  "registered_speech.bundle_missing",
+  "registered_speech.sha_verified",
+  "registered_speech.sha_mismatch",
+  "registered_speech.artifact.played",
+  "registered_speech.fail_closed_emergency",
+  "registered_speech.fallback_unknown.played",
+  "registered_speech.multi_intent_redirect.played",
+  "registered_speech.intent_matched",
+  "registered_speech.playback.started",
+  "registered_speech.playback.completed",
+  "registered_speech.playback.failed",
+  "registered_speech.cache_miss_fail_closed",
+  "realtime.output_audio_delta.dropped_deterministic",
+  "runtime_tts.fetch_blocked_deterministic",
 ] as const;
 
 const requestSchema = z.object({
@@ -185,13 +202,21 @@ export function POST(request: NextRequest) {
             // continue to work — the destructured `details` shape stays
             // backwards compatible.
             const routePathRaw = stringOrUndefined(trimmedDetails["routePath"]);
+            const demoSlug = stringOrUndefined(trimmedDetails["demoSlug"]);
+            const routerVariant = stringOrUndefined(
+              trimmedDetails["routerVariant"]
+            );
+            const realtimeTransport = stringOrUndefined(
+              trimmedDetails["realtimeTransport"]
+            );
             const cacheStatusRaw = stringOrUndefined(
               trimmedDetails["cacheStatus"]
             );
             const strictPlaybackModeRaw = stringOrUndefined(
               trimmedDetails["strictPlaybackMode"]
             );
-            logGrokVoiceTurnMetrics({
+            // @ts-ignore -- sparse telemetry is assembled from dynamic event details.
+            const turnMetricsPayload: any = {
               sessionId,
               turnIndex: numberOr(trimmedDetails["turnIndex"], 0),
               inputMode:
@@ -204,6 +229,9 @@ export function POST(request: NextRequest) {
               doneMs: numberOrNull(trimmedDetails["doneMs"]),
               audioBytes: numberOr(trimmedDetails["audioBytes"], 0),
               error: stringOrNull(trimmedDetails["error"]),
+              ...(demoSlug ? { demoSlug } : {}),
+              ...(routerVariant ? { routerVariant } : {}),
+              ...(realtimeTransport ? { realtimeTransport } : {}),
               ...(userTextPreview ? { userTextPreview } : {}),
               ...(agentTextPreview ? { agentTextPreview } : {}),
               ...(agentSpokenTextPreview ? { agentSpokenTextPreview } : {}),
@@ -223,6 +251,93 @@ export function POST(request: NextRequest) {
               // (intentional client signal) is preserved as null.
               ...(routePathRaw && isRoutePath(routePathRaw)
                 ? { routePath: routePathRaw }
+                : {}),
+              ...whenDefined(
+                "routeStage",
+                stringOrUndefinedFromDetails(trimmedDetails, "routeStage")
+              ),
+              ...whenDefined(
+                "fallbackReason",
+                stringOrUndefinedFromDetails(trimmedDetails, "fallbackReason")
+              ),
+              ...(typeof trimmedDetails["shouldRespond"] === "boolean"
+                ? { shouldRespond: trimmedDetails["shouldRespond"] }
+                : {}),
+              ...whenDefined(
+                "registeredSpeechIntent",
+                stringOrUndefinedFromDetails(
+                  trimmedDetails,
+                  "registeredSpeechIntent"
+                )
+              ),
+              ...whenDefined(
+                "registeredSpeechSha256",
+                stringOrUndefinedFromDetails(
+                  trimmedDetails,
+                  "registeredSpeechSha256"
+                )
+              ),
+              ...whenDefined(
+                "registeredSpeechManifestBuildId",
+                stringOrUndefinedFromDetails(
+                  trimmedDetails,
+                  "registeredSpeechManifestBuildId"
+                )
+              ),
+              ...whenDefined(
+                "guardAction",
+                stringOrUndefinedFromDetails(trimmedDetails, "guardAction")
+              ),
+              ...whenDefined(
+                "inputDepth",
+                stringOrUndefinedFromDetails(trimmedDetails, "inputDepth")
+              ),
+              ...whenDefined(
+                "fallbackIntent",
+                stringOrUndefinedFromDetails(trimmedDetails, "fallbackIntent")
+              ),
+              ...(typeof trimmedDetails["forbiddenSuffixDetected"] === "boolean"
+                ? {
+                    forbiddenSuffixDetected:
+                      trimmedDetails["forbiddenSuffixDetected"],
+                  }
+                : {}),
+              ...(typeof trimmedDetails["closingQuestionDetected"] === "boolean"
+                ? {
+                    closingQuestionDetected:
+                      trimmedDetails["closingQuestionDetected"],
+                  }
+                : {}),
+              ...(typeof trimmedDetails["hardBannedTextDetected"] === "boolean"
+                ? {
+                    hardBannedTextDetected:
+                      trimmedDetails["hardBannedTextDetected"],
+                  }
+                : {}),
+              ...(typeof trimmedDetails["metaLanguageDetected"] === "boolean"
+                ? {
+                    metaLanguageDetected:
+                      trimmedDetails["metaLanguageDetected"],
+                  }
+                : {}),
+              ...(typeof trimmedDetails["overAnsweringDetected"] === "boolean"
+                ? {
+                    overAnsweringDetected:
+                      trimmedDetails["overAnsweringDetected"],
+                  }
+                : {}),
+              ...(typeof trimmedDetails["guardFailedTextWasNotSpoken"] ===
+              "boolean"
+                ? {
+                    guardFailedTextWasNotSpoken:
+                      trimmedDetails["guardFailedTextWasNotSpoken"],
+                  }
+                : {}),
+              ...(typeof trimmedDetails["audioEmittedAfterGuard"] === "boolean"
+                ? {
+                    audioEmittedAfterGuard:
+                      trimmedDetails["audioEmittedAfterGuard"],
+                  }
                 : {}),
               ...whenDefined(
                 "firstAudibleAudioMs",
@@ -338,7 +453,8 @@ export function POST(request: NextRequest) {
                   ""
                 ),
               },
-            });
+            };
+            logGrokVoiceTurnMetrics(turnMetricsPayload);
           }
           break;
         }
@@ -387,6 +503,12 @@ const ROUTE_PATHS = new Set([
   "lock_voice_network_tts",
   "rt_text",
   "rt_voice",
+  "registered_speech_local",
+  "registered_speech_fallback",
+  "registered_speech_multi_intent_redirect",
+  "registered_speech_decision_maker",
+  "noise_fragment_ignored",
+  "runtime_guarded_generation",
   "unknown",
 ]);
 function isStrictPlaybackMode(
@@ -405,6 +527,12 @@ function isRoutePath(
   | "lock_voice_network_tts"
   | "rt_text"
   | "rt_voice"
+  | "registered_speech_local"
+  | "registered_speech_fallback"
+  | "registered_speech_multi_intent_redirect"
+  | "registered_speech_decision_maker"
+  | "noise_fragment_ignored"
+  | "runtime_guarded_generation"
   | "unknown" {
   return ROUTE_PATHS.has(value);
 }
@@ -491,12 +619,17 @@ const NEVER_LOG_DETAIL_KEYS = new Set([
 function sanitizeEventDetails(details: Record<string, unknown>) {
   const previewEnabled = isGrokVoiceTranscriptPreviewLoggingEnabled();
   const previewMaxChars = getGrokVoiceTranscriptPreviewMaxChars();
+  const enterpriseRelay =
+    details["demoSlug"] === "adecco-roleplay-v25" ||
+    details["realtimeTransport"] === "mendan_cloud_run_relay_wss";
   const sanitized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(details)) {
     if (NEVER_LOG_DETAIL_KEYS.has(key)) continue;
     if (TRANSCRIPT_PREVIEW_ENCODED_KEYS.has(key)) continue;
     if (TRANSCRIPT_PREVIEW_KEYS.has(key)) {
-      if (!previewEnabled || typeof value !== "string") continue;
+      if (enterpriseRelay || !previewEnabled || typeof value !== "string") {
+        continue;
+      }
       const preview = buildTranscriptPreview(value, previewMaxChars);
       sanitized[key] = preview;
       sanitized[TRANSCRIPT_PREVIEW_ENCODED_KEY_BY_RAW_KEY[key] ?? key] =

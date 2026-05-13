@@ -158,6 +158,31 @@ describe("acceptance helpers", () => {
     expect(report.warnings.join("\n")).toContain("openai-api-key-default");
   });
 
+  it("does not check Secret Manager when vendor env overrides are present", async () => {
+    const checkedSecrets: string[] = [];
+    const report = await buildBasePreflightReport(
+      {
+        SECRET_SOURCE_PROJECT_ID: "zapier-transfer",
+        FIREBASE_PROJECT_ID: "adecco-prod",
+        OPENAI_API_KEY: "openai",
+        ELEVENLABS_API_KEY: "eleven",
+        LIVEAVATAR_API_KEY: "liveavatar",
+        QUEUE_SHARED_SECRET: "queue",
+        DEFAULT_ELEVEN_VOICE_ID: "voice",
+      },
+      {
+        hasApplicationDefaultCredentials: async () => true,
+        secretExists: async (secretName) => {
+          checkedSecrets.push(secretName);
+          return false;
+        },
+      }
+    );
+
+    expect(report.blockers).toHaveLength(0);
+    expect(checkedSecrets).toEqual([]);
+  });
+
   it("uses the canonical ElevenLabs secret as a warning instead of a blocker", async () => {
     const report = await buildBasePreflightReport(
       {
