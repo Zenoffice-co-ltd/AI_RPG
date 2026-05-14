@@ -12,12 +12,19 @@ import {
 import { assertDemoAccessEnvForProduction } from "@/lib/roleplay/server-env";
 import { GrokFirstV50RoleplayShell } from "./GrokFirstV50RoleplayShell";
 
-export type GrokFirstV50PageProps = {
+export type GrokFirstV50RouteProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export type GrokFirstV50PageProps = GrokFirstV50RouteProps & {
+  accessAction?: string;
+  apiBase?: "/api/grok-first-v50" | "/api/grok-first-v50-1";
 };
 
 export async function GrokFirstV50RoleplayPage({
   searchParams,
+  accessAction = "/demo/adecco-roleplay-v50/access",
+  apiBase = "/api/grok-first-v50",
 }: GrokFirstV50PageProps) {
   try {
     assertDemoAccessEnvForProduction();
@@ -48,7 +55,7 @@ export async function GrokFirstV50RoleplayPage({
     return (
       <AccessGate
         denied={stringParam(params["access"]) === "denied"}
-        accessAction="/demo/adecco-roleplay-v50/access"
+        accessAction={accessAction}
       />
     );
   }
@@ -59,6 +66,7 @@ export async function GrokFirstV50RoleplayPage({
       visualTest={visualTest}
       fakeLive={fakeLive && !mock && !visualTest}
       debugMetrics={debugMetrics}
+      apiBase={apiBase}
     />
   );
 }

@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { OrbStage } from "./OrbStage";
 import { TranscriptPanel } from "./TranscriptPanel";
+import {
+  fetchGrokFirstV50Session,
+  postGrokFirstV50Event,
+} from "@/lib/grok-first-roleplay/client";
 import { useGrokFirstRoleplayConversation } from "@/lib/grok-first-roleplay/useGrokFirstRoleplayConversation";
 import type { GrokFirstV50Metric } from "@/lib/grok-first-roleplay/types";
 import type {
@@ -18,16 +22,27 @@ export function GrokFirstV50RoleplayShell({
   visualTest,
   fakeLive,
   debugMetrics,
+  apiBase = "/api/grok-first-v50",
 }: {
   initialMock: boolean;
   visualTest: boolean;
   fakeLive: boolean;
   debugMetrics: boolean;
+  apiBase?: "/api/grok-first-v50" | "/api/grok-first-v50-1";
 }) {
   const [mode, setMode] = useState<RoleplayMode>(() =>
     initialMode(initialMock, visualTest, fakeLive)
   );
-  const roleplay = useGrokFirstRoleplayConversation(mode, { micEnabled: true });
+  const apiDeps = useMemo(
+    () => ({
+      fetchSession: () => fetchGrokFirstV50Session(`${apiBase}/session`),
+      postEvent: (input: Parameters<typeof postGrokFirstV50Event>[0]) =>
+        postGrokFirstV50Event(input, `${apiBase}/event`),
+      micEnabled: true,
+    }),
+    [apiBase]
+  );
+  const roleplay = useGrokFirstRoleplayConversation(mode, apiDeps);
 
   useEffect(() => {
     setMode(initialMode(initialMock, visualTest, fakeLive));

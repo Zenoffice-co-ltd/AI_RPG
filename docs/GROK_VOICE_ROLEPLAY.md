@@ -38,7 +38,8 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 - **Enterprise v25 / Cloud Run relay transport**: https://roleplay.mendan.biz/demo/adecco-roleplay-v25
   (customer-facing target; pending DNS/TLS ACTIVE during the custom-domain cutover)
 - **Research v50 / Grok-first negative guard only**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v50
-- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50}`
+- **Research v50.1 / v50 runtime with revised System Prompt**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v50-1
+- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1}`
 
 ## v50 Grok-first negative guard runtime
 
@@ -46,6 +47,12 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 legacy `/api/v3/*` stack. Its source lives under
 `apps/web/lib/grok-first-roleplay/` and its API namespace is
 `/api/grok-first-v50/*`.
+
+`/demo/adecco-roleplay-v50-1` uses the same v50 runtime and negative-guard-only
+contract, but its API namespace is `/api/grok-first-v50-1/*` and its
+`promptVersion` is `grok-first-v50.1-2026-05-14`. The only behavior change from
+v50 is the revised System Prompt / first message for the residential-equipment
+manufacturer sales-admin order-hearing scenario.
 
 Contract:
 

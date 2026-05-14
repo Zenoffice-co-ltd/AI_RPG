@@ -3,24 +3,46 @@ import {
   GROK_FIRST_V50_MODEL,
   GROK_FIRST_V50_VOICE_ID,
 } from "./types";
+import {
+  GROK_FIRST_V50_1_FIRST_MESSAGE,
+  GROK_FIRST_V50_1_SYSTEM_PROMPT,
+} from "./prompt-v50-1";
 
 export const GROK_FIRST_V50_SCENARIO_ID =
   "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50";
+export const GROK_FIRST_V50_1_SCENARIO_ID =
+  "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_1";
 export const GROK_FIRST_V50_PROMPT_VERSION = "grok-first-v50-2026-05-13";
+export const GROK_FIRST_V50_1_PROMPT_VERSION = "grok-first-v50.1-2026-05-14";
 export const GROK_FIRST_V50_GUARDRAIL_VERSION =
   "negative-guard-only-v50-2026-05-13";
 
 export const GROK_FIRST_V50_FIRST_MESSAGE =
   "お電話ありがとうございます。じんじ課の佐藤です。本日はよろしくお願いします。";
 
+export type GrokFirstPromptVariant = "v50" | "v50.1";
+
 export type GrokFirstPromptBuild = {
   instructions: string;
   promptHash: string;
   promptVersion: string;
   guardrailVersion: string;
+  scenarioId: string;
+  firstMessage: string;
 };
 
-export function buildGrokFirstV50Prompt(): GrokFirstPromptBuild {
+export function buildGrokFirstV50Prompt(
+  variant: GrokFirstPromptVariant = "v50"
+): GrokFirstPromptBuild {
+  if (variant === "v50.1") {
+    return buildPrompt({
+      instructions: GROK_FIRST_V50_1_SYSTEM_PROMPT,
+      promptVersion: GROK_FIRST_V50_1_PROMPT_VERSION,
+      scenarioId: GROK_FIRST_V50_1_SCENARIO_ID,
+      firstMessage: GROK_FIRST_V50_1_FIRST_MESSAGE,
+    });
+  }
+
   const instructions = [
     "# Persona",
     [
@@ -90,13 +112,28 @@ export function buildGrokFirstV50Prompt(): GrokFirstPromptBuild {
     ].join("\n"),
   ].join("\n\n");
 
-  assertPromptDenylist(instructions);
-
-  return {
+  return buildPrompt({
     instructions,
-    promptHash: createHash("sha256").update(instructions).digest("hex").slice(0, 12),
     promptVersion: GROK_FIRST_V50_PROMPT_VERSION,
+    scenarioId: GROK_FIRST_V50_SCENARIO_ID,
+    firstMessage: GROK_FIRST_V50_FIRST_MESSAGE,
+  });
+}
+
+function buildPrompt(input: {
+  instructions: string;
+  promptVersion: string;
+  scenarioId: string;
+  firstMessage: string;
+}): GrokFirstPromptBuild {
+  assertPromptDenylist(input.instructions);
+  return {
+    instructions: input.instructions,
+    promptHash: createHash("sha256").update(input.instructions).digest("hex").slice(0, 12),
+    promptVersion: input.promptVersion,
     guardrailVersion: GROK_FIRST_V50_GUARDRAIL_VERSION,
+    scenarioId: input.scenarioId,
+    firstMessage: input.firstMessage,
   };
 }
 

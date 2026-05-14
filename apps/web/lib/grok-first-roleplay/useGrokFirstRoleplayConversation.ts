@@ -39,6 +39,9 @@ const AUDIO_ERROR =
 
 export type UseGrokFirstRoleplayDeps = {
   fetchSession?: () => Promise<GrokFirstV50Session>;
+  postEvent?: (
+    input: Parameters<typeof postGrokFirstV50Event>[0]
+  ) => Promise<void>;
   createRealtime?: (
     opts: ConstructorParameters<typeof GrokFirstRealtime>[0]
   ) => GrokFirstRealtime;
@@ -79,6 +82,11 @@ export function useGrokFirstRoleplayConversation(
   const agentSpeakingRef = useRef(false);
   const reconnectCountRef = useRef(0);
   const connectionGenerationRef = useRef(0);
+  const postEvent = useCallback(
+    (input: Parameters<typeof postGrokFirstV50Event>[0]) =>
+      (deps.postEvent ?? postGrokFirstV50Event)(input),
+    [deps]
+  );
 
   const turnIndexRef = useRef(0);
   const turnStartAtRef = useRef<number | null>(null);
@@ -189,7 +197,7 @@ export function useGrokFirstRoleplayConversation(
         voiceId: activeSession.voiceId,
       };
       setMetricsLog((current) => [...current, metric]);
-      void postGrokFirstV50Event({
+      void postEvent({
         kind: "turn.completed",
         sessionId: activeSession.sessionId,
         details: {
@@ -203,7 +211,7 @@ export function useGrokFirstRoleplayConversation(
         },
       });
     },
-    []
+    [postEvent]
   );
 
   const releaseChunks = useCallback((chunks: { base64: string; bytes: number }[]) => {
@@ -237,7 +245,7 @@ export function useGrokFirstRoleplayConversation(
           const text = (event.transcript ?? "").trim();
           currentUserTextRef.current = text;
           if (!text) {
-            void postGrokFirstV50Event({
+            void postEvent({
               kind: "stt.skipped",
               sessionId: activeSession.sessionId,
               details: { turnIndex: turnIndexRef.current, reason: "empty" },
@@ -255,7 +263,7 @@ export function useGrokFirstRoleplayConversation(
               sdkMessageId: `gfv50-user-${turnIndexRef.current}`,
             }),
           });
-          void postGrokFirstV50Event({
+          void postEvent({
             kind: "stt.completed",
             sessionId: activeSession.sessionId,
             details: { turnIndex: turnIndexRef.current, textLen: text.length },
@@ -297,7 +305,7 @@ export function useGrokFirstRoleplayConversation(
             hardSuppressedRef.current = true;
             realtimeRef.current?.cancelResponse();
             const dropped = tailGuardRef.current.clear();
-            void postGrokFirstV50Event({
+            void postEvent({
               kind: "guard.detected",
               sessionId: activeSession.sessionId,
               details: {
@@ -339,7 +347,7 @@ export function useGrokFirstRoleplayConversation(
           });
           const release = tailGuardRef.current.push(base64, holdMs);
           if (release.chunks.length > 0) {
-            void postGrokFirstV50Event({
+            void postEvent({
               kind: "tail_guard.released",
               sessionId: activeSession.sessionId,
               details: {
@@ -360,7 +368,7 @@ export function useGrokFirstRoleplayConversation(
           });
           const release = tailGuardRef.current.finalize(decision);
           if (release.droppedBytes > 0) {
-            void postGrokFirstV50Event({
+            void postEvent({
               kind: "tail_guard.dropped",
               sessionId: activeSession.sessionId,
               details: {
@@ -394,7 +402,7 @@ export function useGrokFirstRoleplayConversation(
           break;
         }
         case "conversation.item.input_audio_transcription.failed": {
-          void postGrokFirstV50Event({
+          void postEvent({
             kind: "stt.failed",
             sessionId: activeSession.sessionId,
             details: { turnIndex: turnIndexRef.current },
@@ -403,7 +411,7 @@ export function useGrokFirstRoleplayConversation(
         }
       }
     },
-    [emitMetric, isMuted, releaseChunks, resetTurn]
+    [emitMetric, isMuted, postEvent, releaseChunks, resetTurn]
   );
 
   const startConversation = useCallback(async () => {
@@ -427,7 +435,7 @@ export function useGrokFirstRoleplayConversation(
           onMessage: handleServerEvent,
           onOpen: () => {
             setIsConnected(true);
-            void postGrokFirstV50Event({
+            void postEvent({
               kind: "ws.connected",
               sessionId: nextSession.sessionId,
             });
@@ -436,14 +444,14 @@ export function useGrokFirstRoleplayConversation(
           },
           onReady: () => {
             setStatus("listening");
-            void postGrokFirstV50Event({
+            void postEvent({
               kind: "session.ready",
               sessionId: nextSession.sessionId,
             });
           },
           onClose: (event) => {
             setIsConnected(false);
-            void postGrokFirstV50Event({
+            void postEvent({
               kind: "ws.disconnected",
               sessionId: nextSession.sessionId,
               details: event,
@@ -454,7 +462,7 @@ export function useGrokFirstRoleplayConversation(
           },
           onError: (error) => {
             setErrorMessage(SAFE_ERROR);
-            void postGrokFirstV50Event({
+            void postEvent({
               kind: "ws.error",
               sessionId: nextSession.sessionId,
               details: error,
@@ -474,7 +482,7 @@ export function useGrokFirstRoleplayConversation(
             {
               onError: (error) => setErrorMessage(error.message),
               onStateChange: (state) => {
-                void postGrokFirstV50Event({
+                void postEvent({
                   kind: "mic.state.changed",
                   sessionId: nextSession.sessionId,
                   details: { state },
@@ -486,7 +494,7 @@ export function useGrokFirstRoleplayConversation(
             onChunk: (chunk) => realtimeRef.current?.appendAudio(chunk),
             onError: (error) => setErrorMessage(error.message),
             onStateChange: (state) => {
-              void postGrokFirstV50Event({
+              void postEvent({
                 kind: "mic.state.changed",
                 sessionId: nextSession.sessionId,
                 details: { state },
@@ -501,7 +509,7 @@ export function useGrokFirstRoleplayConversation(
       setStatus("error");
       setErrorMessage(error instanceof Error ? error.message : SAFE_ERROR);
     }
-  }, [deps, ensureAudioQueue, handleServerEvent, isInteractive, mode]);
+  }, [deps, ensureAudioQueue, handleServerEvent, isInteractive, mode, postEvent]);
 
   const endConversation = useCallback(async () => {
     setStatus("ending");

@@ -43,6 +43,20 @@ function validRequest() {
   });
 }
 
+function validV501Request() {
+  const headers = new Headers({
+    "content-type": "application/json",
+    origin: "http://127.0.0.1:3000",
+    referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v50-1",
+    cookie: `roleplay_api_access=${signAccessToken("demo-secret")}`,
+  });
+  return new NextRequest("http://127.0.0.1:3000/api/grok-first-v50-1/session", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({}),
+  });
+}
+
 describe("grok-first v50 runtime", () => {
   beforeEach(() => {
     vi.stubEnv("DEMO_ACCESS_TOKEN", "demo-secret");
@@ -113,6 +127,39 @@ describe("grok-first v50 runtime", () => {
     );
   });
 
+  it("serves v50.1 with the updated system prompt and route identity", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          value: "xai-realtime-client-secret-test-value",
+          expires_at: 1_747_000_000,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    const { POST } = await import("../../app/api/grok-first-v50-1/session/route");
+    const response = await POST(validV501Request());
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(body["demoSlug"]).toBe("adecco-roleplay-v50-1");
+    expect(body["backend"]).toBe("grok-first-v50-1");
+    expect(body["scenarioId"]).toBe(
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_1"
+    );
+    expect(body["promptVersion"]).toBe("grok-first-v50.1-2026-05-14");
+    expect(body["firstMessage"]).toBe(
+      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。"
+    );
+    expect(String(body["instructions"])).toContain(
+      "# 派遣営業向けAIロープレ System Prompt"
+    );
+    expect(String(body["instructions"])).toContain(
+      "浅い質問には、浅く答えます。"
+    );
+    expect(JSON.stringify(body)).not.toContain("xai-test-key");
+  });
+
   it("gates v50 transcript previews out of production event logs by default", () => {
     const sanitized = sanitizeGrokFirstV50Details({
       userTextPreview: "業務内容を教えてください",
@@ -176,6 +223,7 @@ describe("grok-first v50 runtime", () => {
 
   it("keeps prompt free of exact-answer locks and evaluation-role framing", () => {
     const prompt = buildGrokFirstV50Prompt();
+    const v501Prompt = buildGrokFirstV50Prompt("v50.1");
     expect(prompt.instructions).toContain("Reveal Depth");
     expect(prompt.instructions).toContain("Culture Fit Facts");
     expect(prompt.instructions).toContain("Job Level Facts");
@@ -185,6 +233,14 @@ describe("grok-first v50 runtime", () => {
     expect(prompt.instructions).not.toContain("fixed fallback");
     expect(prompt.instructions).not.toContain("routerVariant");
     expect(() => assertPromptDenylist(prompt.instructions)).not.toThrow();
+    expect(v501Prompt.instructions).toContain(
+      "# 派遣営業向けAIロープレ System Prompt"
+    );
+    expect(v501Prompt.firstMessage).toBe(
+      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。"
+    );
+    expect(v501Prompt.promptVersion).toBe("grok-first-v50.1-2026-05-14");
+    expect(() => assertPromptDenylist(v501Prompt.instructions)).not.toThrow();
   });
 
   it("negative guard never generates fallback text", () => {
