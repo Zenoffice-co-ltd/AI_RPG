@@ -48,6 +48,12 @@ external_application_load_balancer:
 | TLS status | `BLOCKED_DNS`; certificate is `CERT_VALIDATING` |
 | Port 443 status | `voice.mendan.biz:443` PASS; `roleplay.mendan.biz:443` pending DNS |
 
+No Cloud DNS managed zone for `mendan.biz` exists in `adecco-mendan` or
+`zapier-transfer`. No Value Domain / dnsv.jp DNS API credential was found in the
+checked Google Secret Manager projects, so DNS must be updated by a DNS operator
+or by providing an approved DNS API credential through the repository secret
+flow.
+
 ## Required DNS Records
 
 Firebase App Hosting created custom domain
@@ -154,6 +160,9 @@ Expected summary:
 - customer-facing allowlist simplification: docs prepared, pending DNS/TLS
 - remaining risks:
   - DNS records must be added at `dnsv.jp`.
+  - If the Value Domain DNS API is used later, fetch and preserve the full
+    existing record set before updating because the API replaces the DNS record
+    text as a whole.
   - Wait for Firebase App Hosting host, ownership, and certificate states to
     become ACTIVE.
   - Only then change `APP_BASE_URL`, deploy, run roleplay-domain E2E, Cloud

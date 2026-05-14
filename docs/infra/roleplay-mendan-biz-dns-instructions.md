@@ -11,6 +11,16 @@ projects/adecco-mendan/locations/asia-east1/backends/adecco-roleplay
 Firebase App Hosting is waiting for DNS records at the authoritative
 `dnsv.jp` nameservers. GCP Cloud DNS has no managed zone for `mendan.biz`.
 
+Current access check:
+
+- No Cloud DNS managed zone for `mendan.biz` exists in `adecco-mendan` or
+  `zapier-transfer`.
+- No Value Domain / dnsv.jp DNS API credential was found in the checked Google
+  Secret Manager projects.
+- Codex cannot safely apply these records directly unless a DNS operator updates
+  dnsv.jp manually or provides an approved DNS API credential through the
+  repository secret flow.
+
 ## Required DNS Records
 
 Add the following records in the external DNS console for `mendan.biz`.
@@ -22,6 +32,15 @@ Add the following records in the external DNS console for `mendan.biz`.
 | CNAME | `_acme-challenge_7o5w5quluuyscfoe.roleplay` or `_acme-challenge_7o5w5quluuyscfoe.roleplay.mendan.biz` | `124e1455-6a0a-4ced-b50e-b104807eb7d1.16.authorize.certificatemanager.goog.` | ADD |
 
 Do not remove or change the existing `voice.mendan.biz` A record.
+
+## API Caution
+
+Value Domain's DNS API supports `GET /domains/{domain}/dns` and
+`PUT /domains/{domain}/dns`. The `PUT` request sends the full DNS record text,
+not a single-record patch. If an API credential is supplied later, first fetch
+the existing `mendan.biz` DNS records, append only the three records above, and
+preserve all existing root, `www`, MX, SPF, DKIM, DMARC, and `voice` records.
+Do not issue a blind overwrite.
 
 ## Verification Commands
 
