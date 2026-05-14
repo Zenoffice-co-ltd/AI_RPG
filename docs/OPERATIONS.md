@@ -812,6 +812,80 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-14 — roleplay.mendan.biz custom domain cutover PASS
+
+- DNS operator added the Firebase App Hosting records at Value Domain /
+  `dnsv.jp` while preserving existing `mendan.biz` records, including
+  `voice.mendan.biz`.
+- `roleplay.mendan.biz` now resolves to `35.219.200.61`; the
+  `fah-claim=004-02-0d7d9b03-49a5-46a4-8022-c8a78efcafad` TXT record and
+  `_acme-challenge_7o5w5quluuyscfoe.roleplay.mendan.biz` CNAME are visible.
+- Firebase App Hosting custom domain reached `HOST_ACTIVE`,
+  `OWNERSHIP_ACTIVE`, and `CERT_ACTIVE`.
+- TLS certificate is issued by Google Trust Services WR3 for
+  `roleplay.mendan.biz` and `*.roleplay.mendan.biz`.
+- `APP_BASE_URL` was changed to `https://roleplay.mendan.biz` after DNS/TLS
+  became active. App Hosting rollout `build-2026-05-14-001` succeeded via
+  `corepack pnpm deploy:adecco-roleplay:gcloud`; the Firebase CLI wrapper path
+  was blocked by `iam.serviceAccounts.actAs`.
+- `https://roleplay.mendan.biz/demo/adecco-roleplay-v25` returns HTTP 200, and
+  `https://voice.mendan.biz/healthz` remains HTTP 200.
+- v25 session contract with `origin=https://roleplay.mendan.biz`,
+  referer `https://roleplay.mendan.biz/demo/adecco-roleplay-v25`, and the demo
+  access cookie returned `mendan_cloud_run_relay_wss`,
+  `wss://voice.mendan.biz/api/v3/realtime-relay`, no `ephemeralToken`, and
+  `mendan_relay_subprotocol`.
+- Browser text E2E and browser audio E2E both passed using
+  `GROK_BROWSER_E2E_BASE_URL=https://roleplay.mendan.biz`; artifacts are under
+  `out/grok_voice_browser_audio_e2e/20260514T055841Z` and
+  `out/grok_voice_browser_audio_e2e/20260514T055934Z` and are not committed.
+- Cloud Logging confirmed relay phases `client.connected`, `ticket.accepted`,
+  and `upstream.connected`; sensitive log scan found no raw ticket, API
+  credential, authorization credential, cookie, transcript preview, or base64
+  media payload pattern.
+- v23, v4, and v5 session contracts still return `xai_direct_wss`,
+  `api.x.ai`, an ephemeral token, and `xai_ephemeral_subprotocol`.
+- Static/unit/build gates passed for web, relay, and relay-auth packages;
+  registered-speech verification, modelless WS check, Layer A, Layer B, and
+  `git diff --check` passed. The web build still emits the existing Turbopack
+  NFT warning.
+- `corepack pnpm verify:acceptance` reached `[3/10] publish scenario` with
+  `APP_BASE_URL=https://roleplay.mendan.biz`, then failed on the legacy
+  ElevenLabs ConvAI judge variance
+  `staffing_order_hearing_busy_manager_medium::no-coaching`. This is not a
+  v25/domain/relay regression.
+
+### 2026-05-14 — roleplay.mendan.biz custom domain cutover BLOCKED_DNS
+
+- Created Firebase App Hosting custom domain
+  `projects/adecco-mendan/locations/asia-east1/backends/adecco-roleplay/domains/roleplay.mendan.biz`
+  for customer-facing v25 URL
+  `https://roleplay.mendan.biz/demo/adecco-roleplay-v25`.
+- Official docs checked: Firebase App Hosting custom domain, Firebase Hosting
+  custom domain, Cloud Run custom domains, and External Application Load
+  Balancer. Selected method is Firebase App Hosting custom domain direct
+  assignment; Cloud Run domain mapping and Load Balancer are fallback only.
+- Backend metadata confirmed the App Hosting backend location is `asia-east1`.
+  Do not infer or change this from `apphosting.yaml`'s
+  `GCLOUD_LOCATION=asia-northeast1` value.
+- `roleplay.mendan.biz` is not yet DNS-resolving. Authoritative nameservers are
+  `01.dnsv.jp` through `04.dnsv.jp`; no Cloud DNS managed zone exists in
+  `adecco-mendan` or `zapier-transfer`.
+- Required DNS records were captured in
+  `docs/infra/roleplay-mendan-biz-dns-instructions.md`:
+  `roleplay.mendan.biz A 35.219.200.61`,
+  `roleplay.mendan.biz TXT fah-claim=004-02-0d7d9b03-49a5-46a4-8022-c8a78efcafad`,
+  and `_acme-challenge_7o5w5quluuyscfoe.roleplay.mendan.biz CNAME`
+  to `124e1455-6a0a-4ced-b50e-b104807eb7d1.16.authorize.certificatemanager.goog.`
+- `APP_BASE_URL` intentionally remains on the `hosted.app` URL. Switch it to
+  `https://roleplay.mendan.biz` only after DNS resolves, the Firebase App
+  Hosting managed certificate is ACTIVE, and the v25 page loads on the custom
+  domain.
+- Cloud Run relay production env already includes
+  `https://roleplay.mendan.biz` in `RELAY_ALLOWED_ORIGINS` and keeps
+  `RELAY_EXPECTED_HOSTS=voice.mendan.biz` /
+  `RELAY_EXPECTED_AUD=voice.mendan.biz`.
+
 ### 2026-05-14 — v25 Cloud Run relay post-merge closeout follow-up
 
 - Closeout branch `codex/v25-relay-post-merge-closeout` started from

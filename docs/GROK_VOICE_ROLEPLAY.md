@@ -35,7 +35,8 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 - **Production S / v20 short streaming runtime**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v21
 - **Production T / v21 ack-stream compact prompt**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v23
 - **Internal v24 / failed App Hosting relay evidence**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v24
-- **Enterprise v25 / Cloud Run relay transport**: https://mendan.biz/demo/adecco-roleplay-v25
+- **Enterprise v25 / Cloud Run relay transport**: https://roleplay.mendan.biz/demo/adecco-roleplay-v25
+  (customer-facing target; pending DNS/TLS ACTIVE during the custom-domain cutover)
 - **Research v50 / Grok-first negative guard only**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v50
 - Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50}`
 

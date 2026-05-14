@@ -43,7 +43,7 @@ const PROJECT = "adecco-mendan";
 const BACKEND = "adecco-roleplay";
 const LOCATION = "asia-east1";
 const APPHOSTING_BASE_URL =
-  "https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app";
+  "https://roleplay.mendan.biz";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TSX_CLI_PATH = resolve(REPO_ROOT, "node_modules/tsx/dist/cli.mjs");
