@@ -106,6 +106,9 @@ export type GrokVoiceSession = {
   // bundled-at-build-time client constant. In non-deterministic mode the
   // fields are advisory and may be absent.
   productionDeterministicOnly?: boolean;
+  // Legacy PR60 locked responses are enabled by default on v3. When false,
+  // the client skips those fixed-answer locks and sends the turn to realtime.
+  pr60LocksEnabled?: boolean;
   registeredSpeech?: RegisteredSpeechBundle;
   registeredSpeechManifestVersion?: "v1";
   registeredSpeechBuildId?: string;

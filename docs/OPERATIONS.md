@@ -679,6 +679,56 @@ https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-rolepla
 [docs/GROK_VOICE_ROLEPLAY.md](./GROK_VOICE_ROLEPLAY.md) を参照。
 A/B 切替や新 backend 追加の playbook は skill `ai-rpg-adecco-roleplay-ab-backends` を参照。
 
+## Adecco Roleplay — Grok-first v50 adoption blocker
+
+`/demo/adecco-roleplay-v50` は、Grok Voice Think Fast 1.0 が business answer
+を realtime 生成し、rule code は NG 検出・抑止・計測だけを担当する
+research runtime。既存 `/api/v3/*` の PR60 lock / registered speech /
+deterministic route からは独立している。
+
+Latest execution:
+
+- 2026-05-14: PR #98 は clean realtime baseline で **v50 DOD audit PASS**。
+  v3 側に `GROK_VOICE_PR60_LOCKS_ENABLED=false` を追加し、既存の
+  registered speech / locked audio bundle / PR60 text locks をすべて外した
+  same-condition baseline を測定した。baseline evidence:
+  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-43-58-747Z/summary.json`。
+  v50 evidence:
+  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-52-10-767Z/summary.json`。
+  latest live xAI 5-run evidence:
+  `out/grok_first_v50_live_e2e/20260513T225350Z/summary.json`。
+  Cloud Logging counter-zero evidence:
+  `out/grok_first_v50_cloud_log_summary_gfv50_9a92d7c6-c2b6-471b-9957-b4f6adcf1b69.json`。
+  audit:
+  `corepack pnpm grok-first:v50:dod-audit -- --browser-v50 out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-52-10-767Z/summary.json --baseline out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-43-58-747Z/summary.json --live5 out/grok_first_v50_live_e2e/20260513T225350Z/summary.json --cloud out/grok_first_v50_cloud_log_summary_gfv50_9a92d7c6-c2b6-471b-9957-b4f6adcf1b69.json --out markdown`
+  returned `overallPass: PASS`.
+- 2026-05-14 latency comparison under the clean realtime baseline:
+  baseline `firstAudibleAudioMs p50=1344ms / p95=2598ms`,
+  `firstAudioDeltaMs p50=1332ms`; v50 `firstAudibleAudioMs p50=1229ms /
+  p95=2606ms`, `firstAudioDeltaMs p50=969ms`. Deltas are p50 `-115ms`,
+  p95 `+8ms`, first-audio-delta p50 `-363ms`; all pass the `+300ms /
+  +600ms / +200ms` DOD. Deterministic production baseline
+  `2026-05-13T21-55-26-300Z` remains much faster because it is fixed
+  registered speech (`p50=9ms / p95=15ms`) and is not an apples-to-apples
+  realtime generation baseline.
+- 2026-05-14 prior same-condition exploration: local v3 was run with
+  `GROK_VOICE_PRODUCTION_DETERMINISTIC_ONLY=false`,
+  `GROK_VOICE_REGISTERED_SPEECH_BUNDLE_ENABLED=false`,
+  `GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED=false` で起動し、同じ
+  browser/WebAudio harness を `/demo/adecco-roleplay-v3` に対して実行。
+  evidence:
+  `out/grok_first_v50_browser_live_audio_e2e/2026-05-13T22-18-46-535Z/summary.json`。
+  結果は `firstAudibleAudioMs p50=1158ms / p95=2233ms`,
+  `firstAudioDeltaMs p50=1153ms / p95=2226ms`。PR head 最新 v50
+  (`firstAudibleAudioMs p50=1230ms / p95=2804ms`,
+  `firstAudioDeltaMs p50=1176ms / p95=2721ms`) との差分は
+  first-audible `+72ms / +571ms`, first-audio-delta `+23ms / +495ms`。
+  これは Grok realtime 同士の体感 first-audio 比較としては DOD 範囲内に近い。
+  ただし v3 側に
+  `routePath=lock_text` と `/api/v3/locked-response-tts` が 1 件混在し、
+  `ttsFetchAttempts=1` かつ console warning 1 件があるため、本番採用 DOD の代替証跡には
+  しない。この弱点は `GROK_VOICE_PR60_LOCKS_ENABLED=false` の追加で解消した。
+
 ## Adecco Roleplay — Grok Voice Think Fast 1.0 A/B backend
 
 既存 `/demo/adecco-roleplay` (ElevenLabs ConvAI) と

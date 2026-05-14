@@ -2999,15 +2999,17 @@ export function useGrokVoiceConversation(
           if (tryRouteToRegisteredSpeech(trimmed, "voice")) {
             break;
           }
-          if (!isV19MetaSafetyOnlyVariant(activeSession.routerVariant)) {
-            const lockedText = getPr60LockedResponseForUser(trimmed);
-            if (lockedText) {
-              void playLockedResponse({
-                userText: trimmed,
-                assistantText: lockedText,
-                channel: "voice",
-              });
-            }
+          const lockedText =
+            activeSession.pr60LocksEnabled === false ||
+            isV19MetaSafetyOnlyVariant(activeSession.routerVariant)
+              ? null
+              : getPr60LockedResponseForUser(trimmed);
+          if (lockedText) {
+            void playLockedResponse({
+              userText: trimmed,
+              assistantText: lockedText,
+              channel: "voice",
+            });
           }
           break;
         }
@@ -3916,16 +3918,18 @@ export function useGrokVoiceConversation(
       if (tryRouteToRegisteredSpeech(trimmed, "chat")) {
         return;
       }
-      if (!isV19MetaSafetyOnlyVariant(activeSession.routerVariant)) {
-        const lockedText = getPr60LockedResponseForUser(trimmed);
-        if (lockedText) {
-          void playLockedResponse({
-            userText: trimmed,
-            assistantText: lockedText,
-            channel: "chat",
-          });
-          return;
-        }
+      const lockedText =
+        activeSession.pr60LocksEnabled === false ||
+        isV19MetaSafetyOnlyVariant(activeSession.routerVariant)
+          ? null
+          : getPr60LockedResponseForUser(trimmed);
+      if (lockedText) {
+        void playLockedResponse({
+          userText: trimmed,
+          assistantText: lockedText,
+          channel: "chat",
+        });
+        return;
       }
       realtimeRef.current.sendUserText(trimmed);
       setStatus("thinking");

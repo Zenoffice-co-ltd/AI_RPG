@@ -66,6 +66,11 @@ Session defaults:
 - `server_vad`: threshold `0.65`, silence `650ms`, prefix padding `333ms`
 - Tail guard: normal turn hold `300ms`, risk turn hold `800ms`, max hold
   `1000ms`
+- Transcript preview logging: production default omits `userTextPreview`,
+  `agentTextPreview`, and `sttTextPreview` from `/api/grok-first-v50/event`
+  logs. Set `GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` only for
+  controlled local debugging; previews are capped at 200 characters and secret,
+  instruction, and raw audio fields are dropped at the logger boundary.
 
 DOD:
 
@@ -185,6 +190,80 @@ matchers are disabled.
 v18 additionally disables the post-generation shallow/over-answering guard so
 Grok-generated job-context answers are spoken instead of being replaced by
 business-low-confidence fixed fallback.
+
+Local browser DOD harness:
+
+```bash
+corepack pnpm grok-first:v50:dod-e2e
+```
+
+The harness starts the local v50 page, injects a fake realtime WebSocket, drives
+the shallow/deep/culture/broad/wrong-premise/selling-first/suffix-induction
+cases through the browser UI, and asserts fixed-answer route counters, runtime
+TTS fetch attempts, tail guard metrics, and forbidden suffix transcript leakage.
+It is a browser-path regression gate; production adoption still requires live
+xAI voice measurement against the latency and audible-leak DOD above.
+
+Live xAI transcript/latency harness:
+
+```bash
+corepack pnpm grok-first:v50:live-e2e
+# Five-run variance gate:
+corepack pnpm grok-first:v50:live-e2e -- --rounds 5
+```
+
+This opens `grok-voice-think-fast-1.0` directly, sends the v50 prompt, runs the
+same seven text cases, records `firstAudioDeltaMs`, raw transcripts, and
+negative-guard sanitized transcripts, and writes evidence under
+`out/grok_first_v50_live_e2e/`. It follows the repository Secret Manager
+precedence for `XAI_API_KEY` and exits with `BLOCKED: XAI_API_KEY not available`
+if no real key is available. It is live model evidence, but it does not replace
+the final browser + audible playback production DOD.
+
+Live browser + WebAudio playback harness:
+
+```bash
+corepack pnpm grok-first:v50:browser-live-audio-e2e
+```
+
+By default this drives `/demo/adecco-roleplay-v50?fakeLive=1` against the
+production App Hosting URL, opens the real xAI WebSocket from the browser,
+patches WebAudio `createBufferSource()` to prove playback started/ended, and
+asserts zero runtime/replacement TTS fetch attempts, zero legacy route paths,
+zero fixed-answer counters, and zero audible forbidden suffix / closing-question
+counters. Set `GROK_FIRST_V50_BROWSER_BASE_URL=http://127.0.0.1:3000` to run
+the same browser-audio gate against a local server. Evidence is written under
+`out/grok_first_v50_browser_live_audio_e2e/` and must stay out of commits.
+
+Latency DOD comparison helper:
+
+```bash
+corepack pnpm grok-first:v50:latency-dod -- \
+  --baseline out/grok_first_v50_browser_live_audio_e2e/<baseline>/summary.json \
+  --v50 out/grok_first_v50_browser_live_audio_e2e/<v50>/summary.json \
+  --out markdown
+```
+
+This helper compares `firstAudibleAudioMs.p50`, `firstAudibleAudioMs.p95`, and
+`firstAudioDeltaMs.p50` against the v50 adoption thresholds and exits non-zero
+when the latency DOD is not met. Use it to generate the PR latency table from
+evidence files instead of hand-editing numbers.
+
+Full v50 DOD audit helper:
+
+```bash
+corepack pnpm grok-first:v50:dod-audit -- \
+  --browser-v50 out/grok_first_v50_browser_live_audio_e2e/<v50>/summary.json \
+  --baseline out/grok_first_v50_browser_live_audio_e2e/<baseline>/summary.json \
+  --live5 out/grok_first_v50_live_e2e/<live5>/summary.json \
+  --cloud out/grok_first_v50_cloud_log_summary_<session>.json \
+  --out markdown
+```
+
+This helper combines the browser/WebAudio, live xAI five-run, Cloud Logging,
+and latency evidence into a single PASS/FAIL checklist. It exits non-zero until
+every DOD gate, including latency, is satisfied; use that non-zero result as a
+blocker for taking v50 out of Draft.
 
 `ENABLE_GROK_VOICE_ROLEPLAY=true` (apphosting.yaml) は本番で常時有効。
 secret は `XAI_API_KEY` (zapier-transfer + adecco-mendan 両方に存在、

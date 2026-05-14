@@ -90,7 +90,11 @@ sanitized-response TTS, or locked-response TTS. Its guard may only pass, strip,
 drop, cancel, suppress, or emit metrics; it must not generate fallback text or
 select a business answer. The v50 session payload must keep
 `registeredSpeechPayloadIncluded=false` and
-`lockedResponseAudioBundleIncluded=false`.
+`lockedResponseAudioBundleIncluded=false`. Production v50 event logs must not
+include `userTextPreview`, `agentTextPreview`, or `sttTextPreview` unless
+`GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` is explicitly set for a
+controlled debug run; even then, previews are capped and secret/instruction/raw
+audio fields are stripped.
 
 For v6/v7/v8/v9/v10/v15/v16/v17/v18/v19, never route to the legacy `fallback_unknown` artifact text
 `求人要件の範囲で整理します。`; that remains only for the existing v3/v4/v5
@@ -146,6 +150,12 @@ Voice evidence uses committed fake-mic WAV fixtures under
 unless browser voice E2E shows `firstAudibleAudioMs p95 <= 5000ms` and
 `doneMs p95 <= 8000ms`; quality PASS alone is not enough for production
 adoption.
+
+For v50 adoption, use `corepack pnpm grok-first:v50:browser-live-audio-e2e`
+for the live browser + real xAI WebAudio playback gate. Use
+`corepack pnpm grok-first:v50:live-e2e -- --rounds 5` for the live transcript
+five-run variance gate. Keep evidence under `out/` and do not commit raw
+transcripts, audio, screenshots, or Cloud Logging JSON.
 
 ## Single-login UX
 
@@ -460,6 +470,7 @@ redeploy required.
 |---|---|---|---|---|
 | Strict playback gate (PR #85) | `GROK_VOICE_STRICT_PLAYBACK_MODE` | `risk_based` | `all_turns` | All rt_voice turns return to buffered sanitize-then-play |
 | Locked audio bundle (PR #87) | `GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED` | `true` | `false` | Omit bundle from session payload; client falls back to `lock_voice_network_tts` (pre-PR-#87) |
+| PR60 locked-response route | `GROK_VOICE_PR60_LOCKS_ENABLED` | `true` | `false` for realtime baseline only | Skip legacy PR60 text/voice locks and fall through to realtime generation; use for same-condition v50 latency baselines, not normal production rollback |
 | Combined kill-switch (legacy) | `GROK_VOICE_STRICT_SANITIZED_PLAYBACK` | unset (=true) | `false` | Force `strictPlaybackMode=monitor_only` AND `strictSanitizedPlayback=false` (PR #86 precedence rule) |
 
 Set the env via Firebase console (App Hosting → Backend → Environment),

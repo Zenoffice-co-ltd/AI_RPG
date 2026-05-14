@@ -20,6 +20,7 @@ import {
   isGrokVoiceLockedAudioBundleEnabled,
   getGrokVoiceLockedAudioBundleMaxEntries,
   isGrokVoiceProductionDeterministicOnlyEnabled,
+  isGrokVoicePr60LocksEnabled,
   isGrokVoiceRegisteredSpeechBundleEnabled,
 } from "@/lib/roleplay/server-env";
 import {
@@ -515,6 +516,7 @@ export async function POST(request: NextRequest) {
     // fallback artifact instead of rt_voice.
     productionDeterministicOnly:
       productionDeterministicOnly,
+    pr60LocksEnabled: isGrokVoicePr60LocksEnabled(),
     ...(await (async () => {
       if (!isGrokVoiceRegisteredSpeechBundleEnabled()) return {};
       try {

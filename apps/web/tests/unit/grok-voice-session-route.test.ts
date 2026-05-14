@@ -200,6 +200,25 @@ describe("grok-voice session route", () => {
     // Strict sanitized playback flag defaults to true and is surfaced in the
     // session payload so the client doesn't need a separate config fetch.
     expect(body["strictSanitizedPlayback"]).toBe(true);
+    expect(body["pr60LocksEnabled"]).toBe(true);
+  });
+
+  it("surfaces pr60LocksEnabled=false when the PR60 lock kill-switch is disabled", async () => {
+    vi.stubEnv("GROK_VOICE_PR60_LOCKS_ENABLED", "false");
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          value: "xai-realtime-client-secret-test-value",
+          expires_at: 1747_000_000,
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    const { POST } = await import("../../app/api/v3/session/route");
+    const response = await POST(validRequest());
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body["pr60LocksEnabled"]).toBe(false);
   });
 
   it("surfaces strictSanitizedPlayback=false when env flag is disabled", async () => {
