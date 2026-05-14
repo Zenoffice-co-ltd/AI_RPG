@@ -812,6 +812,37 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-14 — roleplay.mendan.biz custom domain cutover BLOCKED_DNS
+
+- Created Firebase App Hosting custom domain
+  `projects/adecco-mendan/locations/asia-east1/backends/adecco-roleplay/domains/roleplay.mendan.biz`
+  for customer-facing v25 URL
+  `https://roleplay.mendan.biz/demo/adecco-roleplay-v25`.
+- Official docs checked: Firebase App Hosting custom domain, Firebase Hosting
+  custom domain, Cloud Run custom domains, and External Application Load
+  Balancer. Selected method is Firebase App Hosting custom domain direct
+  assignment; Cloud Run domain mapping and Load Balancer are fallback only.
+- Backend metadata confirmed the App Hosting backend location is `asia-east1`.
+  Do not infer or change this from `apphosting.yaml`'s
+  `GCLOUD_LOCATION=asia-northeast1` value.
+- `roleplay.mendan.biz` is not yet DNS-resolving. Authoritative nameservers are
+  `01.dnsv.jp` through `04.dnsv.jp`; no Cloud DNS managed zone exists in
+  `adecco-mendan` or `zapier-transfer`.
+- Required DNS records were captured in
+  `docs/infra/roleplay-mendan-biz-dns-instructions.md`:
+  `roleplay.mendan.biz A 35.219.200.61`,
+  `roleplay.mendan.biz TXT fah-claim=004-02-0d7d9b03-49a5-46a4-8022-c8a78efcafad`,
+  and `_acme-challenge_7o5w5quluuyscfoe.roleplay.mendan.biz CNAME`
+  to `124e1455-6a0a-4ced-b50e-b104807eb7d1.16.authorize.certificatemanager.goog.`
+- `APP_BASE_URL` intentionally remains on the `hosted.app` URL. Switch it to
+  `https://roleplay.mendan.biz` only after DNS resolves, the Firebase App
+  Hosting managed certificate is ACTIVE, and the v25 page loads on the custom
+  domain.
+- Cloud Run relay production env already includes
+  `https://roleplay.mendan.biz` in `RELAY_ALLOWED_ORIGINS` and keeps
+  `RELAY_EXPECTED_HOSTS=voice.mendan.biz` /
+  `RELAY_EXPECTED_AUD=voice.mendan.biz`.
+
 ### 2026-05-14 — v25 Cloud Run relay post-merge closeout follow-up
 
 - Closeout branch `codex/v25-relay-post-merge-closeout` started from

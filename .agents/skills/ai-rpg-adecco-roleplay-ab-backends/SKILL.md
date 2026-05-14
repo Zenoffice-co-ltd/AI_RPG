@@ -130,6 +130,14 @@ values: v25 must use `routerVariant=B_NARROW_FALLBACK_SEMANTIC` and
 `realtimeTransport=mendan_cloud_run_relay_wss`. v25 sessions do not issue xAI
 ephemeral tokens; the browser receives a 60-second MENDAN relay ticket and sends
 it via `Sec-WebSocket-Protocol` with `mendan-relay-v1`.
+The v25 customer-facing URL is `https://roleplay.mendan.biz/demo/adecco-roleplay-v25`
+after the App Hosting custom domain reaches DNS/TLS ACTIVE. Until then,
+`hosted.app` remains an internal rollback and verification URL only. Do not
+switch `APP_BASE_URL` to `https://roleplay.mendan.biz` until the domain resolves,
+the managed certificate is ACTIVE, and the v25 page loads on the custom domain.
+Keep `https://api.x.ai` and `wss://api.x.ai` in CSP for v23/v4/v5 direct-path
+comparisons; v25 customer allowlists do not require direct browser access to
+`api.x.ai`.
 For non-v19 registered-speech variants, headcount registered speech is limited
 to requested staffing headcount; team, department, branch, or workplace-size
 questions must not use the `headcount` artifact. On v19, both categories fall

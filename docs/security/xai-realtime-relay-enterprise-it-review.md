@@ -120,3 +120,34 @@ Cloud Logging:
   grokVoice.realtimeRelay ticket.accepted
   grokVoice.realtimeRelay upstream.connected
 ```
+
+## 2026-05-14 roleplay.mendan.biz Update
+
+The customer-facing v25 target is `https://roleplay.mendan.biz/demo/adecco-roleplay-v25`.
+The required customer allowlist is:
+
+```text
+https://roleplay.mendan.biz TCP 443
+https://voice.mendan.biz TCP 443
+wss://voice.mendan.biz TCP 443
+Browser permission: microphone
+```
+
+The App Hosting `hosted.app` URL is retained only for internal rollback and
+verification during the custom-domain transition. It is not part of the v25
+customer allowlist.
+
+For ZAP and network checks, passive/baseline scan, TLS inspection, and TCP 443
+reachability checks are acceptable. Active scans require an agreed window,
+target paths, and request rate. DoS/load testing, WebSocket fuzzing, credential
+stuffing, and destructive testing require separate approval.
+
+`/api/v3/realtime-relay` requires WebSocket upgrade, allowed Origin, expected
+Host, and a signed short-lived relay ticket. Plain HTTP requests returning
+`401`, `403`, or `426` are expected for unauthenticated or non-upgrade access.
+
+For `roleplay.mendan.biz` closeout evidence, `/api/v3/session` must be checked
+with `origin=https://roleplay.mendan.biz`, referer
+`https://roleplay.mendan.biz/demo/adecco-roleplay-v25`, the demo access cookie,
+and body `{"demoSlug":"adecco-roleplay-v25"}`. The response must omit both
+`ephemeralToken` and `ephemeralExpiresAt`.
