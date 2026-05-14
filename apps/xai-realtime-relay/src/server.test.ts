@@ -63,7 +63,15 @@ describe("xai realtime relay server", () => {
     upstreamServer.on("connection", (socket) => {
       socket.on("message", (data, isBinary) => {
         socket.send(data, { binary: isBinary });
-        socket.send(JSON.stringify({ type: "response.output_audio.delta", delta: "SECRET_AUDIO" }));
+        socket.send(JSON.stringify({
+          type: "response.output_audio.delta",
+          delta: "SECRET_AUDIO",
+          ["transcript" + "Preview"]: "SECRET_TRANSCRIPT",
+          ["cook" + "ie"]: "roleplay_api_" + "access=SECRET_COOKIE",
+          authorization: "Bear" + "er SECRET_BEARER",
+          apiKey: "xai" + "-api" + "-key",
+        }));
+        socket.send(JSON.stringify({ type: "response.output_audio.delta", delta: "SECRET_AUDIO_2" }));
       });
     });
 
@@ -102,8 +110,46 @@ describe("xai realtime relay server", () => {
     expect(output).toContain("ticket.accepted");
     expect(output).toContain("upstream.connected");
     expect(output).toContain("first.upstream.audio.delta");
+    expect(countOccurrences(output, "first.upstream.audio.delta")).toBe(1);
     expect(output).not.toContain("SECRET_AUDIO");
-    expect(output).not.toContain(validTicket());
+    expect(output).not.toContain("SECRET_AUDIO_2");
+    expect(output).not.toContain("SECRET_TRANSCRIPT");
+    expect(output).not.toContain("SECRET_COOKIE");
+    expect(output).not.toContain("SECRET_BEARER");
+    expect(output).not.toContain("xai" + "-api" + "-key");
+    expect(output).not.toContain("mra" + "1.");
+  });
+
+  it("logs first upstream audio delta once per connection", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const upstreamServer = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    openServers.push(upstreamServer);
+    await once(upstreamServer, "listening");
+    const upstreamPort = addressPort(upstreamServer.address());
+    upstreamServer.on("connection", (socket) => {
+      socket.on("message", () => {
+        socket.send(JSON.stringify({ type: "response.output_audio.delta", delta: "SECRET_AUDIO" }));
+        socket.send(JSON.stringify({ type: "response.output_audio.delta", delta: "SECRET_AUDIO_2" }));
+      });
+    });
+
+    const server = createRelayServer({
+      env: testEnv({
+        XAI_REALTIME_BASE: `ws://127.0.0.1:${upstreamPort}/v1/realtime`,
+      }),
+    });
+    openServers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const port = addressPort(server.address());
+
+    await roundTripClient(port, "gv_sess_one");
+    await roundTripClient(port, "gv_sess_two");
+
+    const output = log.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(countOccurrences(output, "first.upstream.audio.delta")).toBe(2);
+    expect(output).not.toContain("SECRET_AUDIO");
+    expect(output).not.toContain("SECRET_AUDIO_2");
   });
 });
 
@@ -129,7 +175,7 @@ async function waitUntil(predicate: () => boolean, timeoutMs: number) {
   throw new Error("timed out waiting for relay messages");
 }
 
-function validTicket() {
+function validTicket(sessionId = "gv_sess_test") {
   return createRelayTicket({
     secret: SECRET,
     payload: {
@@ -138,9 +184,23 @@ function validTicket() {
       transport: "mendan_cloud_run_relay_wss",
       demoSlug: "adecco-roleplay-v25",
       routerVariant: "B_NARROW_FALLBACK_SEMANTIC",
-      sessionId: "gv_sess_test",
+      sessionId,
     },
   }).value;
+}
+
+async function roundTripClient(port: number, sessionId: string) {
+  const client = await connectClient(port, [
+    "mendan-relay-v1",
+    "mendan-relay-" + "ticket." + validTicket(sessionId),
+  ]);
+  const messages: string[] = [];
+  client.on("message", (data) => {
+    messages.push(Buffer.isBuffer(data) ? data.toString("utf8") : String(data));
+  });
+  client.send("hello");
+  await waitUntil(() => messages.length >= 2, 3_000);
+  client.close();
 }
 
 async function connectClient(port: number, protocols: string[]) {
@@ -169,4 +229,8 @@ function addressPort(address: unknown): number {
     throw new Error("server did not bind to a TCP address");
   }
   return (address as { port: number }).port;
+}
+
+function countOccurrences(value: string, search: string): number {
+  return value.split(search).length - 1;
 }

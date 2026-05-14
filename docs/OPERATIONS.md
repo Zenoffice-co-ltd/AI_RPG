@@ -812,6 +812,40 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-14 — v25 Cloud Run relay post-merge closeout follow-up
+
+- Closeout branch `codex/v25-relay-post-merge-closeout` started from
+  `origin/main` at PR #99 merge commit
+  `eb29b6890c2a45b1e352f958d3eb0a113e7af3fb`.
+- Resolved PR #99 review follow-up: removed the global
+  `firstAudioDeltaSessions` Set from the relay and replaced it with
+  connection-local first audio delta state. Added relay tests for one log per
+  connection, separate connection logging, and sensitive frame-content
+  redaction.
+- Static and local gates passed: web / relay / auth typecheck, test, and build;
+  registered-speech verify; modelless WebSocket forbid check; Layer A; Layer B.
+- Production smoke passed: `voice.mendan.biz` resolved to `34.149.106.144`,
+  relay `/healthz` returned HTTP 200, and Cloud Run service
+  `xai-realtime-relay` was Ready.
+- Production v25 gates passed: session contract, browser text E2E, browser
+  audio E2E, relay Cloud Logging phase assertions, and no direct browser
+  WebSocket to `api.x.ai`. Evidence summary:
+  `docs/deployment_reports/v25_realtime_relay_closeout_20260514.md`.
+- Direct-path non-regression passed for `adecco-roleplay-v23`,
+  `adecco-roleplay-v4`, and `adecco-roleplay-v5`: each stayed on direct
+  transport with direct auth mode and legacy ephemeral token.
+
+Known blocker outside the v25 relay DOD:
+
+- `corepack pnpm verify:acceptance` reached `[3/10] publish scenario` with
+  `FIREBASE_PROJECT_ID=adecco-mendan`, then failed after three ElevenLabs judge
+  attempts on legacy `staffing_order_hearing_busy_manager_medium` tests:
+  `shallow-questions-stay-shallow` + `no-coaching`, then `no-coaching`, then
+  `no-hidden-fact-leak` + `no-coaching`. This is classified as legacy ConvAI
+  judge variance, not a v25 relay regression. Acceptance criterion: obtain a
+  clean full acceptance run during a stable vendor window or explicitly approve
+  the legacy ConvAI judge variance as outside the v25 Cloud Run relay DOD.
+
 ### 2026-05-13 — Adecco Grok Voice v25 Cloud Run relay closeout
 
 - DNS: Value Domain / dnsv.jp で `voice.mendan.biz. A 34.149.106.144`

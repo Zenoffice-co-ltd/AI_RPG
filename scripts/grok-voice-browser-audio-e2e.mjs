@@ -284,7 +284,7 @@ async function runVariant(browser, input) {
   });
 
   await page.goto(`${input.baseUrl}/demo/${input.demoSlug}?debugMetrics=1`, {
-    waitUntil: "domcontentloaded",
+    waitUntil: "networkidle",
   });
   await page.getByLabel("通話を開始").click();
   let greetingCompleted = await waitForEvent(events, "greeting.playback.completed", 8_000);

@@ -101,6 +101,7 @@ export function createRelayServer(options: RelayServerOptions = {}) {
 
     const upstream = upstreamFactory({ base: upstreamBase, model, apiKey });
     let closed = false;
+    let firstAudioDeltaLogged = false;
     const pending: Array<{ data: RawData; isBinary: boolean }> = [];
     const heartbeat = setInterval(() => {
       if (client.readyState === WebSocket.OPEN) client.ping();
@@ -122,7 +123,10 @@ export function createRelayServer(options: RelayServerOptions = {}) {
       }
     });
     upstream.on("message", (data: RawData, isBinary: boolean) => {
-      maybeLogFirstAudioDelta(data, isBinary, baseLog);
+      if (!firstAudioDeltaLogged && isFirstAudioDelta(data, isBinary)) {
+        firstAudioDeltaLogged = true;
+        logRelay("first.upstream.audio.delta", baseLog);
+      }
       if (client.readyState === WebSocket.OPEN) {
         sendWithBackpressure(client, data, isBinary);
       }
@@ -235,26 +239,14 @@ function parseProtocols(value: string | string[] | undefined): string[] {
     .filter(Boolean);
 }
 
-const firstAudioDeltaSessions = new Set<string>();
-
-function maybeLogFirstAudioDelta(
-  data: RawData,
-  isBinary: boolean,
-  baseLog: Record<string, unknown>
-) {
-  const sessionIdHash = String(baseLog["sessionIdHash"] ?? "");
-  if (firstAudioDeltaSessions.has(sessionIdHash) || isBinary) {
-    return;
-  }
+function isFirstAudioDelta(data: RawData, isBinary: boolean): boolean {
+  if (isBinary) return false;
   const raw = Buffer.isBuffer(data) ? data.toString("utf8") : String(data);
   try {
     const parsed = JSON.parse(raw) as { type?: unknown };
-    if (parsed.type === "response.output_audio.delta") {
-      firstAudioDeltaSessions.add(sessionIdHash);
-      logRelay("first.upstream.audio.delta", baseLog);
-    }
+    return parsed.type === "response.output_audio.delta";
   } catch {
-    // ignore non-JSON frames
+    return false;
   }
 }
 
