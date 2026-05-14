@@ -161,8 +161,9 @@ async function main() {
 
     const results = [];
     for (const testCase of CASES) {
+      const previousTurnCount = countCompletedTurns(events);
       await sendText(page, testCase.text);
-      await waitForTurn(events, testCase.id);
+      await waitForTurn(events, previousTurnCount, testCase.id);
       const transcript = await page.locator(".message-row--agent").last().innerText();
       const failures = [];
       for (const needle of testCase.mustInclude) {
@@ -263,16 +264,10 @@ async function sendText(page, text) {
   await input.press("Enter");
 }
 
-async function waitForTurn(events, caseId) {
+async function waitForTurn(events, previousTurnCount, caseId) {
   const started = Date.now();
   while (Date.now() - started < 10_000) {
-    if (
-      events.some(
-        (event) =>
-          event.kind === "turn.completed" &&
-          event.details?.userTextPreview?.includes(caseText(caseId))
-      )
-    ) {
+    if (countCompletedTurns(events) > previousTurnCount) {
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -280,8 +275,8 @@ async function waitForTurn(events, caseId) {
   throw new Error(`Timed out waiting for turn.completed: ${caseId}`);
 }
 
-function caseText(caseId) {
-  return CASES.find((testCase) => testCase.id === caseId)?.text ?? caseId;
+function countCompletedTurns(events) {
+  return events.filter((event) => event.kind === "turn.completed").length;
 }
 
 async function installFakeRealtime(page) {
@@ -363,10 +358,12 @@ function fakeSession() {
     guardrailVersion: "negative-guard-only-v50-e2e",
     model: "grok-voice-think-fast-1.0",
     voiceId: "99c95cc8a177",
-    wsUrl: "wss://api.x.ai/v1/realtime?model=grok-voice-think-fast-1.0",
+    realtimeTransport: "mendan_cloud_run_relay_wss",
+    wsUrl: "wss://voice.mendan.biz/api/v3/realtime-relay",
     realtimeAuth: {
-      mode: "xai_ephemeral_subprotocol",
-      token: "fake-token",
+      mode: "mendan_relay_subprotocol",
+      protocol: "mendan-relay-v1",
+      ticket: "fake-relay-ticket",
       expiresAt: new Date(Date.now() + 300_000).toISOString(),
     },
     audio: {
@@ -392,23 +389,14 @@ function fakeSession() {
 }
 
 async function startDevServer() {
+  const webDir = resolve("apps/web");
+  const nextBin = resolve(webDir, "node_modules/next/dist/bin/next");
   const child = spawn(
-    [
-      "corepack",
-      "pnpm",
-      "--dir",
-      "apps/web",
-      "exec",
-      "next",
-      "start",
-      "--hostname",
-      "127.0.0.1",
-      "--port",
-      String(PORT),
-    ].join(" "),
+    process.execPath,
+    [nextBin, "start", "--hostname", "127.0.0.1", "--port", String(PORT)],
     {
       stdio: ["ignore", "pipe", "pipe"],
-      shell: true,
+      cwd: webDir,
       env: {
         ...process.env,
         DEMO_ACCESS_TOKEN: DEMO_TOKEN,

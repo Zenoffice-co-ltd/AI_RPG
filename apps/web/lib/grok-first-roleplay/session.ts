@@ -134,10 +134,18 @@ function getEnv() {
   return parsed.data;
 }
 
-function buildRelayWsUrl(base: string): string {
+export function buildRelayWsUrl(base: string): string {
   const parsed = new URL(base);
   if (parsed.protocol !== "wss:" && parsed.protocol !== "ws:") {
     throw new Error("Grok-first v50 relay URL must use ws/wss.");
+  }
+  if (parsed.pathname !== DEFAULT_RELAY_TICKET_PATH) {
+    throw new Error(
+      `Grok-first v50 relay URL path must be ${DEFAULT_RELAY_TICKET_PATH}.`
+    );
+  }
+  if (parsed.search || parsed.hash) {
+    throw new Error("Grok-first v50 relay URL must not include query or hash.");
   }
   return parsed.toString();
 }

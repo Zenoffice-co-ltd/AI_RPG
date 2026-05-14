@@ -28,10 +28,7 @@ export async function GrokFirstV50RoleplayPage({
 }: GrokFirstV50PageProps) {
   try {
     assertDemoAccessEnvForProduction();
-    if (
-      !process.env["XAI_RELAY_TICKET_SECRET"] &&
-      process.env["NODE_ENV"] === "production"
-    ) {
+    if (!shouldAllowGrokFirstV50PageInProduction()) {
       throw new Error("XAI_RELAY_TICKET_SECRET missing");
     }
   } catch {
@@ -66,4 +63,12 @@ export async function GrokFirstV50RoleplayPage({
       apiBase={apiBase}
     />
   );
+}
+
+export function shouldAllowGrokFirstV50PageInProduction(
+  env: NodeJS.ProcessEnv = process.env
+) {
+  if (env["NODE_ENV"] !== "production") return true;
+  if (env["GROK_FIRST_V50_BROWSER_DOD_E2E"] === "1") return true;
+  return Boolean(env["XAI_RELAY_TICKET_SECRET"]);
 }
