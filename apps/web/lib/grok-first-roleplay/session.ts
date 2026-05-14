@@ -12,6 +12,8 @@ import {
 import {
   GROK_FIRST_V50_1_BACKEND,
   GROK_FIRST_V50_1_DEMO_SLUG,
+  GROK_FIRST_V50_4_BACKEND,
+  GROK_FIRST_V50_4_DEMO_SLUG,
   GROK_FIRST_V50_BACKEND,
   GROK_FIRST_V50_DEMO_SLUG,
   GROK_FIRST_V50_MODEL,
@@ -42,7 +44,12 @@ export async function createGrokFirstV50Session(input?: {
   const voiceId = env.GROK_FIRST_V50_VOICE_ID ?? GROK_FIRST_V50_VOICE_ID;
   const sessionId = `gfv50_${randomUUID()}`;
   const identity =
-    variant === "v50.1"
+    variant === "v50.4"
+      ? {
+          demoSlug: GROK_FIRST_V50_4_DEMO_SLUG,
+          backend: GROK_FIRST_V50_4_BACKEND,
+        }
+      : variant === "v50.1"
       ? {
           demoSlug: GROK_FIRST_V50_1_DEMO_SLUG,
           backend: GROK_FIRST_V50_1_BACKEND,

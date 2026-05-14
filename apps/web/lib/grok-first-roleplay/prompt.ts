@@ -7,20 +7,27 @@ import {
   GROK_FIRST_V50_1_FIRST_MESSAGE,
   GROK_FIRST_V50_1_SYSTEM_PROMPT,
 } from "./prompt-v50-1";
+import {
+  GROK_FIRST_V50_4_FIRST_MESSAGE,
+  GROK_FIRST_V50_4_SYSTEM_PROMPT,
+} from "./prompt-v50-4";
 
 export const GROK_FIRST_V50_SCENARIO_ID =
   "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50";
 export const GROK_FIRST_V50_1_SCENARIO_ID =
   "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_1";
+export const GROK_FIRST_V50_4_SCENARIO_ID =
+  "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_4";
 export const GROK_FIRST_V50_PROMPT_VERSION = "grok-first-v50-2026-05-13";
 export const GROK_FIRST_V50_1_PROMPT_VERSION = "grok-first-v50.1-2026-05-14";
+export const GROK_FIRST_V50_4_PROMPT_VERSION = "grok-first-v50.4-2026-05-15";
 export const GROK_FIRST_V50_GUARDRAIL_VERSION =
   "negative-guard-only-v50-2026-05-13";
 
 export const GROK_FIRST_V50_FIRST_MESSAGE =
   "お電話ありがとうございます。じんじ課の佐藤です。本日はよろしくお願いします。";
 
-export type GrokFirstPromptVariant = "v50" | "v50.1";
+export type GrokFirstPromptVariant = "v50" | "v50.1" | "v50.4";
 
 export type GrokFirstPromptBuild = {
   instructions: string;
@@ -40,6 +47,14 @@ export function buildGrokFirstV50Prompt(
       promptVersion: GROK_FIRST_V50_1_PROMPT_VERSION,
       scenarioId: GROK_FIRST_V50_1_SCENARIO_ID,
       firstMessage: GROK_FIRST_V50_1_FIRST_MESSAGE,
+    });
+  }
+  if (variant === "v50.4") {
+    return buildPrompt({
+      instructions: GROK_FIRST_V50_4_SYSTEM_PROMPT,
+      promptVersion: GROK_FIRST_V50_4_PROMPT_VERSION,
+      scenarioId: GROK_FIRST_V50_4_SCENARIO_ID,
+      firstMessage: GROK_FIRST_V50_4_FIRST_MESSAGE,
     });
   }
 

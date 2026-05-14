@@ -152,7 +152,7 @@ describe("xai realtime relay server", () => {
     expect(output).not.toContain("SECRET_AUDIO_2");
   });
 
-  it("accepts v50 and v50.1 relay tickets without router variants", async () => {
+  it("accepts v50, v50.1, and v50.4 relay tickets without router variants", async () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     const upstreamServer = new WebSocketServer({ port: 0, host: "127.0.0.1" });
     openServers.push(upstreamServer);
@@ -194,12 +194,24 @@ describe("xai realtime relay server", () => {
       }),
       1
     );
+    await roundTripClient(
+      port,
+      "gfv504_sess_one",
+      validTicket("gfv504_sess_one", {
+        demoSlug: "adecco-roleplay-v50-4",
+        routerVariant: undefined,
+        backend: "grok-first-v50-4",
+      }),
+      1
+    );
 
     const output = log.mock.calls.map((call) => String(call[0])).join("\n");
     expect(output).toContain("adecco-roleplay-v50");
     expect(output).toContain("grok-first-v50");
     expect(output).toContain("adecco-roleplay-v50-1");
     expect(output).toContain("grok-first-v50-1");
+    expect(output).toContain("adecco-roleplay-v50-4");
+    expect(output).toContain("grok-first-v50-4");
   });
 });
 

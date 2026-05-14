@@ -28,7 +28,10 @@ export function GrokFirstV50RoleplayShell({
   visualTest: boolean;
   fakeLive: boolean;
   debugMetrics: boolean;
-  apiBase?: "/api/grok-first-v50" | "/api/grok-first-v50-1";
+  apiBase?:
+    | "/api/grok-first-v50"
+    | "/api/grok-first-v50-1"
+    | "/api/grok-first-v50-4";
 }) {
   const [mode, setMode] = useState<RoleplayMode>(() =>
     initialMode(initialMock, visualTest, fakeLive)

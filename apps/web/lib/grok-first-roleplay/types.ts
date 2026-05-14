@@ -5,18 +5,22 @@ import type {
 
 export const GROK_FIRST_V50_DEMO_SLUG = "adecco-roleplay-v50" as const;
 export const GROK_FIRST_V50_1_DEMO_SLUG = "adecco-roleplay-v50-1" as const;
+export const GROK_FIRST_V50_4_DEMO_SLUG = "adecco-roleplay-v50-4" as const;
 export const GROK_FIRST_V50_BACKEND = "grok-first-v50" as const;
 export const GROK_FIRST_V50_1_BACKEND = "grok-first-v50-1" as const;
+export const GROK_FIRST_V50_4_BACKEND = "grok-first-v50-4" as const;
 export const GROK_FIRST_V50_MODEL = "grok-voice-think-fast-1.0" as const;
 export const GROK_FIRST_V50_VOICE_ID = "99c95cc8a177" as const;
 export const GROK_FIRST_V50_SAMPLE_RATE = 24_000 as const;
 
 export type GrokFirstDemoSlug =
   | typeof GROK_FIRST_V50_DEMO_SLUG
-  | typeof GROK_FIRST_V50_1_DEMO_SLUG;
+  | typeof GROK_FIRST_V50_1_DEMO_SLUG
+  | typeof GROK_FIRST_V50_4_DEMO_SLUG;
 export type GrokFirstBackend =
   | typeof GROK_FIRST_V50_BACKEND
-  | typeof GROK_FIRST_V50_1_BACKEND;
+  | typeof GROK_FIRST_V50_1_BACKEND
+  | typeof GROK_FIRST_V50_4_BACKEND;
 
 export type GrokFirstV50RealtimeTransport = "mendan_cloud_run_relay_wss";
 

@@ -95,7 +95,7 @@ include `userTextPreview`, `agentTextPreview`, or `sttTextPreview` unless
 `GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` is explicitly set for a
 controlled debug run; even then, previews are capped and secret/instruction/raw
 audio fields are stripped.
-v50 and v50.1 use the same Cloud Run enterprise relay transport as v25:
+v50, v50.1, and v50.4 use the same Cloud Run enterprise relay transport as v25:
 `realtimeTransport=mendan_cloud_run_relay_wss`,
 `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, and
 `realtimeAuth.mode=mendan_relay_subprotocol`. They must not expose xAI
@@ -142,14 +142,19 @@ values: v25 must use `routerVariant=B_NARROW_FALLBACK_SEMANTIC` and
 `realtimeTransport=mendan_cloud_run_relay_wss`. v25 sessions do not issue xAI
 ephemeral tokens; the browser receives a 60-second MENDAN relay ticket and sends
 it via `Sec-WebSocket-Protocol` with `mendan-relay-v1`.
+v50.4 is an additive research route at
+`https://roleplay.mendan.biz/demo/adecco-roleplay-v50-4`; it uses
+`/api/grok-first-v50-4/*`, `promptVersion=grok-first-v50.4-2026-05-15`, the
+same v50.1 relay contract, and no registered-speech or locked-response payload.
 The v25 customer-facing URL is `https://roleplay.mendan.biz/demo/adecco-roleplay-v25`.
 v50-family research URLs use `https://roleplay.mendan.biz/demo/adecco-roleplay-v50`
-and `https://roleplay.mendan.biz/demo/adecco-roleplay-v50-1`, but customer
-trial guidance should list only the prodOK version selected for that trial.
+and versioned siblings such as `/demo/adecco-roleplay-v50-1` and
+`/demo/adecco-roleplay-v50-4`, but customer trial guidance should list only the
+prodOK version selected for that trial.
 `APP_BASE_URL` is deployed as `https://roleplay.mendan.biz`; `hosted.app`
 remains an internal rollback and verification URL only.
 Keep `https://api.x.ai` and `wss://api.x.ai` in CSP for v23/v4/v5 direct-path
-comparisons; v25/v50/v50.1 customer allowlists do not require direct browser
+comparisons; v25/v50/v50.1/v50.4 customer allowlists do not require direct browser
 access to `api.x.ai`.
 For non-v19 registered-speech variants, headcount registered speech is limited
 to requested staffing headcount; team, department, branch, or workplace-size

@@ -6,7 +6,10 @@ export {
   hashRelaySessionId,
   verifyRelayTicket,
   type CreateRelayTicketInput,
+  type RelayTicketBackend,
+  type RelayTicketDemoSlug,
   type RelayTicketPayload,
+  type RelayTicketRouterVariant,
   type RelayTicketVerificationResult,
   type VerifyRelayTicketInput,
 } from "./ticket";
