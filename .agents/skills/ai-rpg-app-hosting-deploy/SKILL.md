@@ -16,7 +16,7 @@ Any change to the deploy contract must update **all six** files in the same chan
 
 ## Pre-flight checks (do these BEFORE running any deploy command)
 
-1. **Confirm what is being deployed.** Most current deploys ship a freshly promoted Verified Audio Artifact manifest (`data/generated/registered-speech/v1/manifest.json`). Read its `buildId` and `voiceId` so you can later verify the live `/api/v3/session` returns the same values.
+1. **Confirm what is being deployed.** Normal customer-facing deploys must be from the intended merged `origin/main` commit. Run `git fetch origin`, `git status --short`, `git rev-parse HEAD`, and `git rev-parse origin/main`. If an unmerged local commit was deployed for emergency validation, treat production as drifted until the diff is PR'd, merged, verified with `git show origin/main:<path>`, and redeployed from `origin/main`. For registered-speech deploys, read the promoted `buildId` and `voiceId` so you can later verify the live `/api/v3/session` returns the same values.
 
 2. **Confirm the active gcloud account is project owner.**
    ```bash
@@ -58,10 +58,10 @@ The wrapper only checks `guardrailVersion`. For every deploy, also confirm the l
 ```bash
 DEMO_TOKEN=$(gcloud secrets versions access latest --secret=demo-access-token --project=adecco-mendan)
 SIG=$(python -c "import hmac,hashlib,sys; t=sys.argv[1]; print(hmac.new(t.encode(),t.encode(),hashlib.sha256).hexdigest())" "$DEMO_TOKEN")
-curl -s "https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/api/v3/session" \
+curl -s "https://roleplay.mendan.biz/api/v3/session" \
   -X POST -H "content-type: application/json" \
-  -H "origin: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app" \
-  -H "referer: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v3" \
+  -H "origin: https://roleplay.mendan.biz" \
+  -H "referer: https://roleplay.mendan.biz/demo/adecco-roleplay-v3" \
   -H "cookie: roleplay_api_access=$SIG" \
   -d '{}' > out/post-deploy-session.json
 node -e "const d=JSON.parse(require('fs').readFileSync('out/post-deploy-session.json','utf8'));const rs=d.registeredSpeech||{};console.log('manifestVersion:',rs.manifestVersion);console.log('buildId:',rs.buildId);console.log('voiceId:',rs.voiceId);console.log('artifacts:',(rs.artifacts||[]).length);"
@@ -69,6 +69,8 @@ rm -f out/post-deploy-session.json
 ```
 
 Assert: `buildId` matches the buildId you just promoted. If it lags, the deploy did not pick up the latest commit — re-run `pnpm deploy:adecco-roleplay` from the worktree that has the intended HEAD. Main-merge does NOT auto-deploy.
+
+For relay routes (`v25`, `v50`, `v50.1`), also assert the summarized session/browser contract: `realtimeTransport=mendan_cloud_run_relay_wss`, `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, `realtimeAuth.mode=mendan_relay_subprotocol`, no browser `ephemeralToken`, and no direct browser `wss://api.x.ai`. Use Cloud Logging structured relay logs with `jsonPayload.scope="grokVoice.realtimeRelay"` and `jsonPayload.phase` for `client.connected`, `ticket.accepted`, and `upstream.connected`; do not store raw JSON in git.
 
 ## Pre-deploy commit hygiene
 
@@ -98,7 +100,7 @@ Almost always = `roleplay_api_access` cookie missing.
 
 Fix path:
 
-1. Operator opens `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v3`
+1. Operator opens `https://roleplay.mendan.biz/demo/adecco-roleplay-v3`
 2. AccessGate form renders ("MENDAN AIロープレ — デモを開始するにはアクセスコードを入力してください")
 3. Operator pastes `gcloud secrets versions access latest --secret=demo-access-token --project=adecco-mendan` output
 4. Submit "開始" → both `roleplay_access` (path=/demo) and `roleplay_api_access` (path=/api) cookies set, redirected to roleplay shell
@@ -127,6 +129,7 @@ In order of preference:
 
 - `pnpm deploy:adecco-roleplay` exit 0
 - Rollout state SUCCEEDED
+- Deployed commit is the intended merged `origin/main`
 - `/api/v3/session` returns the just-promoted `buildId` / `voiceId`
 - Operator manual smoke (16 turns) confirms greeting / business intents / repeat / fallback all behave
 - `pnpm grok:audio-e2e:prod-log-assert` returns `overallPass=true` (see closeout doc §"Production goal")

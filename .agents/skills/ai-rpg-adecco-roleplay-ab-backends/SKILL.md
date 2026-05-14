@@ -101,6 +101,12 @@ v50 and v50.1 use the same Cloud Run enterprise relay transport as v25:
 `realtimeAuth.mode=mendan_relay_subprotocol`. They must not expose xAI
 ephemeral tokens to the browser. The relay ticket is short-lived and sent only
 through `Sec-WebSocket-Protocol`.
+Keep the v50-family relay hardening intact: normal production requires
+`XAI_RELAY_TICKET_SECRET`, while `GROK_FIRST_V50_BROWSER_DOD_E2E=1` is only an
+internal browser-DOD bypass. `GROK_VOICE_RELAY_WS_URL` must fail fast unless it
+uses `ws:`/`wss:`, path `/api/v3/realtime-relay`, and no query/hash. Browser DOD
+fake sessions should mirror the relay contract rather than the legacy xAI
+ephemeral-token contract.
 
 For v6/v7/v8/v9/v10/v15/v16/v17/v18/v19, never route to the legacy `fallback_unknown` artifact text
 `求人要件の範囲で整理します。`; that remains only for the existing v3/v4/v5

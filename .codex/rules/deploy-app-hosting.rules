@@ -4,6 +4,11 @@
 # This file is the Codex-side enforcement of that SoT and is shared with
 # Claude Code / Cursor agents that read AGENTS.md.
 #
+# Customer-facing production URL:
+#   https://roleplay.mendan.biz
+# App Hosting default URL is retained for internal verification / rollback:
+#   https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app
+#
 # Canonical deploy command (allowed without prompt — wraps the destructive
 # action with baseline snapshot + warm-cache + post-deploy verification):
 #   pnpm deploy:adecco-roleplay
@@ -20,6 +25,12 @@
 # Always point GOOGLE_APPLICATION_CREDENTIALS at the owner-level
 # `legacy_credentials/<owner>/adc.json`. Do NOT run
 # `gcloud auth application-default login` to "fix" it.
+#
+# Production source-of-truth guard: customer-facing deploys should come from
+# the intended merged `origin/main` commit. If unmerged local source is deployed
+# for emergency validation, treat production as drifted until the diff is PR'd,
+# merged, verified with `git show origin/main:<path>`, and redeployed from
+# origin/main.
 #
 # NEVER:
 #   - run `gcloud run deploy roleplay-ui` for Grok Voice or registered-speech
@@ -45,7 +56,7 @@
 prefix_rule(
     pattern = ["pnpm", "deploy:adecco-roleplay"],
     decision = "prompt",
-    justification = "Production rollout to the Adecco App Hosting backend (adecco-roleplay@adecco-mendan, asia-east1). Confirm: (1) intended commit/PR is checked out and pushed, (2) GOOGLE_APPLICATION_CREDENTIALS points at the owner-level legacy_credentials ADC (NOT the default ADC, which fails with a misleading 'Failed to create backend' error), (3) GROK_VOICE_VOICE_ID and GOOGLE_CLOUD_PROJECT envs are set per AGENTS.md `## Deploy (App Hosting)`, (4) any registered-speech artifact rebuild has been promoted (data/generated/registered-speech/v1/manifest.json reflects intent), and (5) operator can run the post-deploy /api/v3/session verification + manual smoke. App Hosting does NOT auto-deploy on main push — this command is the only way the new code goes live.",
+    justification = "Production rollout to the Adecco App Hosting backend (adecco-roleplay@adecco-mendan, asia-east1; customer URL https://roleplay.mendan.biz). Confirm: (1) intended merged origin/main commit is checked out for customer-facing closeout, or any local emergency deploy is explicitly tracked as production drift, (2) GOOGLE_APPLICATION_CREDENTIALS points at the owner-level legacy_credentials ADC (NOT the default ADC, which fails with a misleading 'Failed to create backend' error), (3) GROK_VOICE_VOICE_ID and GOOGLE_CLOUD_PROJECT envs are set per AGENTS.md `## Deploy (App Hosting)`, (4) any registered-speech artifact rebuild has been promoted (data/generated/registered-speech/v1/manifest.json reflects intent), and (5) operator can run post-deploy /api/v3/session verification + browser/Cloud Logging evidence. App Hosting does NOT auto-deploy on main push — this command is the only way the new code goes live.",
     match = [
         "pnpm deploy:adecco-roleplay",
         "pnpm deploy:adecco-roleplay -- --skip-warm",
@@ -78,7 +89,7 @@ prefix_rule(
 prefix_rule(
     pattern = ["gcloud", "run", "deploy", "roleplay-ui"],
     decision = "prompt",
-    justification = "`gcloud run deploy roleplay-ui` targets the LEGACY Cloud Run service in asia-northeast1 (covered by docs/deploy.md), NOT the current App Hosting backend `adecco-roleplay` in asia-east1 (covered by docs/deploy-app-hosting.md). Grok Voice / registered-speech changes deployed here do NOT reach the live App Hosting URL `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app`. Confirm the change actually targets the legacy ConvAI orb path before proceeding; otherwise switch to `pnpm deploy:adecco-roleplay`.",
+    justification = "`gcloud run deploy roleplay-ui` targets the LEGACY Cloud Run service in asia-northeast1 (covered by docs/deploy.md), NOT the current App Hosting backend `adecco-roleplay` in asia-east1 (covered by docs/deploy-app-hosting.md). Grok Voice / registered-speech changes deployed here do NOT reach the customer-facing App Hosting URL `https://roleplay.mendan.biz`. Confirm the change actually targets the legacy ConvAI orb path before proceeding; otherwise switch to `pnpm deploy:adecco-roleplay`.",
     match = [
         "gcloud run deploy roleplay-ui --image asia-northeast1-docker.pkg.dev/adecco-mendan/roleplay-ui/roleplay-ui:latest --region asia-northeast1 --project adecco-mendan",
         "gcloud run deploy roleplay-ui --region asia-northeast1 --project adecco-mendan",

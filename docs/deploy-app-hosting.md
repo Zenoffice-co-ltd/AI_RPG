@@ -25,13 +25,32 @@ roleplay UI.
 | GCP project | `adecco-mendan` |
 | App Hosting backend | `adecco-roleplay` |
 | Region | `asia-east1` |
-| Live URL | `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app` |
+| Customer-facing live URL | `https://roleplay.mendan.biz` |
+| App Hosting default URL | `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app` (internal verification / rollback only) |
 | Demo path | `/demo/adecco-roleplay-v3` |
 | Compute SA | `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` |
 
 App Hosting **auto-deploy on main push is NOT configured** for this backend.
 Every deploy is a manual `pnpm deploy:adecco-roleplay` invocation. Merging a
 PR to main does NOT make code live; see the deploy lag note below.
+
+## Source-of-truth guard: avoid production drift
+
+Customer-facing closeout deploys must come from the intended merged
+`origin/main` commit. Before deploy, confirm:
+
+```bash
+git fetch origin
+git status --short
+git rev-parse HEAD
+git rev-parse origin/main
+```
+
+`HEAD` should equal `origin/main` for normal production deploys. If an
+unmerged local commit is deployed for emergency validation, treat production as
+**drifted** until the diff is PR'd, merged, verified with
+`git show origin/main:<path>` against a unique line, and redeployed from
+`origin/main`. This is a release-management rule, not an extra test gate.
 
 ## Step 0 — Auth credential (the load-bearing gotcha)
 
@@ -171,10 +190,10 @@ also check the bundle is the just-promoted one:
 ```bash
 DEMO_TOKEN=$(gcloud secrets versions access latest --secret=demo-access-token --project=adecco-mendan)
 SIG=$(python -c "import hmac,hashlib,sys; t=sys.argv[1]; print(hmac.new(t.encode(),t.encode(),hashlib.sha256).hexdigest())" "$DEMO_TOKEN")
-curl -s "https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/api/v3/session" \
+curl -s "https://roleplay.mendan.biz/api/v3/session" \
   -X POST -H "content-type: application/json" \
-  -H "origin: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app" \
-  -H "referer: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v3" \
+  -H "origin: https://roleplay.mendan.biz" \
+  -H "referer: https://roleplay.mendan.biz/demo/adecco-roleplay-v3" \
   -H "cookie: roleplay_api_access=$SIG" \
   -d '{}' > /tmp/session-resp.json
 node -e "
@@ -197,6 +216,21 @@ and the [`feedback_pr_body_not_deployed_code` memory](../memory/feedback_pr_body
 on the user's `~/.claude/projects/.../memory/` index — main-merge does
 NOT auto-deploy this backend.
 
+For enterprise relay routes (`v25`, `v50`, `v50.1`), record only summarized
+session fields and browser evidence:
+
+- `realtimeTransport=mendan_cloud_run_relay_wss`
+- `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`
+- `realtimeAuth.mode=mendan_relay_subprotocol`
+- no `ephemeralToken` / `ephemeralExpiresAt` in the browser session payload
+- browser WebSocket URL is `wss://voice.mendan.biz/api/v3/realtime-relay`
+  and not direct `wss://api.x.ai`
+
+Cloud Logging relay assertions should filter structured logs by
+`jsonPayload.scope="grokVoice.realtimeRelay"` and read the phase from
+`jsonPayload.phase` (`client.connected`, `ticket.accepted`,
+`upstream.connected`). Do not commit raw Cloud Logging JSON.
+
 ## Step 4 — Browser smoke (manual)
 
 The demo URL is gated by an HMAC-signed cookie of `DEMO_ACCESS_TOKEN`.
@@ -211,7 +245,7 @@ Both are `HttpOnly + Secure + SameSite=Lax`, `maxAge` 8 hours.
 
 ### Browser flow
 
-1. Open `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v3`
+1. Open `https://roleplay.mendan.biz/demo/adecco-roleplay-v3`
 2. The `<AccessGate>` form renders ("MENDAN AIロープレ — デモを開始するにはアクセスコードを入力してください")
 3. Paste the demo access token: `gcloud secrets versions access latest --secret=demo-access-token --project=adecco-mendan`
 4. Submit "開始" → server sets both cookies, redirects back, shell renders, `/api/v3/session` POST succeeds (200)
@@ -234,14 +268,14 @@ Cause is almost always the API cookie missing:
 
 Fix: re-enter the access token via the `<AccessGate>` form. Confirm via
 DevTools → Application → Cookies that both `roleplay_access` and
-`roleplay_api_access` are present on the App Hosting domain.
+`roleplay_api_access` are present on `roleplay.mendan.biz`.
 
 ### CLI smoke (no browser, for CI / scripted check)
 
 ```bash
 DEMO_TOKEN=$(gcloud secrets versions access latest --secret=demo-access-token --project=adecco-mendan)
 SIG=$(python -c "import hmac,hashlib,sys; t=sys.argv[1]; print(hmac.new(t.encode(),t.encode(),hashlib.sha256).hexdigest())" "$DEMO_TOKEN")
-BASE="https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app"
+BASE="https://roleplay.mendan.biz"
 curl -s "$BASE/api/v3/session" -X POST \
   -H "content-type: application/json" \
   -H "origin: $BASE" \
