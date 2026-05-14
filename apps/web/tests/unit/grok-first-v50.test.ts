@@ -20,11 +20,13 @@ import {
   assertPromptDenylist,
   buildGrokFirstV50Prompt,
 } from "../../lib/grok-first-roleplay/prompt";
+import { buildRelayWsUrl } from "../../lib/grok-first-roleplay/session";
 import {
   logGrokFirstV50ServerEvent,
   sanitizeGrokFirstV50Details,
 } from "../../lib/grok-first-roleplay/metrics";
 import { buildProtocols } from "../../lib/grok-first-roleplay/realtime";
+import { shouldAllowGrokFirstV50PageInProduction } from "../../components/roleplay/GrokFirstV50RoleplayPage";
 import type {
   GrokFirstV50ServerEvent,
   GrokFirstV50Session,
@@ -163,6 +165,44 @@ describe("grok-first v50 runtime", () => {
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
       })
     ).toEqual(["mendan-relay-v1", "mendan-relay-ticket.mra1.redacted.ticket"]);
+  });
+
+  it("preserves the explicit browser DOD E2E production bypass only", () => {
+    expect(
+      shouldAllowGrokFirstV50PageInProduction({
+        NODE_ENV: "production",
+        GROK_FIRST_V50_BROWSER_DOD_E2E: "1",
+      } as NodeJS.ProcessEnv)
+    ).toBe(true);
+    expect(
+      shouldAllowGrokFirstV50PageInProduction({
+        NODE_ENV: "production",
+      } as NodeJS.ProcessEnv)
+    ).toBe(false);
+    expect(
+      shouldAllowGrokFirstV50PageInProduction({
+        NODE_ENV: "production",
+        XAI_RELAY_TICKET_SECRET: "0123456789abcdef0123456789abcdef",
+      } as NodeJS.ProcessEnv)
+    ).toBe(true);
+  });
+
+  it("fails fast on invalid relay websocket URLs", () => {
+    expect(buildRelayWsUrl("wss://voice.mendan.biz/api/v3/realtime-relay")).toBe(
+      "wss://voice.mendan.biz/api/v3/realtime-relay"
+    );
+    expect(() => buildRelayWsUrl("https://voice.mendan.biz/api/v3/realtime-relay")).toThrow(
+      "must use ws/wss"
+    );
+    expect(() => buildRelayWsUrl("wss://voice.mendan.biz/wrong")).toThrow(
+      "path must be /api/v3/realtime-relay"
+    );
+    expect(() =>
+      buildRelayWsUrl("wss://voice.mendan.biz/api/v3/realtime-relay?model=x")
+    ).toThrow("must not include query or hash");
+    expect(() =>
+      buildRelayWsUrl("wss://voice.mendan.biz/api/v3/realtime-relay#frag")
+    ).toThrow("must not include query or hash");
   });
 
   it("gates v50 transcript previews out of production event logs by default", () => {
