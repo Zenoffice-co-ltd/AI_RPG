@@ -37,8 +37,8 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 - **Internal v24 / failed App Hosting relay evidence**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v24
 - **Enterprise v25 / Cloud Run relay transport**: https://roleplay.mendan.biz/demo/adecco-roleplay-v25
   (customer-facing target; pending DNS/TLS ACTIVE during the custom-domain cutover)
-- **Research v50 / Grok-first negative guard only**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v50
-- **Research v50.1 / v50 runtime with revised System Prompt**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v50-1
+- **Research v50 / Grok-first negative guard only**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50
+- **Research v50.1 / v50 runtime with revised System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-1
 - Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1}`
 
 ## v50 Grok-first negative guard runtime
@@ -79,6 +79,12 @@ Session defaults:
   logs. Set `GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` only for
   controlled local debugging; previews are capped at 200 characters and secret,
   instruction, and raw audio fields are dropped at the logger boundary.
+- Enterprise transport: v50 and v50.1 use
+  `realtimeTransport=mendan_cloud_run_relay_wss`,
+  `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, and
+  `realtimeAuth.mode=mendan_relay_subprotocol`. These sessions do not issue xAI
+  ephemeral tokens to the browser; the browser sends a 60-second MENDAN relay
+  ticket via `Sec-WebSocket-Protocol`.
 
 DOD:
 
@@ -145,8 +151,11 @@ session field:
 |---|---|---|
 | `adecco-roleplay-v3` / `v4` / `v5` and existing research routes | `xai_direct_wss` | `wss://api.x.ai/v1/realtime?model=grok-voice-think-fast-1.0` |
 | `adecco-roleplay-v25` | `mendan_cloud_run_relay_wss` | `wss://voice.mendan.biz/api/v3/realtime-relay` |
+| `adecco-roleplay-v50` / `v50-1` | `mendan_cloud_run_relay_wss` | `wss://voice.mendan.biz/api/v3/realtime-relay` |
 
-For v25, `/api/v3/session` does not issue an xAI ephemeral token. It returns a
+For v25, `/api/v3/session` does not issue an xAI ephemeral token. For v50 and
+v50.1, `/api/grok-first-v50/session` and `/api/grok-first-v50-1/session` follow
+the same browser-facing enterprise transport contract. Each returns a
 short-lived MENDAN relay ticket in `realtimeAuth`, and the browser sends it via
 `Sec-WebSocket-Protocol` as `mendan-relay-ticket.<ticket>`.
 

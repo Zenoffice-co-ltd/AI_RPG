@@ -95,6 +95,12 @@ include `userTextPreview`, `agentTextPreview`, or `sttTextPreview` unless
 `GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` is explicitly set for a
 controlled debug run; even then, previews are capped and secret/instruction/raw
 audio fields are stripped.
+v50 and v50.1 use the same Cloud Run enterprise relay transport as v25:
+`realtimeTransport=mendan_cloud_run_relay_wss`,
+`wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, and
+`realtimeAuth.mode=mendan_relay_subprotocol`. They must not expose xAI
+ephemeral tokens to the browser. The relay ticket is short-lived and sent only
+through `Sec-WebSocket-Protocol`.
 
 For v6/v7/v8/v9/v10/v15/v16/v17/v18/v19, never route to the legacy `fallback_unknown` artifact text
 `求人要件の範囲で整理します。`; that remains only for the existing v3/v4/v5
@@ -131,11 +137,14 @@ values: v25 must use `routerVariant=B_NARROW_FALLBACK_SEMANTIC` and
 ephemeral tokens; the browser receives a 60-second MENDAN relay ticket and sends
 it via `Sec-WebSocket-Protocol` with `mendan-relay-v1`.
 The v25 customer-facing URL is `https://roleplay.mendan.biz/demo/adecco-roleplay-v25`.
+v50-family research URLs use `https://roleplay.mendan.biz/demo/adecco-roleplay-v50`
+and `https://roleplay.mendan.biz/demo/adecco-roleplay-v50-1`, but customer
+trial guidance should list only the prodOK version selected for that trial.
 `APP_BASE_URL` is deployed as `https://roleplay.mendan.biz`; `hosted.app`
 remains an internal rollback and verification URL only.
 Keep `https://api.x.ai` and `wss://api.x.ai` in CSP for v23/v4/v5 direct-path
-comparisons; v25 customer allowlists do not require direct browser access to
-`api.x.ai`.
+comparisons; v25/v50/v50.1 customer allowlists do not require direct browser
+access to `api.x.ai`.
 For non-v19 registered-speech variants, headcount registered speech is limited
 to requested staffing headcount; team, department, branch, or workplace-size
 questions must not use the `headcount` artifact. On v19, both categories fall

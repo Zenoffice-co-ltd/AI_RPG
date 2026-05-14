@@ -9,12 +9,22 @@ export const RELAY_TICKET_VERSION = "mra1";
 export const DEFAULT_RELAY_TICKET_PATH = "/api/v3/realtime-relay";
 export const DEFAULT_RELAY_TICKET_TTL_SECONDS = 60;
 
+export type RelayTicketDemoSlug =
+  | "adecco-roleplay-v25"
+  | "adecco-roleplay-v50"
+  | "adecco-roleplay-v50-1";
+
+export type RelayTicketRouterVariant = "B_NARROW_FALLBACK_SEMANTIC";
+
+export type RelayTicketBackend = "grok-first-v50" | "grok-first-v50-1";
+
 export type RelayTicketPayload = {
   aud: string;
   path: string;
   transport: "mendan_cloud_run_relay_wss";
-  demoSlug: "adecco-roleplay-v25";
-  routerVariant: "B_NARROW_FALLBACK_SEMANTIC";
+  demoSlug: RelayTicketDemoSlug;
+  routerVariant?: RelayTicketRouterVariant | undefined;
+  backend?: RelayTicketBackend | undefined;
   sessionId: string;
   iat: number;
   exp: number;
@@ -143,8 +153,7 @@ function decodePayload(value: string): RelayTicketPayload | null {
       typeof parsed.aud !== "string" ||
       typeof parsed.path !== "string" ||
       parsed.transport !== "mendan_cloud_run_relay_wss" ||
-      parsed.demoSlug !== "adecco-roleplay-v25" ||
-      parsed.routerVariant !== "B_NARROW_FALLBACK_SEMANTIC" ||
+      !isValidTicketIdentity(parsed) ||
       typeof parsed.sessionId !== "string" ||
       typeof parsed.iat !== "number" ||
       typeof parsed.exp !== "number" ||
@@ -156,6 +165,26 @@ function decodePayload(value: string): RelayTicketPayload | null {
   } catch {
     return null;
   }
+}
+
+function isValidTicketIdentity(
+  parsed: Partial<RelayTicketPayload>
+): parsed is Partial<RelayTicketPayload> & {
+  demoSlug: RelayTicketDemoSlug;
+} {
+  if (parsed.demoSlug === "adecco-roleplay-v25") {
+    return (
+      parsed.routerVariant === "B_NARROW_FALLBACK_SEMANTIC" &&
+      parsed.backend === undefined
+    );
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50") {
+    return parsed.routerVariant === undefined && parsed.backend === "grok-first-v50";
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50-1") {
+    return parsed.routerVariant === undefined && parsed.backend === "grok-first-v50-1";
+  }
+  return false;
 }
 
 function safeEqualBase64Url(a: string, b: string): boolean {

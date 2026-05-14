@@ -1,5 +1,9 @@
 import { randomUUID, createHash } from "node:crypto";
 import { z } from "zod";
+import {
+  DEFAULT_RELAY_TICKET_PATH,
+  createRelayTicket,
+} from "@top-performer/grok-realtime-relay-auth";
 import { ensureEnvLoaded } from "@/server/loadEnv";
 import {
   buildGrokFirstV50Prompt,
@@ -17,15 +21,12 @@ import {
 } from "./types";
 
 const envSchema = z.object({
-  XAI_API_KEY: z.string().min(1),
-  GROK_VOICE_REALTIME_BASE: z
+  XAI_RELAY_TICKET_SECRET: z.string().min(32),
+  GROK_VOICE_RELAY_WS_URL: z
     .string()
     .min(1)
-    .default("wss://api.x.ai/v1/realtime"),
-  GROK_VOICE_EPHEMERAL_BASE: z
-    .string()
-    .min(1)
-    .default("https://api.x.ai/v1/realtime/client_secrets"),
+    .default("wss://voice.mendan.biz/api/v3/realtime-relay"),
+  GROK_VOICE_RELAY_EXPECTED_AUD: z.string().min(1).default("voice.mendan.biz"),
   GROK_FIRST_V50_VOICE_ID: z.string().min(1).optional(),
   GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED: z
     .enum(["true", "false"])
@@ -36,13 +37,10 @@ export async function createGrokFirstV50Session(input?: {
   variant?: GrokFirstPromptVariant;
 }): Promise<GrokFirstV50Session> {
   const env = getEnv();
-  const token = await issueEphemeralToken({
-    endpoint: env.GROK_VOICE_EPHEMERAL_BASE,
-    apiKey: env.XAI_API_KEY,
-  });
   const variant = input?.variant ?? "v50";
   const prompt = buildGrokFirstV50Prompt(variant);
   const voiceId = env.GROK_FIRST_V50_VOICE_ID ?? GROK_FIRST_V50_VOICE_ID;
+  const sessionId = `gfv50_${randomUUID()}`;
   const identity =
     variant === "v50.1"
       ? {
@@ -53,9 +51,21 @@ export async function createGrokFirstV50Session(input?: {
           demoSlug: GROK_FIRST_V50_DEMO_SLUG,
           backend: GROK_FIRST_V50_BACKEND,
         };
+  const ticket = createRelayTicket({
+    secret: env.XAI_RELAY_TICKET_SECRET,
+    ttlSeconds: 60,
+    payload: {
+      aud: env.GROK_VOICE_RELAY_EXPECTED_AUD,
+      path: DEFAULT_RELAY_TICKET_PATH,
+      transport: "mendan_cloud_run_relay_wss",
+      demoSlug: identity.demoSlug,
+      backend: identity.backend,
+      sessionId,
+    },
+  });
 
   return {
-    sessionId: `gfv50_${randomUUID()}`,
+    sessionId,
     demoSlug: identity.demoSlug,
     backend: identity.backend,
     scenarioId: prompt.scenarioId,
@@ -64,11 +74,13 @@ export async function createGrokFirstV50Session(input?: {
     guardrailVersion: prompt.guardrailVersion,
     model: GROK_FIRST_V50_MODEL,
     voiceId,
-    wsUrl: buildRealtimeWsUrl(env.GROK_VOICE_REALTIME_BASE),
+    realtimeTransport: "mendan_cloud_run_relay_wss",
+    wsUrl: buildRelayWsUrl(env.GROK_VOICE_RELAY_WS_URL),
     realtimeAuth: {
-      mode: "xai_ephemeral_subprotocol",
-      token: token.value,
-      expiresAt: token.expiresAt,
+      mode: "mendan_relay_subprotocol",
+      protocol: "mendan-relay-v1",
+      ticket: ticket.value,
+      expiresAt: ticket.expiresAt,
     },
     audio: {
       inputFormat: "audio/pcm",
@@ -122,49 +134,12 @@ function getEnv() {
   return parsed.data;
 }
 
-function buildRealtimeWsUrl(base: string): string {
+function buildRelayWsUrl(base: string): string {
   const parsed = new URL(base);
   if (parsed.protocol !== "wss:" && parsed.protocol !== "ws:") {
-    throw new Error("Grok-first v50 realtime base must use ws/wss.");
+    throw new Error("Grok-first v50 relay URL must use ws/wss.");
   }
-  parsed.searchParams.set("model", GROK_FIRST_V50_MODEL);
   return parsed.toString();
-}
-
-async function issueEphemeralToken(input: {
-  endpoint: string;
-  apiKey: string;
-}): Promise<{ value: string; expiresAt: string }> {
-  const response = await fetch(input.endpoint, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${input.apiKey}`,
-    },
-    body: JSON.stringify({ expires_after: { seconds: 300 } }),
-  });
-  if (!response.ok) {
-    throw new Error(`Grok-first v50 ephemeral token request failed: ${response.status}`);
-  }
-  const payload = (await response.json()) as {
-    value?: unknown;
-    expires_at?: unknown;
-  };
-  if (typeof payload.value !== "string" || payload.value.length === 0) {
-    throw new Error("Grok-first v50 ephemeral token response missing value.");
-  }
-  return {
-    value: payload.value,
-    expiresAt: normalizeExpiresAt(payload.expires_at),
-  };
-}
-
-function normalizeExpiresAt(input: unknown): string {
-  if (typeof input === "string" && input.length > 0) return input;
-  if (typeof input === "number" && Number.isFinite(input) && input > 0) {
-    return new Date(input * 1000).toISOString();
-  }
-  return new Date(Date.now() + 60_000).toISOString();
 }
 
 export function stableSessionHash(input: string): string {

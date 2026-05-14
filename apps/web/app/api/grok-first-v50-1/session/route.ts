@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       details: {
         demoSlug: session.demoSlug,
         backend: session.backend,
+        realtimeTransport: session.realtimeTransport,
         model: session.model,
         voiceId: session.voiceId,
         promptHash: session.promptHash,

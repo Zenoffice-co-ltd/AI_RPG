@@ -206,6 +206,6 @@ export class GrokFirstRealtime {
   }
 }
 
-function buildProtocols(auth: GrokFirstV50RealtimeAuth): string[] {
-  return [`xai-client-secret.${auth.token}`];
+export function buildProtocols(auth: GrokFirstV50RealtimeAuth): string[] {
+  return [auth.protocol, `mendan-relay-ticket.${auth.ticket}`];
 }

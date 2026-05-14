@@ -24,6 +24,7 @@ import {
   logGrokFirstV50ServerEvent,
   sanitizeGrokFirstV50Details,
 } from "../../lib/grok-first-roleplay/metrics";
+import { buildProtocols } from "../../lib/grok-first-roleplay/realtime";
 import type {
   GrokFirstV50ServerEvent,
   GrokFirstV50Session,
@@ -60,12 +61,12 @@ function validV501Request() {
 describe("grok-first v50 runtime", () => {
   beforeEach(() => {
     vi.stubEnv("DEMO_ACCESS_TOKEN", "demo-secret");
-    vi.stubEnv("XAI_API_KEY", "xai-test-key");
-    vi.stubEnv("GROK_VOICE_REALTIME_BASE", "wss://api.x.ai/v1/realtime");
+    vi.stubEnv("XAI_RELAY_TICKET_SECRET", "0123456789abcdef0123456789abcdef");
     vi.stubEnv(
-      "GROK_VOICE_EPHEMERAL_BASE",
-      "https://api.x.ai/v1/realtime/client_secrets"
+      "GROK_VOICE_RELAY_WS_URL",
+      "wss://voice.mendan.biz/api/v3/realtime-relay"
     );
+    vi.stubEnv("GROK_VOICE_RELAY_EXPECTED_AUD", "voice.mendan.biz");
   });
 
   afterEach(() => {
@@ -75,15 +76,7 @@ describe("grok-first v50 runtime", () => {
   });
 
   it("serves an isolated v50 session payload without fixed-answer artifacts", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          value: "xai-realtime-client-secret-test-value",
-          expires_at: 1_747_000_000,
-        }),
-        { status: 200, headers: { "content-type": "application/json" } }
-      )
-    );
+    const fetchMock = vi.spyOn(globalThis, "fetch");
     const { POST } = await import("../../app/api/grok-first-v50/session/route");
     const response = await POST(validRequest());
     expect(response.status).toBe(200);
@@ -92,6 +85,8 @@ describe("grok-first v50 runtime", () => {
     expect(body["demoSlug"]).toBe("adecco-roleplay-v50");
     expect(body["backend"]).toBe("grok-first-v50");
     expect(body["model"]).toBe("grok-voice-think-fast-1.0");
+    expect(body["realtimeTransport"]).toBe("mendan_cloud_run_relay_wss");
+    expect(body["wsUrl"]).toBe("wss://voice.mendan.biz/api/v3/realtime-relay");
     expect(body["tools"]).toEqual([]);
     expect(body["registeredSpeechPayloadIncluded"]).toBe(false);
     expect(body["lockedResponseAudioBundleIncluded"]).toBe(false);
@@ -101,6 +96,14 @@ describe("grok-first v50 runtime", () => {
     expect(body["debugTranscriptPreviewEnabled"]).toBe(false);
     expect(body["registeredSpeech"]).toBeUndefined();
     expect(body["lockedResponseAudioBundle"]).toBeUndefined();
+    expect(body["ephemeralToken"]).toBeUndefined();
+    expect(body["ephemeralExpiresAt"]).toBeUndefined();
+
+    const realtimeAuth = body["realtimeAuth"] as Record<string, unknown>;
+    expect(realtimeAuth["mode"]).toBe("mendan_relay_subprotocol");
+    expect(realtimeAuth["protocol"]).toBe("mendan-relay-v1");
+    expect(String(realtimeAuth["ticket"])).toMatch(/^mra1\./);
+    expect(realtimeAuth["token"]).toBeUndefined();
 
     const turnDetection = body["turnDetection"] as Record<string, unknown>;
     expect(turnDetection).toEqual({
@@ -115,28 +118,12 @@ describe("grok-first v50 runtime", () => {
       outputFormat: "audio/pcm",
       sampleRate: 24_000,
     });
-    expect(JSON.stringify(body)).not.toContain("xai-test-key");
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.x.ai/v1/realtime/client_secrets",
-      expect.objectContaining({
-        method: "POST",
-        headers: expect.objectContaining({
-          authorization: "Bearer xai-test-key",
-        }),
-      })
-    );
+    expect(JSON.stringify(body)).not.toContain("0123456789abcdef0123456789abcdef");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("serves v50.1 with the updated system prompt and route identity", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          value: "xai-realtime-client-secret-test-value",
-          expires_at: 1_747_000_000,
-        }),
-        { status: 200, headers: { "content-type": "application/json" } }
-      )
-    );
+    const fetchMock = vi.spyOn(globalThis, "fetch");
     const { POST } = await import("../../app/api/grok-first-v50-1/session/route");
     const response = await POST(validV501Request());
     expect(response.status).toBe(200);
@@ -144,6 +131,13 @@ describe("grok-first v50 runtime", () => {
 
     expect(body["demoSlug"]).toBe("adecco-roleplay-v50-1");
     expect(body["backend"]).toBe("grok-first-v50-1");
+    expect(body["realtimeTransport"]).toBe("mendan_cloud_run_relay_wss");
+    expect(body["wsUrl"]).toBe("wss://voice.mendan.biz/api/v3/realtime-relay");
+    expect(body["ephemeralToken"]).toBeUndefined();
+    expect(body["ephemeralExpiresAt"]).toBeUndefined();
+    expect((body["realtimeAuth"] as Record<string, unknown>)["mode"]).toBe(
+      "mendan_relay_subprotocol"
+    );
     expect(body["scenarioId"]).toBe(
       "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_1"
     );
@@ -157,7 +151,18 @@ describe("grok-first v50 runtime", () => {
     expect(String(body["instructions"])).toContain(
       "浅い質問には、浅く答えます。"
     );
-    expect(JSON.stringify(body)).not.toContain("xai-test-key");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("sends relay tickets through websocket subprotocols", () => {
+    expect(
+      buildProtocols({
+        mode: "mendan_relay_subprotocol",
+        protocol: "mendan-relay-v1",
+        ticket: "mra1.redacted.ticket",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      })
+    ).toEqual(["mendan-relay-v1", "mendan-relay-ticket.mra1.redacted.ticket"]);
   });
 
   it("gates v50 transcript previews out of production event logs by default", () => {
@@ -456,10 +461,12 @@ function testSession(sessionId: string): GrokFirstV50Session {
     guardrailVersion: "test",
     model: "grok-voice-think-fast-1.0",
     voiceId: "99c95cc8a177",
-    wsUrl: "wss://example.invalid/realtime",
+    realtimeTransport: "mendan_cloud_run_relay_wss",
+    wsUrl: "wss://voice.mendan.biz/api/v3/realtime-relay",
     realtimeAuth: {
-      mode: "xai_ephemeral_subprotocol",
-      token: "test",
+      mode: "mendan_relay_subprotocol",
+      protocol: "mendan-relay-v1",
+      ticket: "mra1.test.ticket",
       expiresAt: new Date(Date.now() + 60_000).toISOString(),
     },
     audio: {
