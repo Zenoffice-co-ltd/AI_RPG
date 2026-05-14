@@ -90,7 +90,8 @@ export function createRelayServer(options: RelayServerOptions = {}) {
     const baseLog = {
       sessionIdHash,
       demoSlug: context.demoSlug,
-      routerVariant: context.routerVariant,
+      routerVariant: context.routerVariant ?? null,
+      backend: context.backend ?? null,
       transport: context.transport,
       origin: req.headers.origin,
       host: req.headers.host,
@@ -161,8 +162,9 @@ export function createRelayServer(options: RelayServerOptions = {}) {
 type UpgradeContext = {
   ok: true;
   sessionId: string;
-  demoSlug: "adecco-roleplay-v25";
-  routerVariant: "B_NARROW_FALLBACK_SEMANTIC";
+  demoSlug: "adecco-roleplay-v25" | "adecco-roleplay-v50" | "adecco-roleplay-v50-1";
+  routerVariant?: "B_NARROW_FALLBACK_SEMANTIC" | undefined;
+  backend?: "grok-first-v50" | "grok-first-v50-1" | undefined;
   transport: "mendan_cloud_run_relay_wss";
 };
 
@@ -219,6 +221,7 @@ function validateUpgrade(input: {
     sessionId: result.payload.sessionId,
     demoSlug: result.payload.demoSlug,
     routerVariant: result.payload.routerVariant,
+    backend: result.payload.backend,
     transport: result.payload.transport,
   };
 }

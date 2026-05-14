@@ -18,9 +18,12 @@ export type GrokFirstBackend =
   | typeof GROK_FIRST_V50_BACKEND
   | typeof GROK_FIRST_V50_1_BACKEND;
 
+export type GrokFirstV50RealtimeTransport = "mendan_cloud_run_relay_wss";
+
 export type GrokFirstV50RealtimeAuth = {
-  mode: "xai_ephemeral_subprotocol";
-  token: string;
+  mode: "mendan_relay_subprotocol";
+  protocol: "mendan-relay-v1";
+  ticket: string;
   expiresAt: string;
 };
 
@@ -34,6 +37,7 @@ export type GrokFirstV50Session = {
   guardrailVersion: string;
   model: typeof GROK_FIRST_V50_MODEL;
   voiceId: string;
+  realtimeTransport: GrokFirstV50RealtimeTransport;
   wsUrl: string;
   realtimeAuth: GrokFirstV50RealtimeAuth;
   audio: {

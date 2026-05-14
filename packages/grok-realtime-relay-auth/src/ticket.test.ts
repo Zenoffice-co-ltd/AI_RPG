@@ -44,6 +44,65 @@ describe("relay ticket auth", () => {
     }
   });
 
+  it("accepts valid v50 and v50.1 relay tickets", () => {
+    const v50 = createRelayTicket({
+      secret: SECRET,
+      payload: payload({
+        demoSlug: "adecco-roleplay-v50",
+        routerVariant: undefined,
+        backend: "grok-first-v50",
+      }),
+      now: NOW,
+    });
+    const v501 = createRelayTicket({
+      secret: SECRET,
+      payload: payload({
+        demoSlug: "adecco-roleplay-v50-1",
+        routerVariant: undefined,
+        backend: "grok-first-v50-1",
+      }),
+      now: NOW,
+    });
+
+    expect(verify(v50.value)).toMatchObject({
+      ok: true,
+      payload: {
+        demoSlug: "adecco-roleplay-v50",
+        backend: "grok-first-v50",
+      },
+    });
+    expect(verify(v501.value)).toMatchObject({
+      ok: true,
+      payload: {
+        demoSlug: "adecco-roleplay-v50-1",
+        backend: "grok-first-v50-1",
+      },
+    });
+  });
+
+  it("rejects mismatched v50 ticket identity", () => {
+    const wrongBackend = createRelayTicket({
+      secret: SECRET,
+      payload: payload({
+        demoSlug: "adecco-roleplay-v50",
+        routerVariant: undefined,
+        backend: "grok-first-v50-1",
+      }),
+      now: NOW,
+    });
+    const v25MissingRouter = createRelayTicket({
+      secret: SECRET,
+      payload: payload({ routerVariant: undefined }),
+      now: NOW,
+    });
+
+    expect(verify(wrongBackend.value)).toEqual({ ok: false, reason: "malformed" });
+    expect(verify(v25MissingRouter.value)).toEqual({
+      ok: false,
+      reason: "malformed",
+    });
+  });
+
   it("rejects expired tickets", () => {
     const ticket = createRelayTicket({
       secret: SECRET,

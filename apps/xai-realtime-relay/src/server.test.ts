@@ -151,6 +151,56 @@ describe("xai realtime relay server", () => {
     expect(output).not.toContain("SECRET_AUDIO");
     expect(output).not.toContain("SECRET_AUDIO_2");
   });
+
+  it("accepts v50 and v50.1 relay tickets without router variants", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const upstreamServer = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    openServers.push(upstreamServer);
+    await once(upstreamServer, "listening");
+    const upstreamPort = addressPort(upstreamServer.address());
+    upstreamServer.on("connection", (socket) => {
+      socket.on("message", (data, isBinary) => {
+        socket.send(data, { binary: isBinary });
+      });
+    });
+
+    const server = createRelayServer({
+      env: testEnv({
+        XAI_REALTIME_BASE: `ws://127.0.0.1:${upstreamPort}/v1/realtime`,
+      }),
+    });
+    openServers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const port = addressPort(server.address());
+
+    await roundTripClient(
+      port,
+      "gfv50_sess_one",
+      validTicket("gfv50_sess_one", {
+        demoSlug: "adecco-roleplay-v50",
+        routerVariant: undefined,
+        backend: "grok-first-v50",
+      }),
+      1
+    );
+    await roundTripClient(
+      port,
+      "gfv501_sess_one",
+      validTicket("gfv501_sess_one", {
+        demoSlug: "adecco-roleplay-v50-1",
+        routerVariant: undefined,
+        backend: "grok-first-v50-1",
+      }),
+      1
+    );
+
+    const output = log.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("adecco-roleplay-v50");
+    expect(output).toContain("grok-first-v50");
+    expect(output).toContain("adecco-roleplay-v50-1");
+    expect(output).toContain("grok-first-v50-1");
+  });
 });
 
 function testEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
@@ -175,7 +225,10 @@ async function waitUntil(predicate: () => boolean, timeoutMs: number) {
   throw new Error("timed out waiting for relay messages");
 }
 
-function validTicket(sessionId = "gv_sess_test") {
+function validTicket(
+  sessionId = "gv_sess_test",
+  overrides: Partial<Parameters<typeof createRelayTicket>[0]["payload"]> = {}
+) {
   return createRelayTicket({
     secret: SECRET,
     payload: {
@@ -185,22 +238,31 @@ function validTicket(sessionId = "gv_sess_test") {
       demoSlug: "adecco-roleplay-v25",
       routerVariant: "B_NARROW_FALLBACK_SEMANTIC",
       sessionId,
+      ...overrides,
     },
   }).value;
 }
 
-async function roundTripClient(port: number, sessionId: string) {
+async function roundTripClient(
+  port: number,
+  sessionId: string,
+  ticket = validTicket(sessionId),
+  minMessages = 2
+) {
   const client = await connectClient(port, [
     "mendan-relay-v1",
-    "mendan-relay-" + "ticket." + validTicket(sessionId),
+    "mendan-relay-" + "ticket." + ticket,
   ]);
   const messages: string[] = [];
   client.on("message", (data) => {
     messages.push(Buffer.isBuffer(data) ? data.toString("utf8") : String(data));
   });
   client.send("hello");
-  await waitUntil(() => messages.length >= 2, 3_000);
-  client.close();
+  try {
+    await waitUntil(() => messages.length >= minMessages, 3_000);
+  } finally {
+    client.close();
+  }
 }
 
 async function connectClient(port: number, protocols: string[]) {
