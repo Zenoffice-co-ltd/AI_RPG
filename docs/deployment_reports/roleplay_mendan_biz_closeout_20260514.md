@@ -52,7 +52,8 @@ No Cloud DNS managed zone for `mendan.biz` exists in `adecco-mendan` or
 `zapier-transfer`. No Value Domain / dnsv.jp DNS API credential was found in the
 checked Google Secret Manager projects, so DNS must be updated by a DNS operator
 or by providing an approved DNS API credential through the repository secret
-flow.
+flow. Value Domain's official API documentation is
+`https://www.value-domain.com/api/doc/domain/`.
 
 ## Required DNS Records
 

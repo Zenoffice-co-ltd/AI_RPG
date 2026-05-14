@@ -35,7 +35,13 @@ Do not remove or change the existing `voice.mendan.biz` A record.
 
 ## API Caution
 
-Value Domain's DNS API supports `GET /domains/{domain}/dns` and
+Value Domain's official API documentation is:
+
+```text
+https://www.value-domain.com/api/doc/domain/
+```
+
+The DNS API supports `GET /domains/{domain}/dns` and
 `PUT /domains/{domain}/dns`. The `PUT` request sends the full DNS record text,
 not a single-record patch. If an API credential is supplied later, first fetch
 the existing `mendan.biz` DNS records, append only the three records above, and
