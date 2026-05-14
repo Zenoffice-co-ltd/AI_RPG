@@ -40,7 +40,7 @@ Not allowed without separate approval:
 ## Expected Responses
 
 - `https://roleplay.mendan.biz/demo/adecco-roleplay-v25` should load the v25
-  roleplay page after the Firebase App Hosting custom domain reaches ACTIVE.
+  roleplay page.
 - `https://voice.mendan.biz/healthz` returns HTTP 200.
 - `wss://voice.mendan.biz/api/v3/realtime-relay` requires WebSocket upgrade,
   allowed Origin, expected Host, and a signed short-lived relay ticket.
@@ -49,27 +49,30 @@ Not allowed without separate approval:
 
 ## Data Handling
 
-- Browser does not receive the xAI API key.
+- Browser does not receive the xAI credential.
 - v25 session does not return an xAI ephemeral token.
 - Relay ticket TTL is 60 seconds.
 - Relay logs metadata only.
-- Relay logs must not contain raw ticket, API key, cookie, transcript text,
-  prompt, instruction, audio frame, or audio base64.
+- Relay logs must not contain raw ticket, API credential, cookie, transcript
+  text, prompt, instruction, base64 media payloads, or audio frames.
 
 ## Current Cutover Status
 
 - Firebase App Hosting custom domain `roleplay.mendan.biz` has been created for
   backend `projects/adecco-mendan/locations/asia-east1/backends/adecco-roleplay`.
 - DNS is managed outside GCP by `dnsv.jp`.
-- DNS records are pending, so the domain is not yet customer-ready.
-- `APP_BASE_URL` must remain on the `hosted.app` URL until DNS resolves, the
-  managed certificate is ACTIVE, and the v25 page loads on
-  `https://roleplay.mendan.biz`.
+- DNS resolves to the Firebase App Hosting assigned address.
+- App Hosting reports `HOST_ACTIVE`, `OWNERSHIP_ACTIVE`, and `CERT_ACTIVE`.
+- `APP_BASE_URL` is deployed as `https://roleplay.mendan.biz`.
+- `https://roleplay.mendan.biz/demo/adecco-roleplay-v25` loads successfully.
 
 ## E2E Evidence
 
-- Browser text E2E: pending DNS/TLS ACTIVE
-- Browser audio E2E: pending DNS/TLS ACTIVE
-- Cloud Logging: pending roleplay.mendan.biz E2E
-- SSL/TLS: pending DNS/TLS ACTIVE
-- Port: `voice.mendan.biz:443` reachable; `roleplay.mendan.biz:443` pending DNS
+- Browser text E2E: PASS
+  (`out/grok_voice_browser_audio_e2e/20260514T055841Z/summary.json`)
+- Browser audio E2E: PASS
+  (`out/grok_voice_browser_audio_e2e/20260514T055934Z/summary.json`)
+- Cloud Logging: PASS for `client.connected`, `ticket.accepted`, and
+  `upstream.connected`
+- SSL/TLS: PASS for certificate SAN `roleplay.mendan.biz`
+- Port: `roleplay.mendan.biz:443` reachable; `voice.mendan.biz:443` reachable

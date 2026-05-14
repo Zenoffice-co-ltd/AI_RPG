@@ -8,8 +8,9 @@
 projects/adecco-mendan/locations/asia-east1/backends/adecco-roleplay
 ```
 
-Firebase App Hosting is waiting for DNS records at the authoritative
-`dnsv.jp` nameservers. GCP Cloud DNS has no managed zone for `mendan.biz`.
+DNS records have been applied at the authoritative `dnsv.jp` nameservers and
+Firebase App Hosting has reached `HOST_ACTIVE`, `OWNERSHIP_ACTIVE`, and
+`CERT_ACTIVE`. GCP Cloud DNS has no managed zone for `mendan.biz`.
 
 Current access check:
 
@@ -17,19 +18,17 @@ Current access check:
   `zapier-transfer`.
 - No Value Domain / dnsv.jp DNS API credential was found in the checked Google
   Secret Manager projects.
-- Codex cannot safely apply these records directly unless a DNS operator updates
-  dnsv.jp manually or provides an approved DNS API credential through the
-  repository secret flow.
+- DNS was applied by the DNS operator through Value Domain / `dnsv.jp`.
 
 ## Required DNS Records
 
-Add the following records in the external DNS console for `mendan.biz`.
+The following records are present in the external DNS console for `mendan.biz`.
 
 | Type | Host / Name | Value | Required action |
 |---|---|---|---|
-| A | `roleplay` or `roleplay.mendan.biz` | `35.219.200.61` | ADD |
-| TXT | `roleplay` or `roleplay.mendan.biz` | `fah-claim=004-02-0d7d9b03-49a5-46a4-8022-c8a78efcafad` | ADD |
-| CNAME | `_acme-challenge_7o5w5quluuyscfoe.roleplay` or `_acme-challenge_7o5w5quluuyscfoe.roleplay.mendan.biz` | `124e1455-6a0a-4ced-b50e-b104807eb7d1.16.authorize.certificatemanager.goog.` | ADD |
+| A | `roleplay` or `roleplay.mendan.biz` | `35.219.200.61` | PRESENT |
+| TXT | `roleplay` or `roleplay.mendan.biz` | `fah-claim=004-02-0d7d9b03-49a5-46a4-8022-c8a78efcafad` | PRESENT |
+| CNAME | `_acme-challenge_7o5w5quluuyscfoe.roleplay` or `_acme-challenge_7o5w5quluuyscfoe.roleplay.mendan.biz` | `124e1455-6a0a-4ced-b50e-b104807eb7d1.16.authorize.certificatemanager.goog.` | PRESENT |
 
 Do not remove or change the existing `voice.mendan.biz` A record.
 

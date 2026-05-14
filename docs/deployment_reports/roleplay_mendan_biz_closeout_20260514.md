@@ -8,7 +8,7 @@
 - Baseline commit: `11bd8e748cde4a4cc6a78b106ab2c42239ecb101`
 - Date: 2026-05-14
 - Operator: Codex
-- Current status: `BLOCKED_DNS`
+- Current status: `PASS`
 
 ## Official Docs Checked
 
@@ -19,7 +19,7 @@ firebase_app_hosting_custom_domain:
   selected_method: Firebase App Hosting custom domain direct assignment
   backend: projects/adecco-mendan/locations/asia-east1/backends/adecco-roleplay
   certificate_type: Firebase App Hosting managed SSL certificate
-  certificate_status: CERT_VALIDATING
+  certificate_status: CERT_ACTIVE
 firebase_hosting_custom_domain:
   official_doc_checked: true
   doc_url: https://firebase.google.com/docs/hosting/custom-domain
@@ -43,43 +43,55 @@ external_application_load_balancer:
 | Previous app domain | `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app` |
 | Backend | `projects/adecco-mendan/locations/asia-east1/backends/adecco-roleplay` |
 | Backend URI | `adecco-roleplay--adecco-mendan.asia-east1.hosted.app` |
-| DNS provider | `dnsv.jp` authoritative nameservers |
-| DNS status | `BLOCKED_DNS` |
-| TLS status | `BLOCKED_DNS`; certificate is `CERT_VALIDATING` |
-| Port 443 status | `voice.mendan.biz:443` PASS; `roleplay.mendan.biz:443` pending DNS |
+| DNS provider | Value Domain / `dnsv.jp` authoritative nameservers |
+| DNS status | `PASS` |
+| TLS status | `PASS` |
+| Port 443 status | `roleplay.mendan.biz:443` PASS; `voice.mendan.biz:443` PASS |
 
-No Cloud DNS managed zone for `mendan.biz` exists in `adecco-mendan` or
-`zapier-transfer`. No Value Domain / dnsv.jp DNS API credential was found in the
-checked Google Secret Manager projects, so DNS must be updated by a DNS operator
-or by providing an approved DNS API credential through the repository secret
-flow. Value Domain's official API documentation is
-`https://www.value-domain.com/api/doc/domain/`.
+DNS records added by the DNS operator while preserving existing records:
 
-## Required DNS Records
+| Type | Name | Value |
+|---|---|---|
+| A | `roleplay.mendan.biz` | `35.219.200.61` |
+| TXT | `roleplay.mendan.biz` | `fah-claim=004-02-0d7d9b03-49a5-46a4-8022-c8a78efcafad` |
+| CNAME | `_acme-challenge_7o5w5quluuyscfoe.roleplay.mendan.biz.` | `124e1455-6a0a-4ced-b50e-b104807eb7d1.16.authorize.certificatemanager.goog.` |
 
-Firebase App Hosting created custom domain
-`projects/adecco-mendan/locations/asia-east1/backends/adecco-roleplay/domains/roleplay.mendan.biz`
-and reported the following required DNS updates.
+App Hosting custom domain status after DNS propagation:
 
-| Type | Name | Value | Action |
-|---|---|---|---|
-| A | `roleplay.mendan.biz` | `35.219.200.61` | ADD |
-| TXT | `roleplay.mendan.biz` | `fah-claim=004-02-0d7d9b03-49a5-46a4-8022-c8a78efcafad` | ADD |
-| CNAME | `_acme-challenge_7o5w5quluuyscfoe.roleplay.mendan.biz.` | `124e1455-6a0a-4ced-b50e-b104807eb7d1.16.authorize.certificatemanager.goog.` | ADD |
+| State | Value |
+|---|---|
+| `hostState` | `HOST_ACTIVE` |
+| `ownershipState` | `OWNERSHIP_ACTIVE` |
+| `certState` | `CERT_ACTIVE` |
+| `reconciling` | `false` |
 
-Do not remove `voice.mendan.biz A 34.149.106.144`.
+TLS check summary:
 
-## Current App Hosting State
+| Field | Value |
+|---|---|
+| Subject | `CN=roleplay.mendan.biz` |
+| Issuer | `Google Trust Services WR3` |
+| Valid from | `May 14 04:45:40 2026 GMT` |
+| Valid until | `Aug 12 05:41:34 2026 GMT` |
+| SAN | `roleplay.mendan.biz`, `*.roleplay.mendan.biz` |
 
-- `APP_BASE_URL` remains
-  `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app`.
-- This is intentional. The switch to `https://roleplay.mendan.biz` must happen
-  only after DNS resolves, the managed certificate is ACTIVE, and the v25 page
-  loads successfully on `roleplay.mendan.biz`.
-- App Hosting backend location was confirmed from backend metadata, not inferred
-  from `apphosting.yaml`: `asia-east1`.
-- `apphosting.yaml` still contains `GCLOUD_LOCATION=asia-northeast1`; that value
-  was not changed as part of this DNS-blocked closeout.
+## App Hosting / Deploy
+
+| Item | Value |
+|---|---|
+| Backend | `adecco-roleplay` |
+| Project | `adecco-mendan` |
+| Region | `asia-east1` |
+| Deploy command | `corepack pnpm deploy:adecco-roleplay:gcloud` |
+| Rollout | `build-2026-05-14-001` |
+| Rollout state | `SUCCEEDED` |
+| `APP_BASE_URL` | `https://roleplay.mendan.biz` |
+
+`corepack pnpm deploy:adecco-roleplay` was attempted first and failed with
+`iam.serviceAccounts.actAs` delegation permission on the Firebase CLI path. The
+repository gcloud/API deploy wrapper was used as the approved fallback and
+completed the rollout. The wrapper also warmed the Grok registered-speech cache
+with `ok=16 failed=0`.
 
 ## Relay Production Env
 
@@ -95,23 +107,19 @@ from the live service definition.
 
 ## Session Contract
 
-Not run against `roleplay.mendan.biz` because DNS is not yet resolving.
+`https://roleplay.mendan.biz/demo/adecco-roleplay-v25/access` was checked with
+the live demo access token. It returned a redirect to the v25 page and set both
+the UI and API access cookies. Secret and cookie values were not printed or
+recorded.
 
-Required post-DNS command shape:
+The v25 session contract was checked with authenticated POST using:
 
-```bash
-curl -sS https://roleplay.mendan.biz/api/v3/session \
-  -X POST \
-  -H "content-type: application/json" \
-  -H "origin: https://roleplay.mendan.biz" \
-  -H "referer: https://roleplay.mendan.biz/demo/adecco-roleplay-v25" \
-  -H "cookie: roleplay_api_access=<SIG>" \
-  -d '{"demoSlug":"adecco-roleplay-v25"}'
-```
+- `origin: https://roleplay.mendan.biz`
+- `referer: https://roleplay.mendan.biz/demo/adecco-roleplay-v25`
+- the redacted API access cookie header
+- body: `{"demoSlug":"adecco-roleplay-v25"}`
 
-Expected summary:
-
-| Field | Expected |
+| Field | Result |
 |---|---|
 | `demoSlug` | `adecco-roleplay-v25` |
 | `routerVariant` | `B_NARROW_FALLBACK_SEMANTIC` |
@@ -125,11 +133,49 @@ Expected summary:
 
 | Gate | Result | Evidence |
 |---|---|---|
-| Browser text E2E with `roleplay.mendan.biz` | BLOCKED_DNS | DNS records pending |
-| Browser audio E2E with `roleplay.mendan.biz` | BLOCKED_DNS | DNS records pending |
-| Cloud Logging required phases | BLOCKED_DNS | requires roleplay.mendan.biz E2E |
-| Browser direct `api.x.ai` | BLOCKED_DNS | requires roleplay.mendan.biz E2E |
-| v23/v4/v5 direct path | Not rerun | no runtime contract changed |
+| Browser text E2E with `roleplay.mendan.biz` | PASS | `out/grok_voice_browser_audio_e2e/20260514T055841Z/summary.json` |
+| Browser audio E2E with `roleplay.mendan.biz` | PASS | `out/grok_voice_browser_audio_e2e/20260514T055934Z/summary.json` |
+| Cloud Logging required phases | PASS | `client.connected`, `ticket.accepted`, `upstream.connected` |
+| Browser direct `api.x.ai` | PASS | Browser WebSocket list contained only `wss://voice.mendan.biz/api/v3/realtime-relay` |
+| v23/v4/v5 direct path | PASS | all returned `xai_direct_wss`, `api.x.ai`, and `xai_ephemeral_subprotocol` |
+
+Cloud Logging query returned 10 relay log entries in the freshness window. The
+unique relay phases were:
+
+- `client.closed`
+- `client.connected`
+- `ticket.accepted`
+- `upstream.connected`
+- `upstream.connecting`
+
+Sensitive log scan passed for raw relay ticket, API credential, authorization
+credential, cookie, transcript preview fields, and base64 media payload
+patterns. Raw Cloud Logging JSON was written only under the OS temp directory
+and was not committed.
+
+## Static / Unit / Build
+
+| Command | Result |
+|---|---|
+| `corepack pnpm --filter @top-performer/web typecheck` | PASS |
+| `corepack pnpm --filter @top-performer/web test` | PASS, 98 files / 841 tests |
+| `corepack pnpm --filter @top-performer/web build` | PASS; existing Turbopack NFT warning observed |
+| `corepack pnpm --filter @top-performer/xai-realtime-relay typecheck` | PASS |
+| `corepack pnpm --filter @top-performer/xai-realtime-relay test` | PASS, 98 files / 841 tests |
+| `corepack pnpm --filter @top-performer/xai-realtime-relay build` | PASS |
+| `corepack pnpm --filter @top-performer/grok-realtime-relay-auth typecheck` | PASS |
+| `corepack pnpm --filter @top-performer/grok-realtime-relay-auth test` | PASS, 98 files / 841 tests |
+| `corepack pnpm --filter @top-performer/grok-realtime-relay-auth build` | PASS |
+| `corepack pnpm grok:verify-registered-speech` | PASS |
+| `corepack pnpm grok:forbid-modelless-ws` | PASS, offenders 0 |
+| `corepack pnpm grok:audio-e2e:layer-a` | PASS, 57/57 |
+| `corepack pnpm grok:audio-e2e:layer-b` | PASS, 112/112 |
+| `git diff --check` | PASS |
+
+The v50 runtime-source unit test was updated to resolve `apps/web/lib` from the
+test file location instead of `process.cwd()`. This keeps the test stable when
+workspace package scripts invoke the root Vitest config from package
+directories.
 
 ## Security
 
@@ -137,11 +183,14 @@ Expected summary:
   - `https://roleplay.mendan.biz` TCP 443
   - `https://voice.mendan.biz` TCP 443
   - `wss://voice.mendan.biz` TCP 443
+- Browser permission: microphone.
 - Direct browser access to `api.x.ai`: not required for v25.
 - `hosted.app`: internal rollback and verification only.
-- Sensitive diff grep: pending after docs-only PR.
+- v25 browser receives no xAI credential and no xAI ephemeral token.
+- Relay logs do not include raw ticket, API credential, authorization
+  credential, cookie, transcript preview, or base64 media payloads.
 - Raw Cloud Logging JSON, secret values, relay tickets, cookies, transcripts,
-  audio frames, and screenshots were not committed.
+  audio frames, screenshots, zips, and generated audio are not committed.
 
 ## ZAP / SSL / Port Notes
 
@@ -149,22 +198,43 @@ Expected summary:
 - ZAP active scan: prior coordination required for time window, paths, and
   request rate.
 - WebSocket fuzzing/load testing: not allowed without separate approval.
-- SSL/TLS check: pending DNS/TLS ACTIVE.
-- Port check: `voice.mendan.biz:443` reachable; `roleplay.mendan.biz:443`
-  pending DNS.
+- SSL/TLS check: PASS for `roleplay.mendan.biz`.
+- Port check: TCP 443 PASS for `roleplay.mendan.biz` and `voice.mendan.biz`.
+- Normal HTTP access to `/api/v3/realtime-relay` may return 401, 403, or 426
+  because WebSocket upgrade, allowed Origin, expected Host, short-lived ticket,
+  and subprotocol are required.
+
+## Acceptance
+
+`corepack pnpm verify:acceptance` was run with process-env secrets resolved from
+Secret Manager and `APP_BASE_URL=https://roleplay.mendan.biz`.
+
+Result: FAIL, classified as legacy ElevenLabs ConvAI judge variance unrelated
+to v25/domain/relay.
+
+Evidence:
+
+- The first run without process-env overrides failed before acceptance because
+  local ADC could not call Secret Manager. Values were then loaded into the
+  current process environment only, following AGENTS.md precedence, without
+  printing or writing secrets.
+- The second run without explicit `APP_BASE_URL` used the local default from
+  env examples and failed because `pnpm` is not on PATH on this Windows host.
+- The final run explicitly set `APP_BASE_URL=https://roleplay.mendan.biz`.
+- It reached `[3/10] publish scenario`.
+- Failure after three publish attempts was:
+  `staffing_order_hearing_busy_manager_medium::no-coaching`.
+- Earlier attempts also showed transient failures for
+  `no-hidden-fact-leak` and `shallow-questions-stay-shallow`.
+- This is the existing legacy ElevenLabs ConvAI judge path, not v25
+  Cloud Run relay, session, browser WebSocket, logging, or security behavior.
 
 ## Final Verdict
 
-- `roleplay.mendan.biz` domain cutover: `BLOCKED_DNS`
-- v25 relay path: previously PASS on `hosted.app` + `voice.mendan.biz`; not
-  rerun on `roleplay.mendan.biz`
-- customer-facing allowlist simplification: docs prepared, pending DNS/TLS
-- remaining risks:
-  - DNS records must be added at `dnsv.jp`.
-  - If the Value Domain DNS API is used later, fetch and preserve the full
-    existing record set before updating because the API replaces the DNS record
-    text as a whole.
-  - Wait for Firebase App Hosting host, ownership, and certificate states to
-    become ACTIVE.
-  - Only then change `APP_BASE_URL`, deploy, run roleplay-domain E2E, Cloud
-    Logging assertions, and final acceptance.
+- `roleplay.mendan.biz` domain cutover: PASS
+- v25 relay path on customer-facing domain: PASS
+- customer-facing allowlist simplification: PASS
+- v25 browser direct access to `api.x.ai`: PASS, no direct connection
+- v23/v4/v5 direct path non-regression: PASS
+- broader repository `verify:acceptance`: FAIL due to legacy ElevenLabs ConvAI
+  judge variance; track separately from v25 closeout

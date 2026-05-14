@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -314,7 +315,10 @@ describe("grok-first v50 runtime", () => {
   });
 
   it("v50 runtime source has no imports from fixed-answer systems", () => {
-    const root = join(process.cwd(), "lib/grok-first-roleplay");
+    const root = join(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../lib/grok-first-roleplay"
+    );
     const files = listFiles(root).filter((file) => /\.(ts|tsx)$/.test(file));
     const importLines = files.flatMap((file) =>
       readFileSync(file, "utf8")

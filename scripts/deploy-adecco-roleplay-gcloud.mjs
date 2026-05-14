@@ -23,7 +23,7 @@ const LOCATION = "asia-east1";
 const BACKEND = "adecco-roleplay";
 const API_VERSION = "v1beta";
 const APPHOSTING_BASE_URL =
-  "https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app";
+  "https://roleplay.mendan.biz";
 const BUCKET = `firebaseapphosting-sources-${PROJECT_NUMBER}-${LOCATION}`;
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

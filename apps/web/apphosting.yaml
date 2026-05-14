@@ -5,7 +5,7 @@ runConfig:
   maxInstances: 2
 env:
   - variable: APP_BASE_URL
-    value: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app
+    value: https://roleplay.mendan.biz
     availability:
       - BUILD
       - RUNTIME
