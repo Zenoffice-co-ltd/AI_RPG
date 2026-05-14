@@ -3,10 +3,11 @@ import { z } from "zod";
 import { ensureEnvLoaded } from "@/server/loadEnv";
 import {
   buildGrokFirstV50Prompt,
-  GROK_FIRST_V50_FIRST_MESSAGE,
-  GROK_FIRST_V50_SCENARIO_ID,
+  type GrokFirstPromptVariant,
 } from "./prompt";
 import {
+  GROK_FIRST_V50_1_BACKEND,
+  GROK_FIRST_V50_1_DEMO_SLUG,
   GROK_FIRST_V50_BACKEND,
   GROK_FIRST_V50_DEMO_SLUG,
   GROK_FIRST_V50_MODEL,
@@ -31,20 +32,33 @@ const envSchema = z.object({
     .optional(),
 });
 
-export async function createGrokFirstV50Session(): Promise<GrokFirstV50Session> {
+export async function createGrokFirstV50Session(input?: {
+  variant?: GrokFirstPromptVariant;
+}): Promise<GrokFirstV50Session> {
   const env = getEnv();
   const token = await issueEphemeralToken({
     endpoint: env.GROK_VOICE_EPHEMERAL_BASE,
     apiKey: env.XAI_API_KEY,
   });
-  const prompt = buildGrokFirstV50Prompt();
+  const variant = input?.variant ?? "v50";
+  const prompt = buildGrokFirstV50Prompt(variant);
   const voiceId = env.GROK_FIRST_V50_VOICE_ID ?? GROK_FIRST_V50_VOICE_ID;
+  const identity =
+    variant === "v50.1"
+      ? {
+          demoSlug: GROK_FIRST_V50_1_DEMO_SLUG,
+          backend: GROK_FIRST_V50_1_BACKEND,
+        }
+      : {
+          demoSlug: GROK_FIRST_V50_DEMO_SLUG,
+          backend: GROK_FIRST_V50_BACKEND,
+        };
 
   return {
     sessionId: `gfv50_${randomUUID()}`,
-    demoSlug: GROK_FIRST_V50_DEMO_SLUG,
-    backend: GROK_FIRST_V50_BACKEND,
-    scenarioId: GROK_FIRST_V50_SCENARIO_ID,
+    demoSlug: identity.demoSlug,
+    backend: identity.backend,
+    scenarioId: prompt.scenarioId,
     promptVersion: prompt.promptVersion,
     promptHash: prompt.promptHash,
     guardrailVersion: prompt.guardrailVersion,
@@ -69,7 +83,7 @@ export async function createGrokFirstV50Session(): Promise<GrokFirstV50Session> 
     },
     tools: [],
     instructions: prompt.instructions,
-    firstMessage: GROK_FIRST_V50_FIRST_MESSAGE,
+    firstMessage: prompt.firstMessage,
     registeredSpeechPayloadIncluded: false,
     lockedResponseAudioBundleIncluded: false,
     runtimeTtsEnabled: false,

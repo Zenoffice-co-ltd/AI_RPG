@@ -3,8 +3,10 @@
 import type { GrokFirstV50EventKind } from "./metrics";
 import type { GrokFirstV50Session } from "./types";
 
-export async function fetchGrokFirstV50Session(): Promise<GrokFirstV50Session> {
-  const response = await fetch("/api/grok-first-v50/session", {
+export async function fetchGrokFirstV50Session(
+  endpoint = "/api/grok-first-v50/session"
+): Promise<GrokFirstV50Session> {
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({}),
@@ -19,8 +21,8 @@ export function postGrokFirstV50Event(input: {
   kind: GrokFirstV50EventKind;
   sessionId?: string | undefined;
   details?: Record<string, unknown> | undefined;
-}): Promise<void> {
-  return fetch("/api/grok-first-v50/event", {
+}, endpoint = "/api/grok-first-v50/event"): Promise<void> {
+  return fetch(endpoint, {
     method: "POST",
     headers: { "content-type": "application/json" },
     keepalive: true,
