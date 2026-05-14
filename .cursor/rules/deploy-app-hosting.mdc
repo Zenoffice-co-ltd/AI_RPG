@@ -10,7 +10,7 @@ alwaysApply: true
 
 ## Scope
 
-The production roleplay UI is the Firebase **App Hosting** backend `adecco-roleplay` in `adecco-mendan` / `asia-east1` at `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app`.
+The production roleplay UI is the Firebase **App Hosting** backend `adecco-roleplay` in `adecco-mendan` / `asia-east1`. Customer-facing traffic uses `https://roleplay.mendan.biz`; the default App Hosting `hosted.app` URL is internal verification / rollback only.
 
 The legacy Cloud Run service `roleplay-ui` covered in [`docs/deploy.md`](../../docs/deploy.md) is kept for older A/B routes only. **Do NOT run `gcloud run deploy roleplay-ui` for Grok Voice or registered-speech changes** — they will not reach the live App Hosting URL.
 
@@ -29,6 +29,10 @@ Wraps:
 5. Post-deploy `/api/v3/session` verification
 
 Bare `firebase deploy` is acceptable for Cloud Build debugging only. **App Hosting is NOT auto-deployed on main push** — `pnpm deploy:adecco-roleplay` is the only path that makes new code live.
+
+## Production source of truth
+
+Customer-facing closeout deploys must come from the intended merged `origin/main` commit. Before deploy, compare `git rev-parse HEAD` with `git rev-parse origin/main`. If an unmerged local commit is deployed for emergency validation, treat production as drifted until the diff is PR'd, merged, verified with `git show origin/main:<path>`, and redeployed from `origin/main`.
 
 ## Auth credential gotcha (load-bearing)
 
@@ -57,9 +61,11 @@ pnpm deploy:adecco-roleplay
 
 The wrapper's verify step only checks `guardrailVersion`. For deploys that change registered-speech artifacts, also fetch `/api/v3/session` and confirm `registeredSpeech.buildId` matches the just-promoted buildId. Snippet in [`docs/deploy-app-hosting.md`](../../docs/deploy-app-hosting.md) §Step 3.
 
+For enterprise relay routes (`v25`, `v50`, `v50.1`), verify summarized session/browser evidence from `https://roleplay.mendan.biz`: relay transport, `wss://voice.mendan.biz/api/v3/realtime-relay`, no browser ephemeral token, and no direct `wss://api.x.ai`. Cloud Logging structured relay assertions use `jsonPayload.scope="grokVoice.realtimeRelay"` and `jsonPayload.phase`.
+
 ## AccessGate (browser smoke 401)
 
-The demo URL `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v3` is gated by HMAC-signed cookies of `DEMO_ACCESS_TOKEN`:
+The demo URL `https://roleplay.mendan.biz/demo/<slug>` is gated by HMAC-signed cookies of `DEMO_ACCESS_TOKEN`:
 
 | Cookie | Path | Notes |
 |---|---|---|

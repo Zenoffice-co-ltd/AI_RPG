@@ -26,6 +26,43 @@ Use this skill when the job is to prove that the repo is shippable.
 5. When a legacy scenario fails during a new-scenario task, compare the relevant generated scenario/assets and live test definition before calling it a regression. If needed, use a temporary clean worktree at the pre-task baseline to establish causality.
 6. Record concrete evidence, not just that scripts exist.
 
+## Enterprise Relay Closeout
+
+Use this subsection when closing v25 or Grok-first v50-family work that routes
+browser realtime traffic through the Cloud Run relay.
+
+Minimum evidence:
+
+1. PR URL and merge commit.
+2. `origin/main` contains the intended unique lines via `git show
+   origin/main:<path>`; do not rely only on the PR badge or local worktree.
+3. App Hosting rollout id from a deploy that used the intended merged
+   `origin/main` commit.
+4. Cloud Run relay revision and traffic percent when relay code or env changed.
+5. Session contract summary only: `realtimeTransport=mendan_cloud_run_relay_wss`,
+   `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`,
+   `realtimeAuth.mode=mendan_relay_subprotocol`, and no browser
+   `ephemeralToken`.
+6. Browser E2E artifact paths only; do not commit `out/`, screenshots, audio,
+   transcripts, or raw Cloud Logging JSON.
+7. Browser WebSocket evidence shows `wss://voice.mendan.biz/api/v3/realtime-relay`
+   and no direct `wss://api.x.ai` for relay routes.
+8. Cloud Logging structured relay assertions use
+   `jsonPayload.scope="grokVoice.realtimeRelay"` and read the phase from
+   `jsonPayload.phase` (`client.connected`, `ticket.accepted`,
+   `upstream.connected`). Filter to structured relay logs before running
+   forbidden-content scans.
+
+Customer-facing allowlist for relay trial routes:
+
+- `https://roleplay.mendan.biz` TCP 443
+- `https://voice.mendan.biz` TCP 443
+- `wss://voice.mendan.biz` TCP 443
+- Browser microphone permission
+
+Direct browser access to `api.x.ai` is not required for relay routes. Keep
+`api.x.ai` in CSP only while direct-path comparison routes still exist.
+
 ## Grok Voice v2.1 PR58+ Release DOD
 
 Use this subsection when validating, deploying, or closing follow-up work for

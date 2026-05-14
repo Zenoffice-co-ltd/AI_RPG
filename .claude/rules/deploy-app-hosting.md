@@ -11,7 +11,8 @@ The production roleplay UI is the Firebase **App Hosting** backend:
 | Backend | `adecco-roleplay` |
 | Project | `adecco-mendan` |
 | Region | `asia-east1` |
-| Live URL | `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app` |
+| Customer-facing live URL | `https://roleplay.mendan.biz` |
+| App Hosting default URL | `https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app` (internal verification / rollback only) |
 | Demo path | `/demo/adecco-roleplay-v3` |
 | Compute SA | `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` |
 
@@ -32,6 +33,15 @@ Wraps:
 5. Post-deploy `/api/v3/session` verification (prints new `guardrailVersion` / `promptVersion`)
 
 Bare `firebase deploy` is acceptable for Cloud Build debugging only. **App Hosting is NOT auto-deployed on main push** — `pnpm deploy:adecco-roleplay` is the only path that makes new code live.
+
+## Production source of truth
+
+Customer-facing closeout deploys must come from the intended merged
+`origin/main` commit. Before deploy, compare `git rev-parse HEAD` with
+`git rev-parse origin/main`. If an unmerged local commit is deployed for
+emergency validation, treat production as drifted until the diff is PR'd,
+merged, verified with `git show origin/main:<path>`, and redeployed from
+`origin/main`.
 
 ## Auth credential gotcha (load-bearing)
 
@@ -70,9 +80,16 @@ pnpm deploy:adecco-roleplay
 
 The wrapper's verify step only checks `guardrailVersion`. For deploys that change registered-speech artifacts (most current work), also fetch `/api/v3/session` and confirm `registeredSpeech.buildId` matches the just-promoted buildId. Snippet in [`docs/deploy-app-hosting.md`](../../docs/deploy-app-hosting.md) §Step 3.
 
+For enterprise relay routes (`v25`, `v50`, `v50.1`), verify summarized
+session/browser evidence from `https://roleplay.mendan.biz`: relay transport,
+`wss://voice.mendan.biz/api/v3/realtime-relay`, no browser ephemeral token, and
+no direct `wss://api.x.ai`. Cloud Logging structured relay assertions use
+`jsonPayload.scope="grokVoice.realtimeRelay"` and `jsonPayload.phase`.
+
 ## AccessGate (browser smoke 401)
 
-The demo URL is gated by an HMAC-signed cookie of `DEMO_ACCESS_TOKEN`:
+The demo URL `https://roleplay.mendan.biz/demo/<slug>` is gated by an
+HMAC-signed cookie of `DEMO_ACCESS_TOKEN`:
 
 | Cookie | Path | Notes |
 |---|---|---|
