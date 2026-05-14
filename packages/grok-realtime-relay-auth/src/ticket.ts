@@ -12,11 +12,15 @@ export const DEFAULT_RELAY_TICKET_TTL_SECONDS = 60;
 export type RelayTicketDemoSlug =
   | "adecco-roleplay-v25"
   | "adecco-roleplay-v50"
-  | "adecco-roleplay-v50-1";
+  | "adecco-roleplay-v50-1"
+  | "adecco-roleplay-v50-4";
 
 export type RelayTicketRouterVariant = "B_NARROW_FALLBACK_SEMANTIC";
 
-export type RelayTicketBackend = "grok-first-v50" | "grok-first-v50-1";
+export type RelayTicketBackend =
+  | "grok-first-v50"
+  | "grok-first-v50-1"
+  | "grok-first-v50-4";
 
 export type RelayTicketPayload = {
   aud: string;
@@ -183,6 +187,9 @@ function isValidTicketIdentity(
   }
   if (parsed.demoSlug === "adecco-roleplay-v50-1") {
     return parsed.routerVariant === undefined && parsed.backend === "grok-first-v50-1";
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50-4") {
+    return parsed.routerVariant === undefined && parsed.backend === "grok-first-v50-4";
   }
   return false;
 }

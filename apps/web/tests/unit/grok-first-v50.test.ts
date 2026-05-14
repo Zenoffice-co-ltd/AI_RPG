@@ -3,6 +3,10 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import {
+  DEFAULT_RELAY_TICKET_PATH,
+  verifyRelayTicket,
+} from "@top-performer/grok-realtime-relay-auth";
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { signAccessToken } from "../../lib/roleplay/auth";
@@ -54,6 +58,20 @@ function validV501Request() {
     cookie: `roleplay_api_access=${signAccessToken("demo-secret")}`,
   });
   return new NextRequest("http://127.0.0.1:3000/api/grok-first-v50-1/session", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({}),
+  });
+}
+
+function validV504Request() {
+  const headers = new Headers({
+    "content-type": "application/json",
+    origin: "http://127.0.0.1:3000",
+    referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v50-4",
+    cookie: `roleplay_api_access=${signAccessToken("demo-secret")}`,
+  });
+  return new NextRequest("http://127.0.0.1:3000/api/grok-first-v50-4/session", {
     method: "POST",
     headers,
     body: JSON.stringify({}),
@@ -153,6 +171,64 @@ describe("grok-first v50 runtime", () => {
     expect(String(body["instructions"])).toContain(
       "浅い質問には、浅く答えます。"
     );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("serves v50.4 with the relay-based prompt-only route identity", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const { POST } = await import("../../app/api/grok-first-v50-4/session/route");
+    const response = await POST(validV504Request());
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(body["demoSlug"]).toBe("adecco-roleplay-v50-4");
+    expect(body["backend"]).toBe("grok-first-v50-4");
+    expect(body["scenarioId"]).toBe(
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_4"
+    );
+    expect(body["promptVersion"]).toBe("grok-first-v50.4-2026-05-15");
+    expect(body["model"]).toBe("grok-voice-think-fast-1.0");
+    expect(body["voiceId"]).toBe("99c95cc8a177");
+    expect(body["realtimeTransport"]).toBe("mendan_cloud_run_relay_wss");
+    expect(body["wsUrl"]).toBe("wss://voice.mendan.biz/api/v3/realtime-relay");
+    expect(body["firstMessage"]).toBe(
+      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。"
+    );
+
+    const instructions = String(body["instructions"]);
+    expect(instructions).toContain("# v50.4");
+    expect(instructions).toContain("STT Noise Handling");
+    expect(instructions).toContain("候補者供給可能性");
+    expect(instructions).toContain("## 終了");
+    expect(instructions).toContain("フィードバック要求");
+
+    expect(body["registeredSpeech"]).toBeUndefined();
+    expect(body["lockedResponseAudioBundle"]).toBeUndefined();
+    expect(body["ephemeralToken"]).toBeUndefined();
+    expect(body["ephemeralExpiresAt"]).toBeUndefined();
+    expect(body["registeredSpeechPayloadIncluded"]).toBe(false);
+    expect(body["lockedResponseAudioBundleIncluded"]).toBe(false);
+    expect(body["runtimeTtsEnabled"]).toBe(false);
+    expect(body["replacementTtsEnabled"]).toBe(false);
+
+    const auth = body["realtimeAuth"] as Record<string, unknown>;
+    expect(auth["mode"]).toBe("mendan_relay_subprotocol");
+    expect(auth["protocol"]).toBe("mendan-relay-v1");
+    const verification = verifyRelayTicket({
+      ticket: String(auth["ticket"]),
+      secret: "0123456789abcdef0123456789abcdef",
+      expectedAud: "voice.mendan.biz",
+      expectedPath: DEFAULT_RELAY_TICKET_PATH,
+    });
+    expect(verification).toMatchObject({
+      ok: true,
+      payload: {
+        demoSlug: "adecco-roleplay-v50-4",
+        backend: "grok-first-v50-4",
+        transport: "mendan_cloud_run_relay_wss",
+      },
+    });
+    expect(JSON.stringify(body)).not.toContain("0123456789abcdef0123456789abcdef");
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -269,6 +345,7 @@ describe("grok-first v50 runtime", () => {
   it("keeps prompt free of exact-answer locks and evaluation-role framing", () => {
     const prompt = buildGrokFirstV50Prompt();
     const v501Prompt = buildGrokFirstV50Prompt("v50.1");
+    const v504Prompt = buildGrokFirstV50Prompt("v50.4");
     expect(prompt.instructions).toContain("Reveal Depth");
     expect(prompt.instructions).toContain("Culture Fit Facts");
     expect(prompt.instructions).toContain("Job Level Facts");
@@ -286,6 +363,14 @@ describe("grok-first v50 runtime", () => {
     );
     expect(v501Prompt.promptVersion).toBe("grok-first-v50.1-2026-05-14");
     expect(() => assertPromptDenylist(v501Prompt.instructions)).not.toThrow();
+    expect(v504Prompt.instructions).toContain("# v50.4");
+    expect(v504Prompt.instructions).toContain("STT Noise Handling");
+    expect(v504Prompt.instructions).toContain("候補者供給可能性");
+    expect(v504Prompt.firstMessage).toBe(
+      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。"
+    );
+    expect(v504Prompt.promptVersion).toBe("grok-first-v50.4-2026-05-15");
+    expect(() => assertPromptDenylist(v504Prompt.instructions)).not.toThrow();
   });
 
   it("negative guard never generates fallback text", () => {

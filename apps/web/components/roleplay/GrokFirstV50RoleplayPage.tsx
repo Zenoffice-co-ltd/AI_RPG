@@ -18,7 +18,10 @@ export type GrokFirstV50RouteProps = {
 
 export type GrokFirstV50PageProps = GrokFirstV50RouteProps & {
   accessAction?: string;
-  apiBase?: "/api/grok-first-v50" | "/api/grok-first-v50-1";
+  apiBase?:
+    | "/api/grok-first-v50"
+    | "/api/grok-first-v50-1"
+    | "/api/grok-first-v50-4";
 };
 
 export async function GrokFirstV50RoleplayPage({

@@ -4,6 +4,9 @@ import {
   DEFAULT_RELAY_TICKET_PATH,
   hashRelaySessionId,
   verifyRelayTicket,
+  type RelayTicketBackend,
+  type RelayTicketDemoSlug,
+  type RelayTicketRouterVariant,
 } from "@top-performer/grok-realtime-relay-auth";
 import { logRelay } from "./logging";
 import { createUpstream } from "./upstream";
@@ -162,9 +165,9 @@ export function createRelayServer(options: RelayServerOptions = {}) {
 type UpgradeContext = {
   ok: true;
   sessionId: string;
-  demoSlug: "adecco-roleplay-v25" | "adecco-roleplay-v50" | "adecco-roleplay-v50-1";
-  routerVariant?: "B_NARROW_FALLBACK_SEMANTIC" | undefined;
-  backend?: "grok-first-v50" | "grok-first-v50-1" | undefined;
+  demoSlug: RelayTicketDemoSlug;
+  routerVariant?: RelayTicketRouterVariant | undefined;
+  backend?: RelayTicketBackend | undefined;
   transport: "mendan_cloud_run_relay_wss";
 };
 
