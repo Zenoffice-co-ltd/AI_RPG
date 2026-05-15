@@ -93,7 +93,10 @@ Session defaults:
   `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, and
   `realtimeAuth.mode=mendan_relay_subprotocol`. These sessions do not issue xAI
   ephemeral tokens to the browser; the browser sends a 60-second MENDAN relay
-  ticket via `Sec-WebSocket-Protocol`.
+  ticket via `Sec-WebSocket-Protocol`. Adding a new v50-family
+  `demoSlug` / `backend` identity requires deploying both App Hosting and the
+  Cloud Run relay image; otherwise the session route may mint a ticket that the
+  older relay rejects as `ticket.rejected reason=malformed`.
 
 DOD:
 
@@ -260,6 +263,22 @@ zero fixed-answer counters, and zero audible forbidden suffix / closing-question
 counters. Set `GROK_FIRST_V50_BROWSER_BASE_URL=http://127.0.0.1:3000` to run
 the same browser-audio gate against a local server. Evidence is written under
 `out/grok_first_v50_browser_live_audio_e2e/` and must stay out of commits.
+
+Workbook-driven production voice E2E for v50.4:
+
+```bash
+corepack pnpm grok-first:v50:xlsx-voice-e2e -- \
+  --xlsx "<path-to-v50.4-workbook.xlsx>" \
+  --tier smoke
+```
+
+This reads the workbook scenario and turn sheets, synthesizes sales utterances
+to local WAV, streams PCM through `wss://voice.mendan.biz/api/v3/realtime-relay`,
+and records xAI STT plus assistant audio transcript. Follow the workbook run
+plan: run Smoke/P0 first, stop Core/Full if P0 fails, and report pass rate,
+P0 pass rate, forbidden-hit count, first-audio p50/p95, session identity, and
+the Cloud Run relay revision. Evidence is written under
+`out/v50_4_voice_e2e/` and must stay out of commits.
 
 Latency DOD comparison helper:
 

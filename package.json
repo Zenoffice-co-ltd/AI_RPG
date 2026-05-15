@@ -43,6 +43,7 @@
     "grok-first:v50:browser-live-audio-e2e": "node scripts/grok-first-v50-browser-live-audio-e2e.mjs",
     "grok-first:v50:latency-dod": "node scripts/grok-first-v50-latency-dod.mjs",
     "grok-first:v50:live-e2e": "tsx scripts/grok-first-v50-live-e2e.ts",
+    "grok-first:v50:xlsx-voice-e2e": "tsx scripts/grok-first-v50-xlsx-voice-e2e.ts",
     "grok:build-registered-speech": "tsx scripts/grok-voice-build-registered-speech.ts",
     "grok:promote-registered-speech": "tsx scripts/grok-voice-promote-registered-speech.ts",
     "grok:haruto-ab-build": "tsx scripts/grok-voice-haruto-ab-build.ts",

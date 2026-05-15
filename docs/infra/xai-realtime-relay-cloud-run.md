@@ -1,6 +1,7 @@
 # xAI Realtime Relay on Cloud Run
 
-This runbook publishes the v25 MENDAN relay at `voice.mendan.biz`.
+This runbook publishes the MENDAN xAI Realtime relay at `voice.mendan.biz`.
+It serves v25 and Grok-first v50-family routes such as v50, v50.1, and v50.4.
 
 ## Service
 
@@ -14,6 +15,10 @@ This runbook publishes the v25 MENDAN relay at `voice.mendan.biz`.
 
 Build the container from the repository root so the workspace package
 `@top-performer/grok-realtime-relay-auth` is included in the Docker context.
+When a PR adds a new relay-ticket identity, for example a new
+`demoSlug` / `backend` pair for a v50-family route, deploying App Hosting alone
+is not enough. Rebuild and redeploy this relay service too; otherwise production
+sessions can mint the new ticket while the relay still rejects it as malformed.
 
 ```bash
 IMAGE="gcr.io/adecco-mendan/xai-realtime-relay:$(git rev-parse --short HEAD)"
@@ -37,6 +42,25 @@ gcloud run deploy xai-realtime-relay \
   --no-cpu-throttling \
   --env-vars-file=apps/xai-realtime-relay/env.production.example.yaml \
   --update-secrets=XAI_API_KEY=XAI_API_KEY:latest,XAI_RELAY_TICKET_SECRET=XAI_RELAY_TICKET_SECRET:latest
+```
+
+On PowerShell, quote the comma-separated secret map so `gcloud` does not parse
+it as a single invalid secret spec:
+
+```powershell
+gcloud run deploy xai-realtime-relay `
+  --project=adecco-mendan `
+  --region=us-east1 `
+  --image="$IMAGE" `
+  --service-account=xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com `
+  --allow-unauthenticated `
+  --ingress=internal-and-cloud-load-balancing `
+  --timeout=3600s `
+  --min-instances=1 `
+  --concurrency=100 `
+  --no-cpu-throttling `
+  --env-vars-file=apps/xai-realtime-relay/env.production.example.yaml `
+  --update-secrets='XAI_API_KEY=XAI_API_KEY:latest,XAI_RELAY_TICKET_SECRET=XAI_RELAY_TICKET_SECRET:latest'
 ```
 
 Use an env file for deploys because comma-separated origin allowlists are easy
@@ -143,3 +167,17 @@ first.upstream.audio.delta
 
 There should be no `ticket.rejected`, `relay.error`, browser WebSocket 403, or
 browser close code 1006 for the verified session.
+
+Troubleshooting:
+
+- `ticket.rejected reason=origin`: the WebSocket did not send an allowed
+  `Origin` header.
+- `ticket.rejected reason=malformed` immediately after adding a new
+  v50-family route usually means `@top-performer/grok-realtime-relay-auth` was
+  updated in App Hosting but the Cloud Run relay is still on an older image.
+  Deploy this service and confirm the latest ready revision receives
+  `ticket.accepted`.
+- A release closeout for relay routes should include the Cloud Run revision,
+  traffic percent, and structured log phases `client.connected`,
+  `ticket.accepted`, `upstream.connected`, and at least one
+  `first.upstream.audio.delta` from the target demo slug.

@@ -30,6 +30,7 @@ out/registered-speech-build/
 out/grok_first_v50_browser_dod_e2e/
 out/grok_first_v50_browser_live_audio_e2e/
 out/grok_first_v50_live_e2e/
+out/v50_4_voice_e2e/
 out/grok_first_v50_cloud_*.json
 out/grok_first_v50_local_next*.log
 # Ignore Claude Code local state (worktrees, scheduled task locks, etc.).

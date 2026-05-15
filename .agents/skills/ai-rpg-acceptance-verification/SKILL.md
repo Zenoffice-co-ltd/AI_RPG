@@ -52,6 +52,10 @@ Minimum evidence:
    `jsonPayload.phase` (`client.connected`, `ticket.accepted`,
    `upstream.connected`). Filter to structured relay logs before running
    forbidden-content scans.
+9. If a new relay-ticket `demoSlug` / `backend` pair was added, confirm the
+   Cloud Run relay image was rebuilt from the merged commit. A production
+   `ticket.rejected reason=malformed` for the new slug usually means App
+   Hosting is newer than the relay verifier.
 
 Customer-facing allowlist for relay trial routes:
 
@@ -62,6 +66,48 @@ Customer-facing allowlist for relay trial routes:
 
 Direct browser access to `api.x.ai` is not required for relay routes. Keep
 `api.x.ai` in CSP only while direct-path comparison routes still exist.
+
+## Workbook Voice E2E
+
+Use this subsection when the operator provides an Excel workbook of v50-family
+voice E2E cases.
+
+Canonical command:
+
+```bash
+corepack pnpm grok-first:v50:xlsx-voice-e2e -- \
+  --xlsx "<path-to-workbook.xlsx>" \
+  --tier smoke
+```
+
+The harness reads `01_E2E_Scenarios` and `02_Turn_Cases`, generates local WAV
+fixtures for sales utterances, streams PCM to the production relay, and records
+both xAI STT transcript and assistant audio transcript. Evidence is written
+under `out/v50_4_voice_e2e/<timestamp>/`; do not commit the generated audio,
+transcripts, screenshots, or raw Cloud Logging JSON.
+
+Follow the workbook run plan:
+
+1. Run Smoke/P0 first.
+2. If P0 fails, stop Core/Full and report the failure set.
+3. If P0 passes, proceed to Core and then Full as requested.
+
+Report at minimum:
+
+- scenario count and turn count
+- overall pass rate and P0 pass rate
+- forbidden-hit count and top forbidden phrases
+- first audio delta p50/p95 and done p50/p95
+- session identity: `demoSlug`, `backend`, `promptVersion`, model, voice
+- relay revision and traffic percent
+- structured relay phases: `ticket.accepted`, `upstream.connected`, and
+  `first.upstream.audio.delta`
+
+For v50.4 specifically, the expected session identity is
+`demoSlug=adecco-roleplay-v50-4`,
+`backend=grok-first-v50-4`,
+`promptVersion=grok-first-v50.4-2026-05-15`,
+model `grok-voice-think-fast-1.0`, and voice `99c95cc8a177`.
 
 ## Grok Voice v2.1 PR58+ Release DOD
 

@@ -146,6 +146,14 @@ v50.4 is an additive research route at
 `https://roleplay.mendan.biz/demo/adecco-roleplay-v50-4`; it uses
 `/api/grok-first-v50-4/*`, `promptVersion=grok-first-v50.4-2026-05-15`, the
 same v50.1 relay contract, and no registered-speech or locked-response payload.
+When adding or changing v50-family relay identities, update both sides of the
+relay contract: App Hosting mints the ticket, but Cloud Run
+`xai-realtime-relay` verifies it through
+`@top-performer/grok-realtime-relay-auth`. If production logs show
+`jsonPayload.phase="ticket.rejected"` with `reason="malformed"` for a newly
+added `demoSlug` / `backend`, deploy the relay image from the merged commit and
+then verify `ticket.accepted`, `upstream.connected`, and
+`first.upstream.audio.delta` for the target slug.
 The v25 customer-facing URL is `https://roleplay.mendan.biz/demo/adecco-roleplay-v25`.
 v50-family research URLs use `https://roleplay.mendan.biz/demo/adecco-roleplay-v50`
 and versioned siblings such as `/demo/adecco-roleplay-v50-1` and
@@ -182,6 +190,21 @@ for the live browser + real xAI WebAudio playback gate. Use
 `corepack pnpm grok-first:v50:live-e2e -- --rounds 5` for the live transcript
 five-run variance gate. Keep evidence under `out/` and do not commit raw
 transcripts, audio, screenshots, or Cloud Logging JSON.
+
+For v50.4 workbook-driven voice checks, use the production relay harness:
+
+```bash
+corepack pnpm grok-first:v50:xlsx-voice-e2e -- \
+  --xlsx "C:\Users\yukih\Downloads\v50_4_only_complete_e2e_test_cases.xlsx" \
+  --tier smoke
+```
+
+The harness synthesizes each sales utterance to local WAV, streams PCM through
+`voice.mendan.biz`, captures xAI STT transcript plus assistant audio transcript,
+and writes `summary.json` / `report.md` under `out/v50_4_voice_e2e/<timestamp>/`.
+Follow the workbook run plan: run Smoke/P0 first, and stop Core/Full if P0
+fails. Report pass rate, P0 pass rate, forbidden-hit count, latency p50/p95,
+the App Hosting session identity, and the Cloud Run relay revision.
 
 ## Single-login UX
 
