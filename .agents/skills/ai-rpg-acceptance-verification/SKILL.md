@@ -72,6 +72,11 @@ Direct browser access to `api.x.ai` is not required for relay routes. Keep
 Use this subsection when the operator provides an Excel workbook of v50-family
 voice E2E cases.
 
+For predeploy prompt-quality checks, first use `ai-rpg-predeploy-voice-e2e` so
+the local/PR prompt is tested directly against xAI Realtime before any
+production deploy. Use the command below for production session/relay evidence
+after deploy.
+
 Canonical command:
 
 ```bash

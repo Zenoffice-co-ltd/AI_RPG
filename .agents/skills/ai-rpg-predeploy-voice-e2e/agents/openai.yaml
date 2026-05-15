@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI RPG Predeploy Voice E2E"
+  short_description: "Check prompt voice quality before production deploy."
+  default_prompt: "Use $ai-rpg-predeploy-voice-e2e to run a predeploy prompt-quality voice E2E check."
