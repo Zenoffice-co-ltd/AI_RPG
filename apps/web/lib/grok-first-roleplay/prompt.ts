@@ -1,8 +1,5 @@
 import { createHash } from "node:crypto";
-import {
-  GROK_FIRST_V50_MODEL,
-  GROK_FIRST_V50_VOICE_ID,
-} from "./types";
+import { GROK_FIRST_V50_MODEL, GROK_FIRST_V50_VOICE_ID } from "./types";
 import {
   GROK_FIRST_V50_1_FIRST_MESSAGE,
   GROK_FIRST_V50_1_SYSTEM_PROMPT,
@@ -11,6 +8,14 @@ import {
   GROK_FIRST_V50_4_FIRST_MESSAGE,
   GROK_FIRST_V50_4_SYSTEM_PROMPT,
 } from "./prompt-v50-4";
+import {
+  GROK_FIRST_V50_5_FIRST_MESSAGE,
+  GROK_FIRST_V50_5_SYSTEM_PROMPT,
+} from "./prompt-v50-5";
+import {
+  GROK_FIRST_V50_6_FIRST_MESSAGE,
+  GROK_FIRST_V50_6_SYSTEM_PROMPT,
+} from "./prompt-v50-6";
 
 export const GROK_FIRST_V50_SCENARIO_ID =
   "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50";
@@ -18,16 +23,27 @@ export const GROK_FIRST_V50_1_SCENARIO_ID =
   "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_1";
 export const GROK_FIRST_V50_4_SCENARIO_ID =
   "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_4";
+export const GROK_FIRST_V50_5_SCENARIO_ID =
+  "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_5";
+export const GROK_FIRST_V50_6_SCENARIO_ID =
+  "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_6";
 export const GROK_FIRST_V50_PROMPT_VERSION = "grok-first-v50-2026-05-13";
 export const GROK_FIRST_V50_1_PROMPT_VERSION = "grok-first-v50.1-2026-05-14";
 export const GROK_FIRST_V50_4_PROMPT_VERSION = "grok-first-v50.4-2026-05-15";
+export const GROK_FIRST_V50_5_PROMPT_VERSION = "grok-first-v50.5-2026-05-15";
+export const GROK_FIRST_V50_6_PROMPT_VERSION = "grok-first-v50.6-2026-05-15";
 export const GROK_FIRST_V50_GUARDRAIL_VERSION =
   "negative-guard-only-v50-2026-05-13";
 
 export const GROK_FIRST_V50_FIRST_MESSAGE =
   "お電話ありがとうございます。じんじ課の佐藤です。本日はよろしくお願いします。";
 
-export type GrokFirstPromptVariant = "v50" | "v50.1" | "v50.4";
+export type GrokFirstPromptVariant =
+  | "v50"
+  | "v50.1"
+  | "v50.4"
+  | "v50.5"
+  | "v50.6";
 
 export type GrokFirstPromptBuild = {
   instructions: string;
@@ -39,7 +55,7 @@ export type GrokFirstPromptBuild = {
 };
 
 export function buildGrokFirstV50Prompt(
-  variant: GrokFirstPromptVariant = "v50"
+  variant: GrokFirstPromptVariant = "v50",
 ): GrokFirstPromptBuild {
   if (variant === "v50.1") {
     return buildPrompt({
@@ -55,6 +71,22 @@ export function buildGrokFirstV50Prompt(
       promptVersion: GROK_FIRST_V50_4_PROMPT_VERSION,
       scenarioId: GROK_FIRST_V50_4_SCENARIO_ID,
       firstMessage: GROK_FIRST_V50_4_FIRST_MESSAGE,
+    });
+  }
+  if (variant === "v50.5") {
+    return buildPrompt({
+      instructions: GROK_FIRST_V50_5_SYSTEM_PROMPT,
+      promptVersion: GROK_FIRST_V50_5_PROMPT_VERSION,
+      scenarioId: GROK_FIRST_V50_5_SCENARIO_ID,
+      firstMessage: GROK_FIRST_V50_5_FIRST_MESSAGE,
+    });
+  }
+  if (variant === "v50.6") {
+    return buildPrompt({
+      instructions: GROK_FIRST_V50_6_SYSTEM_PROMPT,
+      promptVersion: GROK_FIRST_V50_6_PROMPT_VERSION,
+      scenarioId: GROK_FIRST_V50_6_SCENARIO_ID,
+      firstMessage: GROK_FIRST_V50_6_FIRST_MESSAGE,
     });
   }
 
@@ -144,7 +176,10 @@ function buildPrompt(input: {
   assertPromptDenylist(input.instructions);
   return {
     instructions: input.instructions,
-    promptHash: createHash("sha256").update(input.instructions).digest("hex").slice(0, 12),
+    promptHash: createHash("sha256")
+      .update(input.instructions)
+      .digest("hex")
+      .slice(0, 12),
     promptVersion: input.promptVersion,
     guardrailVersion: GROK_FIRST_V50_GUARDRAIL_VERSION,
     scenarioId: input.scenarioId,
@@ -169,6 +204,8 @@ export function assertPromptDenylist(instructions: string): void {
   ];
   const hit = forbidden.find((needle) => instructions.includes(needle));
   if (hit) {
-    throw new Error(`v50 prompt contains forbidden legacy/fixed-answer phrase: ${hit}`);
+    throw new Error(
+      `v50 prompt contains forbidden legacy/fixed-answer phrase: ${hit}`,
+    );
   }
 }

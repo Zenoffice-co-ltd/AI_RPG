@@ -5,15 +5,16 @@ import {
   createRelayTicket,
 } from "@top-performer/grok-realtime-relay-auth";
 import { ensureEnvLoaded } from "@/server/loadEnv";
-import {
-  buildGrokFirstV50Prompt,
-  type GrokFirstPromptVariant,
-} from "./prompt";
+import { buildGrokFirstV50Prompt, type GrokFirstPromptVariant } from "./prompt";
 import {
   GROK_FIRST_V50_1_BACKEND,
   GROK_FIRST_V50_1_DEMO_SLUG,
   GROK_FIRST_V50_4_BACKEND,
   GROK_FIRST_V50_4_DEMO_SLUG,
+  GROK_FIRST_V50_5_BACKEND,
+  GROK_FIRST_V50_5_DEMO_SLUG,
+  GROK_FIRST_V50_6_BACKEND,
+  GROK_FIRST_V50_6_DEMO_SLUG,
   GROK_FIRST_V50_BACKEND,
   GROK_FIRST_V50_DEMO_SLUG,
   GROK_FIRST_V50_MODEL,
@@ -44,20 +45,30 @@ export async function createGrokFirstV50Session(input?: {
   const voiceId = env.GROK_FIRST_V50_VOICE_ID ?? GROK_FIRST_V50_VOICE_ID;
   const sessionId = `gfv50_${randomUUID()}`;
   const identity =
-    variant === "v50.4"
+    variant === "v50.6"
       ? {
-          demoSlug: GROK_FIRST_V50_4_DEMO_SLUG,
-          backend: GROK_FIRST_V50_4_BACKEND,
+          demoSlug: GROK_FIRST_V50_6_DEMO_SLUG,
+          backend: GROK_FIRST_V50_6_BACKEND,
         }
-      : variant === "v50.1"
-      ? {
-          demoSlug: GROK_FIRST_V50_1_DEMO_SLUG,
-          backend: GROK_FIRST_V50_1_BACKEND,
-        }
-      : {
-          demoSlug: GROK_FIRST_V50_DEMO_SLUG,
-          backend: GROK_FIRST_V50_BACKEND,
-        };
+      : variant === "v50.5"
+        ? {
+            demoSlug: GROK_FIRST_V50_5_DEMO_SLUG,
+            backend: GROK_FIRST_V50_5_BACKEND,
+          }
+        : variant === "v50.4"
+          ? {
+              demoSlug: GROK_FIRST_V50_4_DEMO_SLUG,
+              backend: GROK_FIRST_V50_4_BACKEND,
+            }
+          : variant === "v50.1"
+            ? {
+                demoSlug: GROK_FIRST_V50_1_DEMO_SLUG,
+                backend: GROK_FIRST_V50_1_BACKEND,
+              }
+            : {
+                demoSlug: GROK_FIRST_V50_DEMO_SLUG,
+                backend: GROK_FIRST_V50_BACKEND,
+              };
   const ticket = createRelayTicket({
     secret: env.XAI_RELAY_TICKET_SECRET,
     ttlSeconds: 60,
@@ -114,12 +125,12 @@ export async function createGrokFirstV50Session(input?: {
 }
 
 export function assertGrokFirstV50SessionPayload(
-  session: GrokFirstV50Session
+  session: GrokFirstV50Session,
 ): void {
   const serialized = JSON.stringify(session);
   const forbidden = [
-    "\"registeredSpeech\":",
-    "\"lockedResponseAudioBundle\":",
+    '"registeredSpeech":',
+    '"lockedResponseAudioBundle":',
     "getPr60" + "LockedResponseForUser",
     "registered_speech",
     "lock_voice_",
@@ -128,7 +139,9 @@ export function assertGrokFirstV50SessionPayload(
   ];
   const hit = forbidden.find((needle) => serialized.includes(needle));
   if (hit) {
-    throw new Error(`v50 session payload contains forbidden fixed-answer surface: ${hit}`);
+    throw new Error(
+      `v50 session payload contains forbidden fixed-answer surface: ${hit}`,
+    );
   }
 }
 
@@ -148,7 +161,7 @@ export function buildRelayWsUrl(base: string): string {
   }
   if (parsed.pathname !== DEFAULT_RELAY_TICKET_PATH) {
     throw new Error(
-      `Grok-first v50 relay URL path must be ${DEFAULT_RELAY_TICKET_PATH}.`
+      `Grok-first v50 relay URL path must be ${DEFAULT_RELAY_TICKET_PATH}.`,
     );
   }
   if (parsed.search || parsed.hash) {

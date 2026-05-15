@@ -21,7 +21,9 @@ export type GrokFirstV50PageProps = GrokFirstV50RouteProps & {
   apiBase?:
     | "/api/grok-first-v50"
     | "/api/grok-first-v50-1"
-    | "/api/grok-first-v50-4";
+    | "/api/grok-first-v50-4"
+    | "/api/grok-first-v50-5"
+    | "/api/grok-first-v50-6";
 };
 
 export async function GrokFirstV50RoleplayPage({
@@ -41,7 +43,7 @@ export async function GrokFirstV50RoleplayPage({
   const params = await searchParams;
   const cookieStore = await cookies();
   const hasAccess = verifyAccessSignature(
-    cookieStore.get(DEMO_ACCESS_COOKIE)?.value
+    cookieStore.get(DEMO_ACCESS_COOKIE)?.value,
   );
   const mock = stringParam(params["mock"]) === "1";
   const visualTest = stringParam(params["visualTest"]) === "1";
@@ -69,7 +71,7 @@ export async function GrokFirstV50RoleplayPage({
 }
 
 export function shouldAllowGrokFirstV50PageInProduction(
-  env: NodeJS.ProcessEnv = process.env
+  env: NodeJS.ProcessEnv = process.env,
 ) {
   if (env["NODE_ENV"] !== "production") return true;
   if (env["GROK_FIRST_V50_BROWSER_DOD_E2E"] === "1") return true;

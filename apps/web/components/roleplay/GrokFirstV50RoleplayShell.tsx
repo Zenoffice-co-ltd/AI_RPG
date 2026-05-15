@@ -14,8 +14,7 @@ import type {
   RoleplayStatus,
 } from "@/lib/roleplay/conversation-types";
 
-const ROLEPLAY_TITLE =
-  "住宅設備メーカー 人事課主任 初回派遣オーダーヒアリング";
+const ROLEPLAY_TITLE = "住宅設備メーカー 人事課主任 初回派遣オーダーヒアリング";
 
 export function GrokFirstV50RoleplayShell({
   initialMock,
@@ -31,10 +30,12 @@ export function GrokFirstV50RoleplayShell({
   apiBase?:
     | "/api/grok-first-v50"
     | "/api/grok-first-v50-1"
-    | "/api/grok-first-v50-4";
+    | "/api/grok-first-v50-4"
+    | "/api/grok-first-v50-5"
+    | "/api/grok-first-v50-6";
 }) {
   const [mode, setMode] = useState<RoleplayMode>(() =>
-    initialMode(initialMock, visualTest, fakeLive)
+    initialMode(initialMock, visualTest, fakeLive),
   );
   const apiDeps = useMemo(
     () => ({
@@ -43,7 +44,7 @@ export function GrokFirstV50RoleplayShell({
         postGrokFirstV50Event(input, `${apiBase}/event`),
       micEnabled: true,
     }),
-    [apiBase]
+    [apiBase],
   );
   const roleplay = useGrokFirstRoleplayConversation(mode, apiDeps);
 
@@ -51,13 +52,20 @@ export function GrokFirstV50RoleplayShell({
     setMode(initialMode(initialMock, visualTest, fakeLive));
   }, [initialMock, visualTest, fakeLive]);
 
-  const orbState = useMemo(() => toOrbState(roleplay.status), [roleplay.status]);
+  const orbState = useMemo(
+    () => toOrbState(roleplay.status),
+    [roleplay.status],
+  );
 
   return (
     <main className="roleplay-root">
       <header className="roleplay-topbar" data-testid="roleplay-header">
         <nav className="roleplay-topbar__left" aria-label="会話ナビゲーション">
-          <a className="roleplay-topbar__logo" href="https://mendan.biz/" aria-label="MENDAN">
+          <a
+            className="roleplay-topbar__logo"
+            href="https://mendan.biz/"
+            aria-label="MENDAN"
+          >
             MENDAN
           </a>
         </nav>
@@ -92,14 +100,19 @@ export function GrokFirstV50RoleplayShell({
           limitWarning={roleplay.limitWarning}
           onSend={roleplay.sendTextMessage}
           onRetry={(message) => {
-            void roleplay.sendTextMessage(message.text, message.clientMessageId);
+            void roleplay.sendTextMessage(
+              message.text,
+              message.clientMessageId,
+            );
           }}
           onNewConversation={() => {
             void roleplay.startNewConversation();
           }}
         />
       </section>
-      {debugMetrics ? <DebugMetricsPanel metrics={roleplay.metricsLog} /> : null}
+      {debugMetrics ? (
+        <DebugMetricsPanel metrics={roleplay.metricsLog} />
+      ) : null}
     </main>
   );
 }
@@ -125,10 +138,14 @@ function DebugMetricsPanel({ metrics }: { metrics: GrokFirstV50Metric[] }) {
         boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
       }}
     >
-      <div style={{ fontWeight: 600, marginBottom: 6 }}>v50 latency / guard</div>
+      <div style={{ fontWeight: 600, marginBottom: 6 }}>
+        v50 latency / guard
+      </div>
       {metrics.slice(-5).map((m) => (
         <div key={`${m.sessionId}-${m.turnIndex}`} style={{ marginBottom: 6 }}>
-          <div>turn #{m.turnIndex} ({m.inputMode})</div>
+          <div>
+            turn #{m.turnIndex} ({m.inputMode})
+          </div>
           <div>firstAudible: {fmt(m.firstAudibleAudioMs)}</div>
           <div>firstDelta: {fmt(m.firstAudioDeltaMs)}</div>
           <div>tailHold: {m.tailGuardHoldMs}</div>
@@ -142,7 +159,7 @@ function DebugMetricsPanel({ metrics }: { metrics: GrokFirstV50Metric[] }) {
 function initialMode(
   initialMock: boolean,
   visualTest: boolean,
-  fakeLive: boolean
+  fakeLive: boolean,
 ): RoleplayMode {
   if (visualTest) return "visualTest";
   if (fakeLive) return "fakeLive";
@@ -150,7 +167,8 @@ function initialMode(
 }
 
 function toOrbState(state: RoleplayStatus) {
-  if (state === "thinking" || state === "connecting") return "thinking" as const;
+  if (state === "thinking" || state === "connecting")
+    return "thinking" as const;
   if (state === "listening" || state === "muted") return "listening" as const;
   if (state === "speaking" || state === "connected") return "talking" as const;
   return null;

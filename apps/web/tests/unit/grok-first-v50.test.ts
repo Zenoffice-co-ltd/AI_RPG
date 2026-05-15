@@ -78,13 +78,41 @@ function validV504Request() {
   });
 }
 
+function validV505Request() {
+  const headers = new Headers({
+    "content-type": "application/json",
+    origin: "http://127.0.0.1:3000",
+    referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v50-5",
+    cookie: `roleplay_api_access=${signAccessToken("demo-secret")}`,
+  });
+  return new NextRequest("http://127.0.0.1:3000/api/grok-first-v50-5/session", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({}),
+  });
+}
+
+function validV506Request() {
+  const headers = new Headers({
+    "content-type": "application/json",
+    origin: "http://127.0.0.1:3000",
+    referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v50-6",
+    cookie: `roleplay_api_access=${signAccessToken("demo-secret")}`,
+  });
+  return new NextRequest("http://127.0.0.1:3000/api/grok-first-v50-6/session", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({}),
+  });
+}
+
 describe("grok-first v50 runtime", () => {
   beforeEach(() => {
     vi.stubEnv("DEMO_ACCESS_TOKEN", "demo-secret");
     vi.stubEnv("XAI_RELAY_TICKET_SECRET", "0123456789abcdef0123456789abcdef");
     vi.stubEnv(
       "GROK_VOICE_RELAY_WS_URL",
-      "wss://voice.mendan.biz/api/v3/realtime-relay"
+      "wss://voice.mendan.biz/api/v3/realtime-relay",
     );
     vi.stubEnv("GROK_VOICE_RELAY_EXPECTED_AUD", "voice.mendan.biz");
   });
@@ -138,13 +166,16 @@ describe("grok-first v50 runtime", () => {
       outputFormat: "audio/pcm",
       sampleRate: 24_000,
     });
-    expect(JSON.stringify(body)).not.toContain("0123456789abcdef0123456789abcdef");
+    expect(JSON.stringify(body)).not.toContain(
+      "0123456789abcdef0123456789abcdef",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("serves v50.1 with the updated system prompt and route identity", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
-    const { POST } = await import("../../app/api/grok-first-v50-1/session/route");
+    const { POST } =
+      await import("../../app/api/grok-first-v50-1/session/route");
     const response = await POST(validV501Request());
     expect(response.status).toBe(200);
     const body = (await response.json()) as Record<string, unknown>;
@@ -156,27 +187,28 @@ describe("grok-first v50 runtime", () => {
     expect(body["ephemeralToken"]).toBeUndefined();
     expect(body["ephemeralExpiresAt"]).toBeUndefined();
     expect((body["realtimeAuth"] as Record<string, unknown>)["mode"]).toBe(
-      "mendan_relay_subprotocol"
+      "mendan_relay_subprotocol",
     );
     expect(body["scenarioId"]).toBe(
-      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_1"
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_1",
     );
     expect(body["promptVersion"]).toBe("grok-first-v50.1-2026-05-14");
     expect(body["firstMessage"]).toBe(
-      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。"
+      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。",
     );
     expect(String(body["instructions"])).toContain(
-      "# 派遣営業向けAIロープレ System Prompt"
+      "# 派遣営業向けAIロープレ System Prompt",
     );
     expect(String(body["instructions"])).toContain(
-      "浅い質問には、浅く答えます。"
+      "浅い質問には、浅く答えます。",
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("serves v50.4 with the relay-based prompt-only route identity", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
-    const { POST } = await import("../../app/api/grok-first-v50-4/session/route");
+    const { POST } =
+      await import("../../app/api/grok-first-v50-4/session/route");
     const response = await POST(validV504Request());
     expect(response.status).toBe(200);
     const body = (await response.json()) as Record<string, unknown>;
@@ -184,7 +216,7 @@ describe("grok-first v50 runtime", () => {
     expect(body["demoSlug"]).toBe("adecco-roleplay-v50-4");
     expect(body["backend"]).toBe("grok-first-v50-4");
     expect(body["scenarioId"]).toBe(
-      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_4"
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_4",
     );
     expect(body["promptVersion"]).toBe("grok-first-v50.4-2026-05-15");
     expect(body["model"]).toBe("grok-voice-think-fast-1.0");
@@ -192,7 +224,7 @@ describe("grok-first v50 runtime", () => {
     expect(body["realtimeTransport"]).toBe("mendan_cloud_run_relay_wss");
     expect(body["wsUrl"]).toBe("wss://voice.mendan.biz/api/v3/realtime-relay");
     expect(body["firstMessage"]).toBe(
-      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。"
+      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。",
     );
 
     const instructions = String(body["instructions"]);
@@ -228,8 +260,95 @@ describe("grok-first v50 runtime", () => {
         transport: "mendan_cloud_run_relay_wss",
       },
     });
-    expect(JSON.stringify(body)).not.toContain("0123456789abcdef0123456789abcdef");
+    expect(JSON.stringify(body)).not.toContain(
+      "0123456789abcdef0123456789abcdef",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("serves v50.5 with the fixed output-contract system prompt and route identity", async () => {
+    const { POST } =
+      await import("../../app/api/grok-first-v50-5/session/route");
+    const response = await POST(validV505Request());
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(body["demoSlug"]).toBe("adecco-roleplay-v50-5");
+    expect(body["backend"]).toBe("grok-first-v50-5");
+    expect(body["scenarioId"]).toBe(
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_5",
+    );
+    expect(body["promptVersion"]).toBe("grok-first-v50.5-2026-05-15");
+    expect(body["firstMessage"]).toBe(
+      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。",
+    );
+    const instructions = String(body["instructions"]);
+    expect(instructions).toContain("# v50.5");
+    expect(instructions).toContain("# Priority 0: 最上位出力契約");
+    expect(instructions).toContain("出力は必ず一文または二文。");
+    expect(instructions).toContain("社内の受注ツール");
+
+    const auth = body["realtimeAuth"] as Record<string, unknown>;
+    const verification = verifyRelayTicket({
+      ticket: String(auth["ticket"]),
+      secret: "0123456789abcdef0123456789abcdef",
+      expectedAud: "voice.mendan.biz",
+      expectedPath: DEFAULT_RELAY_TICKET_PATH,
+    });
+    expect(verification).toMatchObject({
+      ok: true,
+      payload: {
+        demoSlug: "adecco-roleplay-v50-5",
+        backend: "grok-first-v50-5",
+        transport: "mendan_cloud_run_relay_wss",
+      },
+    });
+    expect(body["ephemeralToken"]).toBeUndefined();
+    expect(body["ephemeralExpiresAt"]).toBeUndefined();
+  });
+
+  it("serves v50.6 with the one-sentence guarded system prompt and route identity", async () => {
+    const { POST } =
+      await import("../../app/api/grok-first-v50-6/session/route");
+    const response = await POST(validV506Request());
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(body["demoSlug"]).toBe("adecco-roleplay-v50-6");
+    expect(body["backend"]).toBe("grok-first-v50-6");
+    expect(body["scenarioId"]).toBe(
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_6",
+    );
+    expect(body["promptVersion"]).toBe("grok-first-v50.6-2026-05-15");
+    expect(body["firstMessage"]).toBe(
+      "お電話ありがとうございます。じんじ課の佐藤です。営業事務で一名、派遣の方を検討しています。",
+    );
+    const instructions = String(body["instructions"]);
+    expect(instructions).toContain("# v50.6");
+    expect(instructions).toContain("返答は原則一文だけ。");
+    expect(instructions).toContain(
+      "今回のご相談内容に戻らせていただいてもよろしいでしょうか？",
+    );
+    expect(instructions).toContain("候補者供給可能性を顧客側から質問しない。");
+    expect(instructions).toContain("社内の受注ツール");
+
+    const auth = body["realtimeAuth"] as Record<string, unknown>;
+    const verification = verifyRelayTicket({
+      ticket: String(auth["ticket"]),
+      secret: "0123456789abcdef0123456789abcdef",
+      expectedAud: "voice.mendan.biz",
+      expectedPath: DEFAULT_RELAY_TICKET_PATH,
+    });
+    expect(verification).toMatchObject({
+      ok: true,
+      payload: {
+        demoSlug: "adecco-roleplay-v50-6",
+        backend: "grok-first-v50-6",
+        transport: "mendan_cloud_run_relay_wss",
+      },
+    });
+    expect(body["ephemeralToken"]).toBeUndefined();
+    expect(body["ephemeralExpiresAt"]).toBeUndefined();
   });
 
   it("sends relay tickets through websocket subprotocols", () => {
@@ -239,7 +358,7 @@ describe("grok-first v50 runtime", () => {
         protocol: "mendan-relay-v1",
         ticket: "mra1.redacted.ticket",
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      })
+      }),
     ).toEqual(["mendan-relay-v1", "mendan-relay-ticket.mra1.redacted.ticket"]);
   });
 
@@ -248,36 +367,36 @@ describe("grok-first v50 runtime", () => {
       shouldAllowGrokFirstV50PageInProduction({
         NODE_ENV: "production",
         GROK_FIRST_V50_BROWSER_DOD_E2E: "1",
-      } as NodeJS.ProcessEnv)
+      } as NodeJS.ProcessEnv),
     ).toBe(true);
     expect(
       shouldAllowGrokFirstV50PageInProduction({
         NODE_ENV: "production",
-      } as NodeJS.ProcessEnv)
+      } as NodeJS.ProcessEnv),
     ).toBe(false);
     expect(
       shouldAllowGrokFirstV50PageInProduction({
         NODE_ENV: "production",
         XAI_RELAY_TICKET_SECRET: "0123456789abcdef0123456789abcdef",
-      } as NodeJS.ProcessEnv)
+      } as NodeJS.ProcessEnv),
     ).toBe(true);
   });
 
   it("fails fast on invalid relay websocket URLs", () => {
-    expect(buildRelayWsUrl("wss://voice.mendan.biz/api/v3/realtime-relay")).toBe(
-      "wss://voice.mendan.biz/api/v3/realtime-relay"
-    );
-    expect(() => buildRelayWsUrl("https://voice.mendan.biz/api/v3/realtime-relay")).toThrow(
-      "must use ws/wss"
-    );
+    expect(
+      buildRelayWsUrl("wss://voice.mendan.biz/api/v3/realtime-relay"),
+    ).toBe("wss://voice.mendan.biz/api/v3/realtime-relay");
+    expect(() =>
+      buildRelayWsUrl("https://voice.mendan.biz/api/v3/realtime-relay"),
+    ).toThrow("must use ws/wss");
     expect(() => buildRelayWsUrl("wss://voice.mendan.biz/wrong")).toThrow(
-      "path must be /api/v3/realtime-relay"
+      "path must be /api/v3/realtime-relay",
     );
     expect(() =>
-      buildRelayWsUrl("wss://voice.mendan.biz/api/v3/realtime-relay?model=x")
+      buildRelayWsUrl("wss://voice.mendan.biz/api/v3/realtime-relay?model=x"),
     ).toThrow("must not include query or hash");
     expect(() =>
-      buildRelayWsUrl("wss://voice.mendan.biz/api/v3/realtime-relay#frag")
+      buildRelayWsUrl("wss://voice.mendan.biz/api/v3/realtime-relay#frag"),
     ).toThrow("must not include query or hash");
   });
 
@@ -311,7 +430,7 @@ describe("grok-first v50 runtime", () => {
         userTextLen: 230,
         instructions: "internal role prompt",
       },
-      { debugTranscriptPreviewEnabled: true }
+      { debugTranscriptPreviewEnabled: true },
     );
 
     expect(String(sanitized["userTextPreview"])).toHaveLength(203);
@@ -322,7 +441,9 @@ describe("grok-first v50 runtime", () => {
   });
 
   it("applies transcript preview gating at the v50 event logger boundary", () => {
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const consoleSpy = vi
+      .spyOn(console, "log")
+      .mockImplementation(() => undefined);
     logGrokFirstV50ServerEvent({
       kind: "turn.completed",
       sessionId: "gfv50_test",
@@ -346,6 +467,8 @@ describe("grok-first v50 runtime", () => {
     const prompt = buildGrokFirstV50Prompt();
     const v501Prompt = buildGrokFirstV50Prompt("v50.1");
     const v504Prompt = buildGrokFirstV50Prompt("v50.4");
+    const v505Prompt = buildGrokFirstV50Prompt("v50.5");
+    const v506Prompt = buildGrokFirstV50Prompt("v50.6");
     expect(prompt.instructions).toContain("Reveal Depth");
     expect(prompt.instructions).toContain("Culture Fit Facts");
     expect(prompt.instructions).toContain("Job Level Facts");
@@ -356,10 +479,10 @@ describe("grok-first v50 runtime", () => {
     expect(prompt.instructions).not.toContain("routerVariant");
     expect(() => assertPromptDenylist(prompt.instructions)).not.toThrow();
     expect(v501Prompt.instructions).toContain(
-      "# 派遣営業向けAIロープレ System Prompt"
+      "# 派遣営業向けAIロープレ System Prompt",
     );
     expect(v501Prompt.firstMessage).toBe(
-      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。"
+      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。",
     );
     expect(v501Prompt.promptVersion).toBe("grok-first-v50.1-2026-05-14");
     expect(() => assertPromptDenylist(v501Prompt.instructions)).not.toThrow();
@@ -367,10 +490,30 @@ describe("grok-first v50 runtime", () => {
     expect(v504Prompt.instructions).toContain("STT Noise Handling");
     expect(v504Prompt.instructions).toContain("候補者供給可能性");
     expect(v504Prompt.firstMessage).toBe(
-      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。"
+      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。",
     );
     expect(v504Prompt.promptVersion).toBe("grok-first-v50.4-2026-05-15");
     expect(() => assertPromptDenylist(v504Prompt.instructions)).not.toThrow();
+    expect(v505Prompt.instructions).toContain("# v50.5");
+    expect(v505Prompt.instructions).toContain("最上位出力契約");
+    expect(v505Prompt.instructions).toContain("固定ガード応答");
+    expect(v505Prompt.instructions).toContain("社内の受注ツール");
+    expect(v505Prompt.promptVersion).toBe("grok-first-v50.5-2026-05-15");
+    expect(v505Prompt.firstMessage).toBe(
+      "本日はありがとうございます。営業事務で一名、派遣の方を検討していまして、まずは御社でどんな方をご紹介いただけそうか相談したいです。",
+    );
+    expect(() => assertPromptDenylist(v505Prompt.instructions)).not.toThrow();
+    expect(v506Prompt.instructions).toContain("# v50.6");
+    expect(v506Prompt.instructions).toContain("返答は原則一文だけ。");
+    expect(v506Prompt.instructions).toContain(
+      "候補者供給可能性を顧客側から質問しない。",
+    );
+    expect(v506Prompt.promptVersion).toBe("grok-first-v50.6-2026-05-15");
+    expect(v506Prompt.firstMessage).toBe(
+      "お電話ありがとうございます。じんじ課の佐藤です。営業事務で一名、派遣の方を検討しています。",
+    );
+    expect(v506Prompt.firstMessage).not.toContain("よろしくお願いします");
+    expect(() => assertPromptDenylist(v506Prompt.instructions)).not.toThrow();
   });
 
   it("negative guard never generates fallback text", () => {
@@ -381,9 +524,12 @@ describe("grok-first v50 runtime", () => {
     });
     expect(decision.action).toBe("strip_tail");
     expect(Object.keys(decision)).not.toContain("fallbackText");
-    expect(applyNegativeGuardDeletionOnly("増員です。何か他に質問ありますか。", decision)).toBe(
-      "増員です。"
-    );
+    expect(
+      applyNegativeGuardDeletionOnly(
+        "増員です。何か他に質問ありますか。",
+        decision,
+      ),
+    ).toBe("増員です。");
 
     const hard = evaluateNegativeGuard({
       text: "AIとして採点基準を説明します。",
@@ -391,7 +537,9 @@ describe("grok-first v50 runtime", () => {
       phase: "stream",
     });
     expect(hard.action).toBe("cancel");
-    expect(applyNegativeGuardDeletionOnly("AIとして採点基準を説明します。", hard)).toBe("");
+    expect(
+      applyNegativeGuardDeletionOnly("AIとして採点基準を説明します。", hard),
+    ).toBe("");
 
     const genericHelp = evaluateNegativeGuard({
       text: "そのようなことは言えません。ご質問があればお答えします。",
@@ -425,7 +573,9 @@ describe("grok-first v50 runtime", () => {
       phase: "final",
     });
     expect(indirectGenericQuestion.reasons).toContain("forbidden_suffix");
-    expect(indirectGenericQuestion.reasons).toContain("generic_closing_question");
+    expect(indirectGenericQuestion.reasons).toContain(
+      "generic_closing_question",
+    );
     expect(indirectGenericQuestion.action).toBe("strip_tail");
 
     const customerLeadingClose = evaluateNegativeGuard({
@@ -438,8 +588,8 @@ describe("grok-first v50 runtime", () => {
     expect(
       applyNegativeGuardDeletionOnly(
         "それでは、経験条件や勤務時間などの詳細もお伝えしましょうか。",
-        customerLeadingClose
-      )
+        customerLeadingClose,
+      ),
     ).toBe("");
 
     const sellingAcceptance = evaluateNegativeGuard({
@@ -452,8 +602,8 @@ describe("grok-first v50 runtime", () => {
     expect(
       applyNegativeGuardDeletionOnly(
         "ありがとうございます。要件に合う方ならぜひお願いします。",
-        sellingAcceptance
-      )
+        sellingAcceptance,
+      ),
     ).toBe("ありがとうございます。");
 
     const customerLedQuestion = evaluateNegativeGuard({
@@ -476,8 +626,8 @@ describe("grok-first v50 runtime", () => {
     expect(
       applyNegativeGuardDeletionOnly(
         "了解しました。具体的に条件をお聞きになりたい点があればおっしゃってください。",
-        saySomethingIfNeeded
-      )
+        saySomethingIfNeeded,
+      ),
     ).toBe("了解しました。");
   });
 
@@ -488,7 +638,7 @@ describe("grok-first v50 runtime", () => {
     const release = guard.push(bodyChunk, selectTailHoldMs({ risky: false }));
     expect(release.chunks.length).toBeGreaterThan(0);
     expect(guard.getMaxObservedHoldMs()).toBeLessThanOrEqual(
-      TAIL_GUARD_MAX_HOLD_MS
+      TAIL_GUARD_MAX_HOLD_MS,
     );
     const decision = evaluateNegativeGuard({
       text: "承知しました。何か他に質問ありますか。",
@@ -503,13 +653,13 @@ describe("grok-first v50 runtime", () => {
   it("v50 runtime source has no imports from fixed-answer systems", () => {
     const root = join(
       dirname(fileURLToPath(import.meta.url)),
-      "../../lib/grok-first-roleplay"
+      "../../lib/grok-first-roleplay",
     );
     const files = listFiles(root).filter((file) => /\.(ts|tsx)$/.test(file));
     const importLines = files.flatMap((file) =>
       readFileSync(file, "utf8")
         .split(/\r?\n/)
-        .filter((line) => /^\s*import\b/.test(line))
+        .filter((line) => /^\s*import\b/.test(line)),
     );
     const joined = importLines.join("\n");
     expect(joined).not.toContain("registered-speech");
@@ -528,14 +678,16 @@ describe("grok-first v50 runtime", () => {
     const { result } = renderHook(() =>
       useGrokFirstRoleplayConversation("live", {
         micEnabled: false,
-        fetchSession: vi.fn(async () => sessions.shift() ?? testSession("extra")),
+        fetchSession: vi.fn(
+          async () => sessions.shift() ?? testSession("extra"),
+        ),
         createRealtime: (opts) => {
           const realtime = new FakeRealtime(opts);
           realtimeInstances.push(realtime);
           return realtime as never;
         },
         createAudioQueue: () => fakeAudioQueue() as never,
-      })
+      }),
     );
 
     await act(async () => {
@@ -563,7 +715,7 @@ describe("grok-first v50 runtime", () => {
     expect(result.current.metricsLog[0]?.websocketReconnectCount).toBe(0);
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/grok-first-v50/event",
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({ method: "POST" }),
     );
   });
 });
@@ -580,7 +732,8 @@ function testSession(sessionId: string): GrokFirstV50Session {
     sessionId,
     demoSlug: "adecco-roleplay-v50",
     backend: "grok-first-v50",
-    scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50",
+    scenarioId:
+      "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50",
     promptVersion: "test",
     promptHash: "test",
     guardrailVersion: "test",
@@ -627,7 +780,7 @@ class FakeRealtime {
       onOpen?: () => void;
       onReady?: () => void;
       onClose?: (event: { code: number; reason: string }) => void;
-    }
+    },
   ) {}
 
   open() {

@@ -13,14 +13,18 @@ export type RelayTicketDemoSlug =
   | "adecco-roleplay-v25"
   | "adecco-roleplay-v50"
   | "adecco-roleplay-v50-1"
-  | "adecco-roleplay-v50-4";
+  | "adecco-roleplay-v50-4"
+  | "adecco-roleplay-v50-5"
+  | "adecco-roleplay-v50-6";
 
 export type RelayTicketRouterVariant = "B_NARROW_FALLBACK_SEMANTIC";
 
 export type RelayTicketBackend =
   | "grok-first-v50"
   | "grok-first-v50-1"
-  | "grok-first-v50-4";
+  | "grok-first-v50-4"
+  | "grok-first-v50-5"
+  | "grok-first-v50-6";
 
 export type RelayTicketPayload = {
   aud: string;
@@ -91,7 +95,7 @@ export function createRelayTicket(input: CreateRelayTicketInput): {
 }
 
 export function verifyRelayTicket(
-  input: VerifyRelayTicketInput
+  input: VerifyRelayTicketInput,
 ): RelayTicketVerificationResult {
   if (!input.secret || !input.ticket) return { ok: false, reason: "malformed" };
   const parts = input.ticket.split(".");
@@ -112,7 +116,8 @@ export function verifyRelayTicket(
   const nowSeconds = toSeconds(input.now ?? new Date());
   const skew = input.clockSkewSeconds ?? 10;
   if (payload.exp < nowSeconds - skew) return { ok: false, reason: "expired" };
-  if (payload.iat > nowSeconds + skew) return { ok: false, reason: "future_iat" };
+  if (payload.iat > nowSeconds + skew)
+    return { ok: false, reason: "future_iat" };
   if (payload.aud !== input.expectedAud) {
     return { ok: false, reason: "wrong_aud" };
   }
@@ -151,7 +156,7 @@ function encodeJsonBase64Url(payload: RelayTicketPayload): string {
 function decodePayload(value: string): RelayTicketPayload | null {
   try {
     const parsed = JSON.parse(
-      Buffer.from(value, "base64url").toString("utf8")
+      Buffer.from(value, "base64url").toString("utf8"),
     ) as Partial<RelayTicketPayload>;
     if (
       typeof parsed.aud !== "string" ||
@@ -172,7 +177,7 @@ function decodePayload(value: string): RelayTicketPayload | null {
 }
 
 function isValidTicketIdentity(
-  parsed: Partial<RelayTicketPayload>
+  parsed: Partial<RelayTicketPayload>,
 ): parsed is Partial<RelayTicketPayload> & {
   demoSlug: RelayTicketDemoSlug;
 } {
@@ -183,13 +188,33 @@ function isValidTicketIdentity(
     );
   }
   if (parsed.demoSlug === "adecco-roleplay-v50") {
-    return parsed.routerVariant === undefined && parsed.backend === "grok-first-v50";
+    return (
+      parsed.routerVariant === undefined && parsed.backend === "grok-first-v50"
+    );
   }
   if (parsed.demoSlug === "adecco-roleplay-v50-1") {
-    return parsed.routerVariant === undefined && parsed.backend === "grok-first-v50-1";
+    return (
+      parsed.routerVariant === undefined &&
+      parsed.backend === "grok-first-v50-1"
+    );
   }
   if (parsed.demoSlug === "adecco-roleplay-v50-4") {
-    return parsed.routerVariant === undefined && parsed.backend === "grok-first-v50-4";
+    return (
+      parsed.routerVariant === undefined &&
+      parsed.backend === "grok-first-v50-4"
+    );
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50-5") {
+    return (
+      parsed.routerVariant === undefined &&
+      parsed.backend === "grok-first-v50-5"
+    );
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50-6") {
+    return (
+      parsed.routerVariant === undefined &&
+      parsed.backend === "grok-first-v50-6"
+    );
   }
   return false;
 }

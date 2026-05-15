@@ -11,7 +11,7 @@ const SECRET = "0123456789abcdef0123456789abcdef";
 const NOW = new Date("2026-05-13T00:00:00.000Z");
 
 function payload(
-  overrides: Partial<Omit<RelayTicketPayload, "iat" | "exp" | "nonce">> = {}
+  overrides: Partial<Omit<RelayTicketPayload, "iat" | "exp" | "nonce">> = {},
 ) {
   return {
     aud: "voice.mendan.biz",
@@ -36,7 +36,11 @@ function verify(ticket: string) {
 
 describe("relay ticket auth", () => {
   it("accepts a valid ticket", () => {
-    const ticket = createRelayTicket({ secret: SECRET, payload: payload(), now: NOW });
+    const ticket = createRelayTicket({
+      secret: SECRET,
+      payload: payload(),
+      now: NOW,
+    });
     const result = verify(ticket.value);
     expect(result.ok).toBe(true);
     if (result.ok) {
@@ -44,7 +48,7 @@ describe("relay ticket auth", () => {
     }
   });
 
-  it("accepts valid v50, v50.1, and v50.4 relay tickets", () => {
+  it("accepts valid v50-family relay tickets", () => {
     const v50 = createRelayTicket({
       secret: SECRET,
       payload: payload({
@@ -72,6 +76,24 @@ describe("relay ticket auth", () => {
       }),
       now: NOW,
     });
+    const v505 = createRelayTicket({
+      secret: SECRET,
+      payload: payload({
+        demoSlug: "adecco-roleplay-v50-5",
+        routerVariant: undefined,
+        backend: "grok-first-v50-5",
+      }),
+      now: NOW,
+    });
+    const v506 = createRelayTicket({
+      secret: SECRET,
+      payload: payload({
+        demoSlug: "adecco-roleplay-v50-6",
+        routerVariant: undefined,
+        backend: "grok-first-v50-6",
+      }),
+      now: NOW,
+    });
 
     expect(verify(v50.value)).toMatchObject({
       ok: true,
@@ -94,6 +116,20 @@ describe("relay ticket auth", () => {
         backend: "grok-first-v50-4",
       },
     });
+    expect(verify(v505.value)).toMatchObject({
+      ok: true,
+      payload: {
+        demoSlug: "adecco-roleplay-v50-5",
+        backend: "grok-first-v50-5",
+      },
+    });
+    expect(verify(v506.value)).toMatchObject({
+      ok: true,
+      payload: {
+        demoSlug: "adecco-roleplay-v50-6",
+        backend: "grok-first-v50-6",
+      },
+    });
   });
 
   it("rejects mismatched v50 ticket identity", () => {
@@ -112,7 +148,10 @@ describe("relay ticket auth", () => {
       now: NOW,
     });
 
-    expect(verify(wrongBackend.value)).toEqual({ ok: false, reason: "malformed" });
+    expect(verify(wrongBackend.value)).toEqual({
+      ok: false,
+      reason: "malformed",
+    });
     expect(verify(v25MissingRouter.value)).toEqual({
       ok: false,
       reason: "malformed",
@@ -126,7 +165,20 @@ describe("relay ticket auth", () => {
       }),
       now: NOW,
     });
+    const v506WrongBackend = createRelayTicket({
+      secret: SECRET,
+      payload: payload({
+        demoSlug: "adecco-roleplay-v50-6",
+        routerVariant: undefined,
+        backend: "grok-first-v50-5",
+      }),
+      now: NOW,
+    });
     expect(verify(v504WrongBackend.value)).toEqual({
+      ok: false,
+      reason: "malformed",
+    });
+    expect(verify(v506WrongBackend.value)).toEqual({
       ok: false,
       reason: "malformed",
     });
@@ -163,11 +215,18 @@ describe("relay ticket auth", () => {
       payload: payload({ path: "/wrong" }),
       now: NOW,
     });
-    expect(verify(wrongPath.value)).toEqual({ ok: false, reason: "wrong_path" });
+    expect(verify(wrongPath.value)).toEqual({
+      ok: false,
+      reason: "wrong_path",
+    });
   });
 
   it("rejects modified payload or signature", () => {
-    const ticket = createRelayTicket({ secret: SECRET, payload: payload(), now: NOW });
+    const ticket = createRelayTicket({
+      secret: SECRET,
+      payload: payload(),
+      now: NOW,
+    });
     const [version, body, signature] = ticket.value.split(".");
     expect(verify(`${version}.${body}x.${signature}`)).toEqual({
       ok: false,
@@ -182,7 +241,11 @@ describe("relay ticket auth", () => {
   it("rejects malformed tickets without throwing on length differences", () => {
     expect(verify("")).toEqual({ ok: false, reason: "malformed" });
     expect(verify("mra1.only-two")).toEqual({ ok: false, reason: "malformed" });
-    const ticket = createRelayTicket({ secret: SECRET, payload: payload(), now: NOW });
+    const ticket = createRelayTicket({
+      secret: SECRET,
+      payload: payload(),
+      now: NOW,
+    });
     const [version, body] = ticket.value.split(".");
     expect(verify(`${version}.${body}.short`)).toEqual({
       ok: false,
