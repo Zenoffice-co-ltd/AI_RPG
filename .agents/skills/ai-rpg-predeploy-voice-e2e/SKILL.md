@@ -1,6 +1,6 @@
 ---
 name: ai-rpg-predeploy-voice-e2e
-description: Use when validating Adecco Grok-first prompt quality with voice E2E before production deploy, especially v50-family prompt variants such as v50.4, v50.5, and v50.6. Covers local/PR instructions, xAI Realtime voice input, workbook turn cases, forbidden phrase checks, sentence-count checks, STT-noise handling, local relay/session-route checks, and how to separate prompt-quality evidence from post-deploy relay/session evidence.
+description: Use when validating Adecco Grok-first prompt quality with voice E2E before production deploy, especially v50-family prompt variants such as v50.4, v50.5, and v50.6. Covers local/PR instructions, xAI Realtime voice input, workbook turn cases, v50.6 guard-response overrides, forbidden phrase checks, sentence-count checks, STT-noise handling, fixture reuse to control API cost, local relay/session-route checks, and how to separate prompt-quality evidence from post-deploy relay/session evidence.
 ---
 
 # AI RPG Predeploy Voice E2E
@@ -48,6 +48,10 @@ contract for all v50-family runs.
 v50.6 additionally forbids customer-side reverse questions such as candidate
 supply questions at closing. Treat any such question in a normal business turn
 as a prompt-quality failure unless the workbook explicitly marks it allowed.
+The single fixed guard question is the only exception: if the assistant output
+exactly equals the v50.6 guard response, do not fail it as a reverse question.
+If any second sentence follows the fixed guard response, fail it as both
+`sentence_count` and `fixed_guard_response_mismatch`.
 
 ## Workbook Run Plan
 
@@ -69,15 +73,28 @@ prompt gates:
 
 Report skipped Core/Full as `not run due stop rule`, not as pass.
 
+When reusing a workbook authored for an older v50 variant, keep the source cases
+but derive guard expectations from the active `promptVersion`. For v50.6, any
+row marked as an exact guard response must expect exactly:
+
+```text
+今回のご相談内容に戻らせていただいてもよろしいでしょうか？
+```
+
+Do not reuse v50.5 ending/off-role guard strings for a v50.6 run.
+
 ## Preferred Workflow
 
 1. Start from a clean worktree or branch containing the prompt under review.
 2. Identify the variant, API namespace, demo slug, and expected `promptVersion`.
 3. Export workbook cases if the operator provided an `.xlsx`.
 4. Run Smoke/P0 first with the matching variant assertion profile.
-5. Save evidence under `out/`; do not commit audio, transcripts, screenshots,
+5. Reuse existing same-utterance WAV fixtures when available to avoid extra TTS
+   cost, but always collect fresh STT, assistant transcript, audio, and event
+   evidence from the variant under test.
+6. Save evidence under `out/`; do not commit audio, transcripts, screenshots,
    or raw logs.
-6. Report prompt-quality results and explicitly say production relay/session
+7. Report prompt-quality results and explicitly say production relay/session
    verification is still pending until deploy.
 
 ## Harness Modes
@@ -109,6 +126,9 @@ mode used for the v50.5 workbook run.
 The harness should:
 
 - start a fresh local Next server for the PR code
+- set `GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` in the local app
+  environment so event payloads include the assistant transcript preview needed
+  for assertions
 - start a local `@top-performer/xai-realtime-relay` instance when testing from
   localhost, because the production relay rejects localhost origins
 - set `GROK_VOICE_RELAY_WS_URL=ws://127.0.0.1:<relayPort>/api/v3/realtime-relay`
@@ -129,6 +149,9 @@ Required local-route assertions:
 - `stt.completed` observed for voice cases
 - `turn.completed` observed unless the expected behavior is no response
 - `audioBytes > 0` for normal spoken-response cases
+- assistant transcript preview is present for spoken response and guard cases;
+  if previews are empty because debug transcript preview was disabled, mark the
+  run invalid and rerun instead of reporting it as prompt-quality evidence
 
 ## Evidence Layout
 
@@ -181,6 +204,9 @@ if the post-deploy negative guard might strip it.
   guard mismatches; treat those as primary regressions for future variants.
 - v50.6 is expected to improve by making normal turns one sentence and by
   replacing all off-role/ending requests with the single guard question.
+- For v50.6, the exact fixed guard question is allowed even though it ends in a
+  question mark. Extra questions or any extra sentence after that fixed guard
+  are prompt-quality failures.
 - `専用システム` may trigger a naive `システム` forbidden check; call this out
   separately as assertion ambiguity unless the workbook explicitly forbids the
   business term too. v50.5+ prompts prefer `社内の受注ツール` to avoid this.
