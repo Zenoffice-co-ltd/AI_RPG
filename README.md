@@ -93,6 +93,7 @@ pnpm publish:scenario -- --scenario staffing_order_hearing_adecco_manufacturer_b
 pnpm smoke:eleven
 pnpm smoke:liveavatar
 pnpm verify:acceptance
+pnpm grok-first:v50:xlsx-voice-e2e -- --xlsx "<path-to-v50-workbook.xlsx>" --tier smoke
 ```
 
 ## Manual Test Surfaces
