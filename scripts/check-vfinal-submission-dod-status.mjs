@@ -82,6 +82,11 @@ const closeoutVerdict = matchOne(
   /Customer submission DoD:\s*\r?\n\s*(PASS|BLOCKED)\b/,
   "closeout Customer submission DoD verdict"
 );
+const securityChecksheetVerdict = matchOne(
+  source.closeout,
+  /Security-checksheet submission DoD:\s*\r?\n\s*(PASS|BLOCKED)\b/,
+  "closeout Security-checksheet submission DoD verdict"
+);
 const auditStatus = matchOne(
   source.audit,
   /^Status as of .*?: \*\*(PASS|BLOCKED)\b.*?\*\*\./m,
@@ -98,8 +103,14 @@ const normalizedExpected =
 
 if (normalizedExpected === "blocked") {
   requireEqual(closeoutVerdict, "BLOCKED", "closeout verdict");
+  requireEqual(securityChecksheetVerdict, "BLOCKED", "security-checksheet verdict");
   requireEqual(auditStatus, "BLOCKED", "audit status");
   requireEqual(questionnaireMapStatus, "BLOCKED", "questionnaire map status");
+  requireIncludes(
+    source.questionnaireMap,
+    "security-checksheet submission DoD",
+    "questionnaire map security-checksheet blocked status"
+  );
   requireIncludes(
     source.approvalPacket,
     "approval required before customer submission",
@@ -107,7 +118,7 @@ if (normalizedExpected === "blocked") {
   );
   requireIncludes(
     source.audit,
-    "| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` | BLOCKED |",
+    "| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED |",
     "audit row 25 should block final PASS"
   );
   for (const issue of ["#138", "#139", "#140", "#141"]) {
@@ -119,14 +130,30 @@ if (normalizedExpected === "blocked") {
 
 if (normalizedExpected === "pass") {
   requireEqual(closeoutVerdict, "PASS", "closeout verdict");
+  requireEqual(securityChecksheetVerdict, "PASS", "security-checksheet verdict");
   requireEqual(auditStatus, "PASS", "audit status");
   requireEqual(questionnaireMapStatus, "PASS", "questionnaire map status");
   rejectIncludes(source.closeout, "Remaining blockers:", "closeout should not list blockers after PASS");
   rejectIncludes(source.audit, "Customer submission remains blocked", "audit should not say blocked after PASS");
   rejectIncludes(
+    source.audit,
+    "Customer submission and security-checksheet submission remain blocked",
+    "audit should not say customer/security-checksheet blocked after PASS"
+  );
+  rejectIncludes(
+    source.audit,
+    "security-checksheet submission remain blocked",
+    "audit should not say security-checksheet blocked after PASS"
+  );
+  rejectIncludes(
     source.questionnaireMap,
     "BLOCKED for customer submission DoD",
     "questionnaire map should not say blocked after PASS"
+  );
+  rejectIncludes(
+    source.questionnaireMap,
+    "BLOCKED for customer submission DoD and security-checksheet submission DoD",
+    "questionnaire map should not say security-checksheet blocked after PASS"
   );
 }
 
@@ -151,6 +178,7 @@ console.log(
       status: "PASS",
       expected: normalizedExpected,
       closeoutVerdict,
+      securityChecksheetVerdict,
       auditStatus,
       questionnaireMapStatus,
       blockers: normalizedExpected === "blocked" ? ["#138", "#139", "#140", "#141"] : [],

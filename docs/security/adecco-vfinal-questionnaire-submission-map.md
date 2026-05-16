@@ -1,11 +1,14 @@
 # Adecco vFinal Questionnaire Submission Map
 
-Status as of 2026-05-17 JST: **BLOCKED for customer submission DoD**.
+Status as of 2026-05-17 JST: **BLOCKED for customer submission DoD and security-checksheet submission DoD**.
 
 This map reconciles the two questionnaire drafts with the vFinal security
 closeout evidence. It must not be used to claim final submission readiness
 until the four remaining decisions/evidence gaps are resolved or formally
-approved out of scope.
+approved out of scope. The same blocker set applies to the security-checksheet
+submission DoD because the questionnaire drafts cannot be promoted to final
+answers while submitted URL, runtime scope, latency comparison, and acceptance
+remain unresolved.
 
 Reviewed workbook drafts:
 
@@ -33,7 +36,7 @@ Workbook alignment update on 2026-05-17 JST:
 | Submitted runtime scope | BLOCKED by issue #139 | Approve that only the dedicated no-key vFinal backend is in submission scope and legacy shared `XAI_API_KEY` access is out of scope, or migrate/remove the legacy dependency. |
 | Latency comparison | BLOCKED by issue #140 | Compare current-vFinal 20-session p95 evidence with an approved or newly collected >=20-session pre-vFinal baseline. |
 | `verify:acceptance` | BLOCKED by issue #141 | Obtain a clean full PASS, or formally approve the known legacy ConvAI judge failure as outside vFinal submission scope. |
-| Closeout final verdict | BLOCKED | Keep `docs/security/adecco-ai-roleplay-final-security-closeout.md` as BLOCKED until all gates above are resolved or approved. |
+| Closeout final verdict | BLOCKED | Keep `docs/security/adecco-ai-roleplay-final-security-closeout.md` as BLOCKED for both customer submission and security-checksheet submission until all gates above are resolved or approved. |
 
 ## Evidence-Backed Draft Answers
 
@@ -113,4 +116,5 @@ repository evidence alone.
 4. Resolve or formally approve issue #141.
 5. Update both questionnaire workbooks so the final answers and
    `docs/security/adecco-ai-roleplay-final-security-closeout.md` agree.
-6. Only then change the closeout verdict to `Customer submission DoD: PASS`.
+6. Only then change the closeout verdicts to `Customer submission DoD: PASS`
+   and `Security-checksheet submission DoD: PASS`.

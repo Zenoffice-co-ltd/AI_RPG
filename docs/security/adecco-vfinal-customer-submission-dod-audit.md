@@ -10,7 +10,8 @@ final PASS.
 
 ## Blocking Summary
 
-Customer submission remains blocked by four tracked items:
+Customer submission and security-checksheet submission remain blocked by four
+tracked items:
 
 - #138: submitted URL decision. Approve the dedicated hosted.app URL or map an
   active dedicated vFinal `mendan.biz` custom domain.
@@ -29,6 +30,16 @@ Customer submission remains blocked by four tracked items:
   DNS result in this environment. The dedicated hosted.app URL returned HTTP
   200. This supports hosted.app availability but does not replace #138
   approval.
+- 2026-05-17 01:35 JST hosted.app start smoke:
+  `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start` passed against
+  `https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`.
+  Evidence path:
+  `out/grok_first_vfinal_browser_e2e/2026-05-17T01-35-00-hosted-url-start-recheck/evidence.json`.
+  The run observed invite consume 307, session 200, `sessionApiMs=121`,
+  `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, direct `api.x.ai`
+  connection count 0, no forbidden outgoing realtime keys, and all forbidden
+  session-key checks false. This strengthens hosted.app readiness evidence but
+  still does not replace the #138 submission URL approval decision.
 - 2026-05-17 Secret Manager IAM recheck:
   `gcloud secrets get-iam-policy XAI_API_KEY --project=adecco-mendan
   --format=json` showed `roles/secretmanager.secretAccessor` includes
@@ -70,6 +81,10 @@ Customer submission remains blocked by four tracked items:
   `corepack pnpm verify:acceptance -- --preflight` still failed with Secret
   Manager `secretmanager.versions.access` permission denied when process-local
   vendor env values and `apps/web/.env.local` were absent.
+- Security-checksheet submission uses the same final blocker set as customer
+  submission because the source questionnaire workbooks and questionnaire map
+  must stay BLOCKED until #138, #139, #140, and #141 are resolved or formally
+  approved out of scope.
 
 ## DoD Matrix
 
@@ -99,7 +114,7 @@ Customer submission remains blocked by four tracked items:
 | 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED | Closeout still intentionally lists #138, #139, #140, and #141 as unresolved. |
 | 23 | Closeout records official docs checked, backend/rollout/revision/traffic, relay image/revision/traffic, same Git SHA deploy, service account/IAM proof, log retention proof, WAF proof, session contract, browser WS capture, direct `api.x.ai` 0, relay phases, sensitive scan, live E2E, latency, ZAP, and acceptance | PASS for recorded evidence; blockers remain explicit | The closeout contains the required evidence sections. Latency and acceptance sections are recorded as BLOCKED rather than PASS. |
 | 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs are merged through the latest blocker-recheck updates, but no final PASS PR can be honestly created until #138-#141 are resolved or approved. |
-| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` | BLOCKED | Closeout final verdict remains BLOCKED and must stay that way until #138-#141 are closed or formally approved out of scope. |
+| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED | Closeout final verdicts remain BLOCKED and must stay that way until #138-#141 are closed or formally approved out of scope. |
 
 ## Minimal Restart Path
 
