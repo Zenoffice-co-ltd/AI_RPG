@@ -59,6 +59,8 @@ Current state:
 - Cloud Run relay service account has `XAI_API_KEY` access, as expected.
 - Legacy shared App Hosting service account still has `XAI_API_KEY` access for
   non-submitted legacy/direct/internal comparison routes.
+- The legacy shared runtime dependency inventory is tracked in
+  `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`.
 
 Approve one:
 

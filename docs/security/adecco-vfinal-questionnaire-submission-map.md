@@ -47,6 +47,7 @@ These statements are currently supported by code/infrastructure evidence in
 |---|---|---|
 | Browser does not connect directly to xAI | Supported for dedicated vFinal hosted.app E2E evidence. Browser WebSocket was only `wss://voice.mendan.biz/api/v3/realtime-relay`; direct `api.x.ai` count was 0. | Post same-SHA text/voice browser E2E. |
 | API key is not exposed to browser or vFinal Web runtime | Supported for the dedicated `adecco-roleplay-vfinal` App Hosting backend and service account. | vFinal App Hosting env/IAM proof; `apphosting.vfinal.yaml` omits `XAI_API_KEY`. |
+| Legacy shared `XAI_API_KEY` access | Not supported as submitted vFinal scope until #139 is approved or migrated/removed. | Inventory: `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`; legacy shared `/api/v3` direct/session/TTS paths still depend on `XAI_API_KEY`. |
 | xAI connection uses Cloud Run relay | Supported for vFinal evidence. | Session contract and relay logs show `mendan_cloud_run_relay_wss`, ticket acceptance, upstream connection, and first upstream audio delta. |
 | Prompt and hidden history are server-side | Supported. Session response excludes prompt/instructions/hidden history; relay injects setup server-side. | Session contract evidence and relay tests. |
 | Invite/session auth uses scoped cookies and short-lived relay ticket | Supported. | Invite consume 307, session 200, scoped cookie paths, relay subprotocol ticket. |
