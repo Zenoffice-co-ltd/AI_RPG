@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import { createHmac } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium } from "playwright";
 
@@ -19,6 +19,7 @@ const OUT_DIR = resolve(
 const FIXTURE = resolve(
   stringArg(args.fixture, "test/fixtures/audio/grok-voice-v21/voice_case1_shallow_background.wav")
 );
+const VOICE_TRAILING_SILENCE_MS = numberArg(args.voiceTrailingSilenceMs, 3000);
 
 const SESSION_API = "/api/grok-first-vFinal/session";
 const EVENT_API = "/api/grok-first-vFinal/event";
@@ -42,11 +43,26 @@ async function main() {
     process.exit(2);
   }
   await mkdir(OUT_DIR, { recursive: true });
+  const voiceFixture =
+    MODE === "voice"
+      ? await prepareVoiceFixtureWithTrailingSilence({
+          fixturePath: FIXTURE,
+          outDir: OUT_DIR,
+          trailingSilenceMs: VOICE_TRAILING_SILENCE_MS,
+        })
+      : FIXTURE;
 
   const evidence = {
     mode: MODE,
     origin: BASE_URL,
     demoPath: DEMO_PATH,
+    voiceFixture: MODE === "voice"
+      ? {
+          source: safeLocalPath(FIXTURE),
+          effective: safeLocalPath(voiceFixture),
+          trailingSilenceMs: VOICE_TRAILING_SILENCE_MS,
+        }
+      : null,
     startedAt: new Date().toISOString(),
     sessionResponse: null,
     sessionPayload: null,
@@ -71,17 +87,18 @@ async function main() {
       "--autoplay-policy=no-user-gesture-required",
       "--use-fake-ui-for-media-stream",
       "--use-fake-device-for-media-stream",
-      ...(MODE === "voice" ? [`--use-file-for-fake-audio-capture=${FIXTURE}`] : []),
+      ...(MODE === "voice" ? [`--use-file-for-fake-audio-capture=${voiceFixture}`] : []),
     ],
   });
 
+  let page = null;
   try {
     const context = await browser.newContext({
       baseURL: BASE_URL,
       permissions: ["microphone"],
     });
     await context.grantPermissions(["microphone"], { origin: BASE_URL });
-    const page = await context.newPage();
+    page = await context.newPage();
 
     page.on("console", (message) => {
       if (message.type() === "error") {
@@ -195,6 +212,15 @@ async function main() {
 
     await page.waitForTimeout(2_000);
     await page.screenshot({ path: evidence.screenshotPath, fullPage: true });
+  } catch (error) {
+    evidence.failures.push(
+      error instanceof Error ? error.message.slice(0, 240) : String(error).slice(0, 240)
+    );
+    if (page) {
+      await page.screenshot({ path: evidence.screenshotPath, fullPage: true }).catch(
+        () => undefined
+      );
+    }
   } finally {
     await browser.close();
   }
@@ -257,7 +283,7 @@ async function waitForMetric(metrics, beforeCount, inputMode, timeoutMs) {
 }
 
 function evaluateEvidence(evidence) {
-  const failures = [];
+  const failures = [...(evidence.failures ?? [])];
   const session = evidence.sessionPayload ?? {};
   if (evidence.sessionResponse?.status !== 200) failures.push("session status is not 200");
   if (session.demoSlug !== "adecco-roleplay-vFinal") failures.push("demoSlug mismatch");
@@ -280,6 +306,60 @@ function evaluateEvidence(evidence) {
   if (evidence.pageErrors.length > 0) failures.push("page errors observed");
   evidence.failures = failures;
   return failures.length === 0;
+}
+
+async function prepareVoiceFixtureWithTrailingSilence({
+  fixturePath,
+  outDir,
+  trailingSilenceMs,
+}) {
+  if (trailingSilenceMs <= 0) return fixturePath;
+  const input = await readFile(fixturePath);
+  const wav = parsePcm16Wav(input);
+  const silenceBytes = Buffer.alloc(
+    Math.floor((wav.sampleRate * wav.channels * wav.bitsPerSample * trailingSilenceMs) / 8000)
+  );
+  const output = Buffer.concat([input, silenceBytes]);
+  output.writeUInt32LE(output.length - 8, 4);
+  output.writeUInt32LE(wav.dataSize + silenceBytes.length, wav.dataSizeOffset);
+  const outputPath = resolve(outDir, `voice-fixture-with-${trailingSilenceMs}ms-silence.wav`);
+  await writeFile(outputPath, output);
+  return outputPath;
+}
+
+function parsePcm16Wav(buffer) {
+  if (buffer.toString("ascii", 0, 4) !== "RIFF" || buffer.toString("ascii", 8, 12) !== "WAVE") {
+    throw new Error("Voice fixture must be a RIFF/WAVE file.");
+  }
+  let offset = 12;
+  let sampleRate = null;
+  let channels = null;
+  let bitsPerSample = null;
+  let dataSize = null;
+  let dataSizeOffset = null;
+  while (offset + 8 <= buffer.length) {
+    const id = buffer.toString("ascii", offset, offset + 4);
+    const size = buffer.readUInt32LE(offset + 4);
+    if (id === "fmt ") {
+      const audioFormat = buffer.readUInt16LE(offset + 8);
+      channels = buffer.readUInt16LE(offset + 10);
+      sampleRate = buffer.readUInt32LE(offset + 12);
+      bitsPerSample = buffer.readUInt16LE(offset + 22);
+      if (audioFormat !== 1 || bitsPerSample !== 16) {
+        throw new Error("Voice fixture must be PCM16 WAV.");
+      }
+    }
+    if (id === "data") {
+      dataSize = size;
+      dataSizeOffset = offset + 4;
+      break;
+    }
+    offset += 8 + size + (size % 2);
+  }
+  if (!sampleRate || !channels || !bitsPerSample || dataSize === null || dataSizeOffset === null) {
+    throw new Error("Voice fixture WAV metadata is incomplete.");
+  }
+  return { sampleRate, channels, bitsPerSample, dataSize, dataSizeOffset };
 }
 
 function forbiddenSessionKeyHits(json) {
@@ -399,6 +479,15 @@ function parseArgs(argv) {
 
 function stringArg(value, fallback) {
   return typeof value === "string" && value.length > 0 ? value : fallback;
+}
+
+function numberArg(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function safeLocalPath(filePath) {
+  return resolve(filePath).replace(process.cwd(), ".");
 }
 
 function sleep(ms) {
