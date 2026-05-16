@@ -14,6 +14,10 @@ const shouldCheckGithubIssues =
 const allowOpenApprovedIssues =
   boolArg("allow-open-approved-issues") ||
   process.env.VFINAL_SUBMISSION_DOD_ALLOW_OPEN_APPROVED_ISSUES === "1";
+const approvalAuthors = [
+  ...listArgs("approval-author"),
+  ...envList("VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS"),
+];
 const requiredIssues = [138, 139, 140, 141];
 const issueApprovalNeedles = new Map([
   [
@@ -205,6 +209,9 @@ function issueHasApproval(issue) {
   const needles = issueApprovalNeedles.get(issue.number) ?? [];
   const comments = Array.isArray(issue.comments) ? issue.comments : [];
   return comments.some((comment) => {
+    if (approvalAuthors.length > 0 && !approvalAuthors.includes(comment?.author?.login)) {
+      return false;
+    }
     const body = normalizeApprovalText(approvalCandidateText(comment?.body ?? ""));
     if (!body.startsWith("Approved:")) return false;
     return needles.every((needle) => body.includes(normalizeApprovalText(needle)));

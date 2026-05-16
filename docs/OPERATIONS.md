@@ -963,6 +963,11 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
   --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
 
+If an OPEN blocker is accepted through approval text instead of issue closure,
+add `--approval-author=<approver-github-login>` or set
+`VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` so the guard verifies the approval came
+from the expected GitHub account.
+
 - CI guard update: `.github/workflows/vfinal-security-verify.yml` now also runs
   `corepack pnpm grok:vfinal-submission-dod-status` for checked-in closeout,
   DoD audit, questionnaire map, approval packet, and operations changes.
