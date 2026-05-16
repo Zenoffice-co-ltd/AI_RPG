@@ -56,6 +56,11 @@ being closed or formally approved.
   Manager `secretmanager.versions.access` in this shell. #141 remains BLOCKED
   pending clean full `verify:acceptance` PASS, explicit legacy blocker
   approval using the stricter wording, or legacy judge path re-scope/fix.
+- Fresh #140 local artifact rescan found four
+  `out/grok_first_vfinal_latency/*/summary.json` files. Two were 20/20 pass
+  current-vFinal samples, and two had denominators below 20. None was a
+  pre-vFinal same-environment, same-scenario, >=20-session baseline. #140
+  remains BLOCKED pending approved baseline evidence and a passing comparison.
 - The Excel source workbooks still report `vFinal提出DOD照合` overall status
   `BLOCKED`.
 
