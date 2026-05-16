@@ -876,6 +876,21 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   `staffing_order_hearing_busy_manager_medium::no-coaching`. This is not a
   v25/domain/relay regression.
 
+### 2026-05-16 — v50 verification productivity guardrails
+
+- Added repo SoT guidance for long-running E2E/DoD preflight: map the requested
+  denominator to an executable runner, confirm required secrets and aliases
+  without printing values, check package scripts, check stale local Next/Turbo
+  processes, and distinguish scoped harness evidence from final DoD.
+- Added focused skill
+  `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md` for v50
+  fixed guard smoke, spreadsheet guard plans, and assistant-only drain evidence.
+  Cursor/Claude/Codex mirrors now restate the operational safety and Secret
+  Manager alias rules.
+- This entry documents process guardrails only. It is not a claim that
+  spreadsheet-defined `13/13 x3`, `69 P0 guards`, or `93-turn full` DoD has
+  passed; those require an exact case-set runner and fresh evidence.
+
 ### 2026-05-14 — roleplay.mendan.biz custom domain cutover BLOCKED_DNS
 
 - Created Firebase App Hosting custom domain

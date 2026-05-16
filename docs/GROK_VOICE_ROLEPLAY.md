@@ -143,6 +143,15 @@ balancer; App Hosting direct custom domains rely on invite/session controls,
 application rate limits, secret isolation, and relay-side WAF/rate monitoring
 as compensating controls.
 
+Verification note: before claiming v50-family final DoD, map the requested
+case-set denominator to an executable runner. A dedicated 5-case back-to-back
+fixed_external harness is scoped evidence and is not a substitute for
+spreadsheet-defined `13/13 x3`, `69 P0 guards`, or `93-turn full` runs unless
+those exact cases are executed. For local browser E2E, resolve
+`DEMO_ACCESS_TOKEN` (Secret Manager alias `demo-access-token`) and
+`XAI_RELAY_TICKET_SECRET` without printing values, and start Next from
+`apps/web` so workspace package links resolve.
+
 DOD:
 
 - Latency: `firstAudibleAudioMs.p50 <= baseline + 300ms`,
