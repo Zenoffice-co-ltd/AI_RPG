@@ -33,6 +33,10 @@ being closed or formally approved.
 - After PR #210, #141 was also found CLOSED while no clean full
   `verify:acceptance` PASS or stricter explicit legacy blocker approval was
   recorded. #141 was reopened. Issue closure alone is not acceptance evidence.
+- A read-only Cloud Logging inventory was added for #140. It found 53
+  current-service `grokFirstVFinal` `turn.completed` metadata entries, but 0
+  comparison-ready explicit pre-vFinal baseline candidates because the logs are
+  current dedicated service logs and do not include `sessionApiMs`.
 - `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
   --check-github-issues --allow-open-approved-issues
   --approval-author=iwase-cpu --workbook=<data-protection workbook>

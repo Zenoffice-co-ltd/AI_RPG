@@ -14,6 +14,7 @@ on:
       - "packages/grok-realtime-relay-auth/**"
       - "scripts/check-vfinal-security-invariants.mjs"
       - "scripts/check-vfinal-acceptance-input-inventory.mjs"
+      - "scripts/check-vfinal-cloud-log-latency-inventory.mjs"
       - "scripts/check-vfinal-legacy-xai-scope.mjs"
       - "scripts/check-vfinal-submission-dod-status.mjs"
       - "scripts/check-vfinal-submitted-url-candidates.mjs"
@@ -60,6 +61,7 @@ jobs:
         run: |
           pnpm grok:vfinal-legacy-xai-scope -- --self-test
           pnpm grok:vfinal-acceptance-input-inventory -- --self-test
+          pnpm grok:vfinal-cloud-log-latency-inventory -- --self-test
           pnpm grok:vfinal-submitted-url-candidates -- --self-test
           pnpm grok:vfinal-workbook-human-confirmations -- --self-test
           pnpm grok:first-vfinal:latency-artifact-inventory -- --self-test

@@ -105,6 +105,33 @@ metrics.
   negative fixtures for missing baseline identity, missing current identity,
   missing operational counters, weak denominator, and same-artifact comparison.
 
+2026-05-17 06:58 JST read-only Cloud Logging inventory:
+
+- Official docs rechecked before the read-only GCP query:
+  - `https://cloud.google.com/sdk/gcloud/reference/logging/read`
+  - `https://cloud.google.com/logging/docs/view/logging-query-language`
+- Added `corepack pnpm grok:vfinal-cloud-log-latency-inventory` so #140 can
+  inspect Cloud Logging metadata without printing or persisting raw log JSON.
+- Command:
+  `corepack pnpm grok:vfinal-cloud-log-latency-inventory -- --expect=blocked --project=adecco-mendan --freshness=7d --limit=1000`.
+- Result: PASS for expected BLOCKED state.
+- The inventory found 53 `grokFirstVFinal` `turn.completed` entries across 53
+  session hashes. All observed turn entries were from the current dedicated
+  service `adecco-roleplay-vfinal`, with prompt version
+  `grok-first-v50.6-2026-05-15` and guardrail version
+  `grok-first-vfinal-guard-2026-05-16`.
+- The Cloud Logging turn metadata has `firstAudioDeltaMs` and
+  `firstAudibleAudioMs`, but does not include `sessionApiMs`, which is one of
+  the strict #140 comparison metrics. Therefore these logs cannot be promoted
+  into a comparison-ready pre-vFinal baseline artifact.
+- Broad 7-day relay metadata for `backend="grok-first-vFinal"` found
+  `relay.error=0`. It also found `closeCode1006=4` outside the narrower
+  current-vFinal 20-session sample window. This broad read-only inventory does
+  not replace the sample-window operational counters already recorded in the
+  closeout and is not a formal latency comparison.
+- Comparison-ready explicit pre-vFinal baseline candidates found by this
+  Cloud Logging inventory: 0.
+
 ## Rejected Baseline Candidates
 
 | Candidate family | Example artifact | Runs | Reason it is not a strict baseline |
