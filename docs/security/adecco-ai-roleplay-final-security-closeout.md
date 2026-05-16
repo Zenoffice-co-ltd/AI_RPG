@@ -1,10 +1,11 @@
 # Adecco AI Roleplay vFinal Security Closeout
 
-Status as of 2026-05-16 19:15 JST: code-level P0, PR-A production auth
-unblock, PR-B no-key App Hosting backend separation, and PR-C metadata-only
-Cloud Logging retention evidence are complete. Customer submission DoD is still
-blocked by WAF, browser/voice E2E, latency, ZAP, acceptance, and final
-same-SHA production closeout evidence listed in this document.
+Status as of 2026-05-16 19:25 JST: code-level P0, PR-A production auth
+unblock, PR-B no-key App Hosting backend separation, PR-C metadata-only Cloud
+Logging retention, and PR-D relay Cloud Armor preview/log evidence are
+complete. Customer submission DoD is still blocked by browser/voice E2E,
+latency, ZAP, acceptance, and final same-SHA production closeout evidence listed
+in this document.
 
 ## Target
 
@@ -120,7 +121,7 @@ Direct api.x.ai connection count:
 - Cloud Run service: `xai-realtime-relay`
 - Service account:
   `xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com`
-- Revision: `xai-realtime-relay-00012-gdb`
+- Revision: `xai-realtime-relay-00013-cg8`
 - Traffic %: `100`
 - Git SHA: `ac321404be1553fe8984b6daad1ab5e4ba8e86a3`
 
@@ -133,7 +134,12 @@ client tools, and validates Origin/Host/aud/path/transport.
 Relay integration test:
   PASS in PR code gates for malicious client frame filtering and relay setup.
 Production Cloud Logging phases:
-  BLOCKED until vFinal session/auth returns 200 and a WebSocket can connect.
+  PARTIAL PASS 2026-05-16: valid-ticket WebSocket smoke from the dedicated
+  vFinal hosted.app origin produced:
+    client.connected
+    ticket.accepted
+    upstream.connected
+  first.upstream.audio.delta remains blocked until live voice E2E sends audio.
 Health:
   PASS https://voice.mendan.biz/healthz -> {"ok":true}
 ```
@@ -307,15 +313,32 @@ Phase 1 answer:
 
 ```text
 Cloud Armor policy:
-  BLOCKED: no Cloud Armor security policies were listed in project
-  adecco-mendan during 2026-05-16 verification.
+  PASS:
+    policy=xai-realtime-relay-preview-policy
+    type=CLOUD_ARMOR
+    attached_backend=xai-realtime-relay-backend
+    forwarding_rule=voice-mendan-biz-https
+    url_map=xai-realtime-relay-url-map
 Preview/log mode:
-  BLOCKED.
+  PASS:
+    priority=1000 action=deny(403) preview=true expression=evaluatePreconfiguredWaf("xss-v33-stable")
+    priority=1010 action=deny(403) preview=true expression=evaluatePreconfiguredWaf("sqli-v33-stable")
+    priority=1100 action=throttle preview=true expression=request.path == "/api/v3/realtime-relay"
+    default allow remains non-preview.
+  The policy is observation-first; no blocking WAF rule is enforced for the
+  relay handshake path.
 Rate limit test:
-  BLOCKED for production live test until vFinal auth succeeds. Code-level
-  application rate limit exists for /access, /session, and /event.
+  PASS for Cloud Armor preview handshake observation rule. Application-level
+  rate limits remain in vFinal /access, /invite/consume, /session, and /event.
 WSS close code 1006 check:
-  BLOCKED until browser WebSocket E2E can run.
+  PASS scoped smoke: valid-ticket WebSocket opened through
+  wss://voice.mendan.biz/api/v3/realtime-relay after Cloud Armor attachment.
+  The test closed intentionally with code 1000; no 1006 was observed in this
+  scoped smoke. Full browser/voice E2E close-code trend remains pending.
+WebSocket audio frame body inspection:
+  PASS by configuration: Cloud Armor is attached at the relay HTTP(S) LB and
+  only evaluates HTTP handshake/request metadata. No WAF/DLP/body inspection is
+  applied to streaming WebSocket audio frames.
 ```
 
 ## Test And Latency Evidence
@@ -389,8 +412,9 @@ App Hosting:
 Cloud Run relay:
   service=xai-realtime-relay
   image=gcr.io/adecco-mendan/xai-realtime-relay:ac32140
-  revision=xai-realtime-relay-00012-gdb
+  revision=xai-realtime-relay-00013-cg8
   traffic=100
+  env_delta=RELAY_ALLOWED_ORIGINS includes https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app
 
 PR-B vFinal no-key App Hosting backend evidence:
   PR=124 merged
@@ -433,10 +457,9 @@ Remaining blockers:
     Hosting service account for non-submitted direct comparison routes. Removing
     it would risk breaking existing v3/direct xAI routes unless those routes are
     migrated or formally de-scoped.
-  - final sensitive log scan after browser/voice E2E and relay phase evidence is not complete.
-  - Cloud Armor/WAF preview/log mode is not yet applied to relay LB.
-  - browser WS capture, direct api.x.ai=0 evidence, live text E2E, and live
-    voice E2E are not complete.
+  - final sensitive log scan after browser/voice E2E is not complete.
+  - browser direct api.x.ai=0 evidence, live text E2E, and live voice E2E are
+    not complete.
   - latency baseline comparison is not complete.
   - ZAP baseline/passive scan is not complete.
   - verify:acceptance is still blocked by Secret Manager IAM:
