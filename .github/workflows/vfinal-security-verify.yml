@@ -14,6 +14,7 @@ on:
       - "packages/grok-realtime-relay-auth/**"
       - "scripts/check-vfinal-security-invariants.mjs"
       - "scripts/deploy-adecco-roleplay-gcloud.mjs"
+      - "scripts/grok-first-vfinal-browser-e2e.mjs"
       - "docs/security/adecco-ai-roleplay-final-security-closeout.md"
       - "package.json"
 

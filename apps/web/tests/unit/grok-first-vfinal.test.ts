@@ -150,6 +150,15 @@ describe("grok-first vFinal security contract", () => {
     expect(await legacy.text()).not.toContain("mvi1.raw-token");
   });
 
+  it("does not require the legacy demo access env for the vFinal invite page", async () => {
+    const { shouldAssertDemoAccessEnv } = await import(
+      "../../components/roleplay/GrokFirstV50RoleplayPage"
+    );
+    expect(shouldAssertDemoAccessEnv("vfinal-invite")).toBe(false);
+    expect(shouldAssertDemoAccessEnv("demo-token")).toBe(true);
+    expect(shouldAssertDemoAccessEnv(undefined)).toBe(true);
+  });
+
   it("sets vFinal-scoped invite cookies from POST body without raw participant id", async () => {
     const invite = createVFinalInviteToken({
       participantId: "adecco-user-001@example.test",

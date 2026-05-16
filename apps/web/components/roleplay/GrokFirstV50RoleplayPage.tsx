@@ -40,7 +40,9 @@ export async function GrokFirstV50RoleplayPage({
   accessMode = "demo-token",
 }: GrokFirstV50PageProps) {
   try {
-    assertDemoAccessEnvForProduction();
+    if (shouldAssertDemoAccessEnv(accessMode)) {
+      assertDemoAccessEnvForProduction();
+    }
     if (!shouldAllowGrokFirstV50PageInProduction()) {
       throw new Error("XAI_RELAY_TICKET_SECRET missing");
     }
@@ -85,6 +87,10 @@ export async function GrokFirstV50RoleplayPage({
       apiBase={apiBase}
     />
   );
+}
+
+export function shouldAssertDemoAccessEnv(accessMode: GrokFirstV50PageProps["accessMode"]) {
+  return accessMode !== "vfinal-invite";
 }
 
 export function shouldAllowGrokFirstV50PageInProduction(
