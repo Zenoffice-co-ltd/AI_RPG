@@ -13,9 +13,30 @@ on:
       - "packages/grok-first-roleplay-config/**"
       - "packages/grok-realtime-relay-auth/**"
       - "scripts/check-vfinal-security-invariants.mjs"
+      - "scripts/check-vfinal-acceptance-input-inventory.mjs"
+      - "scripts/check-vfinal-cloud-log-latency-inventory.mjs"
+      - "scripts/check-vfinal-secret-iam-boundary.mjs"
+      - "scripts/check-vfinal-legacy-xai-scope.mjs"
+      - "scripts/check-vfinal-submission-dod-status.mjs"
+      - "scripts/check-vfinal-submitted-url-candidates.mjs"
+      - "scripts/check-vfinal-workbook-human-confirmations.mjs"
       - "scripts/deploy-adecco-roleplay-gcloud.mjs"
       - "scripts/grok-first-vfinal-browser-e2e.mjs"
+      - "scripts/grok-first-vfinal-latency-artifact-inventory.mjs"
+      - "scripts/grok-first-vfinal-latency-compare.mjs"
       - "docs/security/adecco-ai-roleplay-final-security-closeout.md"
+      - "docs/security/adecco-vfinal-approval-packet.md"
+      - "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md"
+      - "docs/security/adecco-vfinal-blocker-inventory-index.md"
+      - "docs/security/adecco-vfinal-submitted-url-decision-inventory.md"
+      - "docs/security/adecco-vfinal-legacy-xai-scope-inventory.md"
+      - "docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md"
+      - "docs/security/adecco-vfinal-acceptance-blocker-inventory.md"
+      - "docs/security/adecco-vfinal-customer-submission-dod-audit.md"
+      - "docs/security/adecco-vfinal-questionnaire-submission-map.md"
+      - ".agents/skills/ai-rpg-acceptance-verification/SKILL.md"
+      - "docs/DELIVERY_STATUS.md"
+      - "docs/OPERATIONS.md"
       - "package.json"
 
 jobs:
@@ -33,6 +54,21 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: vFinal server/client boundary invariant
         run: pnpm grok:vfinal-security-invariants
+      - name: vFinal customer submission DoD status guard
+        run: pnpm grok:vfinal-submission-dod-status
+      - name: vFinal customer submission DoD status guard self-test
+        run: pnpm grok:vfinal-submission-dod-status:self-test
+      - name: vFinal helper self-tests
+        run: |
+          pnpm grok:vfinal-legacy-xai-scope -- --self-test
+          pnpm grok:vfinal-acceptance-input-inventory -- --self-test
+          pnpm grok:vfinal-cloud-log-latency-inventory -- --self-test
+          pnpm grok:vfinal-secret-iam-boundary -- --self-test
+          pnpm grok:vfinal-submitted-url-candidates -- --self-test
+          pnpm grok:vfinal-workbook-human-confirmations -- --self-test
+          pnpm grok:first-vfinal:latency-artifact-inventory -- --self-test
+      - name: vFinal latency comparison self-test
+        run: pnpm grok:first-vfinal:latency-compare -- --self-test
       - name: vFinal targeted unit tests
         run: |
           pnpm --filter @top-performer/web test -- tests/unit/grok-first-vfinal.test.ts

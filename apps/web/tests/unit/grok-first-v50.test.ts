@@ -867,13 +867,16 @@ describe("grok-first v50 runtime", () => {
     expect(realtimeInstances[0]?.sessionUpdateCount).toBe(0);
     expect(realtimeInstances[0]?.assistantHistoryCount).toBe(0);
     expect(realtimeInstances[0]?.serverSideSetupReadyCount).toBe(1);
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/grok-first-v50/event",
-      expect.objectContaining({
-        body: expect.stringContaining("\"session.ready\""),
-        method: "POST",
-      }),
+    const readyPost = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        url === "/api/grok-first-v50/event" &&
+        typeof init === "object" &&
+        init !== null &&
+        init.method === "POST" &&
+        typeof init.body === "string" &&
+        init.body.includes("\"session.ready\""),
     );
+    expect(readyPost).toBeDefined();
   });
 });
 

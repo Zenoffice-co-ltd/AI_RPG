@@ -1,0 +1,341 @@
+# Adecco vFinal Customer Submission DoD Audit
+
+Status as of 2026-05-17 JST: **BLOCKED**.
+
+This audit maps the active thread goal's 25 close conditions to the current
+evidence in `docs/security/adecco-ai-roleplay-final-security-closeout.md`,
+issue tracker state, and merged PR history. It is intentionally conservative:
+weak, partial, approval-dependent, or scope-dependent evidence is not counted as
+final PASS.
+The consolidated blocker inventory index is
+`docs/security/adecco-vfinal-blocker-inventory-index.md`.
+The workbook cell-level human-confirmation map is
+`docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
+The shortest human/operator unblock checklist is
+`docs/security/adecco-vfinal-human-unblock-checklist.md`.
+
+## Blocking Summary
+
+Customer submission and security-checksheet submission remain blocked by five
+tracked items:
+
+- #138: submitted URL decision. Approve the dedicated hosted.app URL or map an
+  active dedicated vFinal `mendan.biz` custom domain.
+- #139: submitted runtime scope decision. Approve legacy shared App Hosting
+  `XAI_API_KEY` access as outside vFinal submission scope, or migrate/de-scope
+  the legacy dependency and remove that access.
+- #140: formal latency comparison. Approve or collect a same-environment,
+  same-scenario, >=20-session pre-vFinal baseline.
+- #141: canonical acceptance. Obtain clean `verify:acceptance` PASS or approve
+  the legacy ConvAI judge blocker as outside vFinal submission scope.
+- #171: questionnaire workbook human confirmations. Confirm or rewrite the
+  mapped cells before treating the security-checksheet drafts as final
+  submission artifacts.
+
+## Latest Read-Only Rechecks
+
+- 2026-05-17 04:50 JST legacy XAI scope recheck:
+  Secret Manager IAM and Firebase App Hosting configuration docs were
+  rechecked before the #139 read-only IAM/config review. The dedicated
+  submitted vFinal App Hosting service account remained absent from the
+  `XAI_API_KEY` IAM policy, while the legacy shared App Hosting compute service
+  account still had `secretAccessor`. Shared `apps/web/apphosting.yaml` still
+  binds `XAI_API_KEY`; `apps/web/apphosting.vfinal.yaml` still omits it. The
+  shared deterministic-only flag reduces some legacy runtime TTS/realtime use,
+  but shared `/api/v3` production env assertion still requires the key when
+  Grok Voice roleplay is enabled. #139 remains blocked pending explicit scope
+  approval or route migration/de-scope plus IAM removal and regression
+  evidence.
+- 2026-05-17 05:49 JST #139 repo-local code/config guard:
+  `corepack pnpm grok:vfinal-legacy-xai-scope -- --expect=blocked` passed for
+  expected BLOCKED state. The guard confirmed the submitted vFinal App Hosting
+  config, session route, and vFinal session helper omit `XAI_API_KEY`, while
+  the vFinal session helper uses `XAI_RELAY_TICKET_SECRET` and the relay WSS
+  URL. It also confirmed the legacy shared runtime still has five XAI
+  dependency markers: shared `apphosting.yaml` binds `XAI_API_KEY`,
+  `server-env.ts` defines it, production env assertion requires it,
+  `/api/v3/session` can use `env.XAI_API_KEY`, and Grok Voice TTS uses
+  `env.XAI_API_KEY`. This strengthens #139 inventory evidence but does not
+  replace scope approval or migration/IAM removal.
+- 2026-05-17 04:44 JST acceptance permission/input recheck:
+  active gcloud account was `iwase@zenoffice.co.jp` with active project
+  `zapier-transfer`. Process-local `FIREBASE_PROJECT_ID`,
+  `SECRET_SOURCE_PROJECT_ID`, `QUEUE_SHARED_SECRET`, `OPENAI_API_KEY`,
+  `ELEVENLABS_API_KEY`, `LIVEAVATAR_API_KEY`, and
+  `FIREBASE_CREDENTIALS_SECRET_NAME` were absent. A fresh
+  `corepack pnpm verify:acceptance -- --preflight` still failed before product
+  checks on Secret Manager `secretmanager.versions.access`. No secret values
+  were read, printed, persisted, or copied into docs. #141 remains blocked
+  pending the required inputs/permissions, a clean full run, or formal legacy
+  blocker approval.
+- 2026-05-17 04:40 JST workbook human-confirmation recheck:
+  both source workbooks still have `vFinal提出DOD照合` as their first sheet,
+  and both still include `Overall customer submission DoD BLOCKED` plus
+  `Excel人間確認 (#171) BLOCKED`. The data-protection workbook had 25/25
+  mapped #171 cells non-empty, with 17 still containing confirmation or
+  unresolved markers. The TPISA workbook had 34/34 expanded mapped #171 cells
+  non-empty, with 19 still containing confirmation or unresolved markers. No
+  workbook answer values were copied into this audit. #171 remains blocked
+  pending human confirmation or explicit unresolved/not-applicable wording.
+- 2026-05-17 05:24 JST workbook count-only recheck:
+  `corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked
+  --workbook=... --workbook=...` passed. Both source workbooks still had first
+  sheet `vFinal提出DOD照合` and overall status `BLOCKED`. The data-protection
+  workbook had 25/25 mapped cells non-empty and 1 mapped answer-cell marker.
+  The TPISA workbook had 34/34 expanded mapped cells non-empty, 0 mapped
+  answer-cell markers, and retained `vbaProject.bin`. Marker counts are
+  diagnostic only; all mapped cells in
+  `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` remain
+  human-confirmation items until confirmed or rewritten to explicit
+  unresolved/not-applicable wording. No workbook answer values were copied into
+  this audit.
+- 2026-05-17 04:29 JST submitted URL smoke:
+  `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --origin
+  https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`
+  passed against the dedicated hosted.app candidate. Evidence showed
+  session 200, `wsUrl` `wss://voice.mendan.biz/api/v3/realtime-relay`,
+  browser WebSocket URL only the relay WSS, direct `api.x.ai` count 0, and
+  forbidden session keys absent. Dedicated `mendan.biz` candidates still had
+  no DNS resolver result in this environment, and `curl -I` failed with host
+  resolution error for both checked candidates. #138 therefore remains blocked
+  pending hosted.app approval or active custom-domain mapping/certificate
+  evidence.
+- 2026-05-17 05:04 JST submitted URL smoke:
+  `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --origin
+  https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`
+  passed against the dedicated hosted.app candidate. Evidence directory:
+  `out/grok_first_vfinal_browser_e2e/2026-05-16T20-03-58-582Z/`.
+  Evidence showed invite consume 307, session 200, `sessionApiMs=91`, `wsUrl`
+  `wss://voice.mendan.biz/api/v3/realtime-relay`, browser WebSocket URL only
+  the relay WSS, direct `api.x.ai` count 0, forbidden session keys absent, no
+  forbidden outgoing realtime keys, no console errors, and no page errors.
+  This refresh supports hosted.app approval evidence for #138 but does not
+  replace approval or active custom-domain mapping/certificate evidence.
+- 2026-05-17 submitted URL recheck:
+  `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still had no
+  DNS result in this environment. The dedicated hosted.app URL returned HTTP
+  200. This supports hosted.app availability but does not replace #138
+  approval.
+- 2026-05-17 03:26 JST submitted URL recheck:
+  `Resolve-DnsName roleplay-vfinal.mendan.biz` and
+  `Resolve-DnsName adecco-roleplay.mendan.biz` returned no result in this
+  environment. `curl -I` against
+  `https://roleplay-vfinal.mendan.biz/demo/adecco-roleplay-vFinal` failed with
+  host resolution error. `curl -I` against the dedicated hosted.app URL returned
+  HTTP 200. #138 therefore remains blocked pending hosted.app approval or
+  active custom-domain mapping/certificate evidence.
+- 2026-05-17 #138 submitted URL decision inventory:
+  `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` records
+  that the dedicated hosted.app URL is live and separated, but not formally
+  approved for customer submission. It also records that dedicated
+  `mendan.biz` candidates still lack verified DNS mapping in this environment.
+  This narrows the #138 decision but does not replace approval or custom-domain
+  mapping/certificate evidence.
+- 2026-05-17 05:43 JST #138 submitted URL candidate guard:
+  `corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked`
+  passed for expected BLOCKED state. The hosted.app candidate returned HTTP 200
+  and `active: true`; `roleplay-vfinal.mendan.biz` and
+  `adecco-roleplay.mendan.biz` did not return HTTP success and were
+  `active: false`. The helper records Node DNS output as diagnostic because
+  HTTPS fetch can succeed in this environment even when Node DNS lookup reports
+  resolver errors. This makes #138 candidate rechecks reproducible but does not
+  approve the submitted URL.
+- 2026-05-17 01:35 JST hosted.app start smoke:
+  `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start` passed against
+  `https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`.
+  Evidence path:
+  `out/grok_first_vfinal_browser_e2e/2026-05-17T01-35-00-hosted-url-start-recheck/evidence.json`.
+  The run observed invite consume 307, session 200, `sessionApiMs=121`,
+  `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, direct `api.x.ai`
+  connection count 0, no forbidden outgoing realtime keys, and all forbidden
+  session-key checks false. This strengthens hosted.app readiness evidence but
+  still does not replace the #138 submission URL approval decision.
+- 2026-05-17 Secret Manager IAM recheck:
+  `gcloud secrets get-iam-policy XAI_API_KEY --project=adecco-mendan
+  --format=json` showed `roles/secretmanager.secretAccessor` includes
+  `serviceAccount:xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com`
+  and
+  `serviceAccount:firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com`.
+  It did not show
+  `serviceAccount:firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com`.
+  This confirms the dedicated submitted vFinal runtime remains no-key, while
+  the legacy shared backend scope decision remains open.
+- 2026-05-17 #139 legacy XAI scope inventory:
+  `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md` records the
+  code/config split. The submitted vFinal path uses the dedicated no-key
+  backend and `XAI_RELAY_TICKET_SECRET` for relay tickets. The legacy shared
+  backend still binds `XAI_API_KEY`, and `/api/v3/*` Grok Voice session/TTS
+  paths still contain code paths that depend on `XAI_API_KEY`. This narrows the
+  #139 decision but does not replace approval or migration.
+- 2026-05-17 acceptance preflight rerun:
+  `corepack pnpm verify:acceptance -- --preflight` failed before product checks
+  with Secret Manager `secretmanager.versions.access` permission denied. The
+  current shell had no process-local
+  `OPENAI_API_KEY`/`ELEVENLABS_API_KEY`/`LIVEAVATAR_API_KEY`/
+  `QUEUE_SHARED_SECRET` and no `apps/web/.env.local`. This does not replace the
+  earlier full-run legacy ConvAI judge evidence; it means a fresh clean rerun
+  currently needs process-local secrets or a stronger execution identity.
+- 2026-05-17 #141 acceptance blocker inventory:
+  `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` records the
+  latest executable full rerun state and the current-shell preflight blocker.
+  The latest full rerun failed legacy ConvAI judge paths beyond the
+  no-coaching-only exception, while a fresh current-shell preflight still stops
+  before product checks on Secret Manager access. This narrows the #141
+  decision but does not replace a clean PASS or explicit approval.
+- 2026-05-17 05:31 JST #141 permission/input recheck:
+  process-local values were absent for the checked acceptance/runtime inputs,
+  the active gcloud account was `iwase@zenoffice.co.jp`, the active project was
+  `zapier-transfer`, and `corepack pnpm verify:acceptance -- --preflight`
+  still failed before product checks on Secret Manager
+  `secretmanager.versions.access`. No secret values were read, printed,
+  persisted, or copied into this audit. #141 remains blocked pending clean full
+  `verify:acceptance` PASS with adequate process-local inputs/permissions,
+  explicit legacy blocker approval, or legacy judge path re-scope/fix followed
+  by a clean gate.
+- 2026-05-17 00:44 JST acceptance full rerun:
+  process-local secrets were resolved from Secret Manager without printing or
+  persisting values, preflight was ready, and the full gate again failed at the
+  legacy `staffing_order_hearing_busy_manager_medium` publish scenario. Retry 1
+  failed `no-coaching`; retry 2 failed `role-adherence` plus `no-coaching`;
+  retry 3 failed `no-hidden-fact-leak` plus `no-coaching`. This is not eligible
+  for the no-coaching-only exception and does not indicate a vFinal
+  session/relay/WAF/logging/no-key runtime regression.
+- 2026-05-17 workbook alignment recheck:
+  the two source questionnaire drafts in `C:\Users\yukih\Downloads\` now include
+  first sheet `vFinal提出DOD照合`, mark overall customer submission DoD as
+  `BLOCKED`, list #138, #139, #140, #141, and #171 as unresolved/blocking, and
+  no longer contain the old `プランが完了した前提` opening wording. The TPISA
+  `.xlsm` still contains `vbaProject.bin`.
+- 2026-05-17 workbook submitted-URL wording correction:
+  the source drafts no longer say the browser submitted flow is
+  `roleplay.mendan.biz -> voice.mendan.biz`. They now state that #138 is still
+  pending and the submitted URL must be either the dedicated hosted.app
+  candidate or an approved dedicated `mendan.biz` custom domain.
+- 2026-05-17 post-PR149 blocker recheck:
+  #138, #139, #140, and #141 remained OPEN with no approval comments. The
+  dedicated hosted.app URL returned HTTP 200, both dedicated `mendan.biz`
+  candidates still had no DNS resolver result, `XAI_API_KEY` IAM still excluded
+  the dedicated vFinal service account but included the legacy shared App
+  Hosting compute service account, and current-shell
+  `corepack pnpm verify:acceptance -- --preflight` still failed with Secret
+  Manager `secretmanager.versions.access` permission denied when process-local
+  vendor env values and `apps/web/.env.local` were absent.
+- 2026-05-17 01:50 JST continuation recheck:
+  `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
+  --check-github-issues --allow-open-approved-issues
+  --approval-author=iwase-cpu --workbook=... --workbook=...` passed and
+  confirmed the closeout, audit, questionnaire map, both source questionnaire
+  workbooks, and issue state remain BLOCKED. The visible `Approved:` strings on
+  #138, #139, #140, and #141 are approval templates in fenced code blocks or
+  blockquotes, not accepted approval comments. `corepack pnpm
+  grok:vfinal-security-invariants` passed. Dedicated hosted.app still returned
+  HTTP 200, while dedicated `mendan.biz` candidates had no DNS result in this
+  environment. `XAI_API_KEY` IAM still excluded the dedicated vFinal service
+  account and included legacy shared App Hosting compute access. Local artifact
+  scan still found current-vFinal 20-run summaries only, not an approved strict
+  pre-vFinal >=20-session baseline with the required metrics. A fresh
+  `corepack pnpm verify:acceptance -- --preflight` attempt still failed before
+  product checks with Secret Manager `secretmanager.versions.access` permission
+  denied in the current shell. This does not supersede the earlier full-run
+  legacy ConvAI judge evidence; it confirms a clean rerun still requires
+  process-local secrets or an execution identity with the required Secret
+  Manager access.
+- 2026-05-17 post-PR169 continuation recheck:
+  #138, #139, #140, and #141 remain OPEN; the dedicated hosted.app candidate
+  returns HTTP 200; `roleplay-vfinal.mendan.biz` and
+  `adecco-roleplay.mendan.biz` still do not resolve in this environment; and
+  `corepack pnpm verify:acceptance -- --preflight` still fails before product
+  checks with Secret Manager `secretmanager.versions.access` permission denied
+  in this shell. No secret values were printed or persisted.
+- 2026-05-17 workbook human-confirmation issue:
+  issue #171 now tracks the cells listed in
+  `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
+  Security-checksheet submission remains BLOCKED until #171 is closed or
+  formally approved out of scope.
+- 2026-05-17 #140 no-waiver clarification:
+  customer submission DoD still requires a pre-vFinal >=20-session baseline
+  comparison within threshold. Approval to treat the current-vFinal sample alone
+  as sufficient is no longer a valid PASS path for this DoD.
+- 2026-05-17 #140 baseline candidate assessment:
+  `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`
+  records the artifact review. The two eligible 20-run artifacts are
+  current-vFinal samples, while local v50.5/v50.8 and older Grok Voice artifact
+  families are rejected as strict baselines because they are local/different
+  route families, fail quality gates, lack `sessionApiMs`, or lack a comparable
+  >=20-session denominator.
+- 2026-05-17 post-PR177 #140 comparator:
+  `corepack pnpm grok:first-vfinal:latency-compare` is now available and merged
+  on `origin/main` at `14beffe111fd6820523e70fd0d7486f35713e108`. It must be
+  used after an approved pre-vFinal baseline is supplied. It rejects missing
+  closeCode1006 / relay.error counters, weak denominators, failed runs,
+  threshold failures, and using the same summary artifact as both baseline and
+  current. This improves future #140 evidence quality but does not resolve
+  #140 because the baseline itself is still missing.
+- 2026-05-17 05:54 JST #140 operational-counter inventory guard:
+  `corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked --root out\grok_first_vfinal_latency`
+  passed for expected BLOCKED state after being tightened to report operational
+  counter readiness. The inventory found 4 strict metric candidates, 2
+  denominator >=20 current-vFinal-only candidates, 0 artifacts with both
+  closeCode1006 and `relay.error` counters embedded, and 0 comparison-ready
+  explicit pre-vFinal baseline candidates. This prevents p95-only artifacts
+  from being treated as final #140 PASS evidence.
+- Security-checksheet submission uses the same final blocker set as customer
+  submission because the source questionnaire workbooks and questionnaire map
+  must stay BLOCKED until #138, #139, #141, and #171 are resolved or formally
+  approved out of scope and #140 has a passing pre-vFinal baseline comparison.
+
+## DoD Matrix
+
+| # | Requirement | Status | Current evidence / blocker |
+|---|---|---|---|
+| 1 | vFinal dedicated Web/App Hosting runtime is separated | PASS | Dedicated App Hosting backend `adecco-roleplay-vfinal` and dedicated service account are recorded in the closeout. |
+| 2 | vFinal Web/App Hosting runtime / service account cannot access `XAI_API_KEY` | PASS for submitted runtime | Closeout IAM proof and 2026-05-17 read-only IAM recheck show `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` has no `XAI_API_KEY` access. |
+| 3 | Only Cloud Run relay service account can access `XAI_API_KEY` | BLOCKED by #139 | True for the dedicated submitted vFinal runtime, but project-wide `XAI_API_KEY` still includes legacy shared App Hosting access for non-submitted comparison/direct routes. 2026-05-17 read-only IAM recheck confirmed `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` still has secretAccessor/viewer access. The legacy XAI scope inventory is recorded in `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`. |
+| 4 | Metadata-only Cloud Logging bucket or sink retention is >=180 days | PASS | Closeout records metadata bucket `adecco-vfinal-metadata`, metadata sink, and 180-day retention. |
+| 5 | Sensitive log scan is 0 for raw invite token, raw cookie, raw participantId, relay ticket, Authorization/Bearer, `XAI_API_KEY`, transcript body, prompt/instructions, and base64 audio | PASS scoped to collected evidence | Post same-SHA text/voice E2E sensitive metadata bucket scan recorded 0 hits for the required sensitive markers. |
+| 6 | Cloud Armor / WAF is applied to relay LB in preview/log mode | PASS | Closeout records `xai-realtime-relay-preview-policy` attached to `xai-realtime-relay-backend` with preview rules. |
+| 7 | WebSocket upgrade is not broken | PASS | Relay WSS smoke and post-deploy browser text/voice E2E completed through `wss://voice.mendan.biz/api/v3/realtime-relay`. |
+| 8 | WebSocket audio frame body inspection is not used | PASS | Closeout records Cloud Armor applies to HTTP(S) LB handshake/request metadata only; no WAF/DLP/body inspection is applied to streaming audio frames. |
+| 9 | vFinal live session can start | PASS | Post-deploy browser text/voice E2E and session contract evidence are recorded. |
+| 10 | `/api/grok-first-vFinal/session` returns 200 | PASS | Closeout records production session 200 for the dedicated vFinal backend. |
+| 11 | Session response omits forbidden keys: instructions, firstMessage, hiddenAssistantHistory, ephemeralToken, `XAI_API_KEY`, transcript, audioBase64, tools | PASS | Closeout session contract evidence records all forbidden keys absent. |
+| 12 | Browser WebSocket destination is only `wss://voice.mendan.biz/api/v3/realtime-relay` | PASS | Browser WebSocket capture records only the relay WSS URL. |
+| 13 | Browser direct `api.x.ai` connection count is 0 | PASS | Post-deploy text and voice browser evidence record direct `api.x.ai` count 0. |
+| 14 | Cloud Logging relay phases are present: `client.connected`, `ticket.accepted`, `upstream.connected`, `first.upstream.audio.delta` | PASS | Closeout records all required relay phases after dedicated vFinal browser text/voice E2E. |
+| 15 | Live text E2E PASS | PASS | `corepack pnpm grok:first-vfinal:browser-e2e -- --mode text` is recorded as PASS after same-SHA deploy. |
+| 16 | Live voice E2E PASS | PASS | `corepack pnpm grok:first-vfinal:browser-e2e -- --mode voice` is recorded as PASS after same-SHA deploy. |
+| 17 | Latency baseline comparison PASS: session API p95 <= baseline + 50ms, firstAudioDeltaMs p95 <= baseline + 100ms, firstAudibleAudioMs p95 <= baseline + 100ms | BLOCKED by #140 | Current-vFinal 20-session sample exists and passed, and `corepack pnpm grok:first-vfinal:latency-compare` is available for the future strict comparison. No approved same-environment, same-scenario, >=20-session pre-vFinal baseline exists yet, and the latest inventory found 0 comparison-ready explicit pre-vFinal candidates. |
+| 18 | WSS close code 1006 increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded closeCode1006=0. Formal comparison remains tied to #140, and the latest inventory found 0 artifacts with embedded operational counters. |
+| 19 | `relay.error` increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded relay.error=0. Formal comparison remains tied to #140, and p95-only artifacts cannot satisfy final comparison readiness without `relay.error` counter evidence. |
+| 20 | ZAP baseline/passive scan PASS | PASS | ZAP baseline/passive exitCode 0, FAIL=0, WARN=8 documented; no active scan was run. |
+| 21 | `verify:acceptance` PASS or explicit legacy blocker approval | BLOCKED by #141 | Latest 2026-05-17 00:44 JST full rerun had process-local secrets, reached the legacy publish scenario, and failed `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` across retries. This is not a vFinal runtime regression, but it is not PASS and is not eligible for the no-coaching-only exception without customer/operator approval. The acceptance blocker inventory is recorded in `docs/security/adecco-vfinal-acceptance-blocker-inventory.md`. |
+| 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED | Closeout still intentionally lists #138, #139, #140, #141, and #171 as unresolved. The submitted URL decision inventory is recorded in `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`. |
+| 23 | Closeout records official docs checked, backend/rollout/revision/traffic, relay image/revision/traffic, same Git SHA deploy, service account/IAM proof, log retention proof, WAF proof, session contract, browser WS capture, direct `api.x.ai` 0, relay phases, sensitive scan, live E2E, latency, ZAP, and acceptance | PASS for recorded evidence; blockers remain explicit | The closeout contains the required evidence sections. Latency and acceptance sections are recorded as BLOCKED rather than PASS. |
+| 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs are merged through the latest blocker-recheck updates, but no final PASS PR can be honestly created until #138, #139, #141, and #171 are resolved or approved and #140 has a passing pre-vFinal baseline comparison. |
+| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED | Closeout final verdicts remain BLOCKED and must stay that way until #138, #139, #141, and #171 are closed or formally approved out of scope and #140 has a passing pre-vFinal baseline comparison. |
+
+Workbook human-confirmation cells are tracked separately in
+`docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` and must
+be confirmed or rewritten before the questionnaire drafts can be treated as
+final submission artifacts. GitHub issue #171 tracks this blocker.
+
+## Minimal Restart Path
+
+1. Resolve or formally approve #138.
+2. Resolve or formally approve #139.
+3. Resolve #140 with an approved pre-vFinal baseline and a
+   `corepack pnpm grok:first-vfinal:latency-compare` result that meets the
+   documented thresholds.
+4. Resolve #141 with a clean full `verify:acceptance` run or explicit approval
+   of the legacy ConvAI judge blocker as outside vFinal submission scope.
+5. Resolve #171 by confirming or rewriting the mapped workbook cells.
+6. Re-run the lightweight integrity checks:
+   `git diff --check`, `corepack pnpm grok:vfinal-security-invariants`, and
+   `corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass
+   --check-github-issues --allow-open-approved-issues` with the two source
+   questionnaire workbooks passed through `--workbook=...`. If an OPEN blocker
+   issue is accepted by approval comment instead of issue closure,
+   `--approval-author=<approver-github-login>` or
+   `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required.
+7. Update the closeout final verdict only after all blocking issues are closed
+   or approved, with #140 backed by a passing baseline comparison.

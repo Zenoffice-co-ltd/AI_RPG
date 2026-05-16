@@ -99,6 +99,104 @@ Customer-facing allowlist for relay trial routes:
 Direct browser access to `api.x.ai` is not required for relay routes. Keep
 `api.x.ai` in CSP only while direct-path comparison routes still exist.
 
+## vFinal Customer/Security-Checksheet Submission DoD
+
+Use this subsection when closing Adecco AI Roleplay vFinal for customer
+submission or security-checksheet submission.
+
+Canonical sources:
+
+- `docs/DELIVERY_STATUS.md`
+- `docs/security/adecco-ai-roleplay-final-security-closeout.md`
+- `docs/security/adecco-vfinal-customer-submission-dod-audit.md`
+- `docs/security/adecco-vfinal-blocker-inventory-index.md`
+- `docs/security/adecco-vfinal-approval-packet.md`
+- `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`
+
+Final PASS guard:
+
+```bash
+corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass --check-github-issues --allow-open-approved-issues --approval-author=<approver-github-login> --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
+```
+
+Both source questionnaire workbooks are required in PASS mode; the final guard
+rejects a PASS run that omits them.
+`--check-github-issues` is also required in PASS mode so #138, #139, #140,
+#141, and #171 are verified closed or approved, and umbrella #128 is verified
+closed.
+
+If approved open blockers are being relied on, `--approval-author=<approver-github-login>`
+or `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required; the guard rejects
+open-issue approvals without an expected approver list. Verify the approval
+text is plain issue/PR comment text, not only a fenced template or blockquote.
+
+While the submission is blocked, use BLOCKED mode as the honest default:
+
+```bash
+corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked --check-github-issues --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
+```
+
+Required blocker issues:
+
+- #128 umbrella tracker. Keep it open while the submission is BLOCKED; close it
+  only after the final PASS guard and final closeout PR are complete.
+- #138 submitted URL / custom-domain decision.
+- #139 legacy shared App Hosting `XAI_API_KEY` scope/de-scope decision.
+- #140 strict latency baseline comparison. This must be resolved with passing
+  comparison evidence, not by waiving the missing baseline.
+- #141 clean `verify:acceptance` or approved legacy ConvAI blocker.
+- #171 questionnaire workbook human confirmations.
+
+Rules:
+
+- Do not change closeout, Delivery Status, or questionnaire drafts to PASS until
+  the PASS guard succeeds.
+- While the submission is still BLOCKED, do not write PR titles or bodies with
+  GitHub auto-closing phrases such as `close #128`, `fix #141`, or
+  `resolve #138`. Use `remains BLOCKED`, `pending`, or `tracks` wording unless
+  the PR is the final PASS closeout and the final PASS guard has already
+  succeeded.
+- #138 custom-domain approval must name a dedicated vFinal `mendan.biz` URL
+  mapped to `adecco-roleplay-vfinal`. The legacy shared comparison domain
+  `roleplay.mendan.biz` is not a valid submitted vFinal URL.
+- #138 hosted.app or custom-domain approval must include submitted-URL smoke
+  evidence: invite consume 307, session 200, `wsUrl`
+  `wss://voice.mendan.biz/api/v3/realtime-relay`, direct `api.x.ai` count 0,
+  and forbidden session keys absent. Custom-domain approval must also include
+  active DNS/certificate status.
+- #139 approval must name the submitted vFinal service account
+  `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` and the
+  legacy shared App Hosting service account
+  `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` so the
+  scope boundary is explicit.
+- #140 cannot be closed by a current-vFinal-only sample or a missing-baseline
+  waiver. It needs a same-environment, same-scenario, >=20-session pre-vFinal
+  baseline, p95 comparison within thresholds, WSS close-code 1006 comparison,
+  relay.error comparison, `corepack pnpm grok:first-vfinal:latency-compare`
+  PASS, a comparison summary artifact, and `Comparison result: PASS`. Once
+  baseline evidence exists, run `corepack pnpm grok:first-vfinal:latency-compare
+  -- --baseline <pre-vFinal-summary.json> --current
+  <current-vFinal-summary.json> --baseline-close-code1006 <count>
+  --current-close-code1006 <count> --baseline-relay-error <count>
+  --current-relay-error <count> --out <comparison-summary.json>` and cite its
+  output.
+- #171 keeps the questionnaire drafts non-final until the mapped workbook cells
+  are human-confirmed or rewritten and the issue is closed or approved. If #171
+  is approved while open, the approval comment must name both source workbooks,
+  confirm `vFinal提出DOD照合` overall PASS, and state blocked-mode markers were
+  removed.
+- #141 approval must identify the legacy scenario
+  `staffing_order_hearing_busy_manager_medium`, acknowledge the latest full
+  rerun included `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` so
+  the no-coaching-only exception is not being applied, and state that no vFinal
+  session, relay, WAF, logging, or no-key runtime regression is indicated.
+- If `verify:acceptance` is blocked by Secret Manager IAM or current-shell
+  secret access, record the blocker and required permission; do not claim
+  acceptance PASS.
+- Do not commit `out/`, raw Cloud Logging JSON, screenshots, audio,
+  transcripts, prompt text, invite tokens, cookies, relay tickets, or workbook
+  copies that contain customer submission answers.
+
 ## Workbook Voice E2E
 
 Use this subsection when the operator provides an Excel workbook of v50-family
@@ -243,6 +341,7 @@ Grok Voice audio-fix closure gate:
 ## Representative Commands
 
 ```bash
+pnpm grok:vfinal-acceptance-input-inventory -- --expect=blocked
 pnpm verify:acceptance -- --preflight
 pnpm bootstrap:vendors
 pnpm smoke:eleven
