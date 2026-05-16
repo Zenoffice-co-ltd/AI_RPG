@@ -216,6 +216,12 @@ env:
     secret: XAI_API_KEY
   - variable: XAI_RELAY_TICKET_SECRET
     secret: XAI_RELAY_TICKET_SECRET
+  # vFinal invite-scoped anonymous participant auth. Values must come from
+  # Secret Manager; never commit invite/hash secrets or issued invite tokens.
+  - variable: GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET
+    secret: GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET
+  - variable: GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET
+    secret: GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET
   # Demo access gate token (existing secret stored as `demo-access-token` in
   # adecco-mendan; maps to `DEMO_ACCESS_TOKEN` env var consumed by
   # apps/web/lib/roleplay/auth.ts and the assertion in *RoleplayPage.tsx).

@@ -42,7 +42,8 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 - **Research v50.4 / v50.1 relay runtime with latest System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-4
 - **Research v50.5 / v50 runtime with fixed output-contract System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-5
 - **Research v50.6 / v50 runtime with one-sentence guarded System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-6
-- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1/v50.4/v50.5/v50.6: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1,50-4,50-5,50-6}`
+- **vFinal security foundation / invite-gated relay route**: https://roleplay.mendan.biz/demo/adecco-roleplay-vFinal
+- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1/v50.4/v50.5/v50.6/vFinal: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1,50-4,50-5,50-6,Final}`
 
 ## v50 Grok-first negative guard runtime
 
@@ -81,6 +82,21 @@ sentence, collapse off-role/ending guard handling to one fixed response, remove
 customer-side reverse questions, and keep the first message free of forbidden
 polite-request wording.
 
+For v50-family production smoke and log reconstruction, use the reusable
+scripts instead of one-off `.codex_tmp` harnesses:
+
+```bash
+pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode start
+pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode voice-turn
+pnpm grok:first-v50:prod-logs -- --session <gfv50_...>
+```
+
+The first command verifies route startup, session identity, WebSocket connection,
+and first-message display. The voice-turn mode additionally requires
+`stt.completed`, `turn.completed`, `audioBytes > 0`, and `error=null`. The log
+collector queries `jsonPayload.scope="grokFirstV50"` and reports missing
+`turn.completed` separately from session-start failures.
+
 Contract:
 
 - Grok Voice Think Fast generates every business answer in realtime.
@@ -115,6 +131,41 @@ Session defaults:
   `demoSlug` / `backend` identity requires deploying both App Hosting and the
   Cloud Run relay image; otherwise the session route may mint a ticket that the
   older relay rejects as `ticket.rejected reason=malformed`.
+
+## vFinal security foundation route
+
+`/demo/adecco-roleplay-vFinal` is separated from the v50-family comparison
+routes. Its API namespace is `/api/grok-first-vFinal/*`, and it requires
+`/demo/adecco-roleplay-vFinal/access?invite=...` before the session API can
+issue a relay ticket. The vFinal session response is public metadata plus
+relay auth only: no prompt body, no `instructions`, no hidden assistant
+history, no xAI ephemeral token, and no API key.
+
+The relay is authoritative for the vFinal runtime setup. After validating the
+ticket, Origin, Host, path, audience, transport, nonce, backend, and
+`participantIdHash`, the Cloud Run relay sends the server-side
+`session.update` and hidden assistant history upstream to xAI. Browser-sent
+`session.update`, assistant/system/developer messages, tools, and non-exact
+client frames are dropped. The server-only prompt config lives in
+`@top-performer/grok-first-roleplay-config`; client imports and client bundle
+prompt leakage are checked by `pnpm grok:vfinal-security-invariants`.
+
+Before vFinal customer submission, App Hosting and Cloud Run relay must be
+deployed from the same Git SHA, and the evidence must be recorded in
+`docs/security/adecco-ai-roleplay-final-security-closeout.md`. Do not claim
+app-wide WAF coverage unless the Web App is actually behind a WAF-capable load
+balancer; App Hosting direct custom domains rely on invite/session controls,
+application rate limits, secret isolation, and relay-side WAF/rate monitoring
+as compensating controls.
+
+Verification note: before claiming v50-family final DoD, map the requested
+case-set denominator to an executable runner. A dedicated 5-case back-to-back
+fixed_external harness is scoped evidence and is not a substitute for
+spreadsheet-defined `13/13 x3`, `69 P0 guards`, or `93-turn full` runs unless
+those exact cases are executed. For local browser E2E, resolve
+`DEMO_ACCESS_TOKEN` (Secret Manager alias `demo-access-token`) and
+`XAI_RELAY_TICKET_SECRET` without printing values, and start Next from
+`apps/web` so workspace package links resolve.
 
 DOD:
 

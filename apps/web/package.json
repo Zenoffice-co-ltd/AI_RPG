@@ -17,6 +17,7 @@
     "@google-cloud/tasks": "^6.2.1",
     "@top-performer/domain": "workspace:*",
     "@top-performer/firestore": "workspace:*",
+    "@top-performer/grok-first-roleplay-config": "workspace:*",
     "@top-performer/grok-realtime-relay-auth": "workspace:*",
     "@top-performer/scenario-engine": "workspace:*",
     "@top-performer/scoring": "workspace:*",
@@ -28,6 +29,7 @@
     "next": "16.2.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "server-only": "^0.0.1",
     "ws": "8.20.0",
     "zod": "^4.3.6"
   },

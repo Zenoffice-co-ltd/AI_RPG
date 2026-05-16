@@ -26,6 +26,30 @@ Use this skill when the job is to prove that the repo is shippable.
 5. When a legacy scenario fails during a new-scenario task, compare the relevant generated scenario/assets and live test definition before calling it a regression. If needed, use a temporary clean worktree at the pre-task baseline to establish causality.
 6. Record concrete evidence, not just that scripts exist.
 
+## Long-running E2E / Spreadsheet DoD Preflight
+
+Before running a browser E2E, voice E2E, spreadsheet-defined plan, or final DoD,
+spend the first pass proving that the run is executable:
+
+1. Map the requested denominator to an exact command: e.g. `5-case harness`,
+   `13/13 guard smoke`, `69 P0 guards`, or `93-turn full`.
+2. If the plan is an Excel/Sheets file, inspect the workbook sheets and confirm
+   there is a runner for each required case set. Missing runner = blocker; do
+   not substitute a narrower harness and call it final DoD.
+3. Confirm required secrets by env name and Secret Manager alias without printing
+   values. For Adecco demo routes, check `DEMO_ACCESS_TOKEN`/`demo-access-token`;
+   for v25/v50 relay routes, check `XAI_RELAY_TICKET_SECRET`; normal Grok voice
+   paths also need `XAI_API_KEY`.
+4. Confirm the package script still exists before invoking it. If a direct node
+   script is used instead, report the reason.
+5. Confirm no stale Next dev server is holding the app directory. Reuse a server
+   only after a one-turn event-capture check proves the target `/api/.../event`
+   route is being observed.
+
+Report scoped evidence precisely. A `5/5 x3` back-to-back fixed-guard harness is
+valuable, but it is not the same as Excel `13/13 x3` or `69/69` unless the same
+case set was executed.
+
 ## Enterprise Relay Closeout
 
 Use this subsection when closing v25 or Grok-first v50-family work that routes
@@ -113,6 +137,26 @@ For v50.4 specifically, the expected session identity is
 `backend=grok-first-v50-4`,
 `promptVersion=grok-first-v50.4-2026-05-15`,
 model `grok-voice-think-fast-1.0`, and voice `99c95cc8a177`.
+
+## v50-family Production Evidence Order
+
+For `/demo/adecco-roleplay-v50*` work, use this order before broad acceptance:
+
+1. Targeted unit/typecheck for touched v50 files.
+2. Local focused fixed-guard or voice browser E2E, if the requested denominator
+   has a runner.
+3. Deploy through `pnpm deploy:adecco-roleplay` or
+   `pnpm deploy:adecco-roleplay:gcloud`; avoid bare deploy except Cloud Build
+   debugging.
+4. Production session API smoke for `/api/grok-first-v50*/session`.
+5. Production URL smoke with `pnpm grok:first-v50:prod-smoke`.
+6. Relay health/log check if `realtimeTransport=mendan_cloud_run_relay_wss`.
+7. Production `grokFirstV50` Cloud Logging query for the same `sessionId` via
+   `pnpm grok:first-v50:prod-logs`.
+8. Only then run spreadsheet/full E2E or `pnpm verify:acceptance`.
+
+v50-family evidence is not emitted through `/api/v3/event`; use
+`/api/grok-first-v50*/event` and `jsonPayload.scope="grokFirstV50"`.
 
 ## Grok Voice v2.1 PR58+ Release DOD
 

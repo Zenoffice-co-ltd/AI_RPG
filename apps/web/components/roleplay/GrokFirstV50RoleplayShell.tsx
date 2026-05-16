@@ -36,7 +36,8 @@ export function GrokFirstV50RoleplayShell({
     | "/api/grok-first-v50-4"
     | "/api/grok-first-v50-5"
     | "/api/grok-first-v50-6"
-    | "/api/grok-first-v50-7";
+    | "/api/grok-first-v50-7"
+    | "/api/grok-first-vFinal";
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<RoleplayMode>(() =>
