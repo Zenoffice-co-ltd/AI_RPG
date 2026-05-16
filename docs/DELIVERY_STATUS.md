@@ -23,7 +23,7 @@ Current vFinal blockers:
 | --- | --- | --- |
 | #138 | Submitted URL decision | Approve the dedicated hosted.app URL for customer submission, or map an active dedicated vFinal `mendan.biz` custom domain to the dedicated backend. |
 | #139 | Legacy shared App Hosting `XAI_API_KEY` scope | Approve legacy shared direct/comparison routes as outside submitted vFinal scope, or migrate/de-scope them and remove shared App Hosting `XAI_API_KEY` access. |
-| #140 | Strict pre-vFinal latency baseline | Approve or collect a same-environment, same-scenario, >=20-session pre-vFinal baseline, compare it with the current-vFinal sample, and record PASS against the documented thresholds. |
+| #140 | Strict pre-vFinal latency baseline | Approve or collect a same-environment, same-scenario, >=20-session pre-vFinal baseline, compare it with the current-vFinal sample using `corepack pnpm grok:first-vfinal:latency-compare`, and record PASS against the documented thresholds. |
 | #141 | Canonical `verify:acceptance` closure | Obtain clean `verify:acceptance` PASS, or formally approve the known legacy ConvAI judge blocker as outside submitted vFinal scope. |
 | #171 | Questionnaire workbook human confirmations | Confirm or rewrite the mapped questionnaire cells before treating the security-checksheet drafts as final submission artifacts. |
 

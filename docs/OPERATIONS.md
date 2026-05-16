@@ -1100,6 +1100,13 @@ from the expected GitHub account.
   `summary.json` can be compared against the current-vFinal `summary.json` with
   the documented p95 thresholds plus closeCode1006 / relay.error counts. The
   command is tooling only and does not collect or approve the missing baseline.
+- 2026-05-17 post-PR177 recheck: `origin/main` contains the comparator at
+  merge commit `14beffe111fd6820523e70fd0d7486f35713e108`; the submission DoD
+  guard still passes only in expected BLOCKED mode with #138, #139, #140, #141,
+  and #171 OPEN. The comparator self-test and vFinal security invariants passed.
+  This remains documentation/tooling evidence only; no production, IAM, DNS,
+  App Hosting, Cloud Run, Cloud Armor, Cloud Logging, workbook, or runtime
+  change was made.
 
 ### 2026-05-17 — vFinal workbook human-confirmation issue
 

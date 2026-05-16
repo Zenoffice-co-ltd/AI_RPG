@@ -17,6 +17,18 @@ it makes the finalization checklist easier to audit.
 
 ## Latest Continuation Recheck
 
+2026-05-17 JST recheck after PR #177:
+
+- #138, #139, #140, #141, and #171 are still OPEN.
+- PR #177 added `corepack pnpm grok:first-vfinal:latency-compare` for the
+  future #140 baseline comparison. It rejects weak denominator, missing
+  closeCode1006 / relay.error counters, threshold failures, failed runs, and
+  using the same summary artifact as both baseline and current.
+- This tooling does not create, approve, or collect the missing pre-vFinal
+  baseline. #140 remains BLOCKED until a same-environment, same-scenario,
+  >=20-session baseline is approved or collected and the comparator returns
+  PASS.
+
 2026-05-17 JST recheck after PR #169:
 
 - #138, #139, #140, and #141 are still OPEN.

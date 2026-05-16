@@ -879,6 +879,13 @@ Remaining blockers:
     lack `sessionApiMs`, use local/different route families, fail quality gates,
     or lack a comparable >=20-session denominator. The strict pre-vFinal
     baseline comparison remains blocked.
+  - 2026-05-17 post-PR177 #140 comparator: `corepack pnpm
+    grok:first-vfinal:latency-compare` is merged on `origin/main` at
+    `14beffe111fd6820523e70fd0d7486f35713e108`. It self-tests in CI and fails
+    weak denominator, failed-run, missing closeCode1006 / relay.error counter,
+    threshold, and same-summary baseline/current cases. This gives a
+    reproducible command for the future #140 comparison, but does not create or
+    approve the missing pre-vFinal baseline.
   - local DNS/Google API resolution remains unreliable for gcloud CLI
     post-verify commands. REST calls with explicit Google API IP resolution were
     used for Cloud Run/App Hosting/Logging/Secret Manager evidence; this is an
