@@ -812,6 +812,22 @@ Remaining blockers:
     2026-05-17 post-PR149 current-shell preflight still fails before product
     checks with Secret Manager `secretmanager.versions.access` permission denied
     when process-local vendor env values and `apps/web/.env.local` are absent.
+  - 2026-05-17 01:50 JST continuation recheck: `corepack pnpm
+    grok:vfinal-submission-dod-status -- --expect=blocked
+    --check-github-issues --allow-open-approved-issues
+    --approval-author=iwase-cpu --workbook=... --workbook=...` PASS confirmed
+    closeout, audit, questionnaire map, both source workbooks, and issue state
+    are still intentionally BLOCKED. Issues #138, #139, #140, and #141 were
+    still OPEN with no approval comments. `corepack pnpm
+    grok:vfinal-security-invariants` PASS. Submitted hosted.app still returned
+    HTTP 200; dedicated `mendan.biz` candidates still had no DNS result. The
+    `XAI_API_KEY` IAM policy still excluded the dedicated vFinal service
+    account and included the legacy shared App Hosting compute service account.
+    Local artifacts still did not contain an approved strict pre-vFinal
+    >=20-session baseline with the required metrics. Fresh `corepack pnpm
+    verify:acceptance -- --preflight` still stopped before product checks with
+    Secret Manager `secretmanager.versions.access` permission denied in the
+    current shell. No production changes were made.
   - local DNS/Google API resolution remains unreliable for gcloud CLI
     post-verify commands. REST calls with explicit Google API IP resolution were
     used for Cloud Run/App Hosting/Logging/Secret Manager evidence; this is an

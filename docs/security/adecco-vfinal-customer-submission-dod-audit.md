@@ -81,6 +81,24 @@ tracked items:
   `corepack pnpm verify:acceptance -- --preflight` still failed with Secret
   Manager `secretmanager.versions.access` permission denied when process-local
   vendor env values and `apps/web/.env.local` were absent.
+- 2026-05-17 01:50 JST continuation recheck:
+  `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
+  --check-github-issues --allow-open-approved-issues
+  --approval-author=iwase-cpu --workbook=... --workbook=...` passed and
+  confirmed the closeout, audit, questionnaire map, both source questionnaire
+  workbooks, and issue state remain BLOCKED. `corepack pnpm
+  grok:vfinal-security-invariants` passed. Dedicated hosted.app still returned
+  HTTP 200, while dedicated `mendan.biz` candidates had no DNS result in this
+  environment. `XAI_API_KEY` IAM still excluded the dedicated vFinal service
+  account and included legacy shared App Hosting compute access. Local artifact
+  scan still found current-vFinal 20-run summaries only, not an approved strict
+  pre-vFinal >=20-session baseline with the required metrics. A fresh
+  `corepack pnpm verify:acceptance -- --preflight` attempt still failed before
+  product checks with Secret Manager `secretmanager.versions.access` permission
+  denied in the current shell. This does not supersede the earlier full-run
+  legacy ConvAI judge evidence; it confirms a clean rerun still requires
+  process-local secrets or an execution identity with the required Secret
+  Manager access.
 - Security-checksheet submission uses the same final blocker set as customer
   submission because the source questionnaire workbooks and questionnaire map
   must stay BLOCKED until #138, #139, #140, and #141 are resolved or formally

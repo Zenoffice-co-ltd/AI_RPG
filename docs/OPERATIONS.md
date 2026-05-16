@@ -950,6 +950,33 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   for #138, but customer submission DoD remains BLOCKED until #138, #139,
   #140, and #141 are resolved or explicitly approved.
 
+### 2026-05-17 — vFinal submission blocker continuation recheck
+
+- Rechecked the customer/security-checksheet submission gate at 01:50 JST.
+- `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
+  --check-github-issues --allow-open-approved-issues
+  --approval-author=iwase-cpu --workbook=... --workbook=...` PASS: closeout,
+  audit, questionnaire map, both source questionnaire workbooks, and GitHub
+  issues remained consistently BLOCKED. Issues #138, #139, #140, and #141 were
+  still OPEN with no approval comments.
+- `corepack pnpm grok:vfinal-security-invariants` PASS.
+- Submitted URL recheck: dedicated hosted.app returned HTTP 200, while
+  `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still had no
+  DNS result in this environment.
+- Read-only `XAI_API_KEY` Secret Manager IAM recheck still excluded
+  `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` and
+  still included the legacy shared App Hosting compute service account plus the
+  relay service account.
+- Latency artifact scan still found current-vFinal 20-run summaries only, not
+  an approved strict pre-vFinal >=20-session baseline with
+  `sessionApiMs`/`firstAudioDeltaMs`/`firstAudibleAudioMs`.
+- Fresh `corepack pnpm verify:acceptance -- --preflight` failed before product
+  checks with Secret Manager `secretmanager.versions.access` permission denied
+  in the current shell. No secret values were printed or persisted.
+- No production changes were made. Customer submission DoD and
+  security-checksheet submission DoD remain BLOCKED pending #138, #139, #140,
+  and #141 resolution or explicit approval.
+
 ### 2026-05-17 — vFinal questionnaire workbook status guard
 
 - Added workbook-aware checks to
