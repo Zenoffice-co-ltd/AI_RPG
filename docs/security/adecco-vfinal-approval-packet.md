@@ -109,7 +109,9 @@ and compare p95 metrics before final submission.
 Current state:
 
 - `verify:acceptance -- --preflight` is ready when required vendor secrets are
-  resolved into process-local environment variables.
+  resolved into process-local environment variables. In the latest shell
+  without those env values and without `apps/web/.env.local`, the preflight
+  stopped on Secret Manager `secretmanager.versions.access` permission denied.
 - Full `verify:acceptance` is blocked at the legacy
   `staffing_order_hearing_busy_manager_medium` ElevenLabs ConvAI judge step.
 - Latest rerun included `no-hidden-fact-leak` plus `no-coaching` on retry 1,
@@ -150,4 +152,3 @@ corepack pnpm grok:vfinal-security-invariants
 6. Create the final closeout PR and set the final verdict to
    `Customer submission DoD: PASS` only if all remaining blockers are closed or
    explicitly approved out of scope.
-
