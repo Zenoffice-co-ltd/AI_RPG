@@ -63,3 +63,20 @@ The next valid paths are:
    environment or approved rollback window.
 3. Compare that baseline against the current-vFinal 20-session sample and record
    `PASS` only if all thresholds in this document are met.
+
+Comparison command once an approved baseline exists:
+
+```bash
+corepack pnpm grok:first-vfinal:latency-compare -- \
+  --baseline <pre-vFinal-summary.json> \
+  --current out/grok_first_vfinal_latency/2026-05-16T14-32-01-504Z/summary.json \
+  --baseline-close-code1006 <count> \
+  --current-close-code1006 <count> \
+  --baseline-relay-error <count> \
+  --current-relay-error <count> \
+  --out <comparison-summary.json>
+```
+
+The comparison output is the evidence to cite before promoting this assessment
+to `PASS`. If the summary JSONs later include `closeCode1006Count` and
+`relayErrorCount`, the explicit count flags may be omitted.

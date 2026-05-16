@@ -1095,6 +1095,11 @@ from the expected GitHub account.
   p95 metrics, and `Comparison result: PASS`.
 - No production, DNS, IAM, Secret Manager, App Hosting, Cloud Run, Cloud Armor,
   Cloud Logging, workbook, or runtime changes were made.
+- 2026-05-17 follow-up: added
+  `corepack pnpm grok:first-vfinal:latency-compare` so an approved pre-vFinal
+  `summary.json` can be compared against the current-vFinal `summary.json` with
+  the documented p95 thresholds plus closeCode1006 / relay.error counts. The
+  command is tooling only and does not collect or approve the missing baseline.
 
 ### 2026-05-17 — vFinal workbook human-confirmation issue
 

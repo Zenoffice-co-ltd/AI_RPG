@@ -113,6 +113,13 @@ relay.error increase: <none|details>.
 Comparison result: PASS.
 ```
 
+When a baseline source is approved, run the comparison guard and attach or cite
+its output:
+
+```bash
+corepack pnpm grok:first-vfinal:latency-compare -- --baseline <pre-vFinal-summary.json> --current out/grok_first_vfinal_latency/2026-05-16T14-32-01-504Z/summary.json --baseline-close-code1006 <count> --current-close-code1006 <count> --baseline-relay-error <count> --current-relay-error <count> --out <comparison-summary.json>
+```
+
 or
 
 ```text
