@@ -155,6 +155,11 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
   --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
 
+If any of #138, #139, #140, or #141 remain OPEN and are resolved by approval
+comment rather than closure, add `--approval-author=<approver-github-login>` or
+set `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` to the approved GitHub login list
+before running the final PASS guard.
+
 6. Create the final closeout PR and set the final verdict to
    `Customer submission DoD: PASS` only if all remaining blockers are closed or
    explicitly approved out of scope.
