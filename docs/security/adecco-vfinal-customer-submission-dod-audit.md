@@ -9,6 +9,8 @@ weak, partial, approval-dependent, or scope-dependent evidence is not counted as
 final PASS.
 The consolidated blocker inventory index is
 `docs/security/adecco-vfinal-blocker-inventory-index.md`.
+The workbook cell-level human-confirmation map is
+`docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
 
 ## Blocking Summary
 
@@ -114,7 +116,9 @@ tracked items:
   --check-github-issues --allow-open-approved-issues
   --approval-author=iwase-cpu --workbook=... --workbook=...` passed and
   confirmed the closeout, audit, questionnaire map, both source questionnaire
-  workbooks, and issue state remain BLOCKED. `corepack pnpm
+  workbooks, and issue state remain BLOCKED. The visible `Approved:` strings on
+  #138, #139, #140, and #141 are approval templates in fenced code blocks or
+  blockquotes, not accepted approval comments. `corepack pnpm
   grok:vfinal-security-invariants` passed. Dedicated hosted.app still returned
   HTTP 200, while dedicated `mendan.biz` candidates had no DNS result in this
   environment. `XAI_API_KEY` IAM still excluded the dedicated vFinal service
@@ -127,6 +131,13 @@ tracked items:
   legacy ConvAI judge evidence; it confirms a clean rerun still requires
   process-local secrets or an execution identity with the required Secret
   Manager access.
+- 2026-05-17 post-PR169 continuation recheck:
+  #138, #139, #140, and #141 remain OPEN; the dedicated hosted.app candidate
+  returns HTTP 200; `roleplay-vfinal.mendan.biz` and
+  `adecco-roleplay.mendan.biz` still do not resolve in this environment; and
+  `corepack pnpm verify:acceptance -- --preflight` still fails before product
+  checks with Secret Manager `secretmanager.versions.access` permission denied
+  in this shell. No secret values were printed or persisted.
 - 2026-05-17 #140 baseline candidate assessment:
   `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`
   records the artifact review. The two eligible 20-run artifacts are
@@ -168,6 +179,11 @@ tracked items:
 | 23 | Closeout records official docs checked, backend/rollout/revision/traffic, relay image/revision/traffic, same Git SHA deploy, service account/IAM proof, log retention proof, WAF proof, session contract, browser WS capture, direct `api.x.ai` 0, relay phases, sensitive scan, live E2E, latency, ZAP, and acceptance | PASS for recorded evidence; blockers remain explicit | The closeout contains the required evidence sections. Latency and acceptance sections are recorded as BLOCKED rather than PASS. |
 | 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs are merged through the latest blocker-recheck updates, but no final PASS PR can be honestly created until #138-#141 are resolved or approved. |
 | 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED | Closeout final verdicts remain BLOCKED and must stay that way until #138-#141 are closed or formally approved out of scope. |
+
+Workbook human-confirmation cells are tracked separately in
+`docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` and must
+be confirmed or rewritten before the questionnaire drafts can be treated as
+final submission artifacts.
 
 ## Minimal Restart Path
 

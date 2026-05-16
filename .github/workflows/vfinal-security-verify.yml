@@ -18,6 +18,7 @@ on:
       - "scripts/grok-first-vfinal-browser-e2e.mjs"
       - "docs/security/adecco-ai-roleplay-final-security-closeout.md"
       - "docs/security/adecco-vfinal-approval-packet.md"
+      - "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md"
       - "docs/security/adecco-vfinal-blocker-inventory-index.md"
       - "docs/security/adecco-vfinal-submitted-url-decision-inventory.md"
       - "docs/security/adecco-vfinal-legacy-xai-scope-inventory.md"

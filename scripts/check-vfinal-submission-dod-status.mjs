@@ -65,6 +65,12 @@ const files = {
   audit: join(root, "docs", "security", "adecco-vfinal-customer-submission-dod-audit.md"),
   questionnaireMap: join(root, "docs", "security", "adecco-vfinal-questionnaire-submission-map.md"),
   approvalPacket: join(root, "docs", "security", "adecco-vfinal-approval-packet.md"),
+  workbookHumanConfirmationMap: join(
+    root,
+    "docs",
+    "security",
+    "adecco-vfinal-workbook-human-confirmation-cell-map.md"
+  ),
   blockerInventoryIndex: join(
     root,
     "docs",
@@ -127,6 +133,7 @@ const questionnaireMapStatus = matchOne(
   /^Status as of .*?: \*\*(PASS|BLOCKED)\b.*?\*\*\./m,
   "questionnaire map top-level status"
 );
+const workbookHumanConfirmationMapStatus = matchWorkbookHumanConfirmationMapStatus();
 const submittedUrlDecisionInventoryStatus = matchSubmittedUrlDecisionInventoryStatus();
 const legacyXaiScopeInventoryStatus = matchLegacyXaiScopeInventoryStatus();
 const latencyBaselineAssessmentStatus = matchLatencyBaselineAssessmentStatus();
@@ -141,11 +148,43 @@ if (normalizedExpected === "blocked") {
   requireEqual(securityChecksheetVerdict, "BLOCKED", "security-checksheet verdict");
   requireEqual(auditStatus, "BLOCKED", "audit status");
   requireEqual(questionnaireMapStatus, "BLOCKED", "questionnaire map status");
+  requireEqual(workbookHumanConfirmationMapStatus, "BLOCKED", "workbook human confirmation map status");
   requireEqual(submittedUrlDecisionInventoryStatus, "BLOCKED", "submitted URL decision inventory status");
   requireEqual(legacyXaiScopeInventoryStatus, "BLOCKED", "legacy XAI scope inventory status");
   requireEqual(latencyBaselineAssessmentStatus, "BLOCKED", "latency baseline assessment status");
   requireEqual(acceptanceBlockerInventoryStatus, "BLOCKED", "acceptance blocker inventory status");
   requireEqual(blockerInventoryIndexStatus, "BLOCKED", "blocker inventory index status");
+  requireIncludes(
+    source.workbookHumanConfirmationMap,
+    "human confirmation still required before final questionnaire submission",
+    "workbook human confirmation map blocked status"
+  );
+  for (const workbookMarker of [
+    "Adecco_データ保護アンケート_v01_回答ドラフト.xlsx",
+    "Adecco_TPISAアンケート_v01_回答ドラフト.xlsm",
+    "`Sheet1` | `E5`",
+    "`基本情報` | `C12`",
+    "`A.組織のセキュリティ` | `G15`",
+    "`B.製品のセキュリティ` | `G39:G40`",
+  ]) {
+    requireIncludes(
+      source.workbookHumanConfirmationMap,
+      workbookMarker,
+      `workbook human confirmation map marker ${workbookMarker}`
+    );
+  }
+  for (const [surfaceName, surface] of [
+    ["closeout", source.closeout],
+    ["audit", source.audit],
+    ["questionnaire map", source.questionnaireMap],
+    ["approval packet", source.approvalPacket],
+  ]) {
+    requireIncludes(
+      surface,
+      "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
+      `${surfaceName} workbook human confirmation map link`
+    );
+  }
   requireIncludes(
     source.blockerInventoryIndex,
     "all blocker inventories still require resolution or approval",
@@ -298,6 +337,7 @@ if (normalizedExpected === "pass") {
   requireEqual(securityChecksheetVerdict, "PASS", "security-checksheet verdict");
   requireEqual(auditStatus, "PASS", "audit status");
   requireEqual(questionnaireMapStatus, "PASS", "questionnaire map status");
+  requireEqual(workbookHumanConfirmationMapStatus, "PASS", "workbook human confirmation map status");
   requireEqual(submittedUrlDecisionInventoryStatus, "PASS", "submitted URL decision inventory status");
   requireEqual(legacyXaiScopeInventoryStatus, "PASS", "legacy XAI scope inventory status");
   requireEqual(latencyBaselineAssessmentStatus, "PASS", "latency baseline assessment status");
@@ -305,6 +345,11 @@ if (normalizedExpected === "pass") {
   requireEqual(blockerInventoryIndexStatus, "PASS", "blocker inventory index status");
   rejectIncludes(source.closeout, "Remaining blockers:", "closeout should not list blockers after PASS");
   rejectIncludes(source.audit, "Customer submission remains blocked", "audit should not say blocked after PASS");
+  rejectIncludes(
+    source.workbookHumanConfirmationMap,
+    "human confirmation still required before final questionnaire submission",
+    "workbook human confirmation map should not say human confirmation is still required after PASS"
+  );
   rejectIncludes(
     source.blockerInventoryIndex,
     "all blocker inventories still require resolution or approval",
@@ -401,6 +446,7 @@ console.log(
       securityChecksheetVerdict,
       auditStatus,
       questionnaireMapStatus,
+      workbookHumanConfirmationMapStatus,
       submittedUrlDecisionInventoryStatus,
       legacyXaiScopeInventoryStatus,
       latencyBaselineAssessmentStatus,
@@ -424,6 +470,19 @@ function matchSubmittedUrlDecisionInventoryStatus() {
   }
   failures.push(
     "submitted URL decision inventory status must be PASS or submitted URL approval or custom domain mapping still required"
+  );
+  return null;
+}
+
+function matchWorkbookHumanConfirmationMapStatus() {
+  const text = source.workbookHumanConfirmationMap;
+  if (typeof text !== "string") return null;
+  if (/^Status as of .*?: \*\*PASS\b.*?\*\*\./m.test(text)) return "PASS";
+  if (/^Status as of .*?: \*\*human confirmation still required before final questionnaire submission\*\*\./m.test(text)) {
+    return "BLOCKED";
+  }
+  failures.push(
+    "workbook human confirmation map status must be PASS or human confirmation still required before final questionnaire submission"
   );
   return null;
 }
