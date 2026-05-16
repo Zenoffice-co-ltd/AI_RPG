@@ -60,6 +60,25 @@ explicit submitted URL approval or domain mapping, legacy shared XAI scope
 approval or de-scope, strict pre-vFinal latency comparison evidence, acceptance
 PASS or explicit approval, and workbook human confirmation.
 
+2026-05-17 post-PR #214 continuation recheck: PR #214 merged to `origin/main`
+at `78c0a3f34724d8ff380e775aac0dd508899ad052`, adding
+`corepack pnpm grok:vfinal-cloud-log-latency-inventory` for read-only Cloud
+Logging latency inventory. The helper prints aggregate metadata only and does
+not print or persist raw log JSON. Post-merge execution against project
+`adecco-mendan` with `--freshness=7d --limit=1000` passed for the expected
+BLOCKED state: 53 current-service `grokFirstVFinal` `turn.completed` metadata
+entries, 53 unique session hashes, `firstAudioDeltaMs` p95=5529ms,
+`firstAudibleAudioMs` p95=5743ms, relay `client.closed` entries=58,
+`relay.error`=0, and broad 7-day `closeCode1006` count=4 outside the narrower
+current-vFinal 20-session sample window. Cloud Logging turn metadata did not
+include `sessionApiMs`, and no comparison-ready explicit pre-vFinal baseline
+candidate was found. #140 therefore remains blocked pending approved
+same-environment, same-scenario, >=20-session pre-vFinal baseline evidence and
+`corepack pnpm grok:first-vfinal:latency-compare` PASS. Post-merge guards also
+passed only for expected BLOCKED: `corepack pnpm grok:vfinal-security-invariants`
+and `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
+--check-github-issues --workbook=... --workbook=...`.
+
 ## Target
 
 - Submitted vFinal no-key URL:
@@ -80,6 +99,8 @@ PASS or explicit approval, and workbook human confirmation.
 ## Official Docs Checked
 
 Checked on 2026-05-16 before starting the vFinal submission unblock work.
+Cloud Logging read/query docs were rechecked on 2026-05-17 before the
+post-PR #214 read-only latency inventory.
 
 | Area | Official doc | Adoption decision |
 |---|---|---|
@@ -91,6 +112,7 @@ Checked on 2026-05-16 before starting the vFinal submission unblock work.
 | Firebase App Hosting backend REST create | https://firebase.google.com/docs/reference/apphosting/rest/v1beta/projects.locations.backends/create | PR-B creates a separate `adecco-roleplay-vfinal` backend and assigns a user-managed vFinal service account instead of the shared App Hosting compute service account. |
 | Firebase App Hosting custom domain | https://firebase.google.com/docs/app-hosting/custom-domain | A custom `mendan.biz` submission domain requires DNS records and certificate/domain verification. Current PR-B evidence uses the dedicated `hosted.app` backend URL until DNS/domain mapping is approved. |
 | Cloud Run service identity | https://docs.cloud.google.com/run/docs/securing/service-identity | Runtime evidence must verify the managed Cloud Run service uses the vFinal user-managed service account and not the shared App Hosting compute service account. |
+| Cloud Logging CLI read / query language | https://cloud.google.com/sdk/gcloud/reference/logging/read and https://cloud.google.com/logging/docs/view/logging-query-language | PR #214 uses read-only aggregate Cloud Logging queries for latency inventory. Raw log JSON is not printed or persisted, and the inventory does not satisfy #140 without a strict pre-vFinal comparison baseline. |
 
 ## Session Contract Evidence
 
