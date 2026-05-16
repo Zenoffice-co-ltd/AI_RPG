@@ -845,6 +845,24 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 - Raw Cloud Logging JSON was not printed or persisted. No secret values were
   read, printed, persisted, or committed.
 
+### 2026-05-17 — vFinal #139 Secret Manager IAM boundary inventory
+
+- Official docs rechecked before the read-only IAM query:
+  Secret Manager access control with IAM and Firebase App Hosting config.
+- Added `corepack pnpm grok:vfinal-secret-iam-boundary` as a no-secret-payload
+  helper for the #139 live IAM boundary.
+- Command:
+  `corepack pnpm grok:vfinal-secret-iam-boundary -- --expect=blocked`.
+- Result: PASS for expected BLOCKED.
+- The helper confirmed the dedicated submitted vFinal service account still
+  has no `XAI_API_KEY` access in `adecco-mendan` or `zapier-transfer`, and the
+  Cloud Run relay service account has required relay-side secret access.
+- The helper also confirmed the legacy shared App Hosting service account still
+  has `XAI_API_KEY` access, so #139 remains BLOCKED pending explicit
+  out-of-scope approval or migration/removal.
+- No IAM binding was changed. No secret value was read, printed, persisted, or
+  committed.
+
 ### 2026-05-17 — vFinal #138 issue-state correction
 
 - During post-merge verification for PR #209, the final DoD guard failed

@@ -62,6 +62,7 @@
     "grok:first-vfinal:latency-artifact-inventory": "node scripts/grok-first-vfinal-latency-artifact-inventory.mjs",
     "grok:first-vfinal:latency-compare": "node scripts/grok-first-vfinal-latency-compare.mjs",
     "grok:vfinal-cloud-log-latency-inventory": "node scripts/check-vfinal-cloud-log-latency-inventory.mjs",
+    "grok:vfinal-secret-iam-boundary": "node scripts/check-vfinal-secret-iam-boundary.mjs",
     "grok:vfinal-security-invariants": "node scripts/check-vfinal-security-invariants.mjs",
     "grok:vfinal-legacy-xai-scope": "node scripts/check-vfinal-legacy-xai-scope.mjs",
     "grok:vfinal-acceptance-input-inventory": "node scripts/check-vfinal-acceptance-input-inventory.mjs",
