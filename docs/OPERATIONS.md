@@ -1115,6 +1115,24 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   B3:B7 blocker rows. No workbook answer values were copied into docs or issue
   comments.
 
+### 2026-05-17 — vFinal #171 post-PR220 workbook source recheck
+
+- Rechecked the two user-supplied source questionnaire workbooks count-only:
+  `corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked
+  --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx"
+  --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"`.
+- Result: PASS for expected BLOCKED. Both workbooks still have first sheet
+  `vFinal提出DOD照合`, overall status `BLOCKED`, and B3:B7 blocker rows.
+- Data-protection workbook: 25/25 mapped cells were non-empty and remain
+  human-confirmation items; mapped answer-cell marker scan found 1 marker cell.
+- TPISA workbook: 34/34 expanded mapped cells were non-empty and remain
+  human-confirmation items; mapped answer-cell marker scan found 0 marker cells;
+  `.xlsm` retained `vbaProject.bin`.
+- No workbook answer values were copied into docs or issue comments. #171
+  remains BLOCKED until the mapped cells are human-confirmed or rewritten to
+  explicit unresolved/not-applicable answers, both workbooks are promoted out of
+  BLOCKED mode, and the final PASS guard succeeds with both workbook paths.
+
 ### 2026-05-17 — vFinal #139 Secret Manager IAM boundary recheck
 
 - Rechecked official Secret Manager IAM and Firebase App Hosting config/secrets

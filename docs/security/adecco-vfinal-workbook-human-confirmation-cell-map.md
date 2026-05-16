@@ -67,6 +67,23 @@ The source workbooks currently stay in BLOCKED mode through the first sheet
   being a confirmation statement.
 - No workbook answer values were copied into this file.
 
+2026-05-17 07:16 JST count-only source workbook recheck:
+
+- Command:
+  `corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"`.
+- Both source workbooks still have `vFinal提出DOD照合` as the first sheet and
+  overall status `BLOCKED`; B3:B7 remain `BLOCKED` in both workbooks.
+- `Adecco_データ保護アンケート_v01_回答ドラフト.xlsx`: 25/25 mapped cells were
+  non-empty and remain human-confirmation items. The mapped answer-cell marker
+  scan found 1 blocker/confirmation marker cell.
+- `Adecco_TPISAアンケート_v01_回答ドラフト.xlsm`: 34/34 expanded mapped cells
+  were non-empty and remain human-confirmation items. The mapped answer-cell
+  marker scan found 0 blocker/confirmation marker cells, and the workbook
+  still retained `vbaProject.bin`.
+- This is evidence for the expected BLOCKED state only. It does not promote the
+  workbooks to final submission artifacts, and no workbook answer values were
+  copied into this file.
+
 ## Data Protection Questionnaire Cells
 
 | Sheet | Cell | Confirmation needed before final submission |

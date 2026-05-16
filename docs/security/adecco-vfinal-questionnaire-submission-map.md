@@ -37,6 +37,14 @@ Workbook alignment update on 2026-05-17 JST:
   the vFinal submitted URL is still #138-pending, with the dedicated hosted.app
   candidate or a future approved dedicated `mendan.biz` custom domain as the
   valid submitted URL options.
+- 2026-05-17 07:16 JST count-only workbook recheck: both source workbooks still
+  report `vFinal提出DOD照合` as the first sheet and overall status `BLOCKED`.
+  The data-protection draft has 25/25 mapped human-confirmation cells non-empty
+  with 1 mapped marker cell; the TPISA draft has 34/34 expanded mapped
+  human-confirmation cells non-empty with 0 mapped marker cells and retains its
+  VBA project. The marker scan is diagnostic only; all mapped cells still
+  require human/legal/operator confirmation or explicit unresolved/not-
+  applicable wording before final submission.
 - Backup copies were saved under
   `C:\Users\yukih\Downloads\vfinal_dod_excel_backups\` before editing.
 

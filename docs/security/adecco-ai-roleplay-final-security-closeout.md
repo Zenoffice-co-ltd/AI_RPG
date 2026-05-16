@@ -98,6 +98,19 @@ domain, current-shell acceptance inputs remain unavailable without Secret
 Manager/process-local injection, and both source questionnaire workbooks remain
 overall BLOCKED.
 
+2026-05-17 post-PR #220 workbook recheck: the two user-supplied source
+questionnaire workbooks were rechecked count-only with
+`corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked
+--workbook=... --workbook=...`. The helper passed for the expected BLOCKED
+state. Both workbooks still have `vFinal提出DOD照合` as the first sheet,
+overall status `BLOCKED`, and B3:B7 blocker rows. The data-protection workbook
+has 25/25 mapped human-confirmation cells non-empty with 1 mapped marker cell;
+the TPISA workbook has 34/34 expanded mapped human-confirmation cells non-empty
+with 0 mapped marker cells and retains `vbaProject.bin`. No workbook answer
+values were copied into docs or issue comments. #171 remains blocked pending
+human/legal/operator confirmation or explicit unresolved/not-applicable wording
+and final PASS guard success with both workbook paths.
+
 ## Target
 
 - Submitted vFinal no-key URL:

@@ -55,6 +55,14 @@ being closed or formally approved.
   product checks. This does not supersede the earlier executable full-run
   legacy ConvAI judge evidence, and #141 remains blocked pending clean PASS or
   explicit approval.
+- A refreshed #171 count-only source workbook recheck at 2026-05-17 07:16 JST
+  passed for the expected BLOCKED state. Both source workbooks still have
+  `vFinal提出DOD照合` as the first sheet, overall status `BLOCKED`, and B3:B7
+  blocker rows. The data-protection draft has 25/25 mapped human-confirmation
+  cells non-empty with 1 mapped marker cell; the TPISA draft has 34/34 expanded
+  mapped human-confirmation cells non-empty with 0 mapped marker cells and
+  retains `vbaProject.bin`. No workbook answer values were copied into docs or
+  issue comments.
 - `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
   --check-github-issues --allow-open-approved-issues
   --approval-author=iwase-cpu --workbook=<data-protection workbook>
