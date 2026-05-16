@@ -114,6 +114,12 @@ export class GrokFirstRealtime {
     this.flush();
   }
 
+  markServerSideSetupReady(): void {
+    this.state = "ready";
+    this.opts.onReady?.();
+    this.flush();
+  }
+
   sendUserText(text: string): void {
     this.send(
       {

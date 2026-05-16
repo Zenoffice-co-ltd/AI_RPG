@@ -31,6 +31,7 @@ import type {
   GrokFirstV50ServerEvent,
   GrokFirstV50Session,
 } from "./types";
+import { GROK_FIRST_VFINAL_BACKEND } from "./types";
 
 const SAFE_ERROR =
   "セッションの開始に失敗しました。時間をおいて再試行してください。";
@@ -439,8 +440,12 @@ export function useGrokFirstRoleplayConversation(
               kind: "ws.connected",
               sessionId: nextSession.sessionId,
             });
-            realtimeRef.current?.sendSessionUpdate(nextSession);
-            realtimeRef.current?.sendAssistantHistory(nextSession.firstMessage);
+            if (nextSession.backend === GROK_FIRST_VFINAL_BACKEND) {
+              realtimeRef.current?.markServerSideSetupReady();
+            } else {
+              realtimeRef.current?.sendSessionUpdate(nextSession);
+              realtimeRef.current?.sendAssistantHistory(nextSession.firstMessage);
+            }
           },
           onReady: () => {
             setStatus("listening");
