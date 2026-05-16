@@ -269,3 +269,10 @@ angle-bracket placeholders.
    `Customer submission DoD: PASS` only if all remaining blockers are closed or
    explicitly approved, with #140 backed by a passing pre-vFinal baseline
    comparison rather than a waiver of the missing baseline.
+
+While the submission is still BLOCKED, avoid GitHub auto-closing phrases in PR
+titles and bodies such as `close #128`, `fix #141`, or `resolve #138`. Use
+`remains BLOCKED`, `pending`, or `tracks` wording unless the PR is the final
+PASS closeout and the final PASS guard above has already succeeded. This
+prevents documentation/guard-hardening PRs from accidentally closing blocker
+issues before the underlying DoD item is actually resolved.

@@ -151,6 +151,11 @@ Rules:
 
 - Do not change closeout, Delivery Status, or questionnaire drafts to PASS until
   the PASS guard succeeds.
+- While the submission is still BLOCKED, do not write PR titles or bodies with
+  GitHub auto-closing phrases such as `close #128`, `fix #141`, or
+  `resolve #138`. Use `remains BLOCKED`, `pending`, or `tracks` wording unless
+  the PR is the final PASS closeout and the final PASS guard has already
+  succeeded.
 - #138 custom-domain approval must name a dedicated vFinal `mendan.biz` URL
   mapped to `adecco-roleplay-vfinal`. The legacy shared comparison domain
   `roleplay.mendan.biz` is not a valid submitted vFinal URL.
