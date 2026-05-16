@@ -1,0 +1,40 @@
+# Adecco vFinal Blocker Inventory Index
+
+Status as of 2026-05-17 JST: **all blocker inventories still require resolution or approval**.
+
+This index is the human-facing table of the four approval/evidence-sensitive
+items that still block customer submission DoD and security-checksheet
+submission DoD. It does not replace the individual inventory files or the
+GitHub issues; it makes the finalization checklist easier to audit.
+
+| Issue | Blocker | Inventory / assessment | Current index verdict |
+|---|---|---|---|
+| #138 | Submitted URL approval or dedicated custom-domain mapping | `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` | BLOCKED: hosted.app is live but not formally approved; dedicated `mendan.biz` candidates lack verified DNS mapping. |
+| #139 | Legacy shared App Hosting `XAI_API_KEY` scope | `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md` | BLOCKED: submitted vFinal runtime is no-key, but legacy shared `/api/v3` session/TTS paths still require explicit scope approval or migration/de-scope. |
+| #140 | Strict pre-vFinal latency baseline comparison | `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md` | BLOCKED: current-vFinal 20-session sample exists, but no approved strict pre-vFinal >=20-session baseline is available. |
+| #141 | Canonical `verify:acceptance` closure | `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` | BLOCKED: latest executable full run failed legacy ConvAI judge paths beyond the no-coaching-only exception; current-shell preflight lacks Secret Manager access. |
+
+## Finalization Rule
+
+Before the closeout can say `Customer submission DoD: PASS` and
+`Security-checksheet submission DoD: PASS`, every row above must be updated to
+one of:
+
+- PASS with evidence from a clean run or completed infrastructure change; or
+- Approved out of scope with a linked approval comment from an authorized
+  approver.
+
+The final PASS guard must be run with issue-state checking and the two source
+questionnaire workbooks:
+
+```bash
+corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
+  --check-github-issues \
+  --allow-open-approved-issues \
+  --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" \
+  --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
+```
+
+If any open issue is resolved by approval text instead of closure, also pass
+`--approval-author=<approver-github-login>` or set
+`VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS`.

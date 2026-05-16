@@ -7,6 +7,8 @@ evidence in `docs/security/adecco-ai-roleplay-final-security-closeout.md`,
 issue tracker state, and merged PR history. It is intentionally conservative:
 weak, partial, approval-dependent, or scope-dependent evidence is not counted as
 final PASS.
+The consolidated blocker inventory index is
+`docs/security/adecco-vfinal-blocker-inventory-index.md`.
 
 ## Blocking Summary
 
@@ -93,6 +95,11 @@ tracked items:
   `BLOCKED`, list #138, #139, #140, and #141 as unresolved, and no longer
   contain the old `プランが完了した前提` opening wording. The TPISA `.xlsm`
   still contains `vbaProject.bin`.
+- 2026-05-17 workbook submitted-URL wording correction:
+  the source drafts no longer say the browser submitted flow is
+  `roleplay.mendan.biz -> voice.mendan.biz`. They now state that #138 is still
+  pending and the submitted URL must be either the dedicated hosted.app
+  candidate or an approved dedicated `mendan.biz` custom domain.
 - 2026-05-17 post-PR149 blocker recheck:
   #138, #139, #140, and #141 remained OPEN with no approval comments. The
   dedicated hosted.app URL returned HTTP 200, both dedicated `mendan.biz`

@@ -9,6 +9,8 @@ approved out of scope. The same blocker set applies to the security-checksheet
 submission DoD because the questionnaire drafts cannot be promoted to final
 answers while submitted URL, runtime scope, latency comparison, and acceptance
 remain unresolved.
+The consolidated blocker inventory index is
+`docs/security/adecco-vfinal-blocker-inventory-index.md`.
 
 Reviewed workbook drafts:
 
@@ -25,6 +27,11 @@ Workbook alignment update on 2026-05-17 JST:
   foundation plan is complete for submission; it now states that completed
   vFinal evidence is usable only as scoped evidence and that the overall
   customer submission DoD remains blocked.
+- 2026-05-17 follow-up: workbook URL wording was tightened so it no longer
+  treats `roleplay.mendan.biz` as the submitted vFinal URL. The drafts now say
+  the vFinal submitted URL is still #138-pending, with the dedicated hosted.app
+  candidate or a future approved dedicated `mendan.biz` custom domain as the
+  valid submitted URL options.
 - Backup copies were saved under
   `C:\Users\yukih\Downloads\vfinal_dod_excel_backups\` before editing.
 

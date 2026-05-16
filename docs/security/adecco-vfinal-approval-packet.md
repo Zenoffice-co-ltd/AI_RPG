@@ -6,6 +6,8 @@ This packet is for the human/customer decision maker who can close the remaining
 approval-sensitive vFinal DoD items. It does not change the closeout verdict.
 `docs/security/adecco-ai-roleplay-final-security-closeout.md` must remain
 BLOCKED until the required approvals or fresh evidence are recorded.
+The consolidated inventory index for #138-#141 is
+`docs/security/adecco-vfinal-blocker-inventory-index.md`.
 
 ## Current Safe Submission Claim
 
