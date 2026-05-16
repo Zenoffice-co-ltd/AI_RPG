@@ -812,6 +812,16 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal approval packet
+
+- Added `docs/security/adecco-vfinal-approval-packet.md` with exact approval
+  options for the four remaining customer-submission blockers: #138 submitted
+  URL, #139 legacy shared App Hosting `XAI_API_KEY` scope, #140 latency
+  baseline, and #141 legacy `verify:acceptance` ConvAI judge blocker.
+- The packet is not a PASS verdict. It is a human decision aid. Keep the
+  closeout and questionnaire drafts BLOCKED until the approvals or fresh
+  evidence are recorded and the final closeout PR is merged.
+
 ### 2026-05-17 — vFinal full DoD audit
 
 - Added `docs/security/adecco-vfinal-customer-submission-dod-audit.md` to map
