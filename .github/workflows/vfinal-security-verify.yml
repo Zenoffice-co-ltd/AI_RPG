@@ -40,6 +40,8 @@ jobs:
         run: pnpm grok:vfinal-security-invariants
       - name: vFinal customer submission DoD status guard
         run: pnpm grok:vfinal-submission-dod-status
+      - name: vFinal customer submission DoD status guard self-test
+        run: pnpm grok:vfinal-submission-dod-status:self-test
       - name: vFinal targeted unit tests
         run: |
           pnpm --filter @top-performer/web test -- tests/unit/grok-first-vfinal.test.ts
