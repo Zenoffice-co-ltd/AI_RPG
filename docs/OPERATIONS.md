@@ -860,6 +860,24 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   runtime, 180-day metadata log retention, Cloud Armor preview/log policy, live
   browser/voice E2E, latency baseline, ZAP, and canonical acceptance.
 
+### 2026-05-16 — vFinal acceptance recheck after PR #135
+
+- `corepack pnpm verify:acceptance -- --preflight` is ready when the required
+  vendor secrets are resolved into process-local environment variables from
+  Secret Manager using the AGENTS.md precedence. Secret values were not printed
+  or persisted.
+- A full `corepack pnpm verify:acceptance` rerun reached `[3/10] publish
+  scenario` and failed after three ElevenLabs publish judge attempts, each
+  scoped to the known legacy
+  `staffing_order_hearing_busy_manager_medium::no-coaching` ConvAI judge
+  failure.
+- This is no longer a Secret Manager IAM blocker and does not indicate a vFinal
+  session, relay, WAF, logging, or no-key runtime regression. For vFinal
+  customer-submission closeout, acceptance remains BLOCKED until either a clean
+  full run passes in a stable vendor window or the customer/operator explicitly
+  approves this legacy ConvAI vendor judge failure as outside the vFinal
+  submission DoD.
+
 ### 2026-05-16 — vFinal security foundation PR status
 
 - PR #110 adds the invite-gated vFinal route
