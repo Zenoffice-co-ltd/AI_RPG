@@ -812,6 +812,23 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal #138 issue-state correction
+
+- During post-merge verification for PR #209, the final DoD guard failed
+  because #138 was CLOSED while customer submission DoD was still expected to
+  be BLOCKED.
+- Rechecked #138 comments. No comment contained the required exact hosted.app
+  submitted-URL approval with submitted-URL smoke evidence, and no dedicated
+  vFinal `mendan.biz` custom-domain DNS/certificate + submitted-URL smoke
+  evidence was present.
+- Reopened #138 with an explanatory comment. Issue closure alone is not
+  approval evidence for the submitted URL decision.
+- Re-ran `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
+  --check-github-issues --allow-open-approved-issues
+  --approval-author=iwase-cpu --workbook=<data-protection workbook>
+  --workbook=<TPISA workbook>` after reopening #138. Result: PASS for expected
+  BLOCKED, with #128, #138, #139, #140, #141, and #171 listed as blockers.
+
 ### 2026-05-17 — vFinal #140 latency comparison identity guard
 
 - Tightened `corepack pnpm grok:first-vfinal:latency-compare` so a formal

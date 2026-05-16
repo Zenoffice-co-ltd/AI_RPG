@@ -17,6 +17,12 @@ https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-
 
 Read-only evidence:
 
+- 2026-05-17 06:28 JST issue-state recheck: #138 had been closed, but no
+  comment contained the required exact hosted.app submitted-URL approval with
+  smoke evidence, and no dedicated `mendan.biz` active DNS/certificate +
+  submitted-URL smoke evidence was present. The issue was reopened to avoid
+  treating issue closure as approval. The valid resolution paths below remain
+  unchanged.
 - 2026-05-17 05:43 JST submitted URL candidate guard passed for expected
   BLOCKED state:
   `corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked`.
