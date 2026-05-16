@@ -65,6 +65,12 @@ const files = {
   audit: join(root, "docs", "security", "adecco-vfinal-customer-submission-dod-audit.md"),
   questionnaireMap: join(root, "docs", "security", "adecco-vfinal-questionnaire-submission-map.md"),
   approvalPacket: join(root, "docs", "security", "adecco-vfinal-approval-packet.md"),
+  latencyBaselineAssessment: join(
+    root,
+    "docs",
+    "security",
+    "adecco-vfinal-latency-baseline-candidate-assessment.md"
+  ),
 };
 
 const failures = [];
@@ -97,6 +103,7 @@ const questionnaireMapStatus = matchOne(
   /^Status as of .*?: \*\*(PASS|BLOCKED)\b.*?\*\*\./m,
   "questionnaire map top-level status"
 );
+const latencyBaselineAssessmentStatus = matchLatencyBaselineAssessmentStatus();
 
 const normalizedExpected =
   expected === "auto" ? closeoutVerdict?.toLowerCase() : expected;
@@ -106,6 +113,12 @@ if (normalizedExpected === "blocked") {
   requireEqual(securityChecksheetVerdict, "BLOCKED", "security-checksheet verdict");
   requireEqual(auditStatus, "BLOCKED", "audit status");
   requireEqual(questionnaireMapStatus, "BLOCKED", "questionnaire map status");
+  requireEqual(latencyBaselineAssessmentStatus, "BLOCKED", "latency baseline assessment status");
+  requireIncludes(
+    source.latencyBaselineAssessment,
+    "no approved strict pre-vFinal baseline found",
+    "latency baseline assessment blocked status"
+  );
   requireIncludes(
     source.questionnaireMap,
     "security-checksheet submission DoD",
@@ -133,8 +146,19 @@ if (normalizedExpected === "pass") {
   requireEqual(securityChecksheetVerdict, "PASS", "security-checksheet verdict");
   requireEqual(auditStatus, "PASS", "audit status");
   requireEqual(questionnaireMapStatus, "PASS", "questionnaire map status");
+  requireEqual(latencyBaselineAssessmentStatus, "PASS", "latency baseline assessment status");
   rejectIncludes(source.closeout, "Remaining blockers:", "closeout should not list blockers after PASS");
   rejectIncludes(source.audit, "Customer submission remains blocked", "audit should not say blocked after PASS");
+  rejectIncludes(
+    source.latencyBaselineAssessment,
+    "no approved strict pre-vFinal baseline found",
+    "latency baseline assessment should not say no approved strict baseline after PASS"
+  );
+  rejectIncludes(
+    source.latencyBaselineAssessment,
+    "Issue #140 remains blocked",
+    "latency baseline assessment should not say #140 remains blocked after PASS"
+  );
   rejectIncludes(
     source.audit,
     "Customer submission and security-checksheet submission remain blocked",
@@ -181,6 +205,7 @@ console.log(
       securityChecksheetVerdict,
       auditStatus,
       questionnaireMapStatus,
+      latencyBaselineAssessmentStatus,
       blockers: normalizedExpected === "blocked" ? ["#138", "#139", "#140", "#141"] : [],
       workbooks: workbookResults,
       githubIssues,
@@ -189,6 +214,19 @@ console.log(
     2
   )
 );
+
+function matchLatencyBaselineAssessmentStatus() {
+  const text = source.latencyBaselineAssessment;
+  if (typeof text !== "string") return null;
+  if (/^Status as of .*?: \*\*PASS\b.*?\*\*\./m.test(text)) return "PASS";
+  if (/^Status as of .*?: \*\*no approved strict pre-vFinal baseline found\*\*\./m.test(text)) {
+    return "BLOCKED";
+  }
+  failures.push(
+    "latency baseline assessment status must be PASS or no approved strict pre-vFinal baseline found"
+  );
+  return null;
+}
 
 function checkGithubIssues(expectedStatus) {
   const results = [];

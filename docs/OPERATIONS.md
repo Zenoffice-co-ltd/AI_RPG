@@ -977,6 +977,11 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   because they are current-vFinal samples, local/different route families,
   failing quality runs, missing `sessionApiMs`, or lack a comparable
   >=20-session denominator.
+- Follow-up guard update: `corepack pnpm grok:vfinal-submission-dod-status`
+  now reads the latency baseline candidate assessment. In BLOCKED mode it
+  requires the assessment to state that no approved strict pre-vFinal baseline
+  was found. In PASS mode it requires that assessment to be promoted to PASS
+  and rejects lingering `#140 remains blocked` / missing-baseline language.
 - Fresh `corepack pnpm verify:acceptance -- --preflight` failed before product
   checks with Secret Manager `secretmanager.versions.access` permission denied
   in the current shell. No secret values were printed or persisted.
