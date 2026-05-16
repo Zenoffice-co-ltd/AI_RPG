@@ -10,6 +10,15 @@ export type AdeccoEvaluationTaskPayload = {
   transcript: NormalizedTurn[] | null;
 };
 
+export type AdeccoBrowserEvaluationTaskPayload = {
+  sessionId: string;
+  conversationId: string | null;
+  transcript: NormalizedTurn[];
+  startedAt: string;
+  endedAt: string;
+  source: "grok_first_v50_7_browser";
+};
+
 export async function enqueueSessionAnalysis(sessionId: string) {
   const {
     env: {
@@ -130,6 +139,16 @@ export async function enqueueAdeccoEvaluationTask(
   const { env } = getAppContext();
   return enqueueJsonTask({
     url: `${env.APP_BASE_URL}/api/internal/adecco-eval`,
+    payload,
+  });
+}
+
+export async function enqueueAdeccoBrowserEvaluationTask(
+  payload: AdeccoBrowserEvaluationTaskPayload
+) {
+  const { env } = getAppContext();
+  return enqueueJsonTask({
+    url: `${env.APP_BASE_URL}/api/internal/adecco-browser-eval`,
     payload,
   });
 }

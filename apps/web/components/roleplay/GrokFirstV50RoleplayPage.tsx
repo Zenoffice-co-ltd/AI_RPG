@@ -23,7 +23,8 @@ export type GrokFirstV50PageProps = GrokFirstV50RouteProps & {
     | "/api/grok-first-v50-1"
     | "/api/grok-first-v50-4"
     | "/api/grok-first-v50-5"
-    | "/api/grok-first-v50-6";
+    | "/api/grok-first-v50-6"
+    | "/api/grok-first-v50-7";
 };
 
 export async function GrokFirstV50RoleplayPage({

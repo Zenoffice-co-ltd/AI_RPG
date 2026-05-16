@@ -15,7 +15,8 @@ export type RelayTicketDemoSlug =
   | "adecco-roleplay-v50-1"
   | "adecco-roleplay-v50-4"
   | "adecco-roleplay-v50-5"
-  | "adecco-roleplay-v50-6";
+  | "adecco-roleplay-v50-6"
+  | "adecco-roleplay-v50-7";
 
 export type RelayTicketRouterVariant = "B_NARROW_FALLBACK_SEMANTIC";
 
@@ -24,7 +25,8 @@ export type RelayTicketBackend =
   | "grok-first-v50-1"
   | "grok-first-v50-4"
   | "grok-first-v50-5"
-  | "grok-first-v50-6";
+  | "grok-first-v50-6"
+  | "grok-first-v50-7";
 
 export type RelayTicketPayload = {
   aud: string;
