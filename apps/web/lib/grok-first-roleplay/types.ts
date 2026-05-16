@@ -95,6 +95,7 @@ export type GrokFirstV50Session = {
   runtimeTtsEnabled: false;
   replacementTtsEnabled: false;
   fullTurnBufferEnabled: false;
+  browserEvaluationEnabled?: boolean;
 };
 
 export type GrokFirstV50ServerEvent = {

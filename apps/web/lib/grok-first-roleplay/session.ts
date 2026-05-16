@@ -42,6 +42,7 @@ const envSchema = z.object({
     .default("wss://voice.mendan.biz/api/v3/realtime-relay"),
   GROK_VOICE_RELAY_EXPECTED_AUD: z.string().min(1).default("voice.mendan.biz"),
   GROK_FIRST_V50_VOICE_ID: z.string().min(1).optional(),
+  ADECCO_BROWSER_EVAL_ENABLED: z.string().optional(),
 });
 
 export async function createGrokFirstV50Session(input?: {
@@ -151,6 +152,10 @@ export async function createGrokFirstV50Session(input?: {
     runtimeTtsEnabled: false,
     replacementTtsEnabled: false,
     fullTurnBufferEnabled: false,
+    browserEvaluationEnabled:
+      runtimeVariant === "v50.7"
+        ? env.ADECCO_BROWSER_EVAL_ENABLED !== "0"
+        : false,
   };
 }
 

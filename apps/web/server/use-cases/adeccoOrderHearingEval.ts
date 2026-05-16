@@ -98,6 +98,27 @@ export type AdeccoEvaluationResult = {
   retryNote: string;
 };
 
+export type AdeccoScoringResult = {
+  sessionId: string;
+  conversationId: string | null;
+  scenarioId: string;
+  model: string;
+  usage: {
+    input_tokens?: number;
+    output_tokens?: number;
+  };
+  validation: {
+    ok: boolean;
+    status: string;
+  };
+  retryNote: string;
+  reportJson: Record<string, unknown>;
+  rawClaudeText: string;
+  validationJsonText: string;
+  startedAt: string;
+  endedAt: string;
+};
+
 function getSecretProjectId() {
   return (
     process.env["ADECCO_EVAL_SECRET_PROJECT_ID"] ??
@@ -267,7 +288,7 @@ async function loadEmailHtmlTemplate() {
 }
 
 function htmlEscape(value: unknown) {
-  return String(value ?? "")
+  return asReportScalarString(value)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
@@ -293,9 +314,20 @@ function asReportString(value: unknown, fallback = "") {
   return typeof value === "string" && value.trim() ? value : fallback;
 }
 
+function asReportScalarString(value: unknown, fallback = "") {
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return String(value);
+  }
+  return fallback;
+}
+
 function asStringList(value: unknown) {
   return asReportArray(value)
-    .map((item) => String(item ?? "").trim())
+    .map((item) => asReportScalarString(item).trim())
     .filter(Boolean);
 }
 
@@ -469,7 +501,10 @@ function renderMustCaptureRows(report: Record<string, unknown>) {
     const badge = captureBadge(item);
     const id = asReportNumber(item["id"], index + 1);
     const label = asReportString(item["label"], `項目${id}`);
-    const weight = item["weight_points"] === null ? "—" : String(item["weight_points"] ?? "—");
+    const weight =
+      item["weight_points"] === null
+        ? "—"
+        : asReportScalarString(item["weight_points"], "—");
     const background = index % 2 === 1 ? ' style="background-color:#fafbfc;"' : "";
     const bottom = index === items.length - 1 ? "" : "border-bottom:1px solid #f0f2f5;";
     const important =
@@ -824,48 +859,79 @@ async function sendGmail(input: {
   return typeof body?.["id"] === "string" ? body["id"] : undefined;
 }
 
-function buildEmailBody(input: {
-  sessionId: string;
-  conversationId: string | null;
-  startedAt: string;
-  endedAt: string;
-  validation: ValidationResult;
-  claude: ClaudeResult;
-  retryNote: string;
-  rawResult: string;
-}) {
-  const totalScore =
-    typeof input.validation.parsed === "object" &&
-    input.validation.parsed !== null &&
-    !Array.isArray(input.validation.parsed)
-      ? (input.validation.parsed as Record<string, unknown>)["total_score"]
-      : "";
+export async function runAdeccoOrderHearingEvaluation(
+  input: AdeccoEvaluationInput
+): Promise<AdeccoEvaluationResult> {
+  const scoring = await runAdeccoOrderHearingScoring(input);
+  const secretProjectId = getSecretProjectId();
+  const gmailServiceAccountJson = await accessSecretValue(
+    GMAIL_SERVICE_ACCOUNT_SECRET_NAME,
+    secretProjectId
+  );
+  const subject = `[SANDBOX] [AIロープレ評価] ${SCENARIO_ID} / ${scoring.sessionId}`;
+  const bodyText = buildEmailBodyFromScoring(scoring);
+  const bodyHtml = renderDynamicReportHtml({
+    template: await loadEmailHtmlTemplate(),
+    report: scoring.reportJson,
+    metadata: {
+      sessionId: scoring.sessionId,
+      conversationId: scoring.conversationId,
+      startedAt: scoring.startedAt,
+      endedAt: scoring.endedAt,
+    },
+  });
+  const messageId = await sendGmail({
+    serviceAccountJson: gmailServiceAccountJson,
+    to: ORIGINAL_TO_ADDRESS,
+    subject,
+    bodyText,
+    bodyHtml,
+  });
+
+  return {
+    sessionId: scoring.sessionId,
+    model: scoring.model,
+    usage: scoring.usage,
+    validation: scoring.validation,
+    mail: {
+      routed_to: ORIGINAL_TO_ADDRESS,
+      delivery: "direct",
+      ok: true,
+      status: "sent",
+      ...(messageId ? { id: messageId } : {}),
+    },
+    retryNote: scoring.retryNote,
+  };
+}
+
+function buildEmailBodyFromScoring(scoring: AdeccoScoringResult) {
+  const totalScore = asReportScalarString(scoring.reportJson["total_score"]);
 
   const lines = [
     "AIロープレ評価 MVP 実行結果",
     "",
     "Validation:",
-    `- ok: ${input.validation.ok}`,
-    `- status: ${input.validation.status}`,
+    `- ok: ${scoring.validation.ok}`,
+    `- status: ${scoring.validation.status}`,
     "",
     "Model / Usage:",
-    `- model: ${input.claude.model}`,
-    `- usage.input_tokens: ${input.claude.usage.input_tokens ?? ""}`,
-    `- usage.output_tokens: ${input.claude.usage.output_tokens ?? ""}`,
-    `- retry_note: ${input.retryNote}`,
+    `- model: ${scoring.model}`,
+    `- usage.input_tokens: ${scoring.usage.input_tokens ?? ""}`,
+    `- usage.output_tokens: ${scoring.usage.output_tokens ?? ""}`,
+    `- retry_note: ${scoring.retryNote}`,
     "",
     "Session Metadata:",
-    `- session_id: ${input.sessionId}`,
+    `- session_id: ${scoring.sessionId}`,
     `- scenario_id: ${SCENARIO_ID}`,
     `- scenario_title: ${SCENARIO_TITLE}`,
     `- learner_name: ${LEARNER_NAME}`,
     `- client_role: ${CLIENT_ROLE}`,
-    `- started_at: ${input.startedAt}`,
-    `- ended_at: ${input.endedAt}`,
+    `- started_at: ${scoring.startedAt}`,
+    `- ended_at: ${scoring.endedAt}`,
     `- transcript_source: elevenlabs_postcall_webhook`,
     `- asr_quality_note: elevenlabs_postcall`,
-    `- eleven_conversation_id: ${input.conversationId ?? ""}`,
-    `- total_score: ${totalScore ?? ""}`,
+    `- eleven_conversation_id: ${scoring.conversationId ?? ""}`,
+    `- total_score: ${totalScore}`,
     "",
     "Mail Routing:",
     `- routed_to: ${ORIGINAL_TO_ADDRESS}`,
@@ -873,19 +939,19 @@ function buildEmailBody(input: {
     "- sender: gmail-service-account-delegation",
     "",
     "Claude Scoring JSON:",
-    input.validation.jsonText,
+    scoring.validationJsonText,
   ];
 
-  if (input.rawResult.trim() !== input.validation.jsonText.trim()) {
-    lines.push("", "Raw Claude Response:", input.rawResult);
+  if (scoring.rawClaudeText.trim() !== scoring.validationJsonText.trim()) {
+    lines.push("", "Raw Claude Response:", scoring.rawClaudeText);
   }
 
   return lines.join("\n");
 }
 
-export async function runAdeccoOrderHearingEvaluation(
+export async function runAdeccoOrderHearingScoring(
   input: AdeccoEvaluationInput
-): Promise<AdeccoEvaluationResult> {
+): Promise<AdeccoScoringResult> {
   const sessionId =
     input.sessionId ?? `eleven_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
   const startedAt = input.startedAt ?? new Date().toISOString();
@@ -915,10 +981,6 @@ export async function runAdeccoOrderHearingEvaluation(
     ANTHROPIC_SECRET_NAME,
     secretProjectId
   );
-  const gmailServiceAccountJson = await accessSecretValue(
-    GMAIL_SERVICE_ACCOUNT_SECRET_NAME,
-    secretProjectId
-  );
 
   let claude = await callClaude({
     apiKey: anthropicApiKey,
@@ -944,50 +1006,21 @@ export async function runAdeccoOrderHearingEvaluation(
     validation = validateResponseText(claude.result);
   }
 
-  const subject = `[SANDBOX] [AIロープレ評価] ${SCENARIO_ID} / ${sessionId}`;
-  const bodyText = buildEmailBody({
-    sessionId,
-    conversationId: input.conversationId,
-    startedAt,
-    endedAt,
-    validation,
-    claude,
-    retryNote,
-    rawResult: claude.result,
-  });
-  const bodyHtml = renderDynamicReportHtml({
-    template: await loadEmailHtmlTemplate(),
-    report: asReportObject(validation.parsed),
-    metadata: {
-      sessionId,
-      conversationId: input.conversationId,
-      startedAt,
-      endedAt,
-    },
-  });
-  const messageId = await sendGmail({
-    serviceAccountJson: gmailServiceAccountJson,
-    to: ORIGINAL_TO_ADDRESS,
-    subject,
-    bodyText,
-    bodyHtml,
-  });
-
   return {
     sessionId,
+    conversationId: input.conversationId,
+    scenarioId: SCENARIO_ID,
     model: claude.model,
     usage: claude.usage,
     validation: {
       ok: validation.ok,
       status: validation.status,
     },
-    mail: {
-      routed_to: ORIGINAL_TO_ADDRESS,
-      delivery: "direct",
-      ok: true,
-      status: "sent",
-      ...(messageId ? { id: messageId } : {}),
-    },
     retryNote,
+    reportJson: asReportObject(validation.parsed),
+    rawClaudeText: claude.result,
+    validationJsonText: validation.jsonText,
+    startedAt,
+    endedAt,
   };
 }

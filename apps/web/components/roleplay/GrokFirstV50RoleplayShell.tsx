@@ -62,7 +62,9 @@ export function GrokFirstV50RoleplayShell({
   }, [initialMock, visualTest, fakeLive]);
 
   const orbState = useMemo(() => toOrbState(roleplay.status), [roleplay.status]);
-  const browserEvaluationEnabled = apiBase === "/api/grok-first-v50-7";
+  const browserEvaluationEnabled =
+    apiBase === "/api/grok-first-v50-7" &&
+    roleplay.session?.browserEvaluationEnabled !== false;
 
   const handleCall = () => {
     if (roleplay.isConnected || roleplay.isConnecting) {
