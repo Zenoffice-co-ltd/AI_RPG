@@ -20,6 +20,8 @@ The questionnaire draft alignment review is tracked in
 `docs/security/adecco-vfinal-questionnaire-submission-map.md`; the workbook
 drafts must stay marked as blocked/conditional until issues #138-#141 are
 resolved or formally approved out of scope.
+The requirement-by-requirement customer submission audit is tracked in
+`docs/security/adecco-vfinal-customer-submission-dod-audit.md`.
 
 ## Target
 
@@ -756,6 +758,8 @@ Human-decision tracking:
   - Legacy shared App Hosting XAI_API_KEY scope: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/139
   - Pre-vFinal latency baseline approval/collection: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/140
   - Legacy verify:acceptance ConvAI judge blocker: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/141
+  - Requirement-by-requirement audit:
+    docs/security/adecco-vfinal-customer-submission-dod-audit.md
 
 Current final evidence verdict:
   PASS for same-SHA App Hosting / Cloud Run relay deploy, post-deploy text/voice
