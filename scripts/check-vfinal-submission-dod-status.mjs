@@ -120,6 +120,26 @@ if (normalizedExpected === "blocked") {
     "latency baseline assessment blocked status"
   );
   requireIncludes(
+    source.closeout,
+    "docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md",
+    "closeout #140 latency assessment link"
+  );
+  requireIncludes(
+    source.audit,
+    "docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md",
+    "audit #140 latency assessment link"
+  );
+  requireIncludes(
+    source.questionnaireMap,
+    "docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md",
+    "questionnaire map #140 latency assessment link"
+  );
+  requireIncludes(
+    source.approvalPacket,
+    "docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md",
+    "approval packet #140 latency assessment link"
+  );
+  requireIncludes(
     source.questionnaireMap,
     "security-checksheet submission DoD",
     "questionnaire map security-checksheet blocked status"
