@@ -79,6 +79,8 @@ const issueApprovalNeedles = new Map([
     [
       "Approved: the current verify:acceptance blocker is a legacy ConvAI vendor judge",
       "staffing_order_hearing_busy_manager_medium",
+      "Latest full verify:acceptance rerun included no-coaching, role-adherence, and no-hidden-fact-leak on the legacy path.",
+      "The no-coaching-only exception is not being applied.",
       "blocker outside the vFinal submitted runtime/security scope.",
       "No vFinal session, relay, WAF, logging, or no-key runtime regression is indicated.",
       "outside the customer submission DoD.",
@@ -1417,6 +1419,8 @@ function runSelfTest() {
             body: [
               "Approved: the current verify:acceptance blocker is a legacy ConvAI vendor judge",
               "on staffing_order_hearing_busy_manager_medium.",
+              "Latest full verify:acceptance rerun included no-coaching, role-adherence, and no-hidden-fact-leak on the legacy path.",
+              "The no-coaching-only exception is not being applied.",
               "blocker outside the vFinal submitted runtime/security scope. It may remain open",
               "No vFinal session, relay, WAF, logging, or no-key runtime regression is indicated.",
               "outside the customer submission DoD.",
@@ -1447,6 +1451,26 @@ function runSelfTest() {
       expected: false,
     },
     {
+      name: "acceptance approval without latest rerun failure details is rejected",
+      issue: {
+        number: 141,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: the current verify:acceptance blocker is a legacy ConvAI vendor judge",
+              "on staffing_order_hearing_busy_manager_medium.",
+              "blocker outside the vFinal submitted runtime/security scope. It may remain open",
+              "No vFinal session, relay, WAF, logging, or no-key runtime regression is indicated.",
+              "outside the customer submission DoD.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
+    },
+    {
       name: "acceptance approval without no-regression statement is rejected",
       issue: {
         number: 141,
@@ -1456,6 +1480,8 @@ function runSelfTest() {
             body: [
               "Approved: the current verify:acceptance blocker is a legacy ConvAI vendor judge",
               "on staffing_order_hearing_busy_manager_medium.",
+              "Latest full verify:acceptance rerun included no-coaching, role-adherence, and no-hidden-fact-leak on the legacy path.",
+              "The no-coaching-only exception is not being applied.",
               "blocker outside the vFinal submitted runtime/security scope. It may remain open",
               "outside the customer submission DoD.",
             ].join("\n"),

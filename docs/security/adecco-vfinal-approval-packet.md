@@ -181,6 +181,8 @@ Approve one:
 ```text
 Approved: the current verify:acceptance blocker is a legacy ConvAI vendor judge
 on staffing_order_hearing_busy_manager_medium.
+Latest full verify:acceptance rerun included no-coaching, role-adherence, and no-hidden-fact-leak on the legacy path.
+The no-coaching-only exception is not being applied.
 The blocker is outside the vFinal submitted runtime/security scope. It may remain open
 outside the customer submission DoD.
 No vFinal session, relay, WAF, logging, or no-key runtime regression is indicated.
@@ -241,6 +243,7 @@ corepack pnpm grok:vfinal-security-invariants
 corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
   --check-github-issues \
   --allow-open-approved-issues \
+  --approval-author=<approver-github-login> \
   --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" \
   --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```

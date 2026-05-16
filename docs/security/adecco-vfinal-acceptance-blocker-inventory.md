@@ -70,7 +70,10 @@ Issue #141 remains blocked until one of these is true:
 
 1. A clean full `corepack pnpm verify:acceptance` run passes.
 2. A customer/operator explicitly approves that the current legacy ConvAI judge
-   blocker is outside the vFinal submitted runtime/security scope.
+   blocker is outside the vFinal submitted runtime/security scope. The approval
+   must explicitly acknowledge that the latest full rerun included
+   `no-coaching`, `role-adherence`, and `no-hidden-fact-leak`, so the
+   no-coaching-only exception is not being applied.
 3. The legacy ConvAI judge path is fixed or re-scoped, then the canonical gate
    is rerun and passes.
 
