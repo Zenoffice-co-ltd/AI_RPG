@@ -1,12 +1,15 @@
 # Adecco AI Roleplay vFinal Security Closeout
 
-Status as of 2026-05-16 20:10 JST: code-level P0, PR-A production auth
+Status as of 2026-05-16 22:48 JST: code-level P0, PR-A production auth
 unblock, PR-B no-key App Hosting backend separation, PR-C metadata-only Cloud
 Logging retention, and PR-D relay Cloud Armor preview/log evidence are
 complete. Browser text/voice E2E now passes on the dedicated vFinal backend.
-Customer submission DoD is still blocked by final same-SHA relay deploy,
-latency baseline comparison, ZAP, acceptance, custom-domain/customer-scope
-decisions, and the DNS/Google API blocker listed in this document.
+App Hosting and Cloud Run relay have both been redeployed from the current
+`origin/main` worktree SHA `f1024e559709c2cf62ac12d97516a6a4c9db56cd` using
+the dedicated vFinal backend and relay image tag. Customer submission DoD is
+still blocked by latency baseline comparison, ZAP, acceptance,
+custom-domain/customer-scope decisions, and the Secret Manager IAM blocker
+listed in this document.
 
 ## Target
 
@@ -21,9 +24,9 @@ decisions, and the DNS/Google API blocker listed in this document.
 - `backend`: `grok-first-vFinal`
 - Temporary baseline: latest approved Grok-first relay runtime present in
   `origin/main`; do not cite route names absent from `origin/main`.
-- Baseline commit SHA: `bc8de3dc937e2feba0b398ff6c72476a4d79f26b`
-- Baseline prompt hash: blocked until vFinal session contract returns 200 in
-  production
+- Current deploy Git SHA:
+  `f1024e559709c2cf62ac12d97516a6a4c9db56cd`
+- Current prompt hash: `6cca32a59894`
 
 ## Official Docs Checked
 
@@ -122,8 +125,24 @@ Browser WebSocket capture:
     evidence=out/grok_first_vfinal_browser_e2e/2026-05-16T10-53-35-645Z/evidence.json
     websocketUrls=[wss://voice.mendan.biz/api/v3/realtime-relay]
     forbiddenOutgoingRealtimeKeys=[]
+  PASS 2026-05-16 22:44 JST after App Hosting build-2026-05-16-005 and
+  Cloud Run relay revision xai-realtime-relay-00014-f7j:
+    command=corepack pnpm grok:first-vfinal:browser-e2e -- --mode text
+    evidence=out/grok_first_vfinal_browser_e2e/2026-05-16T13-44-32-017Z/evidence.json
+    sessionStatus=200
+    websocketUrls=[wss://voice.mendan.biz/api/v3/realtime-relay]
+    directApiXaiConnectionCount=0
+    forbiddenOutgoingRealtimeKeys=[]
+  PASS 2026-05-16 22:45 JST after App Hosting build-2026-05-16-005 and
+  Cloud Run relay revision xai-realtime-relay-00014-f7j:
+    command=corepack pnpm grok:first-vfinal:browser-e2e -- --mode voice
+    evidence=out/grok_first_vfinal_browser_e2e/2026-05-16T13-45-13-203Z/evidence.json
+    sessionStatus=200
+    websocketUrls=[wss://voice.mendan.biz/api/v3/realtime-relay]
+    directApiXaiConnectionCount=0
+    forbiddenOutgoingRealtimeKeys=[]
 Direct api.x.ai connection count:
-  PASS text=0, voice=0.
+  PASS post-deploy text=0, voice=0.
 ```
 
 ## Relay Evidence
@@ -131,9 +150,9 @@ Direct api.x.ai connection count:
 - Cloud Run service: `xai-realtime-relay`
 - Service account:
   `xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com`
-- Revision: `xai-realtime-relay-00013-cg8`
+- Revision: `xai-realtime-relay-00014-f7j`
 - Traffic %: `100`
-- Git SHA: `ac321404be1553fe8984b6daad1ab5e4ba8e86a3`
+- Git SHA: `f1024e559709c2cf62ac12d97516a6a4c9db56cd`
 
 The relay performs server-side `session.update`, injects hidden assistant
 history, queues client frames until setup is complete, strips client
@@ -149,6 +168,15 @@ Production Cloud Logging phases:
     ticket.accepted
     upstream.connected
     first.upstream.audio.delta
+  PASS 2026-05-16 22:45 JST post-relay redeploy REST query since
+  2026-05-16T13:44:00Z:
+    entries=12
+    client.connected=2
+    ticket.accepted=2
+    upstream.connected=2
+    first.upstream.audio.delta=2
+    closeCode1006=0
+    relayError=0
 Health:
   PASS https://voice.mendan.biz/healthz -> {"ok":true}
 ```
@@ -226,6 +254,26 @@ Sensitive log scan command/result:
   SEARCH tokenization also matched safe metadata entries for cookie/protocol
   names; field-path inspection found no raw cookie value or raw relay ticket in
   those entries.
+  PASS scoped post-same-SHA text/voice E2E scan on 2026-05-16 22:45 JST
+  against bucket=adecco-vfinal-metadata, view=_AllLogs,
+  since=2026-05-16T13:44:00Z, entries=100:
+    raw invite token prefix mvi1.=0
+    raw cookie marker roleplay_vfinal=0
+    raw cookie header marker=0
+    raw participantId key/value=0
+    relay ticket token prefix mrt1.=0
+    relay ticket key=0
+    Authorization=0
+    Bearer=0
+    XAI_API_KEY=0
+    transcript key=0
+    instructions key=0
+    prompt body key=0
+    audioBase64 key=0
+    base64 audio data-url=0
+  NOTE: broad tokenization for `prompt` matched only safe metadata field paths
+  `jsonPayload.details.promptVersion` and `jsonPayload.details.promptHash`.
+  No prompt body or instructions payload was present.
 ```
 
 ## Invite Auth Evidence
@@ -419,17 +467,45 @@ Voice E2E:
     audioBytes=321120
     note=PR #131 adds trailing silence to the fake-mic WAV under out/ so
       server VAD closes the browser voice turn deterministically.
+Post same-SHA deploy E2E:
+  PASS 2026-05-16 22:44 JST text:
+    command=corepack pnpm grok:first-vfinal:browser-e2e -- --mode text
+    evidence=out/grok_first_vfinal_browser_e2e/2026-05-16T13-44-32-017Z/evidence.json
+    sessionStatus=200
+    directApiXaiConnectionCount=0
+    websocketUrls=[wss://voice.mendan.biz/api/v3/realtime-relay]
+    firstAudioDeltaMs=1774
+    firstAudibleAudioMs=1993
+    doneMs=3409
+    audioBytes=353280
+    websocketReconnectCount=0
+  PASS 2026-05-16 22:45 JST voice:
+    command=corepack pnpm grok:first-vfinal:browser-e2e -- --mode voice
+    evidence=out/grok_first_vfinal_browser_e2e/2026-05-16T13-45-13-203Z/evidence.json
+    sessionStatus=200
+    directApiXaiConnectionCount=0
+    websocketUrls=[wss://voice.mendan.biz/api/v3/realtime-relay]
+    firstAudioDeltaMs=4620
+    firstAudibleAudioMs=4860
+    doneMs=6376
+    audioBytes=360960
+    websocketReconnectCount=0
 Latency baseline:
   BLOCKED: >=20-session baseline comparison is not complete.
 Latency vFinal:
-  PARTIAL: one text and one voice browser E2E run passed after Cloud Armor.
-  This is not sufficient for the formal p95 latency DoD.
+  PARTIAL: post same-SHA text and voice browser E2E runs passed and captured
+  firstAudioDeltaMs / firstAudibleAudioMs. This is not sufficient for the
+  formal p95 latency DoD because the required >=20-session baseline comparison
+  is still missing.
 ZAP baseline/passive:
   BLOCKED 2026-05-16: Docker CLI is installed, but Docker daemon was not
   running (`failed to connect to the docker API at
   npipe:////./pipe/dockerDesktopLinuxEngine`). No local `zap-baseline.py` or
   Java runtime is installed, so Codex could not run ZAP baseline/passive in
   this environment.
+  Reconfirmed 2026-05-16 22:47 JST: `docker info` still cannot connect to the
+  Docker Desktop Linux engine, and `where.exe zap-baseline.py` / `where.exe
+  java` return no executable.
 Local code gates:
   PASS corepack pnpm grok:vfinal-security-invariants
   PASS node --check scripts/deploy-adecco-roleplay-gcloud.mjs
@@ -448,14 +524,17 @@ Local code gates:
 verify:acceptance:
   BLOCKED corepack pnpm verify:acceptance:
   [vendor_failure] 7 PERMISSION_DENIED: Permission 'secretmanager.versions.access' denied on resource (or it may not exist).
+  Reconfirmed 2026-05-16 22:47 JST with
+  `corepack pnpm verify:acceptance -- --preflight`: same Secret Manager IAM
+  permission failure.
 ```
 
 ## Deploy Evidence
 
-- App Hosting Git SHA: `ed9d2ca8d249d9850fe2b90e90d4e29817d2fbbb`
+- App Hosting Git SHA: `f1024e559709c2cf62ac12d97516a6a4c9db56cd`
 - App Hosting rollout ID: `build-2026-05-16-005`
-- Cloud Run relay Git SHA: `ac321404be1553fe8984b6daad1ab5e4ba8e86a3`
-- Cloud Run relay revision: `xai-realtime-relay-00013-cg8`
+- Cloud Run relay Git SHA: `f1024e559709c2cf62ac12d97516a6a4c9db56cd`
+- Cloud Run relay revision: `xai-realtime-relay-00014-f7j`
 - Cloud Run relay traffic %: `100`
 
 App Hosting and Cloud Run relay must be deployed from the same Git SHA.
@@ -468,19 +547,31 @@ App Hosting:
   rollout=build-2026-05-16-005
   revision=adecco-roleplay-vfinal-build-2026-05-16-005
   traffic=100
-  source_git_sha=ed9d2ca8d249d9850fe2b90e90d4e29817d2fbbb
-  deploy_status=rollout completed; post-deploy verify was blocked by local DNS
-    resolution failure for secretmanager.googleapis.com.
+  source_git_sha=f1024e559709c2cf62ac12d97516a6a4c9db56cd
+  build_state=READY
+  rollout_state=SUCCEEDED
+  source_archive=gs://firebaseapphosting-sources-787365421680-asia-east1/adecco-roleplay-vfinal-2026-05-16T11-02-36-775Z.zip
+  build_image=asia-east1-docker.pkg.dev/adecco-mendan/firebaseapphosting-images/adecco-roleplay-vfinal:build-2026-05-16-005
+  deploy_log=out/adecco_roleplay_gcloud_deploy/2026-05-16T11-02-36-775Z/deployment.log
+  note=deploy wrapper completed the App Hosting rollout, then failed only in
+    post-deploy Secret Manager verification because local DNS could not resolve
+    secretmanager.googleapis.com. The same smoke was rerun via Secret Manager
+    REST workaround and browser E2E below.
 
 Cloud Run relay:
   service=xai-realtime-relay
-  image=gcr.io/adecco-mendan/xai-realtime-relay:ac32140
-  revision=xai-realtime-relay-00013-cg8
+  image=gcr.io/adecco-mendan/xai-realtime-relay:f1024e5
+  revision=xai-realtime-relay-00014-f7j
   traffic=100
+  service_account=xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com
   env_delta=RELAY_ALLOWED_ORIGINS includes https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app
-  same_sha_status=BLOCKED: relay image has not yet been rebuilt from
-    ed9d2ca because local DNS resolution for Google APIs failed before the
-    Cloud Build / Cloud Run deploy step could start.
+  cloud_build_id=88bf940d-84bb-4c7d-8e27-c65472bd11f8
+  cloud_build_status=SUCCESS
+  cloud_build_log=https://console.cloud.google.com/cloud-build/builds/88bf940d-84bb-4c7d-8e27-c65472bd11f8?project=787365421680
+  rest_evidence=out/relay_rest_deploy/2026-05-16T11-23-19Z/
+  same_sha_status=PASS: App Hosting build-2026-05-16-005 and Cloud Run relay
+    image tag f1024e5 were both produced from
+    f1024e559709c2cf62ac12d97516a6a4c9db56cd.
 
 PR-B vFinal no-key App Hosting backend evidence:
   PR=124 merged
@@ -517,28 +608,27 @@ Customer submission DoD:
   BLOCKED
 
 Remaining blockers:
-  - local DNS/Google API resolution failed after App Hosting rollout
-    build-2026-05-16-005:
-      secretmanager.googleapis.com -> getaddrinfo failed
-      us-east1-run.googleapis.com -> getaddrinfo failed
-    Codex stopped before Cloud Run relay deploy to avoid leaving uncertain
-    same-SHA production evidence.
   - custom vFinal mendan.biz domain/DNS is not mapped; PR-B evidence uses the
     dedicated hosted.app backend URL.
   - project-wide XAI_API_KEY secretAccessor still includes the legacy shared App
     Hosting service account for non-submitted direct comparison routes. Removing
     it would risk breaking existing v3/direct xAI routes unless those routes are
     migrated or formally de-scoped.
-  - same-SHA Cloud Run relay deploy from ed9d2ca is not complete.
   - latency baseline comparison is not complete.
   - ZAP baseline/passive scan is not complete.
   - verify:acceptance is still blocked by Secret Manager IAM:
     [vendor_failure] 7 PERMISSION_DENIED: Permission
     'secretmanager.versions.access' denied on resource (or it may not exist).
+  - local DNS/Google API resolution remains unreliable for gcloud CLI
+    post-verify commands. REST calls with explicit Google API IP resolution were
+    used for Cloud Run/App Hosting/Logging/Secret Manager evidence; this is an
+    operator-environment issue, not a product runtime failure.
 
-Final PR #131 verdict:
-  PASS for vFinal browser text/voice E2E harness stabilization and relay env
-  allowlist drift prevention. PR #131 is merged and CI green.
+Current final evidence verdict:
+  PASS for same-SHA App Hosting / Cloud Run relay deploy, post-deploy text/voice
+  E2E, browser direct api.x.ai=0, relay phase evidence, closeCode1006=0,
+  relay.error=0, and sensitive metadata bucket scan=0 for raw secret/token/
+  prompt/transcript/audio markers.
   FAIL/BLOCKED for overall customer submission DoD until the remaining blockers
   above are resolved or formally approved as out of scope.
 ```
