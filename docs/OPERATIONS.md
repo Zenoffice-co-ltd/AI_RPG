@@ -858,16 +858,20 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   mapping.
 - `corepack pnpm verify:acceptance -- --preflight` remains ready when the
   required vendor secrets are resolved into process-local environment variables
-  from Secret Manager. Secret values were not printed or persisted.
-- A full `corepack pnpm verify:acceptance` rerun reached `[3/10] publish
-  scenario` and failed after three ElevenLabs publish judge attempts:
-  retry 1 failed legacy `staffing_order_hearing_busy_manager_medium`
-  `no-hidden-fact-leak` plus `no-coaching`; retries 2 and 3 failed legacy
-  `no-coaching` only. This does not indicate a vFinal session, relay, WAF,
-  logging, or no-key runtime regression, but it is not a clean PASS and Codex is
-  not applying the no-coaching-only exception because retry 1 included
-  `no-hidden-fact-leak`. Issue #141 remains BLOCKED pending a clean rerun or
-  customer/operator approval.
+  from Secret Manager. Secret values were not printed or persisted. A later
+  current-shell preflight without those process-local env values still stops on
+  Secret Manager `secretmanager.versions.access` permission denied.
+- A full `corepack pnpm verify:acceptance` rerun at 2026-05-17 00:44 JST used
+  process-local Secret Manager values without printing or persisting them,
+  reached `[3/10] publish scenario`, and failed after three ElevenLabs publish
+  judge attempts: retry 1 failed legacy
+  `staffing_order_hearing_busy_manager_medium::no-coaching`; retry 2 failed
+  legacy `role-adherence` plus `no-coaching`; retry 3 failed legacy
+  `no-hidden-fact-leak` plus `no-coaching`. This does not indicate a vFinal
+  session, relay, WAF, logging, or no-key runtime regression, but it is not a
+  clean PASS and Codex is not applying the no-coaching-only exception because
+  the rerun also failed `role-adherence` and `no-hidden-fact-leak`. Issue #141
+  remains BLOCKED pending a clean rerun or customer/operator approval.
 - Issue #139 scope decision package was posted: Codex can proceed only after
   approval that submitted vFinal scope is limited to the dedicated no-key
   backend and legacy shared App Hosting `XAI_API_KEY` access is internal
