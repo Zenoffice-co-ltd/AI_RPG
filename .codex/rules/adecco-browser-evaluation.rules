@@ -1,0 +1,25 @@
+prefix_rule(
+    pattern = ["curl"],
+    decision = "prompt",
+    justification = "Calls to production ElevenLabs post-call webhook endpoints may enqueue Claude scoring and send real Gmail on the legacy path. For v50 browser evaluation UI checks, use the mock result route first and do not run production Gmail smoke unless explicitly requested.",
+    match = [
+        "curl https://mendan-mvk3ouxwza-an.a.run.app/api/vendor/eleven/postcall",
+        "curl https://roleplay.mendan.biz/api/vendor/eleven/postcall",
+    ],
+    not_match = [
+        "curl http://127.0.0.1:3000/demo/adecco-roleplay-v50-7/result/mock-session?mock=1",
+    ],
+)
+
+prefix_rule(
+    pattern = ["Invoke-WebRequest"],
+    decision = "prompt",
+    justification = "Production webhook/API calls can enqueue real scoring or trigger Gmail in the legacy path. Confirm whether this is browser-evaluation DoD or legacy email pipeline smoke.",
+    match = [
+        "Invoke-WebRequest https://mendan-mvk3ouxwza-an.a.run.app/api/vendor/eleven/postcall",
+        "Invoke-WebRequest https://roleplay.mendan.biz/api/vendor/eleven/postcall",
+    ],
+    not_match = [
+        "Invoke-WebRequest http://127.0.0.1:3000/demo/adecco-roleplay-v50-7/result/mock-session?mock=1",
+    ],
+)

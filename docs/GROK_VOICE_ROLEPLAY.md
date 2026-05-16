@@ -82,6 +82,22 @@ sentence, collapse off-role/ending guard handling to one fixed response, remove
 customer-side reverse questions, and keep the first message free of forbidden
 polite-request wording.
 
+### v50-7 Browser Evaluation Result Page
+
+Safe mock route:
+`/demo/adecco-roleplay-v50-7/result/mock-session?mock=1`.
+
+Use this route for browser-use / Playwright visual verification. It does not
+call Claude, Gmail, ElevenLabs webhook, or Cloud Run production smoke.
+
+Live browser evaluation flow:
+roleplay end → `/api/grok-first-v50-7/evaluation/start` → Cloud Tasks →
+`/api/internal/adecco-browser-eval` → Firestore artifacts → result polling.
+
+Legacy email flow remains:
+ElevenLabs post-call webhook → `/api/vendor/eleven/postcall` → Cloud Tasks →
+`/api/internal/adecco-eval` → Claude → Gmail.
+
 For v50-family production smoke and log reconstruction, use the reusable
 scripts instead of one-off `.codex_tmp` harnesses:
 

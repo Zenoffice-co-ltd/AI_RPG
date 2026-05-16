@@ -10,6 +10,10 @@ changed the priority from fixed-guard-first verification to
 normal-sales-conversation naturalness first. Fixed guard evidence is still
 required, but it can no longer stand in for normal sales Realtime quality.
 
+Do not use this skill for browser evaluation result pages, scorecard UI, or
+Claude scoring / Gmail delivery separation. Use
+`.agents/skills/ai-rpg-v50-browser-evaluation/SKILL.md` for those.
+
 ## Canonical Sources
 
 - `AGENTS.md` `## Voice E2E Natural Conversation SoT`
