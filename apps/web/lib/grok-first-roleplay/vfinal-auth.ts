@@ -196,9 +196,9 @@ function verifyToken(token: string, secret: string): Record<string, unknown> | n
 function getEnv() {
   ensureEnvLoaded();
   const inviteSigningSecret =
-    process.env["GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET"] ?? "";
+    process.env["GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET"]?.trim() ?? "";
   const participantHashSecret =
-    process.env["GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET"] ?? "";
+    process.env["GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET"]?.trim() ?? "";
   if (process.env["NODE_ENV"] === "production") {
     if (inviteSigningSecret.length < 32 || participantHashSecret.length < 32) {
       throw new Error(

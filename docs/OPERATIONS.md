@@ -876,6 +876,28 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   `staffing_order_hearing_busy_manager_medium::no-coaching`. This is not a
   v25/domain/relay regression.
 
+### 2026-05-16 — v50 normal sales naturalness becomes voice E2E SoT
+
+- Updated `AGENTS.md` with `## Voice E2E Natural Conversation SoT`: the
+  2026-05-16 v50.8 CTO report confirms mainly back-to-back `fixed_external`
+  stability, not Excel `04_Turn_Cases`, `05_P0_Guards`, full 93-turn E2E,
+  normal sales Realtime quality, or human-test readiness.
+- Test priority changed from fixed guard first to normal sales naturalness
+  first: Version/Route Sanity -> Natural Conversation Smoke -> Customer-led
+  Output -> Backchannel/Low-Info -> Reveal Depth -> Normal Sales Voice E2E ->
+  Fixed Guard/P0 Guard -> Full Regression.
+- Updated
+  `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md` from a
+  fixed-guard-only workflow into the v50 voice E2E workflow. It now defines
+  `IMG-REGRESSION-001`, natural smoke cases, deterministic P0 hard-fail
+  patterns, backchannel/low-info expectations, reveal-depth and over-disclosure
+  gates, audio-leak evaluation, Excel sheet/column design, run plan, and human
+  testing entry criteria.
+- Human testing is blocked until Natural Smoke Text `30/30 x3`, Backchannel
+  `50/50`, Customer-led Output Guard `100/100`, Natural Transition E2E
+  `>=11/12` with P0 hard fail `0`, Voice/STT Natural Smoke P0 hard fail `0`,
+  Fixed Guard P0 pass, and PASS-case false-pass audit `0`.
+
 ### 2026-05-16 — v50 verification productivity guardrails
 
 - Added repo SoT guidance for long-running E2E/DoD preflight: map the requested
@@ -883,13 +905,21 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   without printing values, check package scripts, check stale local Next/Turbo
   processes, and distinguish scoped harness evidence from final DoD.
 - Added focused skill
-  `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md` for v50
-  fixed guard smoke, spreadsheet guard plans, and assistant-only drain evidence.
-  Cursor/Claude/Codex mirrors now restate the operational safety and Secret
-  Manager alias rules.
-- This entry documents process guardrails only. It is not a claim that
-  spreadsheet-defined `13/13 x3`, `69 P0 guards`, or `93-turn full` DoD has
-  passed; those require an exact case-set runner and fresh evidence.
+  `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md` for the
+  original v50 fixed guard smoke, spreadsheet guard plans, and assistant-only
+  drain evidence. Later on 2026-05-16, this same skill was promoted to the
+  broader v50 voice E2E naturalness SoT described above. Cursor/Claude/Codex
+  mirrors now restate the operational safety and Secret Manager alias rules.
+- The fixed guard browser harness now supports
+  `pnpm grok:first-v50-8:guard-e2e -- --case-set guard-smoke --repeat 3`,
+  which loads spreadsheet `04_Turn_Cases` / `E2E-02` and runs the 13 fixed guard
+  smoke cases three consecutive times. Latest scoped text-input browser
+  evidence passed `39/39` with `guard.detected=39`, playback started/completed
+  `39/39`, and `turn.completed=39`:
+  `out/grok_first_v50_8_fixed_guard_e2e/20260516T075432Z/`.
+- This entry is not a claim that `69 P0 guards`, Voice/STT guard smoke, normal
+  sales naturalness gates, or `93-turn full` DoD has passed; those require exact
+  case-set runners/evidence.
 
 ### 2026-05-14 — roleplay.mendan.biz custom domain cutover BLOCKED_DNS
 
