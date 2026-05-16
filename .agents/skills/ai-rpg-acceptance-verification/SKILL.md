@@ -119,6 +119,9 @@ Final PASS guard:
 corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass --check-github-issues --allow-open-approved-issues --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
 
+Both source questionnaire workbooks are required in PASS mode; the final guard
+rejects a PASS run that omits them.
+
 If approved open blockers are being relied on, `--approval-author=<approver-github-login>`
 or `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required; the guard rejects
 open-issue approvals without an expected approver list. Verify the approval
@@ -143,6 +146,9 @@ Rules:
 
 - Do not change closeout, Delivery Status, or questionnaire drafts to PASS until
   the PASS guard succeeds.
+- #138 custom-domain approval must name a dedicated vFinal `mendan.biz` URL
+  mapped to `adecco-roleplay-vfinal`. The legacy shared comparison domain
+  `roleplay.mendan.biz` is not a valid submitted vFinal URL.
 - #140 cannot be closed by a current-vFinal-only sample or a missing-baseline
   waiver. It needs a same-environment, same-scenario, >=20-session pre-vFinal
   baseline, p95 comparison within thresholds, WSS close-code 1006 comparison,

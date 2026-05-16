@@ -812,6 +812,18 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal submitted URL approval guard hardening
+
+- Updated `corepack pnpm grok:vfinal-submission-dod-status` so #138
+  custom-domain approval comments cannot use the legacy shared comparison
+  domain `roleplay.mendan.biz` as the submitted vFinal URL.
+- The only valid #138 custom-domain approval path remains a dedicated vFinal
+  `mendan.biz` domain mapped to `adecco-roleplay-vfinal`, with active
+  DNS/certificate status and submitted-URL smoke evidence.
+- Also tightened PASS-mode guidance: both source questionnaire workbooks must be
+  supplied to the final guard. Running the final guard without them is not valid
+  submission evidence.
+
 ### 2026-05-17 — vFinal approval packet
 
 - Added `docs/security/adecco-vfinal-approval-packet.md` with exact approval

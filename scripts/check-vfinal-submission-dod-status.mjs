@@ -9,6 +9,10 @@ const workbookPaths = [
   ...listArgs("workbook"),
   ...envList("VFINAL_SUBMISSION_DOD_WORKBOOKS"),
 ];
+const requiredWorkbookNames = [
+  "Adecco_データ保護アンケート_v01_回答ドラフト.xlsx",
+  "Adecco_TPISAアンケート_v01_回答ドラフト.xlsm",
+];
 const shouldCheckGithubIssues =
   boolArg("check-github-issues") || process.env.VFINAL_SUBMISSION_DOD_CHECK_GITHUB_ISSUES === "1";
 const allowOpenApprovedIssues =
@@ -82,6 +86,8 @@ const issueApprovalNeedles = new Map([
     ],
   ],
 ]);
+const legacySharedSubmittedUrlPattern =
+  /\bSubmitted URL: https:\/\/roleplay\.mendan\.biz(?:\/|\s|$)/i;
 if (boolArg("self-test")) {
   runSelfTest();
   process.exit(0);
@@ -384,6 +390,7 @@ if (normalizedExpected === "blocked") {
 }
 
 if (normalizedExpected === "pass") {
+  requirePassWorkbooks();
   requireEqual(closeoutVerdict, "PASS", "closeout verdict");
   requireEqual(securityChecksheetVerdict, "PASS", "security-checksheet verdict");
   requireEqual(deliveryStatus, "PASS", "delivery status");
@@ -478,6 +485,21 @@ if (normalizedExpected === "pass") {
     "BLOCKED for customer submission DoD and security-checksheet submission DoD",
     "questionnaire map should not say security-checksheet blocked after PASS"
   );
+}
+
+function requirePassWorkbooks() {
+  if (workbookPaths.length < requiredWorkbookNames.length) {
+    failures.push(
+      `PASS mode requires both source questionnaire workbooks via --workbook or ` +
+        `VFINAL_SUBMISSION_DOD_WORKBOOKS; got ${workbookPaths.length}`
+    );
+  }
+  const normalizedWorkbookPaths = workbookPaths.map((path) => path.replace(/\\/g, "/"));
+  for (const name of requiredWorkbookNames) {
+    if (!normalizedWorkbookPaths.some((path) => path.endsWith(`/${name}`) || path === name)) {
+      failures.push(`PASS mode missing required source workbook: ${name}`);
+    }
+  }
 }
 
 const workbookResults = workbookPaths.map((path) =>
@@ -666,6 +688,7 @@ function issueHasApproval(issue) {
     if (hasUnfilledPlaceholder(candidateText)) return false;
     const body = normalizeApprovalText(candidateText);
     if (!body.startsWith("Approved:")) return false;
+    if (hasRejectedApprovalText(issue, body)) return false;
     return needleSets.some((set) =>
       set.every((needle) => body.includes(normalizeApprovalText(needle)))
     );
@@ -694,6 +717,13 @@ function normalizeApprovalText(value) {
 
 function hasUnfilledPlaceholder(value) {
   return /<[^>\r\n]+>/.test(String(value));
+}
+
+function hasRejectedApprovalText(issue, normalizedBody) {
+  if (issue.number === 138 && legacySharedSubmittedUrlPattern.test(normalizedBody)) {
+    return true;
+  }
+  return false;
 }
 
 function checkWorkbook(path, expectedStatus) {
@@ -1125,6 +1155,27 @@ function runSelfTest() {
               "submitted URL.",
               "Submitted URL: https://roleplay-vfinal.mendan.biz/demo/adecco-roleplay-vFinal",
               "DNS/certificate status is active.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
+    },
+    {
+      name: "legacy shared submitted URL approval is rejected",
+      issue: {
+        number: 138,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: the dedicated vFinal mendan.biz custom domain is active as the vFinal customer",
+              "submitted URL.",
+              "Submitted URL: https://roleplay.mendan.biz/demo/adecco-roleplay-vFinal",
+              "DNS/certificate status is active.",
+              "Submitted-URL smoke passed with session 200, relay WSS only, direct api.x.ai count 0,",
+              "and forbidden session keys absent.",
             ].join("\n"),
           },
         ],
