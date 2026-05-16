@@ -11,6 +11,8 @@ The consolidated blocker inventory index is
 `docs/security/adecco-vfinal-blocker-inventory-index.md`.
 The workbook cell-level human-confirmation map is
 `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
+The shortest human/operator unblock checklist is
+`docs/security/adecco-vfinal-human-unblock-checklist.md`.
 
 ## Blocking Summary
 
