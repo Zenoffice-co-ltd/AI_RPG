@@ -37,6 +37,12 @@ being closed or formally approved.
   current-service `grokFirstVFinal` `turn.completed` metadata entries, but 0
   comparison-ready explicit pre-vFinal baseline candidates because the logs are
   current dedicated service logs and do not include `sessionApiMs`.
+- A reusable read-only Secret Manager IAM boundary helper was added for #139.
+  It confirms the dedicated submitted vFinal service account still has no
+  `XAI_API_KEY` access, the relay service account has the required relay
+  secret access, and the legacy shared App Hosting service account still has
+  `XAI_API_KEY` access, so #139 remains blocked pending scope approval or
+  migration/removal.
 - `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
   --check-github-issues --allow-open-approved-issues
   --approval-author=iwase-cpu --workbook=<data-protection workbook>

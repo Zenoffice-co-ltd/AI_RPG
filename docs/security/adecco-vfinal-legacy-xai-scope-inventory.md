@@ -128,6 +128,35 @@ Latest read-only IAM recheck, 2026-05-17 04:20 JST:
   `XAI_RELAY_TICKET_SECRET`, the two vFinal invite/hash secrets, and
   `DEMO_ACCESS_TOKEN` via `demo-access-token`.
 
+2026-05-17 07:12 JST reusable read-only Secret Manager IAM boundary helper:
+
+- Official docs were rechecked immediately before the helper run:
+  - `https://cloud.google.com/secret-manager/docs/access-control`
+  - `https://firebase.google.com/docs/app-hosting/configure`
+- Added `corepack pnpm grok:vfinal-secret-iam-boundary` so #139 can recheck
+  the live Secret Manager IAM boundary without reading secret payloads.
+- Command:
+  `corepack pnpm grok:vfinal-secret-iam-boundary -- --expect=blocked`.
+- Result: PASS for expected BLOCKED state.
+- Dedicated submitted vFinal service account
+  `serviceAccount:firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com`
+  still has no `XAI_API_KEY` `secretAccessor` or `viewer` access in
+  `adecco-mendan` or the fallback `zapier-transfer` project.
+- Cloud Run relay service account
+  `serviceAccount:xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com`
+  has the required `roles/secretmanager.secretAccessor` access to
+  `XAI_API_KEY` and `XAI_RELAY_TICKET_SECRET` in `adecco-mendan`.
+- Legacy shared App Hosting service account
+  `serviceAccount:firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com`
+  still has `XAI_API_KEY` access:
+  - `roles/secretmanager.secretAccessor` and `roles/secretmanager.viewer` in
+    `adecco-mendan`; and
+  - `roles/secretmanager.secretAccessor` in `zapier-transfer`.
+- This keeps #139 blocked pending explicit out-of-scope approval for the
+  legacy shared backend or migration/removal of that legacy access. No IAM
+  binding was changed and no secret value was read, printed, persisted, or
+  committed.
+
 Code/config evidence:
 
 - 2026-05-17 05:49 JST repo-local guard:
