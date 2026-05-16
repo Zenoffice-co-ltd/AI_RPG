@@ -68,6 +68,18 @@ Manager payloads or mutate IAM, run:
 corepack pnpm grok:vfinal-legacy-xai-scope -- --expect=blocked
 ```
 
+For a no-secret #141 current-shell input inventory before attempting
+`verify:acceptance`, run:
+
+```bash
+corepack pnpm grok:vfinal-acceptance-input-inventory -- --expect=blocked
+```
+
+This reports only key presence in process env and `apps/web/.env.local`, plus
+active gcloud account/project. It does not read Secret Manager payloads and is
+not a replacement for a clean `corepack pnpm verify:acceptance` run or explicit
+legacy blocker approval.
+
 For a count-only #171 precheck that does not copy workbook answer values into
 docs or issue comments, run:
 

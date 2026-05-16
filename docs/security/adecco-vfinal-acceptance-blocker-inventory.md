@@ -78,6 +78,28 @@ denied on resource (or it may not exist).
   checks on Secret Manager `secretmanager.versions.access`.
 - No secret values were read, printed, persisted, or copied into docs.
 
+2026-05-17 06:17 JST no-secret input inventory:
+
+- Added and ran:
+  `corepack pnpm grok:vfinal-acceptance-input-inventory -- --expect=blocked`.
+- The inventory checks process environment and `apps/web/.env.local` key
+  presence only. It does not read Secret Manager payloads and does not prove
+  `verify:acceptance` PASS.
+- Result: PASS for expected BLOCKED. `apps/web/.env.local` was absent in this
+  worktree. Active gcloud account was `iwase@zenoffice.co.jp`; active gcloud
+  project was `zapier-transfer`.
+- Missing direct inputs without Secret Manager were `FIREBASE_PROJECT_ID`,
+  `SECRET_SOURCE_PROJECT_ID`, and `QUEUE_SHARED_SECRET`.
+- Missing Secret Manager fallback env overrides in this shell were
+  `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `LIVEAVATAR_API_KEY`,
+  `DEMO_ACCESS_TOKEN`, `XAI_API_KEY`, and `XAI_RELAY_TICKET_SECRET`.
+- Missing context/default inputs were `FIREBASE_CREDENTIALS_SECRET_NAME` and
+  `DEFAULT_ELEVEN_VOICE_ID`.
+- A fresh `corepack pnpm verify:acceptance -- --preflight` attempt still failed
+  before product checks with Secret Manager `secretmanager.versions.access`
+  permission denied. No secret values were read, printed, persisted, or copied
+  into docs.
+
 This means a fresh clean rerun still requires one of:
 
 - process-local vendor secrets and project inputs supplied without printing or
