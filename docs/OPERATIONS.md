@@ -812,6 +812,27 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal workbook approval guard hardening
+
+- Updated `corepack pnpm grok:vfinal-submission-dod-status` so an OPEN #171
+  approval comment must name both source questionnaire workbooks, confirm
+  `vFinal提出DOD照合` overall status PASS, and state that blocked-mode markers
+  were removed.
+- This aligns #171 approval text with the final workbook guard, which already
+  checks both source workbooks and rejects PASS while BLOCKED markers remain.
+- #171 remains BLOCKED until the mapped cells are human-confirmed or rewritten
+  and the source workbooks are promoted to valid final submission artifacts.
+
+### 2026-05-17 — vFinal #139 legacy XAI scope approval guard hardening
+
+- Updated `corepack pnpm grok:vfinal-submission-dod-status` so #139 OPEN issue
+  approval text must name both the submitted vFinal service account
+  `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` and the
+  legacy shared App Hosting service account
+  `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com`.
+- This prevents final PASS from relying on a generic out-of-scope statement
+  that does not identify the runtime/SA boundary.
+
 ### 2026-05-17 — vFinal #140 latency approval guard hardening
 
 - Updated `corepack pnpm grok:vfinal-submission-dod-status` so #140 OPEN issue

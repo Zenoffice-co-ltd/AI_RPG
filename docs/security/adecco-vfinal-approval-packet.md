@@ -92,7 +92,10 @@ Approve one:
 ```text
 Approved: the vFinal customer-submitted runtime scope is limited to the
 dedicated no-key App Hosting backend adecco-roleplay-vfinal and its submitted
-URL. Legacy shared App Hosting routes and their XAI_API_KEY access are internal
+URL.
+Submitted vFinal service account: firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com.
+Legacy shared App Hosting service account: firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com.
+Legacy shared App Hosting routes and their XAI_API_KEY access are internal
 comparison/continuity infrastructure and are out of scope for the vFinal
 customer submission.
 ```
@@ -200,7 +203,12 @@ Current state:
 Approve one:
 
 ```text
-Approved: all cells listed in docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md have been human-confirmed or rewritten to explicit unresolved/not-applicable answers, and the questionnaire drafts may be treated as final submission artifacts.
+Approved: all cells listed in docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md have been human-confirmed or rewritten to explicit unresolved/not-applicable answers.
+Adecco_データ保護アンケート_v01_回答ドラフト.xlsx checked.
+Adecco_TPISAアンケート_v01_回答ドラフト.xlsm checked.
+vFinal提出DOD照合 overall status: PASS.
+blocked-mode markers removed.
+the questionnaire drafts may be treated as final submission artifacts.
 ```
 
 or

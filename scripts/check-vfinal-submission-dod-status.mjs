@@ -50,6 +50,8 @@ const issueApprovalNeedles = new Map([
     [
       "Approved: the vFinal customer-submitted runtime scope is limited to the",
       "dedicated no-key App Hosting backend adecco-roleplay-vfinal and its submitted URL.",
+      "Submitted vFinal service account: firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com.",
+      "Legacy shared App Hosting service account: firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com.",
       "Legacy shared App Hosting routes and their XAI_API_KEY access are internal",
       "out of scope for the vFinal customer submission.",
     ],
@@ -86,6 +88,10 @@ const issueApprovalNeedles = new Map([
       "Approved: all cells listed in",
       "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
       "have been human-confirmed or rewritten to explicit unresolved/not-applicable answers",
+      "Adecco_データ保護アンケート_v01_回答ドラフト.xlsx",
+      "Adecco_TPISAアンケート_v01_回答ドラフト.xlsm",
+      "vFinal提出DOD照合 overall status: PASS",
+      "blocked-mode markers removed",
       "the questionnaire drafts may be treated as final submission artifacts.",
     ],
   ],
@@ -1332,7 +1338,10 @@ function runSelfTest() {
             body: [
               "Approved: the vFinal customer-submitted runtime scope is limited to the",
               "dedicated no-key App Hosting backend adecco-roleplay-vfinal and its submitted",
-              "URL. Legacy shared App Hosting routes and their XAI_API_KEY access are internal",
+              "URL.",
+              "Submitted vFinal service account: firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com.",
+              "Legacy shared App Hosting service account: firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com.",
+              "Legacy shared App Hosting routes and their XAI_API_KEY access are internal",
               "comparison/continuity infrastructure and are out of scope for the vFinal",
               "customer submission.",
             ].join("\n"),
@@ -1341,6 +1350,26 @@ function runSelfTest() {
       },
       authors: ["approver"],
       expected: true,
+    },
+    {
+      name: "legacy XAI approval without service account names is rejected",
+      issue: {
+        number: 139,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: the vFinal customer-submitted runtime scope is limited to the",
+              "dedicated no-key App Hosting backend adecco-roleplay-vfinal and its submitted",
+              "URL. Legacy shared App Hosting routes and their XAI_API_KEY access are internal",
+              "comparison/continuity infrastructure and are out of scope for the vFinal",
+              "customer submission.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
     },
     {
       name: "legacy XAI approval without explicit out-of-scope text is rejected",
@@ -1427,6 +1456,10 @@ function runSelfTest() {
               "Approved: all cells listed in",
               "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
               "have been human-confirmed or rewritten to explicit unresolved/not-applicable answers,",
+              "Adecco_データ保護アンケート_v01_回答ドラフト.xlsx checked.",
+              "Adecco_TPISAアンケート_v01_回答ドラフト.xlsm checked.",
+              "vFinal提出DOD照合 overall status: PASS.",
+              "blocked-mode markers removed.",
               "and the questionnaire drafts may be treated as final submission artifacts.",
             ].join("\n"),
           },
@@ -1434,6 +1467,25 @@ function runSelfTest() {
       },
       authors: ["approver"],
       expected: true,
+    },
+    {
+      name: "workbook confirmation approval without workbook proof is rejected",
+      issue: {
+        number: 171,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: all cells listed in",
+              "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
+              "have been human-confirmed or rewritten to explicit unresolved/not-applicable answers,",
+              "and the questionnaire drafts may be treated as final submission artifacts.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
     },
     {
       name: "workbook confirmation approval without final artifact text is rejected",
@@ -1480,7 +1532,10 @@ function runSelfTest() {
             body: [
               "Approved: the vFinal customer-submitted runtime scope is limited to the",
               "dedicated no-key App Hosting backend adecco-roleplay-vfinal and its submitted",
-              "URL. Legacy shared App Hosting routes and their XAI_API_KEY access are internal",
+              "URL.",
+              "Submitted vFinal service account: firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com.",
+              "Legacy shared App Hosting service account: firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com.",
+              "Legacy shared App Hosting routes and their XAI_API_KEY access are internal",
               "comparison/continuity infrastructure and are out of scope for the vFinal",
               "customer submission.",
             ].join("\n"),

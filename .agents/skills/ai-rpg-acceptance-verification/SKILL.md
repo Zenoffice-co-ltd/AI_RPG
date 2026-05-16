@@ -154,6 +154,11 @@ Rules:
 - #138 custom-domain approval must name a dedicated vFinal `mendan.biz` URL
   mapped to `adecco-roleplay-vfinal`. The legacy shared comparison domain
   `roleplay.mendan.biz` is not a valid submitted vFinal URL.
+- #139 approval must name the submitted vFinal service account
+  `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` and the
+  legacy shared App Hosting service account
+  `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` so the
+  scope boundary is explicit.
 - #140 cannot be closed by a current-vFinal-only sample or a missing-baseline
   waiver. It needs a same-environment, same-scenario, >=20-session pre-vFinal
   baseline, p95 comparison within thresholds, WSS close-code 1006 comparison,
@@ -166,7 +171,10 @@ Rules:
   --current-relay-error <count> --out <comparison-summary.json>` and cite its
   output.
 - #171 keeps the questionnaire drafts non-final until the mapped workbook cells
-  are human-confirmed or rewritten and the issue is closed or approved.
+  are human-confirmed or rewritten and the issue is closed or approved. If #171
+  is approved while open, the approval comment must name both source workbooks,
+  confirm `vFinal提出DOD照合` overall PASS, and state blocked-mode markers were
+  removed.
 - If `verify:acceptance` is blocked by Secret Manager IAM or current-shell
   secret access, record the blocker and required permission; do not claim
   acceptance PASS.
