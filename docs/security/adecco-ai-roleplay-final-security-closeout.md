@@ -40,6 +40,14 @@ The #140 latency baseline candidate assessment is tracked in
 The #141 acceptance blocker inventory is tracked in
 `docs/security/adecco-vfinal-acceptance-blocker-inventory.md`.
 
+2026-05-17 post-PR #209 / PR #210 issue-state correction: #138 was found
+CLOSED during post-merge guard verification without the required exact
+hosted.app submitted-URL approval plus smoke evidence, and without active
+dedicated `mendan.biz` DNS/certificate plus submitted-URL smoke evidence. #138
+was reopened and PR #210 recorded that issue closure alone is not approval
+evidence. Customer submission DoD remains BLOCKED on #138, #139, #140, #141,
+and #171.
+
 ## Target
 
 - Submitted vFinal no-key URL:
