@@ -1,14 +1,15 @@
 # Adecco AI Roleplay vFinal Security Closeout
 
-Status as of 2026-05-16 23:38 JST: code-level P0, PR-A production auth
+Status as of 2026-05-16 23:48 JST: code-level P0, PR-A production auth
 unblock, PR-B no-key App Hosting backend separation, PR-C metadata-only Cloud
 Logging retention, and PR-D relay Cloud Armor preview/log evidence are
 complete. Browser text/voice E2E now passes on the dedicated vFinal backend.
 App Hosting and Cloud Run relay have both been redeployed from the current
 `origin/main` worktree SHA `f1024e559709c2cf62ac12d97516a6a4c9db56cd` using
 the dedicated vFinal backend and relay image tag. Customer submission DoD is
-still blocked by latency baseline comparison, full acceptance vendor judge
-failure, and custom-domain/customer-scope decisions listed in this document.
+still blocked by latency baseline comparison, a full acceptance legacy ConvAI
+judge failure, and custom-domain/customer-scope decisions listed in this
+document.
 The earlier ZAP and Secret Manager IAM blockers have been reduced: ZAP
 baseline/passive executed with FAIL=0, and `verify:acceptance --preflight`
 became ready after resolving required secrets into process-local env from
@@ -588,6 +589,24 @@ verify:acceptance:
   DoD G legacy exception cannot be applied because the final failed attempt was
   not limited to the approved
   staffing_order_hearing_busy_manager_medium::no-coaching baseline blocker.
+  BLOCKED rerun 2026-05-16 23:48 JST:
+    command=corepack pnpm verify:acceptance
+    preflight status=ready using process-local Secret Manager values; values
+      were not printed or persisted.
+    result=[vendor_failure] publish:scenario did not pass ElevenLabs tests
+      after 3 attempts.
+    attempt1=staffing_order_hearing_busy_manager_medium::no-coaching failed
+      with condition=failure
+    attempt2=staffing_order_hearing_busy_manager_medium::no-coaching failed
+      with condition=failure
+    attempt3=staffing_order_hearing_busy_manager_medium::no-coaching failed
+      with condition=failure
+    scope=known legacy ConvAI judge blocker only; no vFinal session, relay,
+      WAF, logging, or no-key runtime regression indicated.
+    acceptance_status=not PASS. The original vFinal goal allowed a Secret
+      Manager IAM formal blocker exception, but this blocker is now a legacy
+      vendor judge failure instead. Customer/operator approval is required
+      before treating it as outside the vFinal submission DoD.
 ```
 
 ## Deploy Evidence
@@ -679,10 +698,13 @@ Remaining blockers:
     voice sampling is complete and passed, but the required 20-session
     pre-vFinal baseline is unavailable without approved rollback or a separate
     same-environment baseline deployment.
-  - verify:acceptance full run is blocked by ElevenLabs publish judge failures
-    after three attempts. This is not currently covered by the documented
-    DoD G no-coaching-only legacy exception because the final failed attempt
-    also included no-hidden-fact-leak and natural-japanese.
+  - verify:acceptance full rerun is blocked only by the known legacy
+    `staffing_order_hearing_busy_manager_medium::no-coaching` ElevenLabs
+    ConvAI judge failure after three attempts. This is no longer a Secret
+    Manager IAM blocker, but the vFinal customer-submission goal only named a
+    Secret Manager IAM formal-blocker exception; applying the legacy vendor
+    judge exception to vFinal requires customer/operator out-of-scope approval
+    or a clean rerun during a stable vendor window.
   - local DNS/Google API resolution remains unreliable for gcloud CLI
     post-verify commands. REST calls with explicit Google API IP resolution were
     used for Cloud Run/App Hosting/Logging/Secret Manager evidence; this is an
