@@ -970,6 +970,13 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 - Latency artifact scan still found current-vFinal 20-run summaries only, not
   an approved strict pre-vFinal >=20-session baseline with
   `sessionApiMs`/`firstAudioDeltaMs`/`firstAudibleAudioMs`.
+- Added
+  `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md` to
+  preserve the #140 candidate assessment. The document rejects local v50.5,
+  v50.8, older Grok Voice, and v6/v7 log-report artifacts as strict baselines
+  because they are current-vFinal samples, local/different route families,
+  failing quality runs, missing `sessionApiMs`, or lack a comparable
+  >=20-session denominator.
 - Fresh `corepack pnpm verify:acceptance -- --preflight` failed before product
   checks with Secret Manager `secretmanager.versions.access` permission denied
   in the current shell. No secret values were printed or persisted.

@@ -99,6 +99,13 @@ tracked items:
   legacy ConvAI judge evidence; it confirms a clean rerun still requires
   process-local secrets or an execution identity with the required Secret
   Manager access.
+- 2026-05-17 #140 baseline candidate assessment:
+  `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`
+  records the artifact review. The two eligible 20-run artifacts are
+  current-vFinal samples, while local v50.5/v50.8 and older Grok Voice artifact
+  families are rejected as strict baselines because they are local/different
+  route families, fail quality gates, lack `sessionApiMs`, or lack a comparable
+  >=20-session denominator.
 - Security-checksheet submission uses the same final blocker set as customer
   submission because the source questionnaire workbooks and questionnaire map
   must stay BLOCKED until #138, #139, #140, and #141 are resolved or formally

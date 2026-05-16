@@ -88,6 +88,8 @@ Current state:
 - No existing artifact was found that satisfies the strict same-environment,
   same-scenario, >=20-session pre-vFinal baseline requirement with the required
   metrics.
+- Local artifact candidates are assessed in
+  `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`.
 
 Approve one:
 
