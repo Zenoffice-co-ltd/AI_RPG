@@ -812,6 +812,22 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal hosted.app submitted URL smoke refresh
+
+- Re-ran hosted.app submitted URL start smoke:
+  `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --origin
+  https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`.
+- Result: PASS. Evidence:
+  `out/grok_first_vfinal_browser_e2e/2026-05-16T20-03-58-582Z/evidence.json`.
+- Evidence showed invite consume 307, session 200, `sessionApiMs=91`,
+  `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, browser WebSocket URL
+  only the relay WSS, direct `api.x.ai` count 0, forbidden session keys absent,
+  no forbidden outgoing realtime keys, no console errors, and no page errors.
+- This refresh supports the #138 hosted.app approval path, but it does not
+  approve the submitted URL. Customer/security-checksheet submission remains
+  BLOCKED pending #138 approval or custom-domain mapping/certificate evidence,
+  plus the other remaining blockers.
+
 ### 2026-05-17 — vFinal human unblock checklist
 
 - Added `docs/security/adecco-vfinal-human-unblock-checklist.md` as the
