@@ -812,6 +812,22 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal #141 issue-state correction
+
+- During post-merge verification after PR #210, the final DoD guard failed
+  because #141 was CLOSED while customer submission DoD was still expected to
+  be BLOCKED.
+- Rechecked #141 comments. No clean full `corepack pnpm verify:acceptance`
+  PASS was recorded, and no comment contained the stricter explicit legacy
+  blocker approval required for the vFinal submission scope.
+- Reopened #141 with an explanatory comment. Issue closure alone is not
+  acceptance PASS or approval evidence.
+- Re-ran `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
+  --check-github-issues --allow-open-approved-issues
+  --approval-author=iwase-cpu --workbook=<data-protection workbook>
+  --workbook=<TPISA workbook>` after reopening #141. Result: PASS for expected
+  BLOCKED, with #128, #138, #139, #140, #141, and #171 listed as blockers.
+
 ### 2026-05-17 — vFinal #138 issue-state correction
 
 - During post-merge verification for PR #209, the final DoD guard failed
