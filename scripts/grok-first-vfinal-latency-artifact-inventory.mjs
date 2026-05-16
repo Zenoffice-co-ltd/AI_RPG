@@ -29,17 +29,25 @@ const strictDenominatorCandidates = strictMetricCandidates.filter(
 const explicitPreVFinalCandidates = strictDenominatorCandidates.filter(
   (artifact) => artifact.preVFinalMarker
 );
+const operationalCounterCandidates = strictDenominatorCandidates.filter(
+  (artifact) => artifact.hasOperationalCounters
+);
+const explicitPreVFinalComparisonReadyCandidates = explicitPreVFinalCandidates.filter(
+  (artifact) => artifact.hasOperationalCounters
+);
 const currentVFinalOnlyCandidates = strictDenominatorCandidates.filter(
   (artifact) => artifact.currentVFinalMarker && !artifact.preVFinalMarker
 );
 
-if (expected === "blocked" && explicitPreVFinalCandidates.length > 0) {
+if (expected === "blocked" && explicitPreVFinalComparisonReadyCandidates.length > 0) {
   failures.push(
-    "expected BLOCKED inventory but found at least one artifact with an explicit pre-vFinal marker"
+    "expected BLOCKED inventory but found at least one comparison-ready explicit pre-vFinal artifact"
   );
 }
-if (expected === "pass" && explicitPreVFinalCandidates.length === 0) {
-  failures.push("expected PASS inventory but found no explicit pre-vFinal baseline candidate");
+if (expected === "pass" && explicitPreVFinalComparisonReadyCandidates.length === 0) {
+  failures.push(
+    "expected PASS inventory but found no comparison-ready explicit pre-vFinal baseline candidate"
+  );
 }
 
 const output = {
@@ -52,6 +60,8 @@ const output = {
   strictMetricCandidateCount: strictMetricCandidates.length,
   strictDenominatorCandidateCount: strictDenominatorCandidates.length,
   explicitPreVFinalCandidateCount: explicitPreVFinalCandidates.length,
+  operationalCounterCandidateCount: operationalCounterCandidates.length,
+  explicitPreVFinalComparisonReadyCandidateCount: explicitPreVFinalComparisonReadyCandidates.length,
   currentVFinalOnlyCandidateCount: currentVFinalOnlyCandidates.length,
   artifacts: artifacts.map((artifact) => ({
     path: artifact.path,
@@ -67,6 +77,7 @@ const output = {
     firstAudibleAudioMsP95: artifact.firstAudibleAudioMsP95,
     closeCode1006Count: artifact.closeCode1006Count,
     relayErrorCount: artifact.relayErrorCount,
+    hasOperationalCounters: artifact.hasOperationalCounters,
     assessment: artifact.assessment,
   })),
   failures,
@@ -146,7 +157,14 @@ function inspectSummary(path) {
       "wssCloseCode1006",
     ]),
     relayErrorCount: countValue(summary, ["relayError", "relayErrorCount", "relay.error"]),
-    assessment: assessmentFor({ runCount, failCount, missingMetrics, preVFinalMarker }),
+    hasOperationalCounters: hasOperationalCounters(summary),
+    assessment: assessmentFor({
+      runCount,
+      failCount,
+      missingMetrics,
+      preVFinalMarker,
+      hasOperationalCounters: hasOperationalCounters(summary),
+    }),
   };
 }
 
@@ -165,11 +183,18 @@ function failedArtifact(path) {
     firstAudibleAudioMsP95: null,
     closeCode1006Count: null,
     relayErrorCount: null,
+    hasOperationalCounters: false,
     assessment: "Unreadable summary.",
   };
 }
 
-function assessmentFor({ runCount, failCount, missingMetrics, preVFinalMarker }) {
+function assessmentFor({
+  runCount,
+  failCount,
+  missingMetrics,
+  preVFinalMarker,
+  hasOperationalCounters,
+}) {
   if (missingMetrics.length > 0) {
     return `Missing required metrics: ${missingMetrics.join(", ")}.`;
   }
@@ -181,6 +206,9 @@ function assessmentFor({ runCount, failCount, missingMetrics, preVFinalMarker })
   }
   if (!preVFinalMarker) {
     return "Strict metric candidate, but no explicit pre-vFinal baseline marker.";
+  }
+  if (!hasOperationalCounters) {
+    return "Explicit pre-vFinal baseline candidate, but closeCode1006/relay.error counters are missing.";
   }
   return "Explicit pre-vFinal baseline candidate.";
 }
@@ -196,6 +224,13 @@ function countValue(summary, keys) {
     if (isNumber(value?.count)) return value.count;
   }
   return null;
+}
+
+function hasOperationalCounters(summary) {
+  return (
+    countValue(summary, ["closeCode1006", "closeCode1006Count", "wssCloseCode1006"]) !== null &&
+    countValue(summary, ["relayError", "relayErrorCount", "relay.error"]) !== null
+  );
 }
 
 function numberOr(value, fallback) {
@@ -273,9 +308,22 @@ function runSelfTest() {
     sessionApiMs: { count: 20, p95: 280 },
     firstAudioDeltaMs: { count: 20, p95: 5400 },
     firstAudibleAudioMs: { count: 20, p95: 5600 },
+    closeCode1006Count: 0,
+    relayErrorCount: 0,
   });
-  if (!baseline.hasRequiredMetrics || !baseline.preVFinalMarker) {
+  if (!baseline.hasRequiredMetrics || !baseline.preVFinalMarker || !baseline.hasOperationalCounters) {
     throw new Error("pre-vFinal baseline fixture classification failed");
+  }
+  const baselineWithoutCounters = inspectSummaryFromObject("pre-vFinal-baseline-summary.json", {
+    runCount: 20,
+    passCount: 20,
+    failCount: 0,
+    sessionApiMs: { count: 20, p95: 280 },
+    firstAudioDeltaMs: { count: 20, p95: 5400 },
+    firstAudibleAudioMs: { count: 20, p95: 5600 },
+  });
+  if (baselineWithoutCounters.hasOperationalCounters) {
+    throw new Error("baseline without operational counters should not be comparison-ready");
   }
   console.log("vFinal latency artifact inventory self-test PASS");
 }
@@ -295,6 +343,13 @@ function inspectSummaryFromObject(path, summary) {
     hasRequiredMetrics: missingMetrics.length === 0,
     currentVFinalMarker,
     preVFinalMarker,
-    assessment: assessmentFor({ runCount, failCount, missingMetrics, preVFinalMarker }),
+    hasOperationalCounters: hasOperationalCounters(summary),
+    assessment: assessmentFor({
+      runCount,
+      failCount,
+      missingMetrics,
+      preVFinalMarker,
+      hasOperationalCounters: hasOperationalCounters(summary),
+    }),
   };
 }
