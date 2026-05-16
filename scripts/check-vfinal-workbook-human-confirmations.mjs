@@ -5,6 +5,7 @@ import { inflateRawSync } from "node:zlib";
 
 const workbookPaths = listArgs("workbook");
 const expected = valueArg("expect") ?? "blocked";
+const allowedExpected = new Set(["blocked", "pass"]);
 
 const mappedCellsByWorkbook = [
   {
@@ -83,6 +84,10 @@ if (hasFlag("self-test")) {
   process.exit(0);
 }
 
+if (!allowedExpected.has(expected)) {
+  failures.push(`invalid --expect value: ${expected}; use blocked or pass`);
+}
+
 if (workbookPaths.length === 0) {
   failures.push("at least one --workbook path is required");
 }
@@ -141,6 +146,16 @@ function inspectWorkbook(path) {
     if (expected === "blocked" && result.overallStatus !== "BLOCKED") {
       failures.push(`workbook ${path} overall DoD status is not BLOCKED`);
     }
+    if (expected === "pass") {
+      if (result.overallStatus !== "PASS") {
+        failures.push(`workbook ${path} overall DoD status is not PASS`);
+      }
+      for (const { cell, status } of result.blockerStatuses) {
+        if (status === "BLOCKED") {
+          failures.push(`workbook ${path} still has BLOCKED in ${cell}`);
+        }
+      }
+    }
   }
 
   const mapping = mappedCellsByWorkbook.find((candidate) => candidate.name === result.fileName);
@@ -191,6 +206,30 @@ function inspectWorkbook(path) {
     markerTypeCounts,
     bySheet: Object.fromEntries([...bySheet.entries()]),
   };
+
+  if (expected === "pass") {
+    if (nonEmpty !== expanded.length) {
+      failures.push(`workbook ${path} has empty mapped human-confirmation cells`);
+    }
+    if (markerCells > 0) {
+      failures.push(`workbook ${path} still has ${markerCells} mapped marker cells`);
+    }
+    const allText = workbook.sheets
+      .flatMap((sheet) => [...worksheetCells(entries, sheet.target, workbook.sharedStrings, path).values()])
+      .join("\n");
+    for (const blockedMarker of [
+      "BLOCKED",
+      "vFinal提出URLは#138未確定",
+      "Excel人間確認 (#171)",
+      "pre-vFinal >=20セッションbaselineとの正式比較が必要",
+      "baseline不足の免除ではPASS不可",
+      "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
+    ]) {
+      if (allText.includes(blockedMarker)) {
+        failures.push(`workbook ${path} still contains blocked-mode marker: ${blockedMarker}`);
+      }
+    }
+  }
   return result;
 }
 

@@ -508,10 +508,17 @@ if (normalizedExpected === "pass") {
 }
 
 function requirePassEvidenceMarkers() {
+  for (const failure of passEvidenceMarkerFailures(source)) {
+    failures.push(failure);
+  }
+}
+
+function passEvidenceMarkerFailures(sourceLike) {
+  const missing = [];
   for (const [label, text, markers] of [
     [
       "submitted URL decision inventory PASS evidence",
-      source.submittedUrlDecisionInventory,
+      sourceLike.submittedUrlDecisionInventory,
       [
         "Submitted-URL smoke passed",
         "session 200",
@@ -522,7 +529,7 @@ function requirePassEvidenceMarkers() {
     ],
     [
       "legacy XAI scope inventory PASS evidence",
-      source.legacyXaiScopeInventory,
+      sourceLike.legacyXaiScopeInventory,
       [
         "firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com",
         "firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com",
@@ -532,7 +539,7 @@ function requirePassEvidenceMarkers() {
     ],
     [
       "latency baseline assessment PASS evidence",
-      source.latencyBaselineAssessment,
+      sourceLike.latencyBaselineAssessment,
       [
         "pre-vFinal",
         ">=20",
@@ -548,12 +555,12 @@ function requirePassEvidenceMarkers() {
     ],
     [
       "acceptance blocker inventory PASS evidence",
-      source.acceptanceBlockerInventory,
+      sourceLike.acceptanceBlockerInventory,
       ["verify:acceptance"],
     ],
     [
       "workbook human confirmation map PASS evidence",
-      source.workbookHumanConfirmationMap,
+      sourceLike.workbookHumanConfirmationMap,
       [
         "Adecco_データ保護アンケート_v01_回答ドラフト.xlsx",
         "Adecco_TPISAアンケート_v01_回答ドラフト.xlsm",
@@ -562,17 +569,23 @@ function requirePassEvidenceMarkers() {
     ],
   ]) {
     for (const marker of markers) {
-      requireIncludes(text, marker, `${label} marker ${marker}`);
+      if (typeof text !== "string" || !text.includes(marker)) {
+        missing.push(`missing ${label} marker ${marker}`);
+      }
     }
   }
-  requireAnyIncludes(
-    source.acceptanceBlockerInventory,
-    [
+  if (
+    typeof sourceLike.acceptanceBlockerInventory !== "string" ||
+    ![
       "corepack pnpm verify:acceptance",
       "No vFinal session, relay, WAF, logging, or no-key runtime regression is indicated",
-    ],
-    "acceptance blocker inventory PASS evidence must cite a clean gate or approved no-regression scope"
-  );
+    ].some((needle) => sourceLike.acceptanceBlockerInventory.includes(needle))
+  ) {
+    missing.push(
+      "missing acceptance blocker inventory PASS evidence must cite a clean gate or approved no-regression scope"
+    );
+  }
+  return missing;
 }
 
 function requirePassWorkbooks() {
@@ -1108,12 +1121,6 @@ function requireEqual(actual, expectedValue, label) {
 
 function requireIncludes(text, needle, label) {
   if (typeof text !== "string" || !text.includes(needle)) {
-    failures.push(`missing ${label}`);
-  }
-}
-
-function requireAnyIncludes(text, needles, label) {
-  if (typeof text !== "string" || !needles.some((needle) => text.includes(needle))) {
     failures.push(`missing ${label}`);
   }
 }
@@ -1739,6 +1746,66 @@ function runSelfTest() {
     }
   }
   approvalAuthors.splice(0, approvalAuthors.length, ...originalAuthors);
+
+  const passEvidenceSource = {
+    submittedUrlDecisionInventory: [
+      "Submitted-URL smoke passed",
+      "session 200",
+      "wss://voice.mendan.biz/api/v3/realtime-relay",
+      "direct api.x.ai",
+      "forbidden session keys absent",
+    ].join("\n"),
+    legacyXaiScopeInventory: [
+      "firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com",
+      "firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com",
+      "XAI_API_KEY",
+      "Cloud Run relay",
+    ].join("\n"),
+    latencyBaselineAssessment: [
+      "pre-vFinal",
+      ">=20",
+      "sessionApiMs",
+      "firstAudioDeltaMs",
+      "firstAudibleAudioMs",
+      "closeCode1006",
+      "relay.error",
+      "corepack pnpm grok:first-vfinal:latency-compare",
+      "Comparison summary:",
+      "Comparison result: PASS",
+    ].join("\n"),
+    acceptanceBlockerInventory: [
+      "verify:acceptance",
+      "No vFinal session, relay, WAF, logging, or no-key runtime regression is indicated",
+    ].join("\n"),
+    workbookHumanConfirmationMap: [
+      "Adecco_データ保護アンケート_v01_回答ドラフト.xlsx",
+      "Adecco_TPISAアンケート_v01_回答ドラフト.xlsm",
+      "vFinal提出DOD照合",
+    ].join("\n"),
+  };
+  const passEvidenceFailures = passEvidenceMarkerFailures(passEvidenceSource);
+  if (passEvidenceFailures.length > 0) {
+    failed.push(`complete PASS evidence fixture failed: ${passEvidenceFailures.join("; ")}`);
+  }
+  const weakLatencyEvidenceFailures = passEvidenceMarkerFailures({
+    ...passEvidenceSource,
+    latencyBaselineAssessment: [
+      "pre-vFinal",
+      ">=20",
+      "sessionApiMs",
+      "firstAudioDeltaMs",
+      "firstAudibleAudioMs",
+      "corepack pnpm grok:first-vfinal:latency-compare",
+      "Comparison summary:",
+      "Comparison result: PASS",
+    ].join("\n"),
+  });
+  if (!weakLatencyEvidenceFailures.some((failure) => failure.includes("closeCode1006"))) {
+    failed.push("weak latency PASS evidence fixture did not require closeCode1006");
+  }
+  if (!weakLatencyEvidenceFailures.some((failure) => failure.includes("relay.error"))) {
+    failed.push("weak latency PASS evidence fixture did not require relay.error");
+  }
 
   if (failed.length > 0) {
     console.error("vFinal customer submission DoD status self-test FAILED");
