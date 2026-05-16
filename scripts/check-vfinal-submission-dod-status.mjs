@@ -693,13 +693,13 @@ function checkWorkbook(path, expectedStatus) {
   result.overallStatus = overallStatus ?? null;
   if (expectedStatus === "blocked") {
     requireEqual(overallStatus, "BLOCKED", `workbook ${path} overall DoD status`);
-    for (const cell of ["B3", "B4", "B5", "B6"]) {
+    for (const cell of ["B3", "B4", "B5", "B6", "B7"]) {
       requireEqual(dodCells.get(cell), "BLOCKED", `workbook ${path} ${cell}`);
     }
   }
   if (expectedStatus === "pass") {
     requireEqual(overallStatus, "PASS", `workbook ${path} overall DoD status`);
-    for (const cell of ["B3", "B4", "B5", "B6"]) {
+    for (const cell of ["B3", "B4", "B5", "B6", "B7"]) {
       if (dodCells.get(cell) === "BLOCKED") {
         failures.push(`workbook ${path} still has BLOCKED in ${cell}`);
       }
@@ -722,6 +722,27 @@ function checkWorkbook(path, expectedStatus) {
   }
   if (expectedStatus === "blocked" && !allText.includes("vFinal提出URLは#138未確定")) {
     failures.push(`workbook missing #138 submitted URL uncertainty wording: ${path}`);
+  }
+  if (expectedStatus === "blocked") {
+    for (const required of [
+      "#171",
+      "Excel人間確認 (#171)",
+      "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
+      "pre-vFinal >=20セッションbaselineとの正式比較が必要",
+      "baseline不足の免除ではPASS不可",
+    ]) {
+      if (!allText.includes(required)) {
+        failures.push(`workbook missing required blocked-mode wording (${required}): ${path}`);
+      }
+    }
+  }
+  for (const staleLatencyClaim of [
+    "明示承認されたwaiver/代替baseline",
+    "waiver/代替baselineが必要",
+  ]) {
+    if (allText.includes(staleLatencyClaim)) {
+      failures.push(`workbook still contains stale #140 waiver wording (${staleLatencyClaim}): ${path}`);
+    }
   }
   for (const forbidden of [
     "Customer submission DoD: PASS",

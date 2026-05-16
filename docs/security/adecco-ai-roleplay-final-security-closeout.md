@@ -894,9 +894,9 @@ Questionnaire alignment:
     docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md
   - 2026-05-17 source workbook update: both source drafts now include first
     sheet `vFinal提出DOD照合` with overall customer submission DoD marked
-    BLOCKED and #138, #139, #140, and #141 listed as unresolved. The
-    `回答前提・要確認` opening note no longer says the security foundation plan
-    is complete for submission. Pre-edit backups are under
+    BLOCKED and #138, #139, #140, #141, and #171 listed as unresolved/blocking.
+    The `回答前提・要確認` opening note no longer says the security foundation
+    plan is complete for submission. Pre-edit backups are under
     C:\Users\yukih\Downloads\vfinal_dod_excel_backups\.
   - Issue #171 tracks workbook cell-level human confirmations that cannot be
     proven from repository or infrastructure evidence alone.

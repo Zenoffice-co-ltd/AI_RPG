@@ -26,9 +26,8 @@ Workbook alignment update on 2026-05-17 JST:
 - Both source workbook drafts now include a first sheet named
   `vFinal提出DOD照合`.
 - The sheet records `Overall customer submission DoD` as `BLOCKED` and lists
-  #138, #139, #140, and #141 as unresolved. Issue #171 is tracked in this repo
-  for the cell-level human confirmations that must also be closed or approved
-  before final questionnaire submission.
+  #138, #139, #140, #141, and #171 as unresolved/blocking before final
+  questionnaire submission.
 - The `回答前提・要確認` sheet was updated so it no longer says the security
   foundation plan is complete for submission; it now states that completed
   vFinal evidence is usable only as scoped evidence and that the overall
