@@ -50,6 +50,12 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
 `--approval-author` is required only when any blocker issue remains OPEN and is
 resolved by approval comment instead of closure.
 
+For a read-only #138 hosted.app/custom-domain candidate precheck, run:
+
+```bash
+corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked
+```
+
 For a count-only #171 precheck that does not copy workbook answer values into
 docs or issue comments, run:
 

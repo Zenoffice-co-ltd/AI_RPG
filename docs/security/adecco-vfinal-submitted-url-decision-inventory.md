@@ -17,6 +17,14 @@ https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-
 
 Read-only evidence:
 
+- 2026-05-17 05:43 JST submitted URL candidate guard passed for expected
+  BLOCKED state:
+  `corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked`.
+  The dedicated hosted.app candidate returned HTTP 200. The two dedicated
+  `mendan.biz` candidates did not return HTTP success, so no active custom
+  domain candidate was found. The Node DNS diagnostic for hosted.app returned
+  resolver errors in this environment even though HTTP succeeded; DNS details
+  are recorded as diagnostic only by the helper.
 - 2026-05-17 05:04 JST browser start smoke passed against the hosted.app
   candidate: invite consume 307, session 200, `wsUrl`
   `wss://voice.mendan.biz/api/v3/realtime-relay`, browser WebSocket URL only
@@ -99,6 +107,12 @@ include DNS/certificate active status. DNS/certificate approval alone is not
 enough for a custom-domain path. The approval comment
 must include the exact submitted URL, and any `<placeholder>` text from the
 approval packet must be replaced before the guard will accept it.
+
+Read-only candidate precheck:
+
+```bash
+corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked
+```
 
 Until then, the customer submission DoD and security-checksheet submission DoD
 must remain BLOCKED for #138.
