@@ -157,6 +157,14 @@ tracked items:
   families are rejected as strict baselines because they are local/different
   route families, fail quality gates, lack `sessionApiMs`, or lack a comparable
   >=20-session denominator.
+- 2026-05-17 post-PR177 #140 comparator:
+  `corepack pnpm grok:first-vfinal:latency-compare` is now available and merged
+  on `origin/main` at `14beffe111fd6820523e70fd0d7486f35713e108`. It must be
+  used after an approved pre-vFinal baseline is supplied. It rejects missing
+  closeCode1006 / relay.error counters, weak denominators, failed runs,
+  threshold failures, and using the same summary artifact as both baseline and
+  current. This improves future #140 evidence quality but does not resolve
+  #140 because the baseline itself is still missing.
 - Security-checksheet submission uses the same final blocker set as customer
   submission because the source questionnaire workbooks and questionnaire map
   must stay BLOCKED until #138, #139, #141, and #171 are resolved or formally
@@ -182,7 +190,7 @@ tracked items:
 | 14 | Cloud Logging relay phases are present: `client.connected`, `ticket.accepted`, `upstream.connected`, `first.upstream.audio.delta` | PASS | Closeout records all required relay phases after dedicated vFinal browser text/voice E2E. |
 | 15 | Live text E2E PASS | PASS | `corepack pnpm grok:first-vfinal:browser-e2e -- --mode text` is recorded as PASS after same-SHA deploy. |
 | 16 | Live voice E2E PASS | PASS | `corepack pnpm grok:first-vfinal:browser-e2e -- --mode voice` is recorded as PASS after same-SHA deploy. |
-| 17 | Latency baseline comparison PASS: session API p95 <= baseline + 50ms, firstAudioDeltaMs p95 <= baseline + 100ms, firstAudibleAudioMs p95 <= baseline + 100ms | BLOCKED by #140 | Current-vFinal 20-session sample exists and passed, but no approved same-environment, same-scenario, >=20-session pre-vFinal baseline exists. |
+| 17 | Latency baseline comparison PASS: session API p95 <= baseline + 50ms, firstAudioDeltaMs p95 <= baseline + 100ms, firstAudibleAudioMs p95 <= baseline + 100ms | BLOCKED by #140 | Current-vFinal 20-session sample exists and passed, and PR #177 added `corepack pnpm grok:first-vfinal:latency-compare` for the future strict comparison. No approved same-environment, same-scenario, >=20-session pre-vFinal baseline exists yet. |
 | 18 | WSS close code 1006 increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded closeCode1006=0. Formal comparison remains tied to #140. |
 | 19 | `relay.error` increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded relay.error=0. Formal comparison remains tied to #140. |
 | 20 | ZAP baseline/passive scan PASS | PASS | ZAP baseline/passive exitCode 0, FAIL=0, WARN=8 documented; no active scan was run. |
@@ -201,8 +209,9 @@ final submission artifacts. GitHub issue #171 tracks this blocker.
 
 1. Resolve or formally approve #138.
 2. Resolve or formally approve #139.
-3. Resolve #140 with an approved pre-vFinal baseline and comparison that meets
-   the documented thresholds.
+3. Resolve #140 with an approved pre-vFinal baseline and a
+   `corepack pnpm grok:first-vfinal:latency-compare` result that meets the
+   documented thresholds.
 4. Resolve #141 with a clean full `verify:acceptance` run or explicit approval
    of the legacy ConvAI judge blocker as outside vFinal submission scope.
 5. Resolve #171 by confirming or rewriting the mapped workbook cells.
