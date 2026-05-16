@@ -138,6 +138,26 @@ For v50.4 specifically, the expected session identity is
 `promptVersion=grok-first-v50.4-2026-05-15`,
 model `grok-voice-think-fast-1.0`, and voice `99c95cc8a177`.
 
+## v50-family Production Evidence Order
+
+For `/demo/adecco-roleplay-v50*` work, use this order before broad acceptance:
+
+1. Targeted unit/typecheck for touched v50 files.
+2. Local focused fixed-guard or voice browser E2E, if the requested denominator
+   has a runner.
+3. Deploy through `pnpm deploy:adecco-roleplay` or
+   `pnpm deploy:adecco-roleplay:gcloud`; avoid bare deploy except Cloud Build
+   debugging.
+4. Production session API smoke for `/api/grok-first-v50*/session`.
+5. Production URL smoke with `pnpm grok:first-v50:prod-smoke`.
+6. Relay health/log check if `realtimeTransport=mendan_cloud_run_relay_wss`.
+7. Production `grokFirstV50` Cloud Logging query for the same `sessionId` via
+   `pnpm grok:first-v50:prod-logs`.
+8. Only then run spreadsheet/full E2E or `pnpm verify:acceptance`.
+
+v50-family evidence is not emitted through `/api/v3/event`; use
+`/api/grok-first-v50*/event` and `jsonPayload.scope="grokFirstV50"`.
+
 ## Grok Voice v2.1 PR58+ Release DOD
 
 Use this subsection when validating, deploying, or closing follow-up work for

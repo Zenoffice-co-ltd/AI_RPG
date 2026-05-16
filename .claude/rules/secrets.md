@@ -25,6 +25,11 @@ Adecco browser E2E may require aliases, not only env-var names:
 - `DEMO_ACCESS_TOKEN` may be stored as Secret Manager secret `demo-access-token`.
 - v25/v50 relay routes require `XAI_RELAY_TICKET_SECRET`.
 - Normal Grok realtime/voice paths require `XAI_API_KEY`.
+- App Hosting secrets must exist in the runtime project `adecco-mendan`; a
+  matching secret in `zapier-transfer` alone is not enough for App Hosting.
+- New App Hosting secrets require the IAM trio before deploy:
+  runtime `secretAccessor`, compute service-account `viewer`, and Firebase App
+  Hosting service-agent `secretVersionManager`.
 
 On Windows, Node `spawn("gcloud", ...)` may fail because the installed command is
 `gcloud.ps1`. Prefer already-set process env, support a PowerShell/gcloud.ps1
@@ -46,7 +51,7 @@ Pull into the current shell only — do not write the value into any tracked fil
 
 ## Codex command-approval guards
 
-Mutating Secret Manager operations (`delete`, `versions destroy`, `versions add`, `create`, `set-iam-policy`) are gated by [`/.codex/rules/secrets.rules`](../../.codex/rules/secrets.rules). Any change to the retrieval contract above must also update that file.
+Mutating Secret Manager operations (`delete`, `versions destroy`, `versions add`, `create`, `set-iam-policy`, `add-iam-policy-binding`) are gated by [`/.codex/rules/secrets.rules`](../../.codex/rules/secrets.rules). Any change to the retrieval contract above must also update that file.
 
 ## Cursor mirror
 

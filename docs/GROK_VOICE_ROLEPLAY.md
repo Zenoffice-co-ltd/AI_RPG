@@ -82,6 +82,21 @@ sentence, collapse off-role/ending guard handling to one fixed response, remove
 customer-side reverse questions, and keep the first message free of forbidden
 polite-request wording.
 
+For v50-family production smoke and log reconstruction, use the reusable
+scripts instead of one-off `.codex_tmp` harnesses:
+
+```bash
+pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode start
+pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode voice-turn
+pnpm grok:first-v50:prod-logs -- --session <gfv50_...>
+```
+
+The first command verifies route startup, session identity, WebSocket connection,
+and first-message display. The voice-turn mode additionally requires
+`stt.completed`, `turn.completed`, `audioBytes > 0`, and `error=null`. The log
+collector queries `jsonPayload.scope="grokFirstV50"` and reports missing
+`turn.completed` separately from session-start failures.
+
 Contract:
 
 - Grok Voice Think Fast generates every business answer in realtime.

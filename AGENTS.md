@@ -19,14 +19,12 @@
   1. Process env (`process.env["<NAME>"]`) if already set in the current shell.
   2. `apps/web/.env.local` (gitignored, local-only — never commit).
   3. Secret Manager via `gcloud secrets versions access latest --secret=<NAME> --project=<PROJECT>`. Project order: `SECRET_SOURCE_PROJECT_ID` env var → `zapier-transfer` (default) → `adecco-mendan` (per-tenant fallback for `XAI_API_KEY`, `ELEVENLABS_API_KEY`, etc.).
-- Secret names may differ from env names. For Adecco demo browser E2E, `DEMO_ACCESS_TOKEN` may come from Secret Manager secret `demo-access-token`, and v25/v50 relay flows also require `XAI_RELAY_TICKET_SECRET`. Resolve these aliases explicitly before declaring an E2E blocked.
-- On Windows, Node `spawn("gcloud", ...)` may fail to resolve the installed `gcloud.ps1`. E2E scripts must prefer existing process env first and either support PowerShell/gcloud.ps1 fallback or print a clear `BLOCKED: <NAME> not available` message with the attempted secret names/projects. Operators may inject secrets into the current shell only; never write them to tracked files.
 - **Canonical retrieval command** for ad-hoc local use:
   `gcloud secrets versions access latest --secret=<NAME> --project=<PROJECT>`
   Pull into the current shell only. Do not write the value into `apps/web/.env.local`, any tracked file, or any tool config.
 - E2E and benchmark scripts must resolve secrets at runtime via the precedence above and exit with an explicit `BLOCKED: <NAME> not available` message if no source yields a real key (length ≥ 32, not a `test-…` placeholder). They must not silently fall back to placeholder strings or skip checks. The reference implementation is `loadXaiKeyFromSecretManagerIfNeeded()` in `scripts/grok-voice-v21-scenario-e2e.ts`.
 - This `## Secrets` section is the cross-tool **Source of Truth**. Tool-specific surfaces re-state it (so each tool surfaces the rule natively) without owning the contract:
-  - Codex command-approval guards for Secret Manager mutations (`gcloud secrets {delete,versions destroy,versions add,create,set-iam-policy}`) live in [`.codex/rules/secrets.rules`](.codex/rules/secrets.rules).
+  - Codex command-approval guards for Secret Manager mutations (`gcloud secrets {delete,versions destroy,versions add,create,set-iam-policy,add-iam-policy-binding}`) live in [`.codex/rules/secrets.rules`](.codex/rules/secrets.rules).
   - Claude Code surface lives in [`.claude/rules/secrets.md`](.claude/rules/secrets.md).
   - Cursor surface lives in [`.cursor/rules/secrets.mdc`](.cursor/rules/secrets.mdc) (`alwaysApply: true`).
   - Any change to the retrieval contract above must update **all four** files in the same change.
@@ -71,6 +69,14 @@
   - Confirm the package script still exists, or run the underlying script directly and note why.
   - Confirm local dev-server ports and stale Next/Turbo processes before starting; reuse an existing server only after a one-turn event-capture check passes.
   - State the DoD denominator up front, for example `5-case back-to-back harness`, `13/13 guard smoke`, `69 P0 guards`, or `93-turn full`.
+- For production voice / relay regressions, use the shortest diagnostic ladder before redeploying or running broad E2E:
+  1. Verify the route session API returns 200 and the expected identity fields (`demoSlug`, `backend`, `promptVersion`, `guardrailVersion`, `realtimeTransport`, `wsUrl`, auth mode, and payload-inclusion flags).
+  2. If the session API fails, inspect App Hosting rollout/build status, Cloud Build logs, cookie/access state, and App Hosting env/secret bindings. Do not investigate the relay first.
+  3. If the session API succeeds and the route uses Cloud Run relay, check `https://voice.mendan.biz/healthz`, then relay Cloud Logging for `client.connected`, `ticket.accepted`, `upstream.connected`, and `first.upstream.audio.delta`.
+  4. Run a focused browser smoke for the exact route and event endpoint. For v50-family routes, events are under `/api/grok-first-v50*/event` and Cloud Logging scope is `grokFirstV50`, not `/api/v3/event` / `grokVoice.*`.
+  5. Only after the focused smoke and same-session Cloud Logging are understood, run spreadsheet/full E2E or redeploy again.
+- App Hosting and Cloud Run relay are separate failure domains. App Hosting owns `/demo/*`, `/api/grok-first-v50*/session`, AccessGate cookies, env/secret binding, prompt/guardrail identity, and relay ticket issuance. Cloud Run relay owns `wss://voice.mendan.biz/api/v3/realtime-relay`, relay ticket validation, xAI upstream connection, and upstream audio deltas. `ticket.rejected` means ticket/audience/path/secret; missing `upstream.connected` means relay `XAI_API_KEY`/IAM/xAI upstream; missing `client.connected` means browser/CSP/DNS/LB before relay logic.
+- Do not repeatedly run one-off `.codex_tmp` harnesses for reusable release evidence. Promote recurring E2E/logging flows to `scripts/`, add a package script, make secret resolution fail closed, and write evidence under `out/<workflow>/<timestamp>/`.
 
 ## Always Before Merge
 
@@ -86,6 +92,7 @@
 - **Verify the squash actually captured your latest commits.** Immediately after `gh pr merge` returns, run `git show origin/main:<path>` against a unique signature line from your latest change. Squash can pick up an older parent commit if the merge was queued before a late push (cf. PR #80 → PR #81 mismatch incident). The PR's "merged" badge, the PR body, and the head SHA are leading indicators, NOT authoritative.
 - **Every behavior-changing PR must ship with an env-flag rollback that does NOT require a client redeploy.** The flag is read fresh on the next request (typical pattern: surface it through `/api/v3/session`), so flipping the env immediately reverts behavior. Document the flag in the PR body, verify it in a unit test, and re-document it in the relevant skill. Reference implementations: `GROK_VOICE_STRICT_PLAYBACK_MODE` (PR #85), `GROK_VOICE_LOCKED_AUDIO_BUNDLE_ENABLED` (PR #87). Additive route-only prompt variants may use the prior stable route as the rollback path instead of adding an env flag, but only if existing URLs and APIs remain unchanged, the PR body names the rollback URL, and the relevant repo skill/runbook records the exception.
 - For Firebase App Hosting deploys, see the dedicated [`## Deploy (App Hosting)`](#deploy-app-hosting) section above (cross-tool SoT) and the runbook at [`docs/deploy-app-hosting.md`](docs/deploy-app-hosting.md). The legacy Cloud Run flow at [`docs/deploy.md`](docs/deploy.md) is for the older `roleplay-ui` service only.
+- For v50-family deploy evidence, the `/api/v3/session` post-check is not enough. Also run `pnpm grok:first-v50:prod-smoke -- --variant <v50-x> --mode start` and, for voice behavior changes, `pnpm grok:first-v50:prod-smoke -- --variant <v50-x> --mode voice-turn`, then fetch same-session logs with `pnpm grok:first-v50:prod-logs -- --session <gfv50_...>`.
 
 ## Directory Map
 

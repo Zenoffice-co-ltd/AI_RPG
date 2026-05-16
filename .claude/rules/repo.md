@@ -20,6 +20,28 @@ Before browser E2E, voice E2E, spreadsheet-defined plans, or final DoD runs:
 Do not kill broad Node/Next processes by name. Use `netstat`, `Get-Process`, or
 the runner's child PID to confirm ownership before `taskkill` or `Stop-Process`.
 
+## Production voice / relay diagnosis
+
+Before redeploying or running broad E2E for production voice routes:
+
+1. Check the exact route session API and expected identity fields.
+2. If the session API fails, inspect App Hosting rollout/build/env/secret state.
+3. If the session API succeeds and the route uses relay, check relay health and
+   Cloud Logging for `client.connected`, `ticket.accepted`,
+   `upstream.connected`, and `first.upstream.audio.delta`.
+4. Run a focused browser smoke and pull Cloud Logging for the same session ID.
+5. Use full E2E only after the focused evidence is understood.
+
+For v50-family routes, use `/api/grok-first-v50*/event` and
+`jsonPayload.scope="grokFirstV50"`, not `/api/v3/event`.
+
+## Deploy safety
+
+Use `pnpm deploy:adecco-roleplay` or `pnpm deploy:adecco-roleplay:gcloud`.
+Bare `firebase deploy` is for Cloud Build debugging only. For v50-family deploys,
+also run `pnpm grok:first-v50:prod-smoke` and
+`pnpm grok:first-v50:prod-logs`.
+
 ## Reporting
 
 Do not claim acceptance or final DoD unless the exact requested case set passed,
