@@ -65,6 +65,19 @@ denied on resource (or it may not exist).
   checks on Secret Manager `secretmanager.versions.access`.
 - No secret values were read, printed, persisted, or copied into docs.
 
+2026-05-17 05:31 JST permission/input recheck:
+
+- Active gcloud account: `iwase@zenoffice.co.jp`.
+- Active gcloud project: `zapier-transfer`.
+- Process-local values were absent for the checked acceptance/runtime inputs:
+  `FIREBASE_PROJECT_ID`, `SECRET_SOURCE_PROJECT_ID`, `QUEUE_SHARED_SECRET`,
+  `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `LIVEAVATAR_API_KEY`,
+  `FIREBASE_CREDENTIALS_SECRET_NAME`, `DEFAULT_ELEVEN_VOICE_ID`,
+  `DEMO_ACCESS_TOKEN`, `XAI_API_KEY`, and `XAI_RELAY_TICKET_SECRET`.
+- `corepack pnpm verify:acceptance -- --preflight` still failed before product
+  checks on Secret Manager `secretmanager.versions.access`.
+- No secret values were read, printed, persisted, or copied into docs.
+
 This means a fresh clean rerun still requires one of:
 
 - process-local vendor secrets and project inputs supplied without printing or

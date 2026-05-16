@@ -162,6 +162,16 @@ tracked items:
   no-coaching-only exception, while a fresh current-shell preflight still stops
   before product checks on Secret Manager access. This narrows the #141
   decision but does not replace a clean PASS or explicit approval.
+- 2026-05-17 05:31 JST #141 permission/input recheck:
+  process-local values were absent for the checked acceptance/runtime inputs,
+  the active gcloud account was `iwase@zenoffice.co.jp`, the active project was
+  `zapier-transfer`, and `corepack pnpm verify:acceptance -- --preflight`
+  still failed before product checks on Secret Manager
+  `secretmanager.versions.access`. No secret values were read, printed,
+  persisted, or copied into this audit. #141 remains blocked pending clean full
+  `verify:acceptance` PASS with adequate process-local inputs/permissions,
+  explicit legacy blocker approval, or legacy judge path re-scope/fix followed
+  by a clean gate.
 - 2026-05-17 00:44 JST acceptance full rerun:
   process-local secrets were resolved from Secret Manager without printing or
   persisting values, preflight was ready, and the full gate again failed at the
