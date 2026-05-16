@@ -1060,9 +1060,9 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
 ```
 
 If an OPEN blocker is accepted through approval text instead of issue closure,
-add `--approval-author=<approver-github-login>` or set
-`VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` so the guard verifies the approval came
-from the expected GitHub account.
+`--approval-author=<approver-github-login>` or
+`VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required so the guard verifies the
+approval came from the expected GitHub account.
 
 ### 2026-05-17 — vFinal blocker continuation recheck after PR #169
 

@@ -119,9 +119,10 @@ Final PASS guard:
 corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass --check-github-issues --allow-open-approved-issues --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
 
-If approved open blockers are being relied on, add
-`--approval-author=<approver-github-login>` and verify the approval text is
-plain issue/PR comment text, not only a fenced template or blockquote.
+If approved open blockers are being relied on, `--approval-author=<approver-github-login>`
+or `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required; the guard rejects
+open-issue approvals without an expected approver list. Verify the approval
+text is plain issue/PR comment text, not only a fenced template or blockquote.
 
 While the submission is blocked, use BLOCKED mode as the honest default:
 

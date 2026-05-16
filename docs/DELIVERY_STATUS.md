@@ -38,8 +38,8 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
 ```
 
 If an OPEN blocker is resolved by approval comment instead of issue closure,
-also pass `--approval-author=<approver-github-login>` or set
-`VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS`.
+`--approval-author=<approver-github-login>` or
+`VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required.
 
 Do not change the vFinal closeout final verdict to
 `Customer submission DoD: PASS` until the guard above passes and the final PR is

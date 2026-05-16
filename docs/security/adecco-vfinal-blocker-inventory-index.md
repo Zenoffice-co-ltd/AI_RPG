@@ -64,6 +64,6 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
   --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
 
-If any open issue is resolved by approval text instead of closure, also pass
-`--approval-author=<approver-github-login>` or set
-`VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS`.
+If any open issue is resolved by approval text instead of closure,
+`--approval-author=<approver-github-login>` or
+`VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required.

@@ -46,6 +46,7 @@ Approve one:
 ```text
 Approved: the dedicated hosted.app URL is acceptable as the vFinal customer
 submitted URL.
+Submitted URL: https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-vFinal
 ```
 
 or
@@ -53,6 +54,7 @@ or
 ```text
 Approved: the dedicated vFinal mendan.biz custom domain is active as the vFinal customer
 submitted URL.
+Submitted URL: https://<dedicated-vFinal-mendan.biz>/demo/adecco-roleplay-vFinal
 DNS/certificate status is active.
 Submitted-URL smoke passed with session 200, relay WSS only, direct api.x.ai count 0,
 and forbidden session keys absent.
@@ -222,9 +224,14 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
 ```
 
 If any of #138, #139, #140, #141, or #171 remain OPEN and are resolved by approval
-comment rather than closure, add `--approval-author=<approver-github-login>` or
-set `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` to the approved GitHub login list
+comment rather than closure, `--approval-author=<approver-github-login>` or
+`VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required. The guard rejects
+approval-based PASS for OPEN blockers unless the expected GitHub approver login
+list is supplied.
 before running the final PASS guard.
+Approval comments must replace every `<placeholder>` in this packet with a
+concrete value. The guard rejects approval comments that still contain unfilled
+angle-bracket placeholders.
 
 6. Create the final closeout PR and set the final verdict to
    `Customer submission DoD: PASS` only if all remaining blockers are closed or

@@ -228,8 +228,8 @@ final submission artifacts. GitHub issue #171 tracks this blocker.
    `corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass
    --check-github-issues --allow-open-approved-issues` with the two source
    questionnaire workbooks passed through `--workbook=...`. If an OPEN blocker
-   issue is accepted by approval comment instead of issue closure, also pass
-   `--approval-author=<approver-github-login>` or set
-   `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS`.
+   issue is accepted by approval comment instead of issue closure,
+   `--approval-author=<approver-github-login>` or
+   `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required.
 7. Update the closeout final verdict only after all blocking issues are closed
    or approved, with #140 backed by a passing baseline comparison.
