@@ -796,6 +796,11 @@ Remaining blockers:
     evidence uses the dedicated hosted.app backend URL. Resolve by either
     approving hosted.app as the submitted URL or mapping a dedicated vFinal
     mendan.biz custom domain to the dedicated backend.
+    2026-05-17 03:26 JST recheck: hosted.app returned HTTP 200;
+    `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` returned no
+    DNS resolver result in this environment; `curl -I` against
+    `https://roleplay-vfinal.mendan.biz/demo/adecco-roleplay-vFinal` failed
+    with host resolution error.
     2026-05-17 post-PR149 recheck: hosted.app returned HTTP 200;
     `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still had no
     DNS resolver result in this environment.
