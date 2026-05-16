@@ -23,6 +23,24 @@ being closed or formally approved.
 
 ## Latest Continuation Recheck
 
+2026-05-17 JST recheck after PR #209:
+
+- #138 was found CLOSED during post-merge guard verification, but the issue
+  comments did not include the required exact hosted.app submitted-URL approval
+  with submitted-URL smoke evidence, and no dedicated `mendan.biz` active
+  DNS/certificate + submitted-URL smoke evidence was present. #138 was
+  reopened. Issue closure alone is not approval evidence.
+- `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
+  --check-github-issues --allow-open-approved-issues
+  --approval-author=iwase-cpu --workbook=<data-protection workbook>
+  --workbook=<TPISA workbook>` passed again after #138 was reopened, listing
+  #128, #138, #139, #140, #141, and #171 as blockers.
+- PR #209 tightened #140 comparison evidence so `corepack pnpm
+  grok:first-vfinal:latency-compare` now requires both baseline/current
+  artifact identity markers in addition to the existing denominator,
+  fail-count, p95 threshold, closeCode1006, `relay.error`, and same-artifact
+  checks. This does not create or approve the missing pre-vFinal baseline.
+
 2026-05-17 JST recheck after PR #188 and PR #189:
 
 - #128, #138, #139, #140, #141, and #171 are still OPEN.
