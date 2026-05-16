@@ -1,0 +1,26 @@
+# Repo Operational Safety — Claude Code rule
+
+**Source of Truth:** repository-root [`AGENTS.md`](../../AGENTS.md), especially
+`## Working Defaults`, `## Always Before Merge`, and `## Repo-Scoped Rules And Hooks`.
+
+## Long-running E2E / DoD preflight
+
+Before browser E2E, voice E2E, spreadsheet-defined plans, or final DoD runs:
+
+1. Map the requested denominator to an executable runner. A narrower harness is
+   scoped evidence, not final DoD.
+2. Confirm required secrets by name and alias without printing values.
+3. Confirm the package script exists, or state why a direct script is used.
+4. Check stale local Next/Turbo processes and target ports before startup.
+5. Reuse an existing dev server only after a one-turn event-capture check proves
+   the target event route is being observed.
+
+## Process cleanup
+
+Do not kill broad Node/Next processes by name. Use `netstat`, `Get-Process`, or
+the runner's child PID to confirm ownership before `taskkill` or `Stop-Process`.
+
+## Reporting
+
+Do not claim acceptance or final DoD unless the exact requested case set passed,
+or the remaining blocker is explicitly documented.
