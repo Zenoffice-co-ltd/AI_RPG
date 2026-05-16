@@ -812,6 +812,24 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal #138 submitted URL evidence refresh
+
+- Re-ran the submitted URL candidate helper:
+  `corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked`.
+- Result: PASS for expected BLOCKED. The dedicated hosted.app candidate
+  returned HTTP 200; the two dedicated `mendan.biz` candidates did not return
+  HTTP success; active custom-domain candidate count was 0.
+- Re-ran hosted.app start smoke:
+  `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --origin
+  https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app --out
+  out/grok_first_vfinal_browser_e2e/2026-05-17T07-35-00-hosted-url-start-recheck`.
+- Result: PASS. Session 200, `sessionApiMs=90`,
+  `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, browser WebSocket URL
+  only relay WSS, direct `api.x.ai` count 0, and forbidden session keys absent.
+- This is fresh #138 evidence only. It does not approve hosted.app as the
+  submitted URL and does not create a dedicated `mendan.biz` mapping, so #138
+  remains BLOCKED.
+
 ### 2026-05-17 — vFinal #141 issue-state correction
 
 - During post-merge verification after PR #210, the final DoD guard failed
