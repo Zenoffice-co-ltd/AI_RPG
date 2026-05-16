@@ -32,6 +32,15 @@ tracked items:
 
 ## Latest Read-Only Rechecks
 
+- 2026-05-17 04:40 JST workbook human-confirmation recheck:
+  both source workbooks still have `vFinal提出DOD照合` as their first sheet,
+  and both still include `Overall customer submission DoD BLOCKED` plus
+  `Excel人間確認 (#171) BLOCKED`. The data-protection workbook had 25/25
+  mapped #171 cells non-empty, with 17 still containing confirmation or
+  unresolved markers. The TPISA workbook had 34/34 expanded mapped #171 cells
+  non-empty, with 19 still containing confirmation or unresolved markers. No
+  workbook answer values were copied into this audit. #171 remains blocked
+  pending human confirmation or explicit unresolved/not-applicable wording.
 - 2026-05-17 04:29 JST submitted URL smoke:
   `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --origin
   https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`

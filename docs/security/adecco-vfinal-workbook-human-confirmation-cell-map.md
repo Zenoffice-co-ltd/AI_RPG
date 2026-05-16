@@ -17,6 +17,21 @@ GitHub tracking issue: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/171
 The source workbooks currently stay in BLOCKED mode through the first sheet
 `vFinal提出DOD照合`. This file does not change that verdict.
 
+2026-05-17 04:40 JST machine-readable workbook recheck:
+
+- Both source workbooks still have `vFinal提出DOD照合` as the first sheet.
+- Both first sheets still include `Overall customer submission DoD BLOCKED` and
+  an `Excel人間確認 (#171) BLOCKED` row.
+- `Adecco_データ保護アンケート_v01_回答ドラフト.xlsx`: all 25 mapped cells were
+  non-empty, but 17 still contained confirmation or unresolved markers such as
+  `要確認`, `未確認`, `未確定`, `確認`, or blocker references.
+- `Adecco_TPISAアンケート_v01_回答ドラフト.xlsm`: all 34 expanded mapped
+  cells were non-empty, but 19 still contained confirmation or unresolved
+  markers such as `要確認`, `未確認`, `未確定`, `確認`, or blocker references.
+- No workbook values were copied into this file. This count-only recheck
+  confirms #171 remains unresolved until the mapped cells are human-confirmed
+  or rewritten to explicit unresolved/not-applicable answers.
+
 ## Data Protection Questionnaire Cells
 
 | Sheet | Cell | Confirmation needed before final submission |
