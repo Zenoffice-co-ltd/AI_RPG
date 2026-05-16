@@ -76,6 +76,20 @@ metrics.
   does not replace `corepack pnpm grok:first-vfinal:latency-compare` once an
   approved pre-vFinal baseline exists.
 
+2026-05-17 05:54 JST operational-counter inventory tightening:
+
+- Tightened `corepack pnpm grok:first-vfinal:latency-artifact-inventory` so a
+  comparison-ready explicit pre-vFinal artifact must include closeCode1006 and
+  `relay.error` counters. A p95-only summary can still be useful inventory, but
+  it is not enough for #140 PASS.
+- Command:
+  `corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked --root out\grok_first_vfinal_latency`.
+- Result: PASS for expected BLOCKED state.
+- The scoped inventory visited 4 `summary.json` files, found 4 strict metric
+  candidates, found 2 denominator >=20 current-vFinal-only candidates, found 0
+  artifacts with both operational counters embedded, and found 0
+  comparison-ready explicit pre-vFinal baseline candidates.
+
 ## Rejected Baseline Candidates
 
 | Candidate family | Example artifact | Runs | Reason it is not a strict baseline |

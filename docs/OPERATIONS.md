@@ -812,6 +812,23 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal #140 latency operational-counter inventory guard
+
+- Tightened `corepack pnpm grok:first-vfinal:latency-artifact-inventory` so a
+  comparison-ready pre-vFinal artifact must include closeCode1006 and
+  `relay.error` counters, not only the three p95 latency metrics.
+- Rechecked the current vFinal latency artifact directory with:
+  `corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked --root out\grok_first_vfinal_latency`.
+- Result: PASS for expected BLOCKED state. The scoped inventory visited 4
+  `summary.json` files, found 4 strict metric candidates, found 2 denominator
+  >=20 current-vFinal-only candidates, found 0 artifacts with both operational
+  counters embedded, and found 0 comparison-ready explicit pre-vFinal baseline
+  candidates.
+- This is inventory evidence only. A future #140 PASS still requires an
+  approved pre-vFinal >=20-session baseline and
+  `corepack pnpm grok:first-vfinal:latency-compare` PASS with closeCode1006 /
+  relay.error comparison evidence.
+
 ### 2026-05-17 — vFinal #139 legacy XAI scope code/config guard
 
 - Added `corepack pnpm grok:vfinal-legacy-xai-scope` as a repo-local,

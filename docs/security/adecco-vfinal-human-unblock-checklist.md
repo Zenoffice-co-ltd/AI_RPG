@@ -80,6 +80,9 @@ corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked \
   --root out\grok_first_vfinal_latency
 ```
 
+This inventory guard treats closeCode1006 and `relay.error` counters as part of
+comparison readiness. A p95-only artifact is not enough for final #140 PASS.
+
 ## Current Codex Stop Conditions
 
 Codex must not change the final verdict to PASS until the checks above are
