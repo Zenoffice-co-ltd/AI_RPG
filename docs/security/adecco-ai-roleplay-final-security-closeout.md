@@ -722,6 +722,9 @@ Remaining blockers:
     20-session voice sampling is complete and passed, but the required
     20-session pre-vFinal baseline is unavailable without approved rollback or a
     separate same-environment baseline deployment.
+    2026-05-17 artifact scan found current-vFinal samples and unrelated
+    v50/Grok Voice artifacts, but no same-environment, same-scenario,
+    >=20-session pre-vFinal baseline with the required metrics.
   - Issue #141: verify:acceptance full rerun is blocked only by the known legacy
     `staffing_order_hearing_busy_manager_medium::no-coaching` ElevenLabs
     ConvAI judge failure after three attempts. This is no longer a Secret
