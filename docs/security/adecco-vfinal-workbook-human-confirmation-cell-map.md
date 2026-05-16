@@ -51,6 +51,22 @@ The source workbooks currently stay in BLOCKED mode through the first sheet
   workbooks can be promoted to final submission artifacts.
 - No workbook answer values were copied into this file.
 
+2026-05-17 06:08 JST final-PASS helper recheck:
+
+- `corepack pnpm grok:vfinal-workbook-human-confirmations -- --self-test`
+  passed.
+- `--expect=blocked` passed against both source workbooks.
+- `--expect=pass` failed as expected while both source workbooks remain in
+  BLOCKED mode. The helper now rejects final PASS when the first sheet overall
+  status is not `PASS`, any B3:B7 blocker row is still `BLOCKED`, mapped
+  human-confirmation cells are empty, mapped blocker references remain, or
+  workbook-wide blocked-mode markers remain.
+- Diagnostic marker counts still include broad confirmation wording, but PASS
+  mode only treats concrete blocker references as mapped-cell blockers so a
+  final human answer such as "confirmed" or "確認済み" is not rejected solely for
+  being a confirmation statement.
+- No workbook answer values were copied into this file.
+
 ## Data Protection Questionnaire Cells
 
 | Sheet | Cell | Confirmation needed before final submission |
