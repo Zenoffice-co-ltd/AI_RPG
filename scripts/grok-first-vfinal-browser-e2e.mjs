@@ -67,6 +67,7 @@ async function main() {
     sessionResponse: null,
     sessionPayload: null,
     network: [],
+    sessionApiMs: null,
     websocketUrls: [],
     websocketSummary: [],
     eventKinds: [],
@@ -99,6 +100,7 @@ async function main() {
     });
     await context.grantPermissions(["microphone"], { origin: BASE_URL });
     page = await context.newPage();
+    const requestStartedAt = new Map();
 
     page.on("console", (message) => {
       if (message.type() === "error") {
@@ -110,6 +112,7 @@ async function main() {
       const url = request.url();
       if (url.includes("api.x.ai")) evidence.directApiXaiConnectionCount += 1;
       if (url.includes(SESSION_API) || url.includes(EVENT_API) || url.includes(CONSUME_API)) {
+        requestStartedAt.set(request, Date.now());
         evidence.network.push({
           direction: "request",
           method: request.method(),
@@ -133,11 +136,17 @@ async function main() {
     page.on("response", async (response) => {
       const url = response.url();
       if (url.includes(SESSION_API) || url.includes(CONSUME_API)) {
+        const startedAt = requestStartedAt.get(response.request());
+        const elapsedMs = typeof startedAt === "number" ? Date.now() - startedAt : null;
         evidence.network.push({
           direction: "response",
           status: response.status(),
+          elapsedMs,
           path: safePath(url),
         });
+        if (url.includes(SESSION_API) && typeof elapsedMs === "number") {
+          evidence.sessionApiMs = elapsedMs;
+        }
       }
       if (!url.includes(SESSION_API)) return;
       evidence.sessionResponse = { status: response.status(), ok: response.ok() };
@@ -212,6 +221,7 @@ async function main() {
 
     await page.waitForTimeout(2_000);
     await page.screenshot({ path: evidence.screenshotPath, fullPage: true });
+    await endConversationGracefully(page);
   } catch (error) {
     evidence.failures.push(
       error instanceof Error ? error.message.slice(0, 240) : String(error).slice(0, 240)
@@ -233,6 +243,7 @@ async function main() {
     mode: evidence.mode,
     origin: evidence.origin,
     sessionStatus: evidence.sessionResponse?.status ?? null,
+    sessionApiMs: evidence.sessionApiMs,
     sessionPayload: evidence.sessionPayload,
     eventKinds: evidence.eventKinds,
     metricCount: evidence.metrics.length,
@@ -251,6 +262,17 @@ async function ensureConversationReady(page) {
   if (await start.isVisible({ timeout: 30_000 }).catch(() => false)) {
     await start.click();
   }
+}
+
+async function endConversationGracefully(page) {
+  const end = page.locator("button[aria-label='通話を終了']");
+  if (!(await end.isVisible({ timeout: 5_000 }).catch(() => false))) return;
+  await end.click();
+  await page
+    .locator("button[aria-label='通話を開始']")
+    .waitFor({ state: "visible", timeout: 10_000 })
+    .catch(() => undefined);
+  await page.waitForTimeout(1_000);
 }
 
 async function sendText(page, text) {
