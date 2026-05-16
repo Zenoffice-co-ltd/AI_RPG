@@ -1,15 +1,18 @@
 # Adecco AI Roleplay vFinal Security Closeout
 
-Status as of 2026-05-16 22:48 JST: code-level P0, PR-A production auth
+Status as of 2026-05-16 23:18 JST: code-level P0, PR-A production auth
 unblock, PR-B no-key App Hosting backend separation, PR-C metadata-only Cloud
 Logging retention, and PR-D relay Cloud Armor preview/log evidence are
 complete. Browser text/voice E2E now passes on the dedicated vFinal backend.
 App Hosting and Cloud Run relay have both been redeployed from the current
 `origin/main` worktree SHA `f1024e559709c2cf62ac12d97516a6a4c9db56cd` using
 the dedicated vFinal backend and relay image tag. Customer submission DoD is
-still blocked by latency baseline comparison, ZAP, acceptance,
-custom-domain/customer-scope decisions, and the Secret Manager IAM blocker
-listed in this document.
+still blocked by latency baseline comparison, full acceptance vendor judge
+failure, and custom-domain/customer-scope decisions listed in this document.
+The earlier ZAP and Secret Manager IAM blockers have been reduced: ZAP
+baseline/passive executed with FAIL=0, and `verify:acceptance --preflight`
+became ready after resolving required secrets into process-local env from
+Secret Manager without printing or persisting values.
 
 ## Target
 
@@ -498,14 +501,26 @@ Latency vFinal:
   formal p95 latency DoD because the required >=20-session baseline comparison
   is still missing.
 ZAP baseline/passive:
-  BLOCKED 2026-05-16: Docker CLI is installed, but Docker daemon was not
-  running (`failed to connect to the docker API at
-  npipe:////./pipe/dockerDesktopLinuxEngine`). No local `zap-baseline.py` or
-  Java runtime is installed, so Codex could not run ZAP baseline/passive in
-  this environment.
-  Reconfirmed 2026-05-16 22:47 JST: `docker info` still cannot connect to the
-  Docker Desktop Linux engine, and `where.exe zap-baseline.py` / `where.exe
-  java` return no executable.
+  PASS 2026-05-16 23:06 JST:
+    command=docker run --rm -t -v <outDir>:/zap/wrk:rw ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-vFinal -J zap-report.json -r zap-report.html -w zap-report.md -I
+    evidence=out/zap_vfinal_baseline/2026-05-16T13-56-37Z/
+    exitCode=0
+    urls=25
+    PASS=59
+    FAIL-NEW=0
+    FAIL-INPROG=0
+    WARN-NEW=8
+    WARN-INPROG=0
+  Warning classes recorded for security review:
+    Strict-Transport-Security Header Not Set
+    Server Leaks Information via X-Powered-By
+    Big Redirect Detected
+    Non-Storable Content
+    Retrieved from Cache
+    CSP directive/fallback warnings
+    Modern Web Application
+    Cross-Origin-Embedder-Policy Header Missing or Invalid
+  No active scan or destructive test was run.
 Local code gates:
   PASS corepack pnpm grok:vfinal-security-invariants
   PASS node --check scripts/deploy-adecco-roleplay-gcloud.mjs
@@ -522,11 +537,25 @@ Local code gates:
     head=8d7fe81063ce86fb4d98f2e0e1cb16d90a845547
     merge=ed9d2ca8d249d9850fe2b90e90d4e29817d2fbbb
 verify:acceptance:
-  BLOCKED corepack pnpm verify:acceptance:
-  [vendor_failure] 7 PERMISSION_DENIED: Permission 'secretmanager.versions.access' denied on resource (or it may not exist).
-  Reconfirmed 2026-05-16 22:47 JST with
-  `corepack pnpm verify:acceptance -- --preflight`: same Secret Manager IAM
-  permission failure.
+  PRE-FLIGHT READY 2026-05-16 23:08 JST:
+    command=corepack pnpm verify:acceptance -- --preflight
+    method=process-local env populated from Secret Manager via REST for
+      zapier-transfer OpenAI / ElevenLabs / LiveAvatar secrets and
+      adecco-mendan QUEUE_SHARED_SECRET. Values were not printed or persisted.
+    status=ready
+    seed=local_transcripts=2, remote_playbooks=3, remote_binding=yes
+  BLOCKED full run 2026-05-16 23:16 JST:
+    command=corepack pnpm verify:acceptance
+    result=[vendor_failure] publish:scenario did not pass ElevenLabs tests
+      after 3 attempts.
+    attempt1=staffing_order_hearing_busy_manager_medium::no-coaching failed
+    attempt2=staffing_order_hearing_busy_manager_medium::no-coaching failed
+    attempt3=staffing_order_hearing_busy_manager_medium::no-hidden-fact-leak
+      failed; no-coaching failed with unknown; natural-japanese failed with
+      unknown.
+  DoD G legacy exception cannot be applied because the final failed attempt was
+  not limited to the approved
+  staffing_order_hearing_busy_manager_medium::no-coaching baseline blocker.
 ```
 
 ## Deploy Evidence
@@ -615,10 +644,10 @@ Remaining blockers:
     it would risk breaking existing v3/direct xAI routes unless those routes are
     migrated or formally de-scoped.
   - latency baseline comparison is not complete.
-  - ZAP baseline/passive scan is not complete.
-  - verify:acceptance is still blocked by Secret Manager IAM:
-    [vendor_failure] 7 PERMISSION_DENIED: Permission
-    'secretmanager.versions.access' denied on resource (or it may not exist).
+  - verify:acceptance full run is blocked by ElevenLabs publish judge failures
+    after three attempts. This is not currently covered by the documented
+    DoD G no-coaching-only legacy exception because the final failed attempt
+    also included no-hidden-fact-leak and natural-japanese.
   - local DNS/Google API resolution remains unreliable for gcloud CLI
     post-verify commands. REST calls with explicit Google API IP resolution were
     used for Cloud Run/App Hosting/Logging/Secret Manager evidence; this is an
@@ -628,7 +657,8 @@ Current final evidence verdict:
   PASS for same-SHA App Hosting / Cloud Run relay deploy, post-deploy text/voice
   E2E, browser direct api.x.ai=0, relay phase evidence, closeCode1006=0,
   relay.error=0, and sensitive metadata bucket scan=0 for raw secret/token/
-  prompt/transcript/audio markers.
+  prompt/transcript/audio markers. PASS for ZAP baseline/passive execution with
+  FAIL=0 and documented WARN classes.
   FAIL/BLOCKED for overall customer submission DoD until the remaining blockers
   above are resolved or formally approved as out of scope.
 ```
