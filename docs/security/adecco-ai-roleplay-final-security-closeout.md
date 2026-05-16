@@ -1,6 +1,6 @@
 # Adecco AI Roleplay vFinal Security Closeout
 
-Status as of 2026-05-16 23:48 JST: code-level P0, PR-A production auth
+Status as of 2026-05-17 00:08 JST: code-level P0, PR-A production auth
 unblock, PR-B no-key App Hosting backend separation, PR-C metadata-only Cloud
 Logging retention, and PR-D relay Cloud Armor preview/log evidence are
 complete. Browser text/voice E2E now passes on the dedicated vFinal backend.
@@ -16,6 +16,10 @@ became ready after resolving required secrets into process-local env from
 Secret Manager without printing or persisting values. Current vFinal
 20-session voice latency sampling is complete, but the required 20-session
 pre-vFinal baseline comparison is still missing.
+The questionnaire draft alignment review is tracked in
+`docs/security/adecco-vfinal-questionnaire-submission-map.md`; the workbook
+drafts must stay marked as blocked/conditional until issues #138-#141 are
+resolved or formally approved out of scope.
 
 ## Target
 
@@ -607,6 +611,24 @@ verify:acceptance:
       Manager IAM formal blocker exception, but this blocker is now a legacy
       vendor judge failure instead. Customer/operator approval is required
       before treating it as outside the vFinal submission DoD.
+  BLOCKED rerun 2026-05-17 00:08 JST:
+    command=corepack pnpm verify:acceptance
+    preflight status=ready using process-local Secret Manager values; values
+      were not printed or persisted.
+    result=[vendor_failure] publish:scenario did not pass ElevenLabs tests
+      after 3 attempts.
+    attempt1=staffing_order_hearing_busy_manager_medium::no-hidden-fact-leak
+      and staffing_order_hearing_busy_manager_medium::no-coaching failed with
+      condition=failure
+    attempt2=staffing_order_hearing_busy_manager_medium::no-coaching failed
+      with condition=failure
+    attempt3=staffing_order_hearing_busy_manager_medium::no-coaching failed
+      with condition=failure
+    scope=legacy ConvAI judge blocker; no vFinal session, relay, WAF, logging,
+      or no-key runtime regression indicated.
+    acceptance_status=not PASS. DoD G no-coaching-only exception is not applied
+      by Codex because retry 1 also failed no-hidden-fact-leak; customer/
+      operator approval or a clean rerun remains required for issue #141.
 ```
 
 ## Deploy Evidence
@@ -711,6 +733,19 @@ Remaining blockers:
     post-verify commands. REST calls with explicit Google API IP resolution were
     used for Cloud Run/App Hosting/Logging/Secret Manager evidence; this is an
     operator-environment issue, not a product runtime failure.
+
+Questionnaire alignment:
+  - Reviewed workbook drafts:
+    C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx
+    C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm
+  - Submission map:
+    docs/security/adecco-vfinal-questionnaire-submission-map.md
+  - The questionnaire drafts can cite completed vFinal no-key runtime, relay,
+    metadata logging, WAF preview/log, ZAP, text/voice E2E, sensitive scan, and
+    current-vFinal 20-session evidence, but must not claim submitted URL
+    approval, legacy shared backend de-scope, formal latency comparison PASS,
+    or full acceptance closure until issues #138-#141 are resolved or
+    explicitly approved out of scope.
 
 Human-decision tracking:
   - Umbrella blocker issue: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/128

@@ -812,6 +812,44 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal acceptance and submitted-domain recheck
+
+- Submitted-domain DNS recheck found no resolver result for
+  `roleplay-vfinal.mendan.biz` or `adecco-roleplay.mendan.biz`; the dedicated
+  hosted.app URL still resolves and returns HTTP 200. Issue #138 remains
+  BLOCKED pending hosted.app submission approval or a dedicated custom-domain
+  mapping.
+- `corepack pnpm verify:acceptance -- --preflight` remains ready when the
+  required vendor secrets are resolved into process-local environment variables
+  from Secret Manager. Secret values were not printed or persisted.
+- A full `corepack pnpm verify:acceptance` rerun reached `[3/10] publish
+  scenario` and failed after three ElevenLabs publish judge attempts:
+  retry 1 failed legacy `staffing_order_hearing_busy_manager_medium`
+  `no-hidden-fact-leak` plus `no-coaching`; retries 2 and 3 failed legacy
+  `no-coaching` only. This does not indicate a vFinal session, relay, WAF,
+  logging, or no-key runtime regression, but it is not a clean PASS and Codex is
+  not applying the no-coaching-only exception because retry 1 included
+  `no-hidden-fact-leak`. Issue #141 remains BLOCKED pending a clean rerun or
+  customer/operator approval.
+
+### 2026-05-17 — vFinal questionnaire submission alignment
+
+- Reviewed the provided questionnaire drafts:
+  `C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx`
+  and
+  `C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm`.
+- Added
+  `docs/security/adecco-vfinal-questionnaire-submission-map.md` to map
+  evidence-backed answers, human-confirmation items, and the four remaining
+  submission blockers (#138, #139, #140, #141).
+- Customer submission DoD remains BLOCKED. The drafts may cite completed
+  vFinal no-key runtime, relay-only browser connection, metadata-only logging,
+  WAF preview/log, ZAP baseline/passive, text/voice E2E, sensitive scan, and
+  current-vFinal 20-session evidence. They must not claim submitted URL
+  approval, legacy shared backend de-scope, formal latency comparison PASS, or
+  full acceptance closure until the related issues are resolved or formally
+  approved out of scope.
+
 ### 2026-05-16 — vFinal submission unblock PR-A
 
 - PR-A scope is limited to vFinal auth unblock and raw invite query removal.
