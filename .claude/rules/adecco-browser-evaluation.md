@@ -10,6 +10,11 @@ surface of that SoT.
 - Keep Claude scoring core separated from delivery.
 - Preserve the legacy ElevenLabs post-call webhook → Claude → Gmail path unless
   explicitly changing that workflow.
+- The shared Adecco scoring prompt/schema bundle currently defaults to customer
+  criteria v2 and affects v51 browser evaluation, v50-7 browser evaluation, and
+  legacy Gmail scoring unless an explicit evaluation profile split is added.
+- Versioned browser evaluation routes should use `session.browserEvaluation` for
+  start endpoint, result base path, and source.
 - Browser result APIs must not expose raw Claude output, API secrets, relay
   tickets, prompt instructions, raw audio, or hidden system prompts.
 - Cloud Tasks payload may include only the normalized evaluation transcript

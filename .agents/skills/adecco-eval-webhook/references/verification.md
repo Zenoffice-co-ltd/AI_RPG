@@ -59,6 +59,11 @@ mail.delivery=direct
 mail.ok=true
 ```
 
+The shared Adecco evaluator currently emits customer criteria v2:
+`schema_version=adecco_order_hearing_eval_v2`. Validation should include
+`must_capture_groups`, `next_training_actions`, `modality_limitations`, and
+`sales_compliance_flags`; these are also used by v50-7/v51 browser evaluation.
+
 When the user points to a specific JSON file such as an 8:06-generated temp file, inspect it first. If it is a transcript array, wrap it in an ElevenLabs-shaped `post_call_transcription` payload with:
 
 ```text

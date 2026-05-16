@@ -128,6 +128,14 @@ This PR does not deploy App Hosting. Production availability is a separate
 post-merge operation, and production Gmail smoke / ElevenLabs live webhook
 changes are not part of this workflow.
 
+After merging browser-evaluation or scoring-profile PRs, fetch `origin/main` and
+verify the squash captured a v51/scoring signature with `git show`, for example:
+
+```powershell
+git show origin/main:apps/web/lib/grok-first-roleplay/prompt-v51.ts | Select-String -Pattern "アデコへの発注は初めて"
+git show origin/main:scripts/adecco_order_hearing_eval/prompts/schema.json | Select-String -Pattern "adecco_order_hearing_eval_v2"
+```
+
 For v50-family production smoke and log reconstruction, use the reusable
 scripts instead of one-off `.codex_tmp` harnesses:
 
