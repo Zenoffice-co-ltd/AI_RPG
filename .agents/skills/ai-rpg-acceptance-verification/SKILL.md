@@ -341,6 +341,7 @@ Grok Voice audio-fix closure gate:
 ## Representative Commands
 
 ```bash
+pnpm grok:vfinal-acceptance-input-inventory -- --expect=blocked
 pnpm verify:acceptance -- --preflight
 pnpm bootstrap:vendors
 pnpm smoke:eleven
