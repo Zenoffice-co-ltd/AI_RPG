@@ -13,9 +13,13 @@ on:
       - "packages/grok-first-roleplay-config/**"
       - "packages/grok-realtime-relay-auth/**"
       - "scripts/check-vfinal-security-invariants.mjs"
+      - "scripts/check-vfinal-legacy-xai-scope.mjs"
       - "scripts/check-vfinal-submission-dod-status.mjs"
+      - "scripts/check-vfinal-submitted-url-candidates.mjs"
+      - "scripts/check-vfinal-workbook-human-confirmations.mjs"
       - "scripts/deploy-adecco-roleplay-gcloud.mjs"
       - "scripts/grok-first-vfinal-browser-e2e.mjs"
+      - "scripts/grok-first-vfinal-latency-artifact-inventory.mjs"
       - "scripts/grok-first-vfinal-latency-compare.mjs"
       - "docs/security/adecco-ai-roleplay-final-security-closeout.md"
       - "docs/security/adecco-vfinal-approval-packet.md"
@@ -51,6 +55,12 @@ jobs:
         run: pnpm grok:vfinal-submission-dod-status
       - name: vFinal customer submission DoD status guard self-test
         run: pnpm grok:vfinal-submission-dod-status:self-test
+      - name: vFinal helper self-tests
+        run: |
+          pnpm grok:vfinal-legacy-xai-scope -- --self-test
+          pnpm grok:vfinal-submitted-url-candidates -- --self-test
+          pnpm grok:vfinal-workbook-human-confirmations -- --self-test
+          pnpm grok:first-vfinal:latency-artifact-inventory -- --self-test
       - name: vFinal latency comparison self-test
         run: pnpm grok:first-vfinal:latency-compare -- --self-test
       - name: vFinal targeted unit tests
