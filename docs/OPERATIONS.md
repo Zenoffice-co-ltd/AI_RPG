@@ -812,6 +812,28 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal #171 workbook human-confirmation count guard
+
+- Added `corepack pnpm grok:vfinal-workbook-human-confirmations` as a
+  count-only helper for the two source questionnaire workbooks. It reports
+  workbook/sheet status, mapped-cell counts, and marker counts without copying
+  workbook answer values into docs or issue comments.
+- Rechecked both source workbooks with:
+  `corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked
+  --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx"
+  --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"`.
+- Result: PASS for expected BLOCKED state. Both source workbooks still have
+  first sheet `vFinal提出DOD照合` and overall status `BLOCKED`.
+- Data-protection workbook: 25/25 mapped cells were non-empty and remain
+  human-confirmation items; mapped answer-cell marker scan found 1 marker cell.
+- TPISA workbook: 34/34 expanded mapped cells were non-empty and remain
+  human-confirmation items; mapped answer-cell marker scan found 0 marker
+  cells; `.xlsm` retained `vbaProject.bin`.
+- Marker counts are diagnostic only. #171 remains BLOCKED until the mapped
+  cells are human-confirmed or rewritten to explicit unresolved/not-applicable
+  answers, both source workbooks are promoted out of BLOCKED mode, and the
+  final PASS guard succeeds with both workbook paths.
+
 ### 2026-05-17 — vFinal #139 Secret Manager IAM boundary recheck
 
 - Rechecked official Secret Manager IAM and Firebase App Hosting config/secrets

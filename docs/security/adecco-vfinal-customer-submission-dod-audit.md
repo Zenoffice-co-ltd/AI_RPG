@@ -66,6 +66,18 @@ tracked items:
   non-empty, with 19 still containing confirmation or unresolved markers. No
   workbook answer values were copied into this audit. #171 remains blocked
   pending human confirmation or explicit unresolved/not-applicable wording.
+- 2026-05-17 05:24 JST workbook count-only recheck:
+  `corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked
+  --workbook=... --workbook=...` passed. Both source workbooks still had first
+  sheet `vFinal提出DOD照合` and overall status `BLOCKED`. The data-protection
+  workbook had 25/25 mapped cells non-empty and 1 mapped answer-cell marker.
+  The TPISA workbook had 34/34 expanded mapped cells non-empty, 0 mapped
+  answer-cell markers, and retained `vbaProject.bin`. Marker counts are
+  diagnostic only; all mapped cells in
+  `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` remain
+  human-confirmation items until confirmed or rewritten to explicit
+  unresolved/not-applicable wording. No workbook answer values were copied into
+  this audit.
 - 2026-05-17 04:29 JST submitted URL smoke:
   `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --origin
   https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`

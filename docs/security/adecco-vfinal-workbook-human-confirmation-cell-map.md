@@ -32,6 +32,25 @@ The source workbooks currently stay in BLOCKED mode through the first sheet
   confirms #171 remains unresolved until the mapped cells are human-confirmed
   or rewritten to explicit unresolved/not-applicable answers.
 
+2026-05-17 05:24 JST count-only workbook recheck:
+
+- Command:
+  `corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"`.
+- Both source workbooks still have `vFinal提出DOD照合` as the first sheet and
+  overall status `BLOCKED`.
+- `Adecco_データ保護アンケート_v01_回答ドラフト.xlsx`: 25/25 mapped cells were
+  non-empty and remain human-confirmation items. The mapped answer-cell marker
+  scan found 1 cell containing a blocker/confirmation marker.
+- `Adecco_TPISAアンケート_v01_回答ドラフト.xlsm`: 34/34 expanded mapped cells
+  were non-empty and remain human-confirmation items. The mapped answer-cell
+  marker scan found 0 cells containing blocker/confirmation markers, and the
+  workbook still retained `vbaProject.bin`.
+- The marker scan is a diagnostic only. It does not reduce the confirmation
+  denominator: all mapped cells listed below still require human/legal/operator
+  confirmation or explicit unresolved/not-applicable wording before the source
+  workbooks can be promoted to final submission artifacts.
+- No workbook answer values were copied into this file.
+
 ## Data Protection Questionnaire Cells
 
 | Sheet | Cell | Confirmation needed before final submission |
