@@ -61,6 +61,7 @@
     "grok:first-vfinal:latency-sample": "node scripts/grok-first-vfinal-latency-sample.mjs",
     "grok:vfinal-security-invariants": "node scripts/check-vfinal-security-invariants.mjs",
     "grok:vfinal-submission-dod-status": "node scripts/check-vfinal-submission-dod-status.mjs",
+    "grok:vfinal-submission-dod-status:self-test": "node scripts/check-vfinal-submission-dod-status.mjs --self-test",
     "grok:audio-e2e:prod-log-assert": "node scripts/grok-voice-registered-speech-prod-log-assert.mjs",
     "grok:forbid-modelless-ws": "tsx scripts/grok-voice-forbid-modelless-ws.ts",
     "deploy:adecco-roleplay": "tsx scripts/deploy-adecco-roleplay.ts",

@@ -973,6 +973,10 @@ from the expected GitHub account.
   DoD audit, questionnaire map, approval packet, and operations changes.
   Workbook and issue-state checks remain explicit local/finalization checks
   because GitHub Actions does not have the operator's source workbooks.
+- The CI workflow also runs
+  `corepack pnpm grok:vfinal-submission-dod-status:self-test` so approval
+  parsing keeps ignoring fenced/quoted approval templates and can require an
+  expected approval author for OPEN blocker approvals.
 
 ### 2026-05-16 — vFinal submission unblock PR-A
 

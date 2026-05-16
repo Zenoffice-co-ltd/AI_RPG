@@ -50,6 +50,10 @@ const issueApprovalNeedles = new Map([
     ],
   ],
 ]);
+if (boolArg("self-test")) {
+  runSelfTest();
+  process.exit(0);
+}
 const allowedExpected = new Set(["auto", "blocked", "pass"]);
 if (!allowedExpected.has(expected)) {
   console.error(`Invalid --expect value: ${expected}. Use auto, blocked, or pass.`);
@@ -509,4 +513,101 @@ function envList(name) {
     .split(";")
     .map((value) => value.trim())
     .filter(Boolean);
+}
+
+function runSelfTest() {
+  const cases = [
+    {
+      name: "fenced approval template is ignored",
+      issue: {
+        number: 138,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "For #138 use:",
+              "```text",
+              "Approved: the dedicated hosted.app URL is acceptable as the vFinal customer",
+              "submitted URL.",
+              "```",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
+    },
+    {
+      name: "blockquote approval template is ignored",
+      issue: {
+        number: 141,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "> Approved: the current verify:acceptance blocker is a legacy ConvAI vendor judge",
+              "> blocker outside the vFinal submitted runtime/security scope. It may remain open",
+              "> outside the customer submission DoD.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
+    },
+    {
+      name: "plain approval text is accepted",
+      issue: {
+        number: 140,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: accept the current-vFinal 20-session latency sample as scoped evidence",
+              "and waive the missing strict pre-vFinal baseline for this submission.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: true,
+    },
+    {
+      name: "wrong approval author is rejected",
+      issue: {
+        number: 138,
+        comments: [
+          {
+            author: { login: "someone-else" },
+            body: [
+              "Approved: the dedicated hosted.app URL is acceptable as the vFinal customer",
+              "submitted URL.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
+    },
+  ];
+
+  const originalAuthors = [...approvalAuthors];
+  const failed = [];
+  for (const testCase of cases) {
+    approvalAuthors.splice(0, approvalAuthors.length, ...testCase.authors);
+    const actual = issueHasApproval(testCase.issue);
+    if (actual !== testCase.expected) {
+      failed.push(`${testCase.name}: expected ${testCase.expected}, got ${actual}`);
+    }
+  }
+  approvalAuthors.splice(0, approvalAuthors.length, ...originalAuthors);
+
+  if (failed.length > 0) {
+    console.error("vFinal customer submission DoD status self-test FAILED");
+    for (const failure of failed) {
+      console.error(`- ${failure}`);
+    }
+    process.exit(1);
+  }
+  console.log("vFinal customer submission DoD status self-test PASS");
 }
