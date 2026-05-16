@@ -97,9 +97,9 @@ tracked items:
 - 2026-05-17 workbook alignment recheck:
   the two source questionnaire drafts in `C:\Users\yukih\Downloads\` now include
   first sheet `vFinal提出DOD照合`, mark overall customer submission DoD as
-  `BLOCKED`, list #138, #139, #140, and #141 as unresolved, and no longer
-  contain the old `プランが完了した前提` opening wording. The TPISA `.xlsm`
-  still contains `vbaProject.bin`.
+  `BLOCKED`, list #138, #139, #140, #141, and #171 as unresolved/blocking, and
+  no longer contain the old `プランが完了した前提` opening wording. The TPISA
+  `.xlsm` still contains `vbaProject.bin`.
 - 2026-05-17 workbook submitted-URL wording correction:
   the source drafts no longer say the browser submitted flow is
   `roleplay.mendan.biz -> voice.mendan.biz`. They now state that #138 is still

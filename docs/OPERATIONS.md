@@ -893,8 +893,8 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   `C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm`.
 - Added
   `docs/security/adecco-vfinal-questionnaire-submission-map.md` to map
-  evidence-backed answers, human-confirmation items, and the four remaining
-  submission blockers (#138, #139, #140, #141).
+  evidence-backed answers, human-confirmation items, and the remaining
+  submission blockers (#138, #139, #140, #141, #171).
 - Customer submission DoD remains BLOCKED. The drafts may cite completed
   vFinal no-key runtime, relay-only browser connection, metadata-only logging,
   WAF preview/log, ZAP baseline/passive, text/voice E2E, sensitive scan, and
@@ -906,9 +906,9 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 - 2026-05-17 JST follow-up: updated the two source workbook drafts in
   `C:\Users\yukih\Downloads\` with a first sheet named `vFinal提出DOD照合`.
   The new sheet marks overall customer submission DoD as BLOCKED and lists
-  #138, #139, #140, and #141 as unresolved. The `回答前提・要確認` opening note
-  was revised so it no longer says the security foundation plan is complete for
-  submission. Pre-edit backups were saved under
+  #138, #139, #140, #141, and #171 as unresolved/blocking. The
+  `回答前提・要確認` opening note was revised so it no longer says the security
+  foundation plan is complete for submission. Pre-edit backups were saved under
   `C:\Users\yukih\Downloads\vfinal_dod_excel_backups\`. The TPISA `.xlsm`
   workbook was saved with its VBA project present.
 
@@ -1012,8 +1012,9 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   `C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm`.
 - `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
   --workbook=... --workbook=...` PASS: both workbooks had first sheet
-  `vFinal提出DOD照合`, overall status `BLOCKED`, and #138, #139, #140, and
-  #141 listed as unresolved. The `.xlsm` retained `vbaProject.bin`.
+  `vFinal提出DOD照合`, overall status `BLOCKED`, and #138, #139, #140, #141,
+  and #171 listed as unresolved/blocking. The `.xlsm` retained
+  `vbaProject.bin`.
 - Negative check: `--expect=pass` failed as expected while closeout, audit,
   questionnaire map, and workbook status cells remain BLOCKED. No production
   changes were made.
@@ -1028,6 +1029,11 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   the exact workbook cells that still require human/legal/operator
   confirmation before final questionnaire submission. The DoD guard now treats
   that map as a BLOCKED artifact until it is promoted to PASS.
+- 2026-05-17 follow-up: updated both source workbook drafts so the
+  `vFinal提出DOD照合` sheet explicitly lists `Excel人間確認 (#171)` as BLOCKED
+  and removed the stale #140 `waiver/代替baseline` wording. Pre-edit backups
+  were saved under
+  `C:\Users\yukih\Downloads\vfinal_dod_excel_backups\20260517-025856-issue171-no-waiver\`.
 - Follow-up guard update: the same command now accepts `--check-github-issues`.
   In BLOCKED mode it confirms #138, #139, #140, and #141 remain OPEN; in PASS
   mode it fails unless those four blocker issues are CLOSED, or
