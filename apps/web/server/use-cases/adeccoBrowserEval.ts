@@ -205,10 +205,6 @@ export async function processAdeccoBrowserEvaluationTask(
       error: SAFE_EVAL_ERROR,
       failedAt: new Date().toISOString(),
     };
-    if (process.env["NODE_ENV"] !== "production") {
-      failurePayload["internalError"] =
-        error instanceof Error ? error.message : String(error);
-    }
     await saveBrowserEvalStatus(payload.sessionId, "failed", failurePayload);
     throw error;
   }

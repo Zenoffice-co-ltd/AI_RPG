@@ -71,10 +71,34 @@ function resultRequest(sessionId: string) {
   );
 }
 
+function workerRequest(init: { secret?: string; body?: unknown } = {}) {
+  return new NextRequest("http://127.0.0.1:3000/api/internal/adecco-browser-eval", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(init.secret ? { "x-queue-shared-secret": init.secret } : {}),
+    },
+    body: JSON.stringify(
+      init.body ?? {
+        sessionId: "gv_sess_eval",
+        conversationId: null,
+        transcript: [
+          { turn_id: "u1", speaker: "sales", text: "背景は？", timestamp_sec: 0 },
+          { turn_id: "a1", speaker: "client", text: "増員です。", timestamp_sec: 1 },
+        ],
+        startedAt: "2026-05-16T00:00:00.000Z",
+        endedAt: "2026-05-16T00:01:00.000Z",
+        source: "grok_first_v50_7_browser",
+      }
+    ),
+  });
+}
+
 describe("v50.7 browser evaluation APIs", () => {
   beforeEach(() => {
     vi.stubEnv("DEMO_ACCESS_TOKEN", "demo-secret");
     vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("XAI_RELAY_TICKET_SECRET", "x".repeat(32));
     savedArtifacts.clear();
     enqueueMock.mockResolvedValue("tasks/adecco-browser-eval-test");
     scoringMock.mockResolvedValue({
@@ -110,6 +134,29 @@ describe("v50.7 browser evaluation APIs", () => {
       )
     );
     expect(response.status).toBe(401);
+  });
+
+  it("keeps v50.7 session prompt and guardrail identity", async () => {
+    const { POST } = await import("../../app/api/grok-first-v50-7/session/route");
+    const response = await POST(
+      apiRequest(
+        "http://127.0.0.1:3000/api/grok-first-v50-7/session",
+        {}
+      )
+    );
+    const body = (await response.json()) as {
+      promptVersion?: string;
+      guardrailVersion?: string;
+      demoSlug?: string;
+      backend?: string;
+      browserEvaluationEnabled?: boolean;
+    };
+    expect(response.status).toBe(200);
+    expect(body.demoSlug).toBe("adecco-roleplay-v50-7");
+    expect(body.backend).toBe("grok-first-v50-7");
+    expect(body.promptVersion).toBe("grok-first-v50.6-2026-05-15");
+    expect(body.guardrailVersion).toBe("grok-first-v50.7-guard-2026-05-15");
+    expect(body.browserEvaluationEnabled).toBe(true);
   });
 
   it("honors ADECCO_BROWSER_EVAL_ENABLED rollback flag", async () => {
@@ -160,26 +207,7 @@ describe("v50.7 browser evaluation APIs", () => {
 
   it("worker saves browser scorecard and raw model output without sending Gmail", async () => {
     const { POST } = await import("../../app/api/internal/adecco-browser-eval/route");
-    const response = await POST(
-      new NextRequest("http://127.0.0.1:3000/api/internal/adecco-browser-eval", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-queue-shared-secret": "queue-secret",
-        },
-        body: JSON.stringify({
-          sessionId: "gv_sess_eval",
-          conversationId: null,
-          transcript: [
-            { turn_id: "u1", speaker: "sales", text: "背景は？", timestamp_sec: 0 },
-            { turn_id: "a1", speaker: "client", text: "増員です。", timestamp_sec: 1 },
-          ],
-          startedAt: "2026-05-16T00:00:00.000Z",
-          endedAt: "2026-05-16T00:01:00.000Z",
-          source: "grok_first_v50_7_browser",
-        }),
-      })
-    );
+    const response = await POST(workerRequest({ secret: "queue-secret" }));
     expect(response.status).toBe(200);
     expect(scoringMock).toHaveBeenCalledTimes(1);
     expect(savedArtifacts.get("gv_sess_eval:scorecard")?.payload).toMatchObject({
@@ -194,7 +222,108 @@ describe("v50.7 browser evaluation APIs", () => {
     });
   });
 
-  it("result API returns completed scorecard without raw Claude text", async () => {
+  it("worker rejects mismatched queue secret", async () => {
+    const { POST } = await import("../../app/api/internal/adecco-browser-eval/route");
+    const response = await POST(workerRequest({ secret: "wrong-secret" }));
+    expect(response.status).toBe(401);
+    expect(scoringMock).not.toHaveBeenCalled();
+  });
+
+  it("worker stores safe failed status when scoring throws", async () => {
+    scoringMock.mockRejectedValueOnce(new Error("provider exploded"));
+    const { POST } = await import("../../app/api/internal/adecco-browser-eval/route");
+    const response = await POST(workerRequest({ secret: "queue-secret" }));
+    const responseBody = (await response.json()) as unknown;
+    const failedPayload = savedArtifacts.get(
+      "gv_sess_eval:adecco_eval_status"
+    )?.payload;
+    expect(response.status).toBe(500);
+    expect(failedPayload).toMatchObject({
+      status: "failed",
+      error: "評価に失敗しました。時間をおいて再試行してください。",
+    });
+    expect(JSON.stringify(failedPayload)).not.toContain("provider exploded");
+    expect(JSON.stringify(responseBody)).not.toContain("provider exploded");
+  });
+
+  it("result API rejects invalid session id and missing access", async () => {
+    const { GET } = await import(
+      "../../app/api/grok-first-v50-7/evaluation/result/route"
+    );
+    const invalid = await GET(resultRequest("../bad"));
+    const noAccess = await GET(
+      new NextRequest(
+        "http://127.0.0.1:3000/api/grok-first-v50-7/evaluation/result?sessionId=gv_sess_eval",
+        { method: "GET" }
+      )
+    );
+    expect(invalid.status).toBe(400);
+    expect(noAccess.status).toBe(401);
+  });
+
+  it("result API returns running, not_found, failed, and completed states", async () => {
+    const { GET } = await import(
+      "../../app/api/grok-first-v50-7/evaluation/result/route"
+    );
+    savedArtifacts.set("gv_sess_eval:adecco_eval_status", {
+      id: "adecco_eval_status",
+      kind: "adecco_eval_status",
+      sessionId: "gv_sess_eval",
+      createdAt: "2026-05-16T00:00:00.000Z",
+      payload: { status: "running" },
+    });
+    const running = (await (
+      await GET(resultRequest("gv_sess_eval"))
+    ).json()) as { status?: string };
+    expect(running.status).toBe("running");
+
+    savedArtifacts.clear();
+    const notFound = (await (
+      await GET(resultRequest("gv_sess_eval"))
+    ).json()) as { status?: string };
+    expect(notFound.status).toBe("not_found");
+
+    savedArtifacts.set("gv_sess_eval:adecco_eval_status", {
+      id: "adecco_eval_status",
+      kind: "adecco_eval_status",
+      sessionId: "gv_sess_eval",
+      createdAt: "2026-05-16T00:00:00.000Z",
+      payload: { status: "failed" },
+    });
+    const failed = (await (
+      await GET(resultRequest("gv_sess_eval"))
+    ).json()) as { status?: string; error?: string };
+    expect(failed.status).toBe("failed");
+    expect(failed.error).toBe("評価に失敗しました。時間をおいて再試行してください。");
+
+    savedArtifacts.clear();
+    savedArtifacts.set("gv_sess_eval:scorecard", {
+      id: "scorecard",
+      kind: "scorecard",
+      sessionId: "gv_sess_eval",
+      createdAt: "2026-05-16T00:01:00.000Z",
+      payload: {
+        evaluationFormat: "adecco_order_hearing_browser_v1",
+        scenarioId: "scenario",
+        sessionId: "gv_sess_eval",
+        conversationId: null,
+        startedAt: "2026-05-16T00:00:00.000Z",
+        endedAt: "2026-05-16T00:01:00.000Z",
+        model: "claude-sonnet-4-5-20250929",
+        usage: {},
+        validation: { ok: true, status: "success" },
+        retryNote: "not retried",
+        report: { total_score: 88 },
+        generatedAt: "2026-05-16T00:01:00.000Z",
+      },
+    });
+    const completed = (await (
+      await GET(resultRequest("gv_sess_eval"))
+    ).json()) as { status?: string };
+    expect(completed.status).toBe("completed");
+  });
+
+  it("result API returns completed scorecard without raw or sensitive fields", async () => {
     savedArtifacts.set("gv_sess_eval:scorecard", {
       id: "scorecard",
       kind: "scorecard",
@@ -220,7 +349,14 @@ describe("v50.7 browser evaluation APIs", () => {
       kind: "model_raw_output",
       sessionId: "gv_sess_eval",
       createdAt: "2026-05-16T00:01:00.000Z",
-      payload: { rawClaudeText: "raw secret-ish model output" },
+      payload: {
+        rawClaudeText: "raw secret-ish model output",
+        validationJsonText: "validation raw json",
+        ticket: "relay-ticket",
+        secret: "api-secret",
+        audio: "base64-audio",
+        instructions: "prompt instructions",
+      },
     });
 
     const { GET } = await import(
@@ -228,9 +364,15 @@ describe("v50.7 browser evaluation APIs", () => {
     );
     const response = await GET(resultRequest("gv_sess_eval"));
     const body = (await response.json()) as { status?: string };
+    const serialized = JSON.stringify(body);
     expect(body.status).toBe("completed");
-    expect(JSON.stringify(body)).not.toContain("rawClaudeText");
-    expect(JSON.stringify(body)).not.toContain("raw secret-ish model output");
+    expect(serialized).not.toContain("rawClaudeText");
+    expect(serialized).not.toContain("validationJsonText");
+    expect(serialized).not.toContain("ticket");
+    expect(serialized).not.toContain("secret");
+    expect(serialized).not.toContain("audio");
+    expect(serialized).not.toContain("instructions");
+    expect(serialized).not.toContain("raw secret-ish model output");
   });
 });
 

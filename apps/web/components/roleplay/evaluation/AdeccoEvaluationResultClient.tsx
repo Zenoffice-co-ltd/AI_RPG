@@ -77,6 +77,10 @@ export function AdeccoEvaluationResultClient({
         }, POLL_INTERVAL_MS);
       } catch {
         if (!cancelled) {
+          if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+            setTimedOut(true);
+            return;
+          }
           timer = setTimeout(() => {
             void poll();
           }, POLL_INTERVAL_MS);

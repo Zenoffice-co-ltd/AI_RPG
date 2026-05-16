@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { Route } from "next";
 import { OrbStage } from "./OrbStage";
 import { TranscriptPanel } from "./TranscriptPanel";
 import {
@@ -171,7 +172,7 @@ async function endAndStartBrowserEvaluation({
     const resultPath = `/demo/adecco-roleplay-v50-7/result/${encodeURIComponent(
       session.sessionId
     )}${startFailed ? "?startFailed=1" : ""}`;
-    router.push(resultPath);
+    router.push(resultPath as Route);
   } finally {
     setIsEndingAndRedirecting(false);
   }

@@ -39,6 +39,9 @@ const envSchema = z.object({
   ADECCO_BROWSER_EVAL_ENABLED: z.string().optional(),
 });
 
+export const GROK_FIRST_V50_7_GUARDRAIL_VERSION =
+  "grok-first-v50.7-guard-2026-05-15";
+
 export async function createGrokFirstV50Session(input?: {
   variant?: GrokFirstPromptVariant;
   promptVariant?: GrokFirstPromptVariant;
@@ -101,7 +104,10 @@ export async function createGrokFirstV50Session(input?: {
     scenarioId: prompt.scenarioId,
     promptVersion: prompt.promptVersion,
     promptHash: prompt.promptHash,
-    guardrailVersion: prompt.guardrailVersion,
+    guardrailVersion:
+      runtimeVariant === "v50.7"
+        ? GROK_FIRST_V50_7_GUARDRAIL_VERSION
+        : prompt.guardrailVersion,
     model: GROK_FIRST_V50_MODEL,
     voiceId,
     realtimeTransport: "mendan_cloud_run_relay_wss",
