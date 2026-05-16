@@ -812,6 +812,19 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal latency baseline artifact rescan
+
+- Re-scanned local `out/grok_first_vfinal_latency/*/summary.json` artifacts
+  for #140.
+- Found four local summary artifacts: two 20/20 pass current-vFinal samples
+  and two current-vFinal artifacts with denominators below 20.
+- No local artifact from this scan was both pre-vFinal and a same-environment,
+  same-scenario, >=20-session baseline with `sessionApiMs`,
+  `firstAudioDeltaMs`, and `firstAudibleAudioMs` metrics.
+- #140 remains BLOCKED pending an approved pre-vFinal baseline source or an
+  approved baseline collection path, followed by
+  `corepack pnpm grok:first-vfinal:latency-compare` PASS.
+
 ### 2026-05-17 — vFinal workbook human-confirmation recheck
 
 - Rechecked the two source questionnaire workbooks without copying workbook

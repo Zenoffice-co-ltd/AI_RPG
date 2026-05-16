@@ -35,6 +35,19 @@ These are current-vFinal samples, not pre-vFinal baselines:
 | `out/grok_first_vfinal_latency/2026-05-16T14-24-44-995Z/summary.json` | 20 | 20/20 pass | 544 | 5516 | 5531 | Current-vFinal sample only. Cannot serve as pre-vFinal baseline. |
 | `out/grok_first_vfinal_latency/2026-05-16T14-32-01-504Z/summary.json` | 20 | 20/20 pass | 301 | 5529 | 5743 | Current-vFinal sample recorded in closeout. Cannot serve as pre-vFinal baseline. |
 
+2026-05-17 04:40 JST local artifact rescan:
+
+| Artifact | Runs | Result | `sessionApiMs` p95 | `firstAudioDeltaMs` p95 | `firstAudibleAudioMs` p95 | Assessment |
+|---|---:|---|---:|---:|---:|---|
+| `out/grok_first_vfinal_latency/2026-05-16T14-24-18-471Z/summary.json` | 1 | 1/1 pass | 123 | 1432 | 1597 | Current-vFinal latency artifact with denominator below 20. Not a strict baseline. |
+| `out/grok_first_vfinal_latency/2026-05-16T14-24-44-995Z/summary.json` | 20 | 20/20 pass | 544 | 5516 | 5531 | Current-vFinal sample only. Cannot serve as pre-vFinal baseline. |
+| `out/grok_first_vfinal_latency/2026-05-16T14-30-36-907Z/summary.json` | 5 | 5/5 pass | 145 | 4742 | 4967 | Current-vFinal latency artifact with denominator below 20. Not a strict baseline. |
+| `out/grok_first_vfinal_latency/2026-05-16T14-32-01-504Z/summary.json` | 20 | 20/20 pass | 301 | 5529 | 5743 | Current-vFinal sample recorded in closeout. Cannot serve as pre-vFinal baseline. |
+
+No local `out/` artifact found in this rescan was both pre-vFinal and a
+same-environment, same-scenario, >=20-session baseline with the required
+metrics.
+
 ## Rejected Baseline Candidates
 
 | Candidate family | Example artifact | Runs | Reason it is not a strict baseline |
