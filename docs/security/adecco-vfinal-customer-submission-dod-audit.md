@@ -32,6 +32,17 @@ tracked items:
 
 ## Latest Read-Only Rechecks
 
+- 2026-05-17 04:44 JST acceptance permission/input recheck:
+  active gcloud account was `iwase@zenoffice.co.jp` with active project
+  `zapier-transfer`. Process-local `FIREBASE_PROJECT_ID`,
+  `SECRET_SOURCE_PROJECT_ID`, `QUEUE_SHARED_SECRET`, `OPENAI_API_KEY`,
+  `ELEVENLABS_API_KEY`, `LIVEAVATAR_API_KEY`, and
+  `FIREBASE_CREDENTIALS_SECRET_NAME` were absent. A fresh
+  `corepack pnpm verify:acceptance -- --preflight` still failed before product
+  checks on Secret Manager `secretmanager.versions.access`. No secret values
+  were read, printed, persisted, or copied into docs. #141 remains blocked
+  pending the required inputs/permissions, a clean full run, or formal legacy
+  blocker approval.
 - 2026-05-17 04:40 JST workbook human-confirmation recheck:
   both source workbooks still have `vFinal提出DOD照合` as their first sheet,
   and both still include `Overall customer submission DoD BLOCKED` plus

@@ -812,6 +812,22 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal acceptance permission/input recheck
+
+- Rechecked #141 acceptance preflight prerequisites without reading or printing
+  secret values.
+- Active gcloud account: `iwase@zenoffice.co.jp`; active gcloud project:
+  `zapier-transfer`.
+- Process-local `FIREBASE_PROJECT_ID`, `SECRET_SOURCE_PROJECT_ID`,
+  `QUEUE_SHARED_SECRET`, `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`,
+  `LIVEAVATAR_API_KEY`, and `FIREBASE_CREDENTIALS_SECRET_NAME` were absent.
+- `corepack pnpm verify:acceptance -- --preflight` still failed before product
+  checks on Secret Manager `secretmanager.versions.access`.
+- #141 remains BLOCKED pending process-local required inputs, an execution
+  identity with the needed Secret Manager access, a clean full acceptance run,
+  or explicit approval that the legacy ConvAI blocker is outside the vFinal
+  submitted runtime/security scope.
+
 ### 2026-05-17 — vFinal latency baseline artifact rescan
 
 - Re-scanned local `out/grok_first_vfinal_latency/*/summary.json` artifacts

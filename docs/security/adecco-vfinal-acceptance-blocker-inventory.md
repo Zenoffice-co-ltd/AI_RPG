@@ -53,11 +53,36 @@ denied on resource (or it may not exist).
   permission denial.
 - Secret values were not printed or persisted.
 
+2026-05-17 04:44 JST permission/input recheck:
+
+- Active gcloud account: `iwase@zenoffice.co.jp`.
+- Active gcloud project: `zapier-transfer`.
+- Process-local values were absent for `FIREBASE_PROJECT_ID`,
+  `SECRET_SOURCE_PROJECT_ID`, `QUEUE_SHARED_SECRET`, `OPENAI_API_KEY`,
+  `ELEVENLABS_API_KEY`, `LIVEAVATAR_API_KEY`, and
+  `FIREBASE_CREDENTIALS_SECRET_NAME`.
+- `corepack pnpm verify:acceptance -- --preflight` still failed before product
+  checks on Secret Manager `secretmanager.versions.access`.
+- No secret values were read, printed, persisted, or copied into docs.
+
 This means a fresh clean rerun still requires one of:
 
 - process-local vendor secrets and project inputs supplied without printing or
   persisting values; or
 - an execution identity with the required Secret Manager access.
+
+Minimum restart input for the current shell:
+
+- Provide process-local `FIREBASE_PROJECT_ID`, `SECRET_SOURCE_PROJECT_ID`, and
+  `QUEUE_SHARED_SECRET`, plus vendor keys in process-local env; or
+- Grant the execution identity enough Secret Manager `versions.access` to
+  resolve the canonical vendor key secrets in the configured
+  `SECRET_SOURCE_PROJECT_ID` and provide the remaining direct inputs that are
+  not Secret Manager fallbacks.
+- The acceptance preflight also requires a valid Firebase/Admin execution
+  context for Firestore and Cloud Tasks. If ADC is not sufficient, provide a
+  process-local `FIREBASE_CREDENTIALS_SECRET_NAME` that points to an approved
+  Firebase Admin credential secret.
 
 This current-shell Secret Manager blocker does not replace the earlier full-run
 legacy ConvAI judge evidence. It only prevents Codex from obtaining a fresh
