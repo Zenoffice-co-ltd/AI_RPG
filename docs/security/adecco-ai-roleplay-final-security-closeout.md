@@ -24,6 +24,8 @@ The requirement-by-requirement customer submission audit is tracked in
 `docs/security/adecco-vfinal-customer-submission-dod-audit.md`.
 The human decision packet for the four remaining approval-sensitive blockers is
 tracked in `docs/security/adecco-vfinal-approval-packet.md`.
+The #140 latency baseline candidate assessment is tracked in
+`docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`.
 
 ## Target
 
@@ -828,6 +830,12 @@ Remaining blockers:
     verify:acceptance -- --preflight` still stopped before product checks with
     Secret Manager `secretmanager.versions.access` permission denied in the
     current shell. No production changes were made.
+  - 2026-05-17 #140 baseline candidate assessment:
+    `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`
+    records that local artifact candidates either are current-vFinal samples,
+    lack `sessionApiMs`, use local/different route families, fail quality gates,
+    or lack a comparable >=20-session denominator. The strict pre-vFinal
+    baseline comparison remains blocked.
   - local DNS/Google API resolution remains unreliable for gcloud CLI
     post-verify commands. REST calls with explicit Google API IP resolution were
     used for Cloud Run/App Hosting/Logging/Secret Manager evidence; this is an
