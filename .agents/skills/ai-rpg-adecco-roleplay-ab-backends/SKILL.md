@@ -107,6 +107,12 @@ internal browser-DOD bypass. `GROK_VOICE_RELAY_WS_URL` must fail fast unless it
 uses `ws:`/`wss:`, path `/api/v3/realtime-relay`, and no query/hash. Browser DOD
 fake sessions should mirror the relay contract rather than the legacy xAI
 ephemeral-token contract.
+For v50 fixed guard verification, prefer the focused repo skill
+`.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md`. Before
+claiming final guard DoD, map the requested denominator to an actual runner:
+a 5-case back-to-back fixed_external browser harness is scoped evidence and
+does not replace Excel-defined `13/13 x3`, `69 P0 guards`, or `93-turn full`
+case sets unless those exact cases were executed.
 
 For v6/v7/v8/v9/v10/v15/v16/v17/v18/v19, never route to the legacy `fallback_unknown` artifact text
 `求人要件の範囲で整理します。`; that remains only for the existing v3/v4/v5

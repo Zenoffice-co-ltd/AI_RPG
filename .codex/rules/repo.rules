@@ -38,6 +38,30 @@ prefix_rule(
 )
 
 prefix_rule(
+    pattern = ["taskkill"],
+    decision = "prompt",
+    justification = "Killing processes can interrupt unrelated local work. For E2E cleanup, confirm the PID was started by the current run or is bound to the intended localhost port before using taskkill.",
+    match = [
+        "taskkill /PID 1234 /T /F",
+    ],
+    not_match = [
+        "tasklist",
+    ],
+)
+
+prefix_rule(
+    pattern = ["Stop-Process"],
+    decision = "prompt",
+    justification = "Stopping a process can interrupt unrelated local work. For Next/E2E cleanup, first check the PID and localhost port, and only stop processes started by the current run or explicitly identified as stale test servers.",
+    match = [
+        "Stop-Process -Id 1234 -Force",
+    ],
+    not_match = [
+        "Get-Process -Id 1234",
+    ],
+)
+
+prefix_rule(
     pattern = ["pnpm", "publish:scenario"],
     decision = "prompt",
     justification = "Publishing mutates external vendor state. Confirm the scenario id, environment, readiness evidence, and whether generated publish snapshots are evidence-only or intended for commit.",

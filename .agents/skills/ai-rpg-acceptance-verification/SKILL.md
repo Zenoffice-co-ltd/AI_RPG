@@ -26,6 +26,30 @@ Use this skill when the job is to prove that the repo is shippable.
 5. When a legacy scenario fails during a new-scenario task, compare the relevant generated scenario/assets and live test definition before calling it a regression. If needed, use a temporary clean worktree at the pre-task baseline to establish causality.
 6. Record concrete evidence, not just that scripts exist.
 
+## Long-running E2E / Spreadsheet DoD Preflight
+
+Before running a browser E2E, voice E2E, spreadsheet-defined plan, or final DoD,
+spend the first pass proving that the run is executable:
+
+1. Map the requested denominator to an exact command: e.g. `5-case harness`,
+   `13/13 guard smoke`, `69 P0 guards`, or `93-turn full`.
+2. If the plan is an Excel/Sheets file, inspect the workbook sheets and confirm
+   there is a runner for each required case set. Missing runner = blocker; do
+   not substitute a narrower harness and call it final DoD.
+3. Confirm required secrets by env name and Secret Manager alias without printing
+   values. For Adecco demo routes, check `DEMO_ACCESS_TOKEN`/`demo-access-token`;
+   for v25/v50 relay routes, check `XAI_RELAY_TICKET_SECRET`; normal Grok voice
+   paths also need `XAI_API_KEY`.
+4. Confirm the package script still exists before invoking it. If a direct node
+   script is used instead, report the reason.
+5. Confirm no stale Next dev server is holding the app directory. Reuse a server
+   only after a one-turn event-capture check proves the target `/api/.../event`
+   route is being observed.
+
+Report scoped evidence precisely. A `5/5 x3` back-to-back fixed-guard harness is
+valuable, but it is not the same as Excel `13/13 x3` or `69/69` unless the same
+case set was executed.
+
 ## Enterprise Relay Closeout
 
 Use this subsection when closing v25 or Grok-first v50-family work that routes

@@ -34,6 +34,12 @@ const main = async () => {
     );
   }
 
+  if (/(v50|grok-first|fixed guard|guard smoke|assistant-only drain|drain|guard e2e|excel test plan|spreadsheet.*dod)/.test(prompt)) {
+    suggestions.push(
+      "For Grok-first v50 fixed guard verification, prefer `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md`; map the requested case-set denominator to an executable runner before running long E2E.",
+    );
+  }
+
   if (/(elevenlabs|voice|pronunciation|dictionary locator|scenario-map|shared voice)/.test(prompt)) {
     suggestions.push(
       "For voice-profile work, prefer `.agents/skills/ai-rpg-repo-elevenlabs-voice/SKILL.md` and treat dictionary readiness as part of publish readiness.",
