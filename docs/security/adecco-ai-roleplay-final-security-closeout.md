@@ -1,13 +1,9 @@
 # Adecco AI Roleplay vFinal Security Closeout
 
-Status: implementation evidence template. Fill every evidence field during the
-final production rollout.
-
-PR-local status as of 2026-05-16: code-level P0 security checks pass locally
-after rebasing the PR branch onto `origin/main`, but production closeout is not
-complete. GitHub Actions, App Hosting rollout, Cloud Run revision/traffic, IAM,
-Cloud Logging retention, WAF state, live browser E2E, latency baseline, ZAP,
-and acceptance evidence remain required before customer submission.
+Status as of 2026-05-16 17:30 JST: code-level P0 and PR merge DoD are complete,
+and App Hosting / Cloud Run relay were redeployed from the same merged Git SHA.
+Customer submission DoD is still blocked by production environment evidence and
+runtime issues listed in this document.
 
 ## Target
 
@@ -19,8 +15,9 @@ and acceptance evidence remain required before customer submission.
 - `backend`: `grok-first-vFinal`
 - Temporary baseline: latest approved Grok-first relay runtime present in
   `origin/main`; do not cite route names absent from `origin/main`.
-- Baseline commit SHA:
-- Baseline prompt hash:
+- Baseline commit SHA: `bc8de3dc937e2feba0b398ff6c72476a4d79f26b`
+- Baseline prompt hash: blocked until vFinal session contract returns 200 in
+  production
 
 ## Session Contract Evidence
 
@@ -30,7 +27,21 @@ message, `ephemeralToken`, xAI API key, raw invite token, raw participant ID,
 transcript, audio/base64, or tool definitions.
 
 ```text
-curl result / browser network capture:
+curl result:
+  BLOCKED 2026-05-16: /api/grok-first-vFinal/session returned 401 with a
+  syntactically valid vFinal API session cookie generated from the Secret
+  Manager values available to the operator shell. /demo/adecco-roleplay-vFinal/access
+  also returned 403 for generated invite tokens. This blocks live browser and
+  relay WebSocket evidence.
+
+Safe negative checks from the 401 response:
+  instructions=false
+  firstMessage=false
+  hiddenAssistantHistory=false
+  ephemeralToken=false
+  XAI_API_KEY=false
+  transcript=false
+  tools=false
 ```
 
 ## Browser Connection Evidence
@@ -46,7 +57,9 @@ Forbidden:
 
 ```text
 Browser WebSocket capture:
+  BLOCKED by vFinal invite/session auth returning 403/401.
 Direct api.x.ai connection count:
+  BLOCKED until browser session can start.
 ```
 
 ## Relay Evidence
@@ -54,9 +67,9 @@ Direct api.x.ai connection count:
 - Cloud Run service: `xai-realtime-relay`
 - Service account:
   `xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com`
-- Revision:
-- Traffic %:
-- Git SHA:
+- Revision: `xai-realtime-relay-00011-dt6`
+- Traffic %: `100`
+- Git SHA: `bc8de3dc937e2feba0b398ff6c72476a4d79f26b`
 
 The relay performs server-side `session.update`, injects hidden assistant
 history, queues client frames until setup is complete, strips client
@@ -65,7 +78,11 @@ client tools, and validates Origin/Host/aud/path/transport.
 
 ```text
 Relay integration test:
+  PASS in PR code gates for malicious client frame filtering and relay setup.
 Production Cloud Logging phases:
+  BLOCKED until vFinal session/auth returns 200 and a WebSocket can connect.
+Health:
+  PASS https://voice.mendan.biz/healthz -> {"ok":true}
 ```
 
 ## Logging And Retention Evidence
@@ -84,10 +101,21 @@ Sensitive values that must not appear:
 
 ```text
 Log bucket:
+  projects/adecco-mendan/locations/global/buckets/_Default
 Retention:
+  30 days
 Inclusion filter:
+  BLOCKED: metadata-only 180+ day bucket/sink has not been configured.
 Exclusion filter:
+  _Default exclusion drop-vfinal-access-raw-invite:
+  resource.type="cloud_run_revision"
+  AND resource.labels.service_name="adecco-roleplay"
+  AND httpRequest.requestUrl=~"/demo/adecco-roleplay-vFinal/access\\?invite="
 Sensitive log scan command/result:
+  BLOCKED: a production diagnostic request before the exclusion confirmed that
+  raw invite query values can enter Cloud Run request logs via httpRequest.requestUrl.
+  The exclusion above prevents future _Default ingestion for that URL shape, but
+  this must be remediated or scoped out before customer submission.
 ```
 
 ## Invite Auth Evidence
@@ -109,8 +137,12 @@ Logs may contain only HMAC-derived `participantIdHash`.
 
 ```text
 Cookie capture:
+  BLOCKED: /access currently returns 403 for generated invite tokens.
 participantIdHash log sample:
+  BLOCKED until /access or /session succeeds.
 raw participant/token scan:
+  BLOCKED: see Logging And Retention Evidence. Raw invite query logging was
+  observed before the sink exclusion was added.
 ```
 
 ## Secret / IAM Evidence
@@ -133,10 +165,21 @@ submission.
 
 ```text
 Relay SA IAM:
+  XAI_API_KEY: secretAccessor includes
+    serviceAccount:xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com
+  XAI_RELAY_TICKET_SECRET: secretAccessor includes
+    serviceAccount:xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com
 Web/App Hosting SA IAM:
+  BLOCKED: firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com
+  still has secretAccessor on XAI_API_KEY in the existing shared App Hosting
+  backend.
 Runtime env proof:
+  BLOCKED for strict vFinal no-key DoD: the deployed shared adecco-roleplay
+  backend still binds XAI_API_KEY for existing comparison routes.
 apps/web/apphosting.vfinal.yaml scan:
+  PASS: vFinal code contract omits XAI_API_KEY.
 Secret scan result:
+  BLOCKED until CI/artifact secret scan evidence is collected.
 ```
 
 ## WAF / Rate Limit Evidence
@@ -152,9 +195,15 @@ Phase 1 answer:
 
 ```text
 Cloud Armor policy:
+  BLOCKED: no Cloud Armor security policies were listed in project
+  adecco-mendan during 2026-05-16 verification.
 Preview/log mode:
+  BLOCKED.
 Rate limit test:
+  BLOCKED for production live test until vFinal auth succeeds. Code-level
+  application rate limit exists for /access, /session, and /event.
 WSS close code 1006 check:
+  BLOCKED until browser WebSocket E2E can run.
 ```
 
 ## Test And Latency Evidence
@@ -198,19 +247,35 @@ Local code gates:
   PASS corepack pnpm -r --workspace-concurrency=1 --if-present test
   BLOCKED corepack pnpm typecheck / test: Turbo on Windows cannot find package manager binary
 verify:acceptance:
-  BLOCKED corepack pnpm verify:acceptance -- --preflight:
+  BLOCKED corepack pnpm verify:acceptance:
   [vendor_failure] 7 PERMISSION_DENIED: Permission 'secretmanager.versions.access' denied on resource (or it may not exist).
 ```
 
 ## Deploy Evidence
 
-- App Hosting Git SHA:
-- App Hosting rollout ID:
-- Cloud Run relay Git SHA:
-- Cloud Run relay revision:
-- Cloud Run relay traffic %:
+- App Hosting Git SHA: `bc8de3dc937e2feba0b398ff6c72476a4d79f26b`
+- App Hosting rollout ID: `build-2026-05-16-007`
+- Cloud Run relay Git SHA: `bc8de3dc937e2feba0b398ff6c72476a4d79f26b`
+- Cloud Run relay revision: `xai-realtime-relay-00011-dt6`
+- Cloud Run relay traffic %: `100`
 
 App Hosting and Cloud Run relay must be deployed from the same Git SHA.
+
+Current same-SHA deploy evidence:
+
+```text
+App Hosting:
+  backend=adecco-roleplay
+  rollout=build-2026-05-16-007
+  revision=adecco-roleplay-build-2026-05-16-007
+  traffic=100
+
+Cloud Run relay:
+  service=xai-realtime-relay
+  image=gcr.io/adecco-mendan/xai-realtime-relay:bc8de3d
+  revision=xai-realtime-relay-00011-dt6
+  traffic=100
+```
 
 ## Rollback
 
