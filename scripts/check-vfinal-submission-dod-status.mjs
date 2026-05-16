@@ -23,8 +23,17 @@ const issueApprovalNeedles = new Map([
   [
     138,
     [
-      "Approved: the dedicated hosted.app URL is acceptable as the vFinal customer",
-      "submitted URL.",
+      [
+        "Approved: the dedicated hosted.app URL is acceptable as the vFinal customer",
+        "submitted URL.",
+      ],
+      [
+        "Approved: the dedicated vFinal mendan.biz custom domain is active as the vFinal customer",
+        "submitted URL.",
+        "DNS/certificate status is active.",
+        "Submitted-URL smoke passed with session 200, relay WSS only, direct api.x.ai count 0,",
+        "forbidden session keys absent.",
+      ],
     ],
   ],
   [
@@ -635,6 +644,7 @@ function readGithubIssue(number, options = {}) {
 
 function issueHasApproval(issue) {
   const needles = issueApprovalNeedles.get(issue.number) ?? [];
+  const needleSets = Array.isArray(needles[0]) ? needles : [needles];
   const comments = Array.isArray(issue.comments) ? issue.comments : [];
   return comments.some((comment) => {
     if (approvalAuthors.length > 0 && !approvalAuthors.includes(comment?.author?.login)) {
@@ -642,7 +652,9 @@ function issueHasApproval(issue) {
     }
     const body = normalizeApprovalText(approvalCandidateText(comment?.body ?? ""));
     if (!body.startsWith("Approved:")) return false;
-    return needles.every((needle) => body.includes(normalizeApprovalText(needle)));
+    return needleSets.some((set) =>
+      set.every((needle) => body.includes(normalizeApprovalText(needle)))
+    );
   });
 }
 
@@ -737,6 +749,20 @@ function checkWorkbook(path, expectedStatus) {
     ]) {
       if (!allText.includes(required)) {
         failures.push(`workbook missing required blocked-mode wording (${required}): ${path}`);
+      }
+    }
+  }
+  if (expectedStatus === "pass") {
+    for (const blockedMarker of [
+      "BLOCKED",
+      "vFinal提出URLは#138未確定",
+      "Excel人間確認 (#171)",
+      "pre-vFinal >=20セッションbaselineとの正式比較が必要",
+      "baseline不足の免除ではPASS不可",
+      "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
+    ]) {
+      if (allText.includes(blockedMarker)) {
+        failures.push(`workbook still contains blocked-mode marker after PASS (${blockedMarker}): ${path}`);
       }
     }
   }
@@ -1006,6 +1032,61 @@ function runSelfTest() {
               "> Approved: the current verify:acceptance blocker is a legacy ConvAI vendor judge",
               "> blocker outside the vFinal submitted runtime/security scope. It may remain open",
               "> outside the customer submission DoD.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
+    },
+    {
+      name: "submitted hosted.app approval text is accepted",
+      issue: {
+        number: 138,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: the dedicated hosted.app URL is acceptable as the vFinal customer",
+              "submitted URL.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: true,
+    },
+    {
+      name: "custom domain submitted URL approval text is accepted",
+      issue: {
+        number: 138,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: the dedicated vFinal mendan.biz custom domain is active as the vFinal customer",
+              "submitted URL.",
+              "DNS/certificate status is active.",
+              "Submitted-URL smoke passed with session 200, relay WSS only, direct api.x.ai count 0,",
+              "and forbidden session keys absent.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: true,
+    },
+    {
+      name: "custom domain approval without submitted URL smoke is rejected",
+      issue: {
+        number: 138,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: the dedicated vFinal mendan.biz custom domain is active as the vFinal customer",
+              "submitted URL.",
+              "DNS/certificate status is active.",
             ].join("\n"),
           },
         ],

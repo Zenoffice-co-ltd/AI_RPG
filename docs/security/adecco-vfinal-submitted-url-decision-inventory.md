@@ -70,5 +70,12 @@ Issue #138 remains blocked until one of these is true:
    submitted-URL smoke confirms session 200, relay WSS only, direct
    `api.x.ai` count 0, and forbidden session keys absent.
 
+If #138 is left OPEN and resolved by approval/evidence comment rather than
+issue closure, the final guard accepts either the dedicated hosted.app approval
+text or the dedicated `mendan.biz` custom-domain approval text in
+`docs/security/adecco-vfinal-approval-packet.md`. The custom-domain approval
+text must include DNS/certificate active status plus submitted-URL smoke
+evidence; DNS/certificate approval alone is not enough.
+
 Until then, the customer submission DoD and security-checksheet submission DoD
 must remain BLOCKED for #138.
