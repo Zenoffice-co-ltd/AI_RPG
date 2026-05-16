@@ -148,6 +148,7 @@ After approvals or fresh evidence are recorded:
 ```bash
 git diff --check
 corepack pnpm grok:vfinal-security-invariants
+corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass
 ```
 
 6. Create the final closeout PR and set the final verdict to
