@@ -950,15 +950,24 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   changes were made.
 - Follow-up guard update: the same command now accepts `--check-github-issues`.
   In BLOCKED mode it confirms #138, #139, #140, and #141 remain OPEN; in PASS
-  mode it fails unless those four blocker issues are CLOSED. The final PASS
-  closeout check should include both source workbooks and issue state:
+  mode it fails unless those four blocker issues are CLOSED, or
+  `--allow-open-approved-issues` is used and each OPEN blocker contains the
+  approval-packet approval text. The final PASS closeout check should include
+  both source workbooks and issue state:
 
 ```bash
 corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
   --check-github-issues \
+  --allow-open-approved-issues \
   --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" \
   --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
+
+- CI guard update: `.github/workflows/vfinal-security-verify.yml` now also runs
+  `corepack pnpm grok:vfinal-submission-dod-status` for checked-in closeout,
+  DoD audit, questionnaire map, approval packet, and operations changes.
+  Workbook and issue-state checks remain explicit local/finalization checks
+  because GitHub Actions does not have the operator's source workbooks.
 
 ### 2026-05-16 — vFinal submission unblock PR-A
 

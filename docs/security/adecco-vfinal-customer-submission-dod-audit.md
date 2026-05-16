@@ -112,7 +112,7 @@ Customer submission remains blocked by four tracked items:
 5. Re-run the lightweight integrity checks:
    `git diff --check`, `corepack pnpm grok:vfinal-security-invariants`, and
    `corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass
-   --check-github-issues` with the two source questionnaire workbooks passed
-   through `--workbook=...`.
+   --check-github-issues --allow-open-approved-issues` with the two source
+   questionnaire workbooks passed through `--workbook=...`.
 6. Update the closeout final verdict only after all blocking issues are closed
    or approved out of scope.
