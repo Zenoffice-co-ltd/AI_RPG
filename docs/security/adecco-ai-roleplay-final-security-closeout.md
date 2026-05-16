@@ -364,6 +364,15 @@ Web/App Hosting SA IAM:
   XAI_API_KEY access for non-submitted legacy/direct comparison routes. The
   submitted vFinal URL is therefore the dedicated hosted.app backend above, not
   the shared roleplay.mendan.biz backend.
+  2026-05-17 read-only IAM recheck:
+    command=gcloud secrets get-iam-policy XAI_API_KEY --project=adecco-mendan --format=json
+    secretAccessor includes:
+      serviceAccount:xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com
+      serviceAccount:firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com
+    viewer includes:
+      serviceAccount:firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com
+    not observed on policy:
+      serviceAccount:firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com
 Runtime env proof:
   PASS for adecco-roleplay-vfinal Cloud Run managed service:
     service=adecco-roleplay-vfinal

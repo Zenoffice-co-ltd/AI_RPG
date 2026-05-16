@@ -22,13 +22,31 @@ Customer submission remains blocked by four tracked items:
 - #141: canonical acceptance. Obtain clean `verify:acceptance` PASS or approve
   the legacy ConvAI judge blocker as outside vFinal submission scope.
 
+## Latest Read-Only Rechecks
+
+- 2026-05-17 submitted URL recheck:
+  `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still had no
+  DNS result in this environment. The dedicated hosted.app URL returned HTTP
+  200. This supports hosted.app availability but does not replace #138
+  approval.
+- 2026-05-17 Secret Manager IAM recheck:
+  `gcloud secrets get-iam-policy XAI_API_KEY --project=adecco-mendan
+  --format=json` showed `roles/secretmanager.secretAccessor` includes
+  `serviceAccount:xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com`
+  and
+  `serviceAccount:firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com`.
+  It did not show
+  `serviceAccount:firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com`.
+  This confirms the dedicated submitted vFinal runtime remains no-key, while
+  the legacy shared backend scope decision remains open.
+
 ## DoD Matrix
 
 | # | Requirement | Status | Current evidence / blocker |
 |---|---|---|---|
 | 1 | vFinal dedicated Web/App Hosting runtime is separated | PASS | Dedicated App Hosting backend `adecco-roleplay-vfinal` and dedicated service account are recorded in the closeout. |
-| 2 | vFinal Web/App Hosting runtime / service account cannot access `XAI_API_KEY` | PASS for submitted runtime | Closeout IAM proof shows `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` has no `XAI_API_KEY` access. |
-| 3 | Only Cloud Run relay service account can access `XAI_API_KEY` | BLOCKED by #139 | True for the dedicated submitted vFinal runtime, but project-wide `XAI_API_KEY` still includes legacy shared App Hosting access for non-submitted comparison/direct routes. |
+| 2 | vFinal Web/App Hosting runtime / service account cannot access `XAI_API_KEY` | PASS for submitted runtime | Closeout IAM proof and 2026-05-17 read-only IAM recheck show `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` has no `XAI_API_KEY` access. |
+| 3 | Only Cloud Run relay service account can access `XAI_API_KEY` | BLOCKED by #139 | True for the dedicated submitted vFinal runtime, but project-wide `XAI_API_KEY` still includes legacy shared App Hosting access for non-submitted comparison/direct routes. 2026-05-17 read-only IAM recheck confirmed `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` still has secretAccessor/viewer access. |
 | 4 | Metadata-only Cloud Logging bucket or sink retention is >=180 days | PASS | Closeout records metadata bucket `adecco-vfinal-metadata`, metadata sink, and 180-day retention. |
 | 5 | Sensitive log scan is 0 for raw invite token, raw cookie, raw participantId, relay ticket, Authorization/Bearer, `XAI_API_KEY`, transcript body, prompt/instructions, and base64 audio | PASS scoped to collected evidence | Post same-SHA text/voice E2E sensitive metadata bucket scan recorded 0 hits for the required sensitive markers. |
 | 6 | Cloud Armor / WAF is applied to relay LB in preview/log mode | PASS | Closeout records `xai-realtime-relay-preview-policy` attached to `xai-realtime-relay-backend` with preview rules. |
@@ -64,4 +82,3 @@ Customer submission remains blocked by four tracked items:
    `git diff --check` and `corepack pnpm grok:vfinal-security-invariants`.
 6. Update the closeout final verdict only after all blocking issues are closed
    or approved out of scope.
-
