@@ -842,6 +842,23 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   exist).` Acceptance criterion: run the canonical gate from an environment
   with the required Secret Manager access, or formally track that IAM blocker
   outside PR-A before customer submission.
+- PR-A follow-up deploy evidence: PR #120 and relay build hotfix PR #121 were
+  merged, then App Hosting and Cloud Run relay were deployed from
+  `ac321404be1553fe8984b6daad1ab5e4ba8e86a3`. Relay revision
+  `xai-realtime-relay-00012-gdb` serves 100% traffic; App Hosting rollout
+  `build-2026-05-16-009` serves 100% traffic. Production
+  `POST /api/grok-first-vFinal/invite/consume` returned 307 and set the two
+  vFinal cookies; `POST /api/grok-first-vFinal/session` returned 200 with
+  `demoSlug=adecco-roleplay-vFinal`, `backend=grok-first-vFinal`,
+  `realtimeTransport=mendan_cloud_run_relay_wss`, and
+  `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`. Forbidden session
+  payload strings (`instructions`, `firstMessage`, `hiddenAssistantHistory`,
+  `ephemeralToken`, `XAI_API_KEY`, `transcript`, `audioBase64`, `tools`) were
+  absent. A scoped Cloud Logging requestUrl scan after rollout found 0
+  `/access?invite=` hits and showed `/invite/consume` without raw token in the
+  URL. Remaining customer-submission blockers: dedicated no-key App Hosting
+  runtime, 180-day metadata log retention, Cloud Armor preview/log policy, live
+  browser/voice E2E, latency baseline, ZAP, and canonical acceptance.
 
 ### 2026-05-16 — vFinal security foundation PR status
 
