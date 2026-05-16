@@ -128,6 +128,19 @@ PR-B no-key backend smoke:
   absent in the deploy-script contract check.
 
 Submitted hosted.app URL start smoke:
+  PASS 2026-05-17 05:04 JST:
+    command=corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --origin https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app
+    evidence=out/grok_first_vfinal_browser_e2e/2026-05-16T20-03-58-582Z/evidence.json
+    origin=https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app
+    POST /api/grok-first-vFinal/invite/consume -> 307
+    POST /api/grok-first-vFinal/session -> 200
+    sessionApiMs=91
+    demoSlug=adecco-roleplay-vFinal
+    backend=grok-first-vFinal
+    realtimeTransport=mendan_cloud_run_relay_wss
+    wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay
+    directApiXaiConnectionCount=0
+    forbiddenSessionKeyHits all false
   PASS 2026-05-17 01:35 JST:
     command=corepack pnpm grok:first-vfinal:browser-e2e -- --mode start
     evidence=out/grok_first_vfinal_browser_e2e/2026-05-17T01-35-00-hosted-url-start-recheck/evidence.json
@@ -159,6 +172,12 @@ Forbidden:
 
 ```text
 Browser WebSocket capture:
+  PASS 2026-05-17 05:04 JST hosted.app start smoke:
+    command=corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --origin https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app
+    evidence=out/grok_first_vfinal_browser_e2e/2026-05-16T20-03-58-582Z/evidence.json
+    websocketUrls=[wss://voice.mendan.biz/api/v3/realtime-relay]
+    directApiXaiConnectionCount=0
+    forbiddenOutgoingRealtimeKeys=[]
   PASS 2026-05-17 01:35 JST hosted.app start smoke:
     command=corepack pnpm grok:first-vfinal:browser-e2e -- --mode start
     evidence=out/grok_first_vfinal_browser_e2e/2026-05-17T01-35-00-hosted-url-start-recheck/evidence.json
