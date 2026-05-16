@@ -812,6 +812,22 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal submitted URL smoke recheck
+
+- Re-ran hosted.app submitted URL start smoke:
+  `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --origin
+  https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`.
+- Result: PASS. Session returned 200 with `demoSlug=adecco-roleplay-vFinal`,
+  `backend=grok-first-vFinal`, `wsUrl`
+  `wss://voice.mendan.biz/api/v3/realtime-relay`, relay WSS as the only
+  browser WebSocket URL, direct `api.x.ai` count 0, and forbidden session keys
+  absent.
+- Rechecked dedicated custom-domain candidates. `roleplay-vfinal.mendan.biz`
+  and `adecco-roleplay.mendan.biz` still returned no DNS resolver result in
+  this environment, and `curl -I` failed with host resolution error for both.
+- #138 remains BLOCKED pending explicit hosted.app approval or active
+  dedicated `mendan.biz` mapping/certificate plus submitted-URL smoke evidence.
+
 ### 2026-05-17 — vFinal IAM and acceptance preflight read-only recheck
 
 - Rechecked #139 `XAI_API_KEY` IAM policy without reading secret values:

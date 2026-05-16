@@ -32,6 +32,17 @@ tracked items:
 
 ## Latest Read-Only Rechecks
 
+- 2026-05-17 04:29 JST submitted URL smoke:
+  `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --origin
+  https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`
+  passed against the dedicated hosted.app candidate. Evidence showed
+  session 200, `wsUrl` `wss://voice.mendan.biz/api/v3/realtime-relay`,
+  browser WebSocket URL only the relay WSS, direct `api.x.ai` count 0, and
+  forbidden session keys absent. Dedicated `mendan.biz` candidates still had
+  no DNS resolver result in this environment, and `curl -I` failed with host
+  resolution error for both checked candidates. #138 therefore remains blocked
+  pending hosted.app approval or active custom-domain mapping/certificate
+  evidence.
 - 2026-05-17 submitted URL recheck:
   `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still had no
   DNS result in this environment. The dedicated hosted.app URL returned HTTP

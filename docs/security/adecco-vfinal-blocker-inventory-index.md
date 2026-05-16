@@ -24,6 +24,13 @@ being closed or formally approved.
 2026-05-17 JST recheck after PR #188 and PR #189:
 
 - #128, #138, #139, #140, #141, and #171 are still OPEN.
+- Fresh #138 hosted.app submitted URL start smoke passed at 2026-05-17
+  04:29 JST: session 200, `wsUrl`
+  `wss://voice.mendan.biz/api/v3/realtime-relay`, browser WebSocket URL only
+  the relay WSS, direct `api.x.ai` count 0, and forbidden session keys absent.
+  Dedicated `mendan.biz` candidates still did not resolve in this environment,
+  and `curl -I` failed with host resolution error for both checked candidates.
+  This supports the hosted.app approval path but does not itself approve #138.
 - PR #188 tightened #138 approval matching. A hosted.app approval is no longer
   accepted with the URL alone; both hosted.app and dedicated custom-domain
   paths must include submitted-URL smoke evidence: invite consume 307,
