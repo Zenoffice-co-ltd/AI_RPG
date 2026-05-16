@@ -812,6 +812,19 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal final PASS evidence marker guard
+
+- Tightened `corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass`
+  so final PASS mode must find concrete evidence markers in the individual
+  vFinal blocker inventories, not just top-level `PASS` status text.
+- The guard now requires submitted-URL smoke markers, service-account / key
+  scope markers, #140 latency comparison markers including closeCode1006 and
+  `relay.error`, acceptance evidence, and workbook artifact markers before a
+  final customer/security-checksheet PASS claim can be accepted.
+- This is a release-evidence guard only. It does not resolve #138, #139, #140,
+  #141, or #171, and the customer submission DoD remains BLOCKED until those
+  issues are closed or formally approved and the final PASS guard succeeds.
+
 ### 2026-05-17 — vFinal #140 latency operational-counter inventory guard
 
 - Tightened `corepack pnpm grok:first-vfinal:latency-artifact-inventory` so a

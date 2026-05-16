@@ -504,6 +504,75 @@ if (normalizedExpected === "pass") {
     "BLOCKED for customer submission DoD and security-checksheet submission DoD",
     "questionnaire map should not say security-checksheet blocked after PASS"
   );
+  requirePassEvidenceMarkers();
+}
+
+function requirePassEvidenceMarkers() {
+  for (const [label, text, markers] of [
+    [
+      "submitted URL decision inventory PASS evidence",
+      source.submittedUrlDecisionInventory,
+      [
+        "Submitted-URL smoke passed",
+        "session 200",
+        "wss://voice.mendan.biz/api/v3/realtime-relay",
+        "direct api.x.ai",
+        "forbidden session keys absent",
+      ],
+    ],
+    [
+      "legacy XAI scope inventory PASS evidence",
+      source.legacyXaiScopeInventory,
+      [
+        "firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com",
+        "firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com",
+        "XAI_API_KEY",
+        "Cloud Run relay",
+      ],
+    ],
+    [
+      "latency baseline assessment PASS evidence",
+      source.latencyBaselineAssessment,
+      [
+        "pre-vFinal",
+        ">=20",
+        "sessionApiMs",
+        "firstAudioDeltaMs",
+        "firstAudibleAudioMs",
+        "closeCode1006",
+        "relay.error",
+        "corepack pnpm grok:first-vfinal:latency-compare",
+        "Comparison summary:",
+        "Comparison result: PASS",
+      ],
+    ],
+    [
+      "acceptance blocker inventory PASS evidence",
+      source.acceptanceBlockerInventory,
+      ["verify:acceptance"],
+    ],
+    [
+      "workbook human confirmation map PASS evidence",
+      source.workbookHumanConfirmationMap,
+      [
+        "Adecco_データ保護アンケート_v01_回答ドラフト.xlsx",
+        "Adecco_TPISAアンケート_v01_回答ドラフト.xlsm",
+        "vFinal提出DOD照合",
+      ],
+    ],
+  ]) {
+    for (const marker of markers) {
+      requireIncludes(text, marker, `${label} marker ${marker}`);
+    }
+  }
+  requireAnyIncludes(
+    source.acceptanceBlockerInventory,
+    [
+      "corepack pnpm verify:acceptance",
+      "No vFinal session, relay, WAF, logging, or no-key runtime regression is indicated",
+    ],
+    "acceptance blocker inventory PASS evidence must cite a clean gate or approved no-regression scope"
+  );
 }
 
 function requirePassWorkbooks() {
@@ -1039,6 +1108,12 @@ function requireEqual(actual, expectedValue, label) {
 
 function requireIncludes(text, needle, label) {
   if (typeof text !== "string" || !text.includes(needle)) {
+    failures.push(`missing ${label}`);
+  }
+}
+
+function requireAnyIncludes(text, needles, label) {
+  if (typeof text !== "string" || !needles.some((needle) => text.includes(needle))) {
     failures.push(`missing ${label}`);
   }
 }
