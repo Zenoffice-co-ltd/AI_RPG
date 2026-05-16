@@ -812,6 +812,26 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal acceptance and submitted-domain recheck
+
+- Submitted-domain DNS recheck found no resolver result for
+  `roleplay-vfinal.mendan.biz` or `adecco-roleplay.mendan.biz`; the dedicated
+  hosted.app URL still resolves and returns HTTP 200. Issue #138 remains
+  BLOCKED pending hosted.app submission approval or a dedicated custom-domain
+  mapping.
+- `corepack pnpm verify:acceptance -- --preflight` remains ready when the
+  required vendor secrets are resolved into process-local environment variables
+  from Secret Manager. Secret values were not printed or persisted.
+- A full `corepack pnpm verify:acceptance` rerun reached `[3/10] publish
+  scenario` and failed after three ElevenLabs publish judge attempts:
+  retry 1 failed legacy `staffing_order_hearing_busy_manager_medium`
+  `no-hidden-fact-leak` plus `no-coaching`; retries 2 and 3 failed legacy
+  `no-coaching` only. This does not indicate a vFinal session, relay, WAF,
+  logging, or no-key runtime regression, but it is not a clean PASS and Codex is
+  not applying the no-coaching-only exception because retry 1 included
+  `no-hidden-fact-leak`. Issue #141 remains BLOCKED pending a clean rerun or
+  customer/operator approval.
+
 ### 2026-05-17 — vFinal questionnaire submission alignment
 
 - Reviewed the provided questionnaire drafts:
