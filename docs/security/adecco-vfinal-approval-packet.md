@@ -10,6 +10,8 @@ The consolidated inventory index for #138-#141 plus workbook issue #171 is
 `docs/security/adecco-vfinal-blocker-inventory-index.md`.
 Workbook cells that still require human/legal/operator confirmation are tracked
 in `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
+Umbrella issue #128 stays open while any required decision below is unresolved;
+the final PASS guard requires #128 to be closed after finalization.
 
 ## Current Safe Submission Claim
 
@@ -127,6 +129,8 @@ firstAudioDeltaMs p95: baseline <ms>, current <ms>, threshold baseline+100ms, re
 firstAudibleAudioMs p95: baseline <ms>, current <ms>, threshold baseline+100ms, result <PASS|FAIL>.
 closeCode1006 increase: <none|details>.
 relay.error increase: <none|details>.
+Comparison guard: corepack pnpm grok:first-vfinal:latency-compare PASS.
+Comparison summary: <comparison-summary.json path or URL>.
 Comparison result: PASS.
 ```
 
@@ -140,6 +144,9 @@ corepack pnpm grok:first-vfinal:latency-compare -- --baseline <pre-vFinal-summar
 The guard fails if the baseline/current summary paths are identical, if either
 side has fewer than 20 runs, if any run failed, or if the required operational
 counters are missing.
+If #140 is resolved by OPEN issue approval instead of issue closure, the
+approval comment must cite the comparison guard PASS and the comparison summary
+artifact; a p95 table alone is not sufficient.
 
 or
 
@@ -232,7 +239,7 @@ PASS mode requires both source questionnaire workbooks above; running the final
 guard without them is not valid submission evidence.
 PASS mode also requires `--check-github-issues` or
 `VFINAL_SUBMISSION_DOD_CHECK_GITHUB_ISSUES=1` so #138, #139, #140, #141, and
-#171 are verified closed or approved.
+#171 are verified closed or approved and umbrella #128 is verified closed.
 
 If any of #138, #139, #140, #141, or #171 remain OPEN and are resolved by approval
 comment rather than closure, `--approval-author=<approver-github-login>` or

@@ -7,6 +7,10 @@ that still block customer submission DoD and security-checksheet submission
 DoD. It does not replace the individual inventory files or the GitHub issues;
 it makes the finalization checklist easier to audit.
 
+Umbrella tracker: #128 remains OPEN while any row below is unresolved. The
+final PASS guard requires #128 to be CLOSED in addition to the blocker rows
+being closed or formally approved.
+
 | Issue | Blocker | Inventory / assessment | Current index verdict |
 |---|---|---|---|
 | #138 | Submitted URL approval or dedicated custom-domain mapping | `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` | BLOCKED: hosted.app is live but not formally approved; dedicated `mendan.biz` candidates lack verified DNS mapping. |
@@ -54,7 +58,8 @@ one of:
   approver.
 
 The final PASS guard must be run with issue-state checking and the two source
-questionnaire workbooks:
+questionnaire workbooks. Issue-state checking verifies umbrella #128 plus
+blockers #138, #139, #140, #141, and #171:
 
 ```bash
 corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \

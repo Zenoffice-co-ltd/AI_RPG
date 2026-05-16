@@ -812,6 +812,26 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal #140 latency approval guard hardening
+
+- Updated `corepack pnpm grok:vfinal-submission-dod-status` so #140 OPEN issue
+  approval text must cite `corepack pnpm grok:first-vfinal:latency-compare`
+  PASS and a comparison summary artifact.
+- This prevents final PASS from relying on a manually written p95 table without
+  the reusable latency comparison guard evidence.
+- Customer submission DoD remains BLOCKED until #140 has an approved
+  pre-vFinal >=20-session baseline and a passing comparison guard result.
+
+### 2026-05-17 — vFinal umbrella issue PASS guard
+
+- Updated `corepack pnpm grok:vfinal-submission-dod-status` so issue-state
+  checking includes umbrella #128 in addition to blocker issues #138, #139,
+  #140, #141, and #171.
+- In BLOCKED mode #128 must remain OPEN. In PASS mode #128 must be CLOSED;
+  approval comments on #128 are not accepted as a substitute for closure.
+- This keeps the umbrella tracker from being left open after a final customer
+  submission/security-checksheet PASS claim.
+
 ### 2026-05-17 — vFinal PASS guard GitHub issue check requirement
 
 - Updated `corepack pnpm grok:vfinal-submission-dod-status` so PASS mode now

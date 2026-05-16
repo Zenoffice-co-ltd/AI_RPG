@@ -122,7 +122,8 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass --check-github-
 Both source questionnaire workbooks are required in PASS mode; the final guard
 rejects a PASS run that omits them.
 `--check-github-issues` is also required in PASS mode so #138, #139, #140,
-#141, and #171 are verified closed or approved.
+#141, and #171 are verified closed or approved, and umbrella #128 is verified
+closed.
 
 If approved open blockers are being relied on, `--approval-author=<approver-github-login>`
 or `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required; the guard rejects
@@ -137,6 +138,8 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked --check-gith
 
 Required blocker issues:
 
+- #128 umbrella tracker. Keep it open while the submission is BLOCKED; close it
+  only after the final PASS guard and final closeout PR are complete.
 - #138 submitted URL / custom-domain decision.
 - #139 legacy shared App Hosting `XAI_API_KEY` scope/de-scope decision.
 - #140 strict latency baseline comparison. This must be resolved with passing
@@ -154,11 +157,13 @@ Rules:
 - #140 cannot be closed by a current-vFinal-only sample or a missing-baseline
   waiver. It needs a same-environment, same-scenario, >=20-session pre-vFinal
   baseline, p95 comparison within thresholds, WSS close-code 1006 comparison,
-  relay.error comparison, and `Comparison result: PASS`. Once baseline evidence
-  exists, run `corepack pnpm grok:first-vfinal:latency-compare -- --baseline
-  <pre-vFinal-summary.json> --current <current-vFinal-summary.json>
-  --baseline-close-code1006 <count> --current-close-code1006 <count>
-  --baseline-relay-error <count> --current-relay-error <count>` and cite its
+  relay.error comparison, `corepack pnpm grok:first-vfinal:latency-compare`
+  PASS, a comparison summary artifact, and `Comparison result: PASS`. Once
+  baseline evidence exists, run `corepack pnpm grok:first-vfinal:latency-compare
+  -- --baseline <pre-vFinal-summary.json> --current
+  <current-vFinal-summary.json> --baseline-close-code1006 <count>
+  --current-close-code1006 <count> --baseline-relay-error <count>
+  --current-relay-error <count> --out <comparison-summary.json>` and cite its
   output.
 - #171 keeps the questionnaire drafts non-final until the mapped workbook cells
   are human-confirmed or rewritten and the issue is closed or approved.

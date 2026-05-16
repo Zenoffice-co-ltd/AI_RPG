@@ -27,6 +27,9 @@ Current vFinal blockers:
 | #141 | Canonical `verify:acceptance` closure | Obtain clean `verify:acceptance` PASS, or formally approve the known legacy ConvAI judge blocker as outside submitted vFinal scope. |
 | #171 | Questionnaire workbook human confirmations | Confirm or rewrite the mapped questionnaire cells before treating the security-checksheet drafts as final submission artifacts. |
 
+Umbrella tracker #128 must remain OPEN while the table above is unresolved and
+must be CLOSED before the final PASS guard can succeed.
+
 Final PASS guard:
 
 ```bash
