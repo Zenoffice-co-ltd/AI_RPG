@@ -14,6 +14,7 @@ and as fallbacks.
 ## Canonical Sources
 
 - [docs/GROK_VOICE_ROLEPLAY.md](../../docs/GROK_VOICE_ROLEPLAY.md) — Grok Voice runbook
+- [docs/security/adecco-ai-roleplay-final-security-closeout.md](../../docs/security/adecco-ai-roleplay-final-security-closeout.md) — vFinal security closeout evidence template
 - [docs/OPERATIONS.md](../../docs/OPERATIONS.md) § "Adecco Roleplay 3-way A/B Backend Comparison" — quantitative results
 - [docs/OPERATIONS.md](../../docs/OPERATIONS.md) § "Adecco Roleplay — Claude Haiku 4.5 + Fish Audio A/B backend" — Haiku Fish runbook
 - [apps/web/apphosting.yaml](../../apps/web/apphosting.yaml) — env + secret bindings (single source of truth for what's wired)
@@ -101,6 +102,15 @@ v50, v50.1, and v50.4 use the same Cloud Run enterprise relay transport as v25:
 `realtimeAuth.mode=mendan_relay_subprotocol`. They must not expose xAI
 ephemeral tokens to the browser. The relay ticket is short-lived and sent only
 through `Sec-WebSocket-Protocol`.
+
+`/demo/adecco-roleplay-vFinal` is the security-foundation submission route, not
+a v50-family comparison route. It uses `/api/grok-first-vFinal/*`, relay-only
+transport, participant invite cookies, and server-side relay prompt setup. Do
+not expose prompt text, instructions, hidden assistant history, first-message
+history, xAI ephemeral tokens, or `XAI_API_KEY` from the Web/App Hosting
+runtime. Keep `@top-performer/grok-first-roleplay-config` server-only, run
+`pnpm grok:vfinal-security-invariants` after build, and deploy App Hosting plus
+Cloud Run relay from the same Git SHA before marking the vFinal closeout done.
 Keep the v50-family relay hardening intact: normal production requires
 `XAI_RELAY_TICKET_SECRET`, while `GROK_FIRST_V50_BROWSER_DOD_E2E=1` is only an
 internal browser-DOD bypass. `GROK_VOICE_RELAY_WS_URL` must fail fast unless it

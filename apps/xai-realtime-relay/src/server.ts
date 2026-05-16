@@ -4,10 +4,8 @@ import {
   DEFAULT_RELAY_TICKET_PATH,
   hashRelaySessionId,
   verifyRelayTicket,
-  type RelayTicketBackend,
-  type RelayTicketDemoSlug,
-  type RelayTicketRouterVariant,
 } from "@top-performer/grok-realtime-relay-auth";
+import { getGrokFirstVFinalConfig } from "@top-performer/grok-first-roleplay-config";
 import { logRelay } from "./logging";
 import { createUpstream } from "./upstream";
 
@@ -92,6 +90,7 @@ export function createRelayServer(options: RelayServerOptions = {}) {
     const sessionIdHash = hashRelaySessionId(context.sessionId);
     const baseLog = {
       sessionIdHash,
+      participantIdHash: context.participantIdHash ?? null,
       demoSlug: context.demoSlug,
       routerVariant: context.routerVariant ?? null,
       backend: context.backend ?? null,
@@ -105,32 +104,35 @@ export function createRelayServer(options: RelayServerOptions = {}) {
 
     const upstream = upstreamFactory({ base: upstreamBase, model, apiKey });
     let closed = false;
-    let firstAudioDeltaLogged = false;
-    const pending: Array<{ data: RawData; isBinary: boolean }> = [];
+    let upstreamReadyForClientFrames = false;
+    const pending: Array<{ data: RawData | string; isBinary: boolean }> = [];
     const heartbeat = setInterval(() => {
       if (client.readyState === WebSocket.OPEN) client.ping();
       if (upstream.readyState === WebSocket.OPEN) upstream.ping();
     }, 30_000);
 
     client.on("message", (data: RawData, isBinary: boolean) => {
-      if (upstream.readyState === WebSocket.OPEN) {
-        sendWithBackpressure(upstream, data, isBinary);
+      const proxyFrame = sanitizeClientFrameForUpstream(data, isBinary, context, baseLog);
+      if (!proxyFrame) return;
+      if (upstream.readyState === WebSocket.OPEN && upstreamReadyForClientFrames) {
+        sendWithBackpressure(upstream, proxyFrame.data, proxyFrame.isBinary);
       } else if (pending.length < 200) {
-        pending.push({ data, isBinary });
+        pending.push(proxyFrame);
       }
     });
     upstream.on("open", () => {
       logRelay("upstream.connected", baseLog);
+      if (context.backend === "grok-first-vFinal") {
+        sendVFinalServerSideSetup(upstream);
+      }
+      upstreamReadyForClientFrames = true;
       while (pending.length > 0 && upstream.readyState === WebSocket.OPEN) {
         const item = pending.shift();
         if (item) sendWithBackpressure(upstream, item.data, item.isBinary);
       }
     });
     upstream.on("message", (data: RawData, isBinary: boolean) => {
-      if (!firstAudioDeltaLogged && isFirstAudioDelta(data, isBinary)) {
-        firstAudioDeltaLogged = true;
-        logRelay("first.upstream.audio.delta", baseLog);
-      }
+      maybeLogFirstAudioDelta(data, isBinary, baseLog);
       if (client.readyState === WebSocket.OPEN) {
         sendWithBackpressure(client, data, isBinary);
       }
@@ -150,11 +152,13 @@ export function createRelayServer(options: RelayServerOptions = {}) {
       closeSocket(client, code, reason.toString());
     });
     client.on("error", (error: Error) => {
-      logRelay("relay.error", { ...baseLog, side: "client", message: error.message });
+      void error;
+      logRelay("relay.error", { ...baseLog, side: "client", errorType: "websocket_error" });
       closeSocket(upstream, 1011, "client websocket error");
     });
     upstream.on("error", (error: Error) => {
-      logRelay("relay.error", { ...baseLog, side: "upstream", message: error.message });
+      void error;
+      logRelay("relay.error", { ...baseLog, side: "upstream", errorType: "websocket_error" });
       closeSocket(client, 1011, "upstream websocket error");
     });
   });
@@ -165,10 +169,26 @@ export function createRelayServer(options: RelayServerOptions = {}) {
 type UpgradeContext = {
   ok: true;
   sessionId: string;
-  demoSlug: RelayTicketDemoSlug;
-  routerVariant?: RelayTicketRouterVariant | undefined;
-  backend?: RelayTicketBackend | undefined;
+  demoSlug:
+    | "adecco-roleplay-v25"
+    | "adecco-roleplay-v50"
+    | "adecco-roleplay-v50-1"
+    | "adecco-roleplay-v50-4"
+    | "adecco-roleplay-v50-5"
+    | "adecco-roleplay-v50-6"
+    | "adecco-roleplay-vFinal";
+  routerVariant?: "B_NARROW_FALLBACK_SEMANTIC" | undefined;
+  backend?:
+    | "grok-first-v50"
+    | "grok-first-v50-1"
+    | "grok-first-v50-4"
+    | "grok-first-v50-5"
+    | "grok-first-v50-6"
+    | "grok-first-vFinal"
+    | undefined;
   transport: "mendan_cloud_run_relay_wss";
+  participantIdHash?: string | undefined;
+  nonce: string;
 };
 
 function validateUpgrade(input: {
@@ -219,6 +239,14 @@ function validateUpgrade(input: {
       reason: result.reason,
     };
   }
+  if (isReplay(result.payload.nonce)) {
+    return {
+      ok: false,
+      status: 401,
+      statusText: "Unauthorized",
+      reason: "replay",
+    };
+  }
   return {
     ok: true,
     sessionId: result.payload.sessionId,
@@ -226,6 +254,8 @@ function validateUpgrade(input: {
     routerVariant: result.payload.routerVariant,
     backend: result.payload.backend,
     transport: result.payload.transport,
+    participantIdHash: result.payload.participantIdHash,
+    nonce: result.payload.nonce,
   };
 }
 
@@ -245,24 +275,163 @@ function parseProtocols(value: string | string[] | undefined): string[] {
     .filter(Boolean);
 }
 
-function isFirstAudioDelta(data: RawData, isBinary: boolean): boolean {
-  if (isBinary) return false;
+const firstAudioDeltaSessions = new Set<string>();
+const seenTicketNonces = new Map<string, number>();
+const REPLAY_CACHE_TTL_MS = 70_000;
+
+function isReplay(nonce: string) {
+  const now = Date.now();
+  for (const [key, expiresAt] of seenTicketNonces) {
+    if (expiresAt <= now) seenTicketNonces.delete(key);
+  }
+  if (seenTicketNonces.has(nonce)) return true;
+  seenTicketNonces.set(nonce, now + REPLAY_CACHE_TTL_MS);
+  return false;
+}
+
+function maybeLogFirstAudioDelta(
+  data: RawData,
+  isBinary: boolean,
+  baseLog: Record<string, unknown>
+) {
+  const sessionIdHash = String(baseLog["sessionIdHash"] ?? "");
+  if (firstAudioDeltaSessions.has(sessionIdHash) || isBinary) {
+    return;
+  }
   const raw = Buffer.isBuffer(data) ? data.toString("utf8") : String(data);
   try {
     const parsed = JSON.parse(raw) as { type?: unknown };
-    return parsed.type === "response.output_audio.delta";
+    if (parsed.type === "response.output_audio.delta") {
+      firstAudioDeltaSessions.add(sessionIdHash);
+      logRelay("first.upstream.audio.delta", baseLog);
+    }
   } catch {
-    return false;
+    // ignore non-JSON frames
   }
 }
 
 function sendWithBackpressure(
   socket: WebSocket,
-  data: RawData,
+  data: RawData | string,
   isBinary: boolean
 ) {
   if (socket.bufferedAmount > 16 * 1024 * 1024) return;
   socket.send(data, { binary: isBinary });
+}
+
+function sendVFinalServerSideSetup(upstream: WebSocket) {
+  const config = getGrokFirstVFinalConfig();
+  sendWithBackpressure(
+    upstream,
+    JSON.stringify({
+      type: "session.update",
+      session: {
+        voice: config.voiceId,
+        instructions: config.instructions,
+        tools: [],
+        audio: {
+          input: {
+            format: {
+              type: config.audio.inputFormat,
+              rate: config.audio.sampleRate,
+            },
+          },
+          output: {
+            format: {
+              type: config.audio.outputFormat,
+              rate: config.audio.sampleRate,
+            },
+          },
+        },
+        turn_detection: config.turnDetection,
+      },
+    }),
+    false
+  );
+  sendWithBackpressure(
+    upstream,
+    JSON.stringify({
+      type: "conversation.item.create",
+      item: {
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: config.hiddenAssistantHistory }],
+      },
+    }),
+    false
+  );
+}
+
+function sanitizeClientFrameForUpstream(
+  data: RawData,
+  isBinary: boolean,
+  context: UpgradeContext,
+  baseLog: Record<string, unknown>
+): { data: RawData | string; isBinary: boolean } | null {
+  if (context.backend !== "grok-first-vFinal") {
+    return { data, isBinary };
+  }
+  if (isBinary) {
+    logRelay("client.frame.dropped", { ...baseLog, reason: "binary_frame" });
+    return null;
+  }
+  const raw = Buffer.isBuffer(data) ? data.toString("utf8") : String(data);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    logRelay("client.frame.dropped", { ...baseLog, reason: "malformed_json" });
+    return null;
+  }
+  if (!isAllowedVFinalClientMessage(parsed)) {
+    logRelay("client.frame.dropped", {
+      ...baseLog,
+      reason: "disallowed_client_message",
+    });
+    return null;
+  }
+  return { data: raw, isBinary: false };
+}
+
+function isAllowedVFinalClientMessage(message: unknown): boolean {
+  if (!message || typeof message !== "object") return false;
+  const record = message as Record<string, unknown>;
+  if (record["type"] === "input_audio_buffer.append") {
+    return (
+      hasExactKeys(record, ["type", "audio"]) &&
+      typeof record["audio"] === "string"
+    );
+  }
+  if (record["type"] === "response.cancel") {
+    return Object.keys(record).length === 1;
+  }
+  if (record["type"] === "response.create") {
+    return Object.keys(record).length === 1;
+  }
+  if (record["type"] !== "conversation.item.create") return false;
+  if (!hasExactKeys(record, ["type", "item"])) return false;
+  const item = record["item"];
+  if (!item || typeof item !== "object") return false;
+  const itemRecord = item as Record<string, unknown>;
+  if (!hasExactKeys(itemRecord, ["type", "role", "content"])) return false;
+  if (itemRecord["type"] !== "message") return false;
+  if (itemRecord["role"] !== "user") return false;
+  const content = itemRecord["content"];
+  if (!Array.isArray(content) || content.length === 0) return false;
+  return content.every((part) => {
+    if (!part || typeof part !== "object") return false;
+    const partRecord = part as Record<string, unknown>;
+    return (
+      hasExactKeys(partRecord, ["type", "text"]) &&
+      partRecord["type"] === "input_text" &&
+      typeof partRecord["text"] === "string"
+    );
+  });
+}
+
+function hasExactKeys(record: Record<string, unknown>, keys: string[]) {
+  const actual = Object.keys(record);
+  return actual.length === keys.length && keys.every((key) => actual.includes(key));
 }
 
 function closeSocket(socket: WebSocket, code: number, reason: string) {
