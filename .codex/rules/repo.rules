@@ -64,6 +64,69 @@ prefix_rule(
 )
 
 prefix_rule(
+    pattern = ["pnpm", "deploy:adecco-roleplay"],
+    decision = "prompt",
+    justification = "App Hosting deploys are long-running and mutate production. Confirm the short diagnostic ladder first: route session API identity, App Hosting vs relay ownership, required secrets/IAM, expected prompt/guardrail version, and the post-deploy smoke/log commands to run.",
+    match = [
+        "pnpm deploy:adecco-roleplay",
+        "pnpm deploy:adecco-roleplay -- --skip-verify",
+    ],
+    not_match = [
+        "pnpm deploy:adecco-roleplay -- --skip-deploy",
+    ],
+)
+
+prefix_rule(
+    pattern = ["pnpm", "deploy:adecco-roleplay:gcloud"],
+    decision = "prompt",
+    justification = "The gcloud App Hosting deploy path creates a production build/rollout. Confirm Firebase CLI is actually blocked or gcloud is explicitly requested, and record the expected route-specific post-deploy checks before starting.",
+    match = [
+        "pnpm deploy:adecco-roleplay:gcloud",
+    ],
+    not_match = [
+        "pnpm deploy:adecco-roleplay:gcloud -- --skip-deploy",
+    ],
+)
+
+prefix_rule(
+    pattern = ["firebase", "deploy"],
+    decision = "prompt",
+    justification = "Bare Firebase deploy bypasses the repo wrapper's baseline, warm-cache, and post-deploy verification evidence. Use `pnpm deploy:adecco-roleplay` unless debugging Cloud Build, and document why the wrapper is not used.",
+    match = [
+        "firebase deploy --only apphosting",
+        "npx firebase deploy --only apphosting",
+    ],
+    not_match = [
+        "firebase deploy --help",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gcloud", "run", "deploy"],
+    decision = "prompt",
+    justification = "Cloud Run relay deploys mutate the shared realtime transport. Confirm App Hosting session API is healthy, the change is relay-owned, required relay secrets are present, and relay health/log checks will be run after deploy.",
+    match = [
+        "gcloud run deploy xai-realtime-relay",
+    ],
+    not_match = [
+        "gcloud run services describe xai-realtime-relay",
+    ],
+)
+
+prefix_rule(
+    pattern = ["node", ".codex_tmp"],
+    decision = "prompt",
+    justification = "Do not repeatedly use temporary harnesses as release evidence. If the flow is reusable, promote it to scripts/, add a package script, make secret resolution fail closed, and record the scoped denominator.",
+    match = [
+        "node .codex_tmp/v50_7_prod_voice_turn_e2e.mjs",
+        "node .codex_tmp/v50_7_voice_e2e.mjs",
+    ],
+    not_match = [
+        "node scripts/grok-first-v50-prod-smoke.mjs",
+    ],
+)
+
+prefix_rule(
     pattern = ["git", "worktree", "remove"],
     decision = "prompt",
     justification = "Removing a worktree can delete local baseline evidence. Confirm the target path is temporary and inside the intended workspace before removal.",

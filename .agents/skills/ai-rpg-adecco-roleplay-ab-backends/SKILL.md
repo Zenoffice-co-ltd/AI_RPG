@@ -329,6 +329,32 @@ pnpm deploy:adecco-roleplay -- --skip-deploy   # warm only (existing rollout)
 pnpm deploy:adecco-roleplay -- --skip-verify   # bypass post-deploy session check
 ```
 
+### v50-family post-deploy check
+
+The deploy wrapper verifies the canonical `/api/v3/session` path. For
+Grok-first v50-family routes, add the route-specific checks before declaring the
+deploy usable:
+
+```bash
+pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode start
+pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode voice-turn
+pnpm grok:first-v50:prod-logs -- --session <gfv50_session_id>
+```
+
+Expected session identity for v50.7:
+`demoSlug=adecco-roleplay-v50-7`, `backend=grok-first-v50-7`,
+`promptVersion=grok-first-v50.6-2026-05-15`,
+`guardrailVersion=grok-first-v50.7-guard-2026-05-15`,
+`realtimeTransport=mendan_cloud_run_relay_wss`, and
+`wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`.
+
+Expected runtime evidence for a normal voice turn is `stt.completed`,
+`turn.completed`, `audioBytes > 0`, and `error=null`. For fixed guard turns,
+also require `guard.detected`, `fixed_guard.playback.started`,
+`fixed_guard.playback.completed`, `routePath=fixed_guard`, and fixed text exact
+match. If `stt.completed` appears without `turn.completed`, debug turn
+lifecycle/mic overlap before changing the prompt or redeploying again.
+
 If Firebase CLI auth is unavailable or the operator explicitly asks for gcloud,
 use the gcloud-backed deploy path:
 
@@ -580,6 +606,12 @@ The pass condition is browser-side playback completion, not just route success:
 
 ```bash
 node scripts/grok-voice-v21-prod-logs.mjs --minutes 30 --limit 1000 --session <gv_sess_...>
+```
+
+For v50-family routes, use the v50-specific log collector instead:
+
+```bash
+node scripts/grok-first-v50-prod-logs.mjs --minutes 30 --limit 1000 --session <gfv50_...>
 ```
 
 PR58 added `docs/GROK_VOICE_V21_E2E_MATRIX.md` as the coverage map. The source

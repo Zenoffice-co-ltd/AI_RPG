@@ -53,6 +53,10 @@
     "grok:audio-e2e:layer-b": "tsx scripts/grok-voice-registered-speech-layer-b.ts",
     "grok:audio-e2e:browser": "node scripts/grok-voice-browser-audio-e2e.mjs",
     "grok:audio-e2e:browser:text": "node scripts/grok-voice-browser-text-audio-e2e.mjs",
+    "grok:first-v50:prod-smoke": "node scripts/grok-first-v50-prod-smoke.mjs",
+    "grok:first-v50:prod-logs": "node scripts/grok-first-v50-prod-logs.mjs",
+    "grok:first-v50:voice-e2e": "node scripts/grok-first-v50-voice-e2e.mjs",
+    "grok:vfinal-security-invariants": "node scripts/check-vfinal-security-invariants.mjs",
     "grok:audio-e2e:prod-log-assert": "node scripts/grok-voice-registered-speech-prod-log-assert.mjs",
     "grok:forbid-modelless-ws": "tsx scripts/grok-voice-forbid-modelless-ws.ts",
     "deploy:adecco-roleplay": "tsx scripts/deploy-adecco-roleplay.ts",
@@ -61,7 +65,8 @@
     "smoke:eleven": "tsx scripts/smoke-eleven.ts",
     "smoke:liveavatar": "tsx scripts/smoke-liveavatar.ts",
     "eval:accounting:local": "tsx scripts/eval-accounting-local.ts",
-    "verify:acceptance": "tsx scripts/verify-acceptance.ts"
+    "verify:acceptance": "tsx scripts/verify-acceptance.ts",
+    "verify:long-e2e-preflight": "node scripts/verify-long-e2e-preflight.mjs"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
