@@ -812,6 +812,23 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal legacy XAI scope docs/IAM recheck
+
+- Rechecked current official docs before the #139 read-only IAM/config review:
+  Secret Manager IAM access control and Firebase App Hosting backend/config/
+  secret references. Both pages showed last updated 2026-05-15 UTC.
+- Rechecked `XAI_API_KEY` IAM without reading secret values. The legacy shared
+  App Hosting compute service account and Cloud Run relay service account still
+  have `roles/secretmanager.secretAccessor`; the dedicated submitted vFinal
+  App Hosting service account is still absent from the `XAI_API_KEY` policy.
+- Rechecked config: `apps/web/apphosting.yaml` still binds `XAI_API_KEY`, while
+  `apps/web/apphosting.vfinal.yaml` still omits it and binds only vFinal relay
+  ticket / invite / participant-hash secrets.
+- The shared backend's deterministic-only flag reduces some legacy runtime
+  TTS/realtime usage, but the shared `/api/v3` production env assertion still
+  requires `XAI_API_KEY` when Grok Voice roleplay is enabled. #139 therefore
+  remains a scope approval or migration/de-scope decision.
+
 ### 2026-05-17 — vFinal acceptance permission/input recheck
 
 - Rechecked #141 acceptance preflight prerequisites without reading or printing

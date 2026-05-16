@@ -24,6 +24,16 @@ being closed or formally approved.
 2026-05-17 JST recheck after PR #188 and PR #189:
 
 - #128, #138, #139, #140, #141, and #171 are still OPEN.
+- Fresh #139 docs/IAM/config recheck confirmed the relevant Secret Manager and
+  App Hosting official docs were rechecked on 2026-05-17. The dedicated
+  submitted vFinal App Hosting service account is still absent from the
+  `XAI_API_KEY` IAM policy, while the legacy shared App Hosting compute service
+  account still has `secretAccessor`. Shared `apps/web/apphosting.yaml` still
+  binds `XAI_API_KEY`; `apps/web/apphosting.vfinal.yaml` still omits it.
+  Although shared deterministic-only config reduces some legacy usage, the
+  shared `/api/v3` production assertion still requires the key when Grok Voice
+  roleplay is enabled. #139 remains blocked pending explicit scope approval or
+  route migration/de-scope plus IAM removal and regression evidence.
 - Fresh #141 permission/input recheck found the active gcloud account
   `iwase@zenoffice.co.jp` on project `zapier-transfer`, with no process-local
   `FIREBASE_PROJECT_ID`, `SECRET_SOURCE_PROJECT_ID`, `QUEUE_SHARED_SECRET`,
