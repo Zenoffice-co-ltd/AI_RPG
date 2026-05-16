@@ -14,6 +14,21 @@ GitHub issues; it makes the finalization checklist easier to audit.
 | #140 | Strict pre-vFinal latency baseline comparison | `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md` | BLOCKED: current-vFinal 20-session sample exists, but no approved strict pre-vFinal >=20-session baseline is available. |
 | #141 | Canonical `verify:acceptance` closure | `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` | BLOCKED: latest executable full run failed legacy ConvAI judge paths beyond the no-coaching-only exception; current-shell preflight lacks Secret Manager access. |
 
+## Latest Continuation Recheck
+
+2026-05-17 JST recheck after PR #169:
+
+- #138, #139, #140, and #141 are still OPEN.
+- The `Approved:` strings currently present on those issues are approval
+  templates in fenced code blocks or blockquotes from the approval packet, not
+  accepted approval comments.
+- `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still did not
+  resolve in this environment; the dedicated hosted.app candidate returned HTTP
+  200.
+- `corepack pnpm verify:acceptance -- --preflight` still failed before product
+  checks with Secret Manager `secretmanager.versions.access` permission denied
+  in this shell. No secret values were printed or persisted.
+
 ## Finalization Rule
 
 Before the closeout can say `Customer submission DoD: PASS` and

@@ -11,6 +11,8 @@ answers while submitted URL, runtime scope, latency comparison, and acceptance
 remain unresolved.
 The consolidated blocker inventory index is
 `docs/security/adecco-vfinal-blocker-inventory-index.md`.
+The workbook cell-level human-confirmation map is
+`docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
 
 Reviewed workbook drafts:
 
@@ -84,6 +86,9 @@ repository evidence alone.
 | Endpoint encryption, anti-malware, physical office controls, visitor management, offboarding | Confirm current organization-level operations. |
 | Past three-year breaches, investigations, or regulatory findings | Confirm formally before final submission. |
 | End-of-contract deletion, backups, archives, legal retention | Confirm legal retention periods and operational deletion limits. |
+
+The cell-level source for these items is tracked in
+`docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
 
 ## Workbook Alignment Notes
 

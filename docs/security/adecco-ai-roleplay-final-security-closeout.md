@@ -24,6 +24,8 @@ The requirement-by-requirement customer submission audit is tracked in
 `docs/security/adecco-vfinal-customer-submission-dod-audit.md`.
 The human decision packet for the four remaining approval-sensitive blockers is
 tracked in `docs/security/adecco-vfinal-approval-packet.md`.
+The workbook cell-level human-confirmation map is tracked in
+`docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
 The consolidated blocker inventory index is tracked in
 `docs/security/adecco-vfinal-blocker-inventory-index.md`.
 The #138 submitted URL decision inventory is tracked in
@@ -840,7 +842,9 @@ Remaining blockers:
     --approval-author=iwase-cpu --workbook=... --workbook=...` PASS confirmed
     closeout, audit, questionnaire map, both source workbooks, and issue state
     are still intentionally BLOCKED. Issues #138, #139, #140, and #141 were
-    still OPEN with no approval comments. `corepack pnpm
+    still OPEN with no accepted approval comments. Visible `Approved:` text on
+    those issues is only in fenced-code or blockquote approval templates and is
+    ignored by the guard. `corepack pnpm
     grok:vfinal-security-invariants` PASS. Submitted hosted.app still returned
     HTTP 200; dedicated `mendan.biz` candidates still had no DNS result. The
     `XAI_API_KEY` IAM policy still excluded the dedicated vFinal service
@@ -850,6 +854,13 @@ Remaining blockers:
     verify:acceptance -- --preflight` still stopped before product checks with
     Secret Manager `secretmanager.versions.access` permission denied in the
     current shell. No production changes were made.
+  - 2026-05-17 post-PR169 continuation recheck: #138, #139, #140, and #141
+    remained OPEN; hosted.app returned HTTP 200; `roleplay-vfinal.mendan.biz`
+    and `adecco-roleplay.mendan.biz` still did not resolve in this environment;
+    and `corepack pnpm verify:acceptance -- --preflight` still failed before
+    product checks with Secret Manager `secretmanager.versions.access`
+    permission denied. No secret values were printed or persisted, and no
+    production changes were made.
   - 2026-05-17 #141 acceptance blocker inventory:
     `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` records that
     the latest executable full rerun failed on legacy ConvAI judge paths beyond
@@ -874,6 +885,8 @@ Questionnaire alignment:
     C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm
   - Submission map:
     docs/security/adecco-vfinal-questionnaire-submission-map.md
+  - Workbook cell-level human-confirmation map:
+    docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md
   - 2026-05-17 source workbook update: both source drafts now include first
     sheet `vFinal提出DOD照合` with overall customer submission DoD marked
     BLOCKED and #138, #139, #140, and #141 listed as unresolved. The

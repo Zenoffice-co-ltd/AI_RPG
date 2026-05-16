@@ -8,6 +8,8 @@ approval-sensitive vFinal DoD items. It does not change the closeout verdict.
 BLOCKED until the required approvals or fresh evidence are recorded.
 The consolidated inventory index for #138-#141 is
 `docs/security/adecco-vfinal-blocker-inventory-index.md`.
+Workbook cells that still require human/legal/operator confirmation are tracked
+in `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
 
 ## Current Safe Submission Claim
 

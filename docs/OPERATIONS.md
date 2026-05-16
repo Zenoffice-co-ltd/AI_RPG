@@ -958,7 +958,9 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   --approval-author=iwase-cpu --workbook=... --workbook=...` PASS: closeout,
   audit, questionnaire map, both source questionnaire workbooks, and GitHub
   issues remained consistently BLOCKED. Issues #138, #139, #140, and #141 were
-  still OPEN with no approval comments.
+  still OPEN with no accepted approval comments.
+  Follow-up note: visible `Approved:` text on those issues is only in
+  fenced-code or blockquote approval templates and is ignored by the guard.
 - `corepack pnpm grok:vfinal-security-invariants` PASS.
 - Submitted URL recheck: dedicated hosted.app returned HTTP 200, while
   `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still had no
@@ -1018,6 +1020,11 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   dedicated hosted.app candidate or an approved dedicated `mendan.biz` custom
   domain. The guard now rejects the stale `roleplay.mendan.biz` submitted-flow
   wording and requires `vFinal提出URLは#138未確定` in BLOCKED mode.
+- 2026-05-17 follow-up: added
+  `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` to list
+  the exact workbook cells that still require human/legal/operator
+  confirmation before final questionnaire submission. The DoD guard now treats
+  that map as a BLOCKED artifact until it is promoted to PASS.
 - Follow-up guard update: the same command now accepts `--check-github-issues`.
   In BLOCKED mode it confirms #138, #139, #140, and #141 remain OPEN; in PASS
   mode it fails unless those four blocker issues are CLOSED, or
@@ -1037,6 +1044,25 @@ If an OPEN blocker is accepted through approval text instead of issue closure,
 add `--approval-author=<approver-github-login>` or set
 `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` so the guard verifies the approval came
 from the expected GitHub account.
+
+### 2026-05-17 — vFinal blocker continuation recheck after PR #169
+
+- Rechecked current `origin/main` at merge commit
+  `d8a932cff683c6bce627abab763f9e7962165bec`.
+- #138, #139, #140, and #141 remain OPEN. `Approved:` strings are present only
+  as approval templates in fenced code blocks or blockquotes, not accepted
+  approval comments.
+- Submitted URL recheck: the dedicated hosted.app vFinal URL returned HTTP 200;
+  `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still had no
+  resolver result in this environment.
+- `corepack pnpm verify:acceptance -- --preflight` still failed before product
+  checks with Secret Manager `secretmanager.versions.access` permission denied
+  in this shell. No secret values were printed or persisted.
+- `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
+  --check-github-issues --workbook=... --workbook=...` PASS and
+  `corepack pnpm grok:vfinal-security-invariants` PASS.
+- No production, DNS, IAM, Secret Manager, App Hosting, Cloud Run, Cloud Armor,
+  or Cloud Logging changes were made.
 
 ### 2026-05-17 — vFinal submitted URL decision inventory
 
