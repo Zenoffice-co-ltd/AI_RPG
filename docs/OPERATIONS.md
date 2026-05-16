@@ -911,6 +911,16 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   foundation plan is complete for submission. Pre-edit backups were saved under
   `C:\Users\yukih\Downloads\vfinal_dod_excel_backups\`. The TPISA `.xlsm`
   workbook was saved with its VBA project present.
+- 2026-05-17 JST follow-up: updated the repo acceptance-verification skill so
+  vFinal customer/security-checksheet submission work starts from the canonical
+  closeout, audit, blocker index, approval packet, and workbook cell map. The
+  skill now records the exact BLOCKED/PASS guard commands, the required blocker
+  issues (#138, #139, #140, #141, #171), the #140 no-waiver latency rule, the
+  #171 workbook-human-confirmation rule, and the instruction to record
+  Secret Manager IAM/current-shell `verify:acceptance` blockers without claiming
+  PASS. The vFinal security verify workflow now runs for future changes to that
+  skill. This was documentation/tooling only; no production, IAM, DNS, App
+  Hosting, Cloud Run, Cloud Armor, Cloud Logging, or runtime change was made.
 
 ### 2026-05-17 — vFinal post-PR149 blocker recheck
 

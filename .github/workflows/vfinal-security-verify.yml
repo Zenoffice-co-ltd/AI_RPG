@@ -26,6 +26,7 @@ on:
       - "docs/security/adecco-vfinal-acceptance-blocker-inventory.md"
       - "docs/security/adecco-vfinal-customer-submission-dod-audit.md"
       - "docs/security/adecco-vfinal-questionnaire-submission-map.md"
+      - ".agents/skills/ai-rpg-acceptance-verification/SKILL.md"
       - "docs/DELIVERY_STATUS.md"
       - "docs/OPERATIONS.md"
       - "package.json"

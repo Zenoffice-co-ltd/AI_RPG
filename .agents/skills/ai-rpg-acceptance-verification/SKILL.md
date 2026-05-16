@@ -99,6 +99,62 @@ Customer-facing allowlist for relay trial routes:
 Direct browser access to `api.x.ai` is not required for relay routes. Keep
 `api.x.ai` in CSP only while direct-path comparison routes still exist.
 
+## vFinal Customer/Security-Checksheet Submission DoD
+
+Use this subsection when closing Adecco AI Roleplay vFinal for customer
+submission or security-checksheet submission.
+
+Canonical sources:
+
+- `docs/DELIVERY_STATUS.md`
+- `docs/security/adecco-ai-roleplay-final-security-closeout.md`
+- `docs/security/adecco-vfinal-customer-submission-dod-audit.md`
+- `docs/security/adecco-vfinal-blocker-inventory-index.md`
+- `docs/security/adecco-vfinal-approval-packet.md`
+- `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`
+
+Final PASS guard:
+
+```bash
+corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass --check-github-issues --allow-open-approved-issues --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
+```
+
+If approved open blockers are being relied on, add
+`--approval-author=<approver-github-login>` and verify the approval text is
+plain issue/PR comment text, not only a fenced template or blockquote.
+
+While the submission is blocked, use BLOCKED mode as the honest default:
+
+```bash
+corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked --check-github-issues --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
+```
+
+Required blocker issues:
+
+- #138 submitted URL / custom-domain decision.
+- #139 legacy shared App Hosting `XAI_API_KEY` scope/de-scope decision.
+- #140 strict latency baseline comparison. This must be resolved with passing
+  comparison evidence, not by waiving the missing baseline.
+- #141 clean `verify:acceptance` or approved legacy ConvAI blocker.
+- #171 questionnaire workbook human confirmations.
+
+Rules:
+
+- Do not change closeout, Delivery Status, or questionnaire drafts to PASS until
+  the PASS guard succeeds.
+- #140 cannot be closed by a current-vFinal-only sample or a missing-baseline
+  waiver. It needs a same-environment, same-scenario, >=20-session pre-vFinal
+  baseline, p95 comparison within thresholds, WSS close-code 1006 comparison,
+  relay.error comparison, and `Comparison result: PASS`.
+- #171 keeps the questionnaire drafts non-final until the mapped workbook cells
+  are human-confirmed or rewritten and the issue is closed or approved.
+- If `verify:acceptance` is blocked by Secret Manager IAM or current-shell
+  secret access, record the blocker and required permission; do not claim
+  acceptance PASS.
+- Do not commit `out/`, raw Cloud Logging JSON, screenshots, audio,
+  transcripts, prompt text, invite tokens, cookies, relay tickets, or workbook
+  copies that contain customer submission answers.
+
 ## Workbook Voice E2E
 
 Use this subsection when the operator provides an Excel workbook of v50-family
