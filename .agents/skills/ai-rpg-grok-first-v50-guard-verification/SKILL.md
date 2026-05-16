@@ -13,6 +13,8 @@ prompt and fixed guard text/audio identity separate from runtime guard changes.
 - `AGENTS.md` `## Secrets` and `## Working Defaults`
 - `docs/GROK_VOICE_ROLEPLAY.md`
 - `.agents/skills/ai-rpg-acceptance-verification/SKILL.md`
+- `scripts/grok-first-v50-prod-smoke.mjs`
+- `scripts/grok-first-v50-prod-logs.mjs`
 - `scripts/grok-first-v50-8-fixed-guard-browser-e2e.mjs`
 
 ## Preflight First
@@ -24,7 +26,9 @@ Before any long-running run:
 2. If the plan is Excel/Sheets, inspect sheets and confirm a runner exists for
    every required case set. Missing runner is a blocker; do not call a narrower
    harness final DoD.
-3. Confirm the runner/package script exists. For v50.8 back-to-back fixed guard:
+3. Confirm the runner/package script exists. For production smoke and logs:
+   `pnpm grok:first-v50:prod-smoke` and `pnpm grok:first-v50:prod-logs`.
+   For v50.8 back-to-back fixed guard:
    `pnpm grok:first-v50-8:guard-e2e` or
    `node scripts/grok-first-v50-8-fixed-guard-browser-e2e.mjs`.
 4. Confirm secrets without printing values:
@@ -33,6 +37,48 @@ Before any long-running run:
    - `XAI_API_KEY` for normal Grok realtime/voice paths
 5. Check stale local Next dev servers and target ports before starting. Reuse an
    existing server only after one target event route capture succeeds.
+
+## Production Diagnostic Ladder
+
+Before redeploying or broadening the run:
+
+1. Check `/api/grok-first-v50*/session` first. It must return the expected
+   `demoSlug`, `backend`, `promptVersion`, `guardrailVersion`,
+   `realtimeTransport=mendan_cloud_run_relay_wss`,
+   `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`,
+   `registeredSpeechPayloadIncluded=false`, and
+   `lockedResponseAudioBundleIncluded=false`.
+2. If the session API fails, investigate App Hosting, AccessGate cookies,
+   rollout/build logs, and env/secret bindings. Do not start with relay logs.
+3. If the session API succeeds but WebSocket startup fails, check
+   `https://voice.mendan.biz/healthz`, then relay Cloud Logging for
+   `client.connected`, `ticket.accepted`, `upstream.connected`, and
+   `first.upstream.audio.delta`.
+4. If browser E2E fails, immediately pull Cloud Logging for the same
+   `sessionId`. `stt.completed` without `turn.completed` is a turn lifecycle
+   failure, not a session-start failure.
+
+Useful commands:
+
+```bash
+pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode start
+pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode voice-turn
+pnpm grok:first-v50:prod-logs -- --session gfv50_...
+```
+
+## v50.7 Identity Checks
+
+For `/demo/adecco-roleplay-v50-7`:
+
+- `promptVersion=grok-first-v50.6-2026-05-15`
+- `guardrailVersion=grok-first-v50.7-guard-2026-05-15`
+- `demoSlug=adecco-roleplay-v50-7`
+- `backend=grok-first-v50-7`
+- fixed external text: `その話は今回の商談では扱いません。`
+- fixed exit text: `本日はここまでで大丈夫です。`
+- first message must be visible in the browser after call start.
+
+Do not report prompt improvement if only guard runtime changed.
 
 ## v50.8 Identity Checks
 
@@ -55,6 +101,9 @@ Do not report prompt improvement if only guard runtime changed.
   Do not kill arbitrary Node processes; check PID/port first.
 - Capture `/api/grok-first-v50-8/event` directly. v50-family routes do not emit
   through `/api/v3/event`.
+- For v50.7 use `/api/grok-first-v50-7/event`; for v50.8 use
+  `/api/grok-first-v50-8/event`. Do not use a v50.8 runner as final v50.7 DoD
+  unless the script is parameterized and the evidence names v50.7.
 - For fixed guard turns, require:
   `guard.detected`, `fixed_guard.playback.started`,
   `fixed_guard.playback.completed`, and `turn.completed`.
@@ -62,6 +111,31 @@ Do not report prompt improvement if only guard runtime changed.
   `audioSource=static_guard_pcm_base64`, `audioBytes > 0`,
   `firstAudibleAudioMs != null`, fixed text exact match, no `<missing>`, and no
   LLM response displayed.
+- For ordinary voice turns, require `stt.completed`, `turn.completed`,
+  `audioBytes > 0`, and `error=null`. If the transcript shows an empty agent
+  bubble or repeated STT without `turn.completed`, inspect mic gating and
+  response lifecycle before editing the prompt.
+
+## Cloud Logging
+
+v50-family logs use `jsonPayload.scope="grokFirstV50"` and route-specific event
+endpoints. Relay logs use `jsonPayload.scope="grokVoice.realtimeRelay"`.
+
+Interpret common patterns as follows:
+
+| Pattern | Meaning |
+|---|---|
+| no `session.created` | Browser did not reach the session route or App Hosting failed before logging |
+| `session.created` but no `ws.connected` | Browser/CSP/DNS/LB or client startup issue |
+| relay `ticket.rejected` | relay ticket audience/path/secret mismatch |
+| relay `upstream.connected` missing | relay `XAI_API_KEY`, IAM, or xAI upstream issue |
+| `stt.completed` but no `turn.completed` | turn lifecycle / response creation / mic overlap issue |
+| `fixed_guard.playback.started` but no `turn.completed` | fixed audio playback path or completion metric issue |
+
+Latency note: `firstAudibleAudioMs` is turn-start based and includes STT time.
+For fixed guard audio path health, prefer `sttCompletedToGuardDetectedMs`,
+`guardDetectedToPlaybackStartedMs`, `fixedPlaybackDurationMs`, and
+`fixedAudioBytes`.
 
 ## Reporting
 

@@ -34,6 +34,12 @@ const main = async () => {
     );
   }
 
+  if (/(deploy|app hosting|cloud run|relay|production e2e|cloud logging|iam|secret manager|セッションの開始に失敗|回答がない|無応答|レイテンシ)/.test(prompt)) {
+    suggestions.push(
+      "For production deploy, relay, and Cloud Logging diagnosis, follow AGENTS.md's shortest diagnostic ladder and prefer `.agents/skills/ai-rpg-adecco-roleplay-ab-backends/SKILL.md` plus `.agents/skills/ai-rpg-acceptance-verification/SKILL.md` before redeploying.",
+    );
+  }
+
   if (/(v50|grok-first|fixed guard|guard smoke|assistant-only drain|drain|guard e2e|excel test plan|spreadsheet.*dod)/.test(prompt)) {
     suggestions.push(
       "For Grok-first v50 fixed guard verification, prefer `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md`; map the requested case-set denominator to an executable runner before running long E2E.",
