@@ -655,6 +655,26 @@ verify:acceptance:
       full-run evidence remains valid for the legacy ConvAI judge blocker, but
       a fresh clean rerun requires process-local secrets or an identity with
       Secret Manager access. Secret values were not printed or persisted.
+  BLOCKED full rerun 2026-05-17 00:44 JST:
+    command=corepack pnpm verify:acceptance
+    preflight status=ready using process-local Secret Manager values; values
+      were not printed or persisted.
+    result=[vendor_failure] publish:scenario did not pass ElevenLabs tests
+      after 3 attempts.
+    attempt1=staffing_order_hearing_busy_manager_medium::no-coaching failed
+      with condition=failure
+    attempt2=staffing_order_hearing_busy_manager_medium::role-adherence and
+      staffing_order_hearing_busy_manager_medium::no-coaching failed with
+      condition=failure
+    attempt3=staffing_order_hearing_busy_manager_medium::no-hidden-fact-leak and
+      staffing_order_hearing_busy_manager_medium::no-coaching failed with
+      condition=failure
+    final_error=staffing_order_hearing_busy_manager_medium::no-hidden-fact-leak
+      and staffing_order_hearing_busy_manager_medium::no-coaching failed.
+    acceptance_status=not PASS. DoD G no-coaching-only exception is not
+      applicable because this rerun also failed role-adherence and
+      no-hidden-fact-leak on legacy attempts. No vFinal session, relay, WAF,
+      logging, or no-key runtime regression is indicated by this gate failure.
 ```
 
 ## Deploy Evidence
@@ -751,13 +771,14 @@ Remaining blockers:
     2026-05-17 artifact scan found current-vFinal samples and unrelated
     v50/Grok Voice artifacts, but no same-environment, same-scenario,
     >=20-session pre-vFinal baseline with the required metrics.
-  - Issue #141: verify:acceptance full rerun is blocked only by the known legacy
-    `staffing_order_hearing_busy_manager_medium::no-coaching` ElevenLabs
-    ConvAI judge failure after three attempts. This is no longer a Secret
-    Manager IAM blocker, but the vFinal customer-submission goal only named a
-    Secret Manager IAM formal-blocker exception; applying the legacy vendor
-    judge exception to vFinal requires customer/operator out-of-scope approval
-    or a clean rerun during a stable vendor window.
+  - Issue #141: verify:acceptance full reruns are blocked by the known legacy
+    `staffing_order_hearing_busy_manager_medium` ElevenLabs ConvAI judge path.
+    Latest rerun evidence includes `no-coaching`, `role-adherence`, and
+    `no-hidden-fact-leak` failures across retries, so the no-coaching-only
+    exception is not applicable. This is no longer a Secret Manager IAM blocker,
+    but applying the legacy vendor judge blocker to vFinal as out of scope
+    requires customer/operator approval or a clean rerun during a stable vendor
+    window.
   - local DNS/Google API resolution remains unreliable for gcloud CLI
     post-verify commands. REST calls with explicit Google API IP resolution were
     used for Cloud Run/App Hosting/Logging/Secret Manager evidence; this is an
@@ -769,6 +790,12 @@ Questionnaire alignment:
     C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm
   - Submission map:
     docs/security/adecco-vfinal-questionnaire-submission-map.md
+  - 2026-05-17 source workbook update: both source drafts now include first
+    sheet `vFinal提出DOD照合` with overall customer submission DoD marked
+    BLOCKED and #138, #139, #140, and #141 listed as unresolved. The
+    `回答前提・要確認` opening note no longer says the security foundation plan
+    is complete for submission. Pre-edit backups are under
+    C:\Users\yukih\Downloads\vfinal_dod_excel_backups\.
   - The questionnaire drafts can cite completed vFinal no-key runtime, relay,
     metadata logging, WAF preview/log, ZAP, text/voice E2E, sensitive scan, and
     current-vFinal 20-session evidence, but must not claim submitted URL

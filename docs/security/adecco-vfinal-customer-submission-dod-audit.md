@@ -47,6 +47,20 @@ Customer submission remains blocked by four tracked items:
   `QUEUE_SHARED_SECRET` and no `apps/web/.env.local`. This does not replace the
   earlier full-run legacy ConvAI judge evidence; it means a fresh clean rerun
   currently needs process-local secrets or a stronger execution identity.
+- 2026-05-17 00:44 JST acceptance full rerun:
+  process-local secrets were resolved from Secret Manager without printing or
+  persisting values, preflight was ready, and the full gate again failed at the
+  legacy `staffing_order_hearing_busy_manager_medium` publish scenario. Retry 1
+  failed `no-coaching`; retry 2 failed `role-adherence` plus `no-coaching`;
+  retry 3 failed `no-hidden-fact-leak` plus `no-coaching`. This is not eligible
+  for the no-coaching-only exception and does not indicate a vFinal
+  session/relay/WAF/logging/no-key runtime regression.
+- 2026-05-17 workbook alignment recheck:
+  the two source questionnaire drafts in `C:\Users\yukih\Downloads\` now include
+  first sheet `vFinal提出DOD照合`, mark overall customer submission DoD as
+  `BLOCKED`, list #138, #139, #140, and #141 as unresolved, and no longer
+  contain the old `プランが完了した前提` opening wording. The TPISA `.xlsm`
+  still contains `vbaProject.bin`.
 
 ## DoD Matrix
 
@@ -72,10 +86,10 @@ Customer submission remains blocked by four tracked items:
 | 18 | WSS close code 1006 increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded closeCode1006=0. Formal comparison remains tied to #140. |
 | 19 | `relay.error` increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded relay.error=0. Formal comparison remains tied to #140. |
 | 20 | ZAP baseline/passive scan PASS | PASS | ZAP baseline/passive exitCode 0, FAIL=0, WARN=8 documented; no active scan was run. |
-| 21 | `verify:acceptance` PASS or Secret Manager IAM blocker formally issue-tracked and approved outside customer submission | BLOCKED by #141 | Earlier preflight was ready and full run reached the legacy ConvAI judge blocker. A later 2026-05-17 preflight rerun in this shell failed on Secret Manager IAM because process-local secrets and `.env.local` were absent. A fresh clean rerun requires process-local secrets or stronger execution identity; otherwise customer/operator approval is required. |
+| 21 | `verify:acceptance` PASS or Secret Manager IAM blocker formally issue-tracked and approved outside customer submission | BLOCKED by #141 | Latest 2026-05-17 00:44 JST full rerun had process-local secrets, reached the legacy publish scenario, and failed `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` across retries. This is not a vFinal runtime regression, but it is not PASS and is not eligible for the no-coaching-only exception without customer/operator approval. |
 | 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED | Closeout still intentionally lists #138, #139, #140, and #141 as unresolved. |
 | 23 | Closeout records official docs checked, backend/rollout/revision/traffic, relay image/revision/traffic, same Git SHA deploy, service account/IAM proof, log retention proof, WAF proof, session contract, browser WS capture, direct `api.x.ai` 0, relay phases, sensitive scan, live E2E, latency, ZAP, and acceptance | PASS for recorded evidence; blockers remain explicit | The closeout contains the required evidence sections. Latency and acceptance sections are recorded as BLOCKED rather than PASS. |
-| 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs through #144 are merged, but no final PASS PR can be honestly created until #138-#141 are resolved or approved. |
+| 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs through #148 are merged, but no final PASS PR can be honestly created until #138-#141 are resolved or approved. |
 | 25 | Closeout Final Verdict is `Customer submission DoD: PASS` | BLOCKED | Closeout final verdict remains BLOCKED and must stay that way until #138-#141 are closed or formally approved out of scope. |
 
 ## Minimal Restart Path

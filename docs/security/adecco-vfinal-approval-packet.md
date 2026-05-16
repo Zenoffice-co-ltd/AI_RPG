@@ -109,14 +109,15 @@ and compare p95 metrics before final submission.
 Current state:
 
 - `verify:acceptance -- --preflight` is ready when required vendor secrets are
-  resolved into process-local environment variables. In the latest shell
-  without those env values and without `apps/web/.env.local`, the preflight
-  stopped on Secret Manager `secretmanager.versions.access` permission denied.
+  resolved into process-local environment variables. A 2026-05-17 00:44 JST
+  rerun used process-local Secret Manager values without printing or persisting
+  them. A later current-shell preflight without process-local env values still
+  stops on Secret Manager `secretmanager.versions.access` permission denied.
 - Full `verify:acceptance` is blocked at the legacy
   `staffing_order_hearing_busy_manager_medium` ElevenLabs ConvAI judge step.
-- Latest rerun included `no-hidden-fact-leak` plus `no-coaching` on retry 1,
-  then `no-coaching` on retries 2 and 3. Codex is not applying the
-  no-coaching-only exception autonomously.
+- Latest rerun failed `no-coaching` on retry 1, `role-adherence` plus
+  `no-coaching` on retry 2, and `no-hidden-fact-leak` plus `no-coaching` on
+  retry 3. Codex is not applying the no-coaching-only exception autonomously.
 
 Approve one:
 
