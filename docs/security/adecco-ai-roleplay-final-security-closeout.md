@@ -1,6 +1,6 @@
 # Adecco AI Roleplay vFinal Security Closeout
 
-Status as of 2026-05-16 18:40 JST: code-level P0, PR-A production auth
+Status as of 2026-05-16 19:00 JST: code-level P0, PR-A production auth
 unblock, and PR-B no-key App Hosting backend separation evidence are complete.
 Customer submission DoD is still blocked by log retention, WAF, browser/voice
 E2E, latency, ZAP, acceptance, and final same-SHA production closeout evidence
@@ -248,7 +248,7 @@ Web/App Hosting SA IAM:
 Runtime env proof:
   PASS for adecco-roleplay-vfinal Cloud Run managed service:
     service=adecco-roleplay-vfinal
-    revision=adecco-roleplay-vfinal-build-2026-05-16-001
+    revision=adecco-roleplay-vfinal-build-2026-05-16-002
     serviceAccountName=firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com
     env secrets:
       XAI_RELAY_TICKET_SECRET
@@ -367,16 +367,19 @@ Cloud Run relay:
   traffic=100
 
 PR-B vFinal no-key App Hosting backend evidence:
+  PR=124 merged
+  git_sha=b712f80850a763b4eac7ca9affa5da364eb837f3
   backend=adecco-roleplay-vfinal
   backend_uri=adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app
   service_account=firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com
-  rollout=build-2026-05-16-001
+  rollout=build-2026-05-16-002
   rollout_state=SUCCEEDED
-  revision=adecco-roleplay-vfinal-build-2026-05-16-001
+  revision=adecco-roleplay-vfinal-build-2026-05-16-002
   traffic=100
   apphosting_config=apps/web/apphosting.vfinal.yaml
   deploy_script=pnpm deploy:adecco-roleplay-vfinal:gcloud
-  deploy_evidence=out/adecco_roleplay_gcloud_deploy/2026-05-16T09-31-59-357Z/summary.json
+  deploy_evidence=out/adecco_roleplay_gcloud_deploy/2026-05-16T09-47-23-477Z/summary.json
+  post_merge_smoke=PASS invite consume 307; session 200; demoSlug/backend/wsUrl expected
 
 Existing comparison route non-regression:
   PASS 2026-05-16: shared backend session API smoke returned 200 for:
