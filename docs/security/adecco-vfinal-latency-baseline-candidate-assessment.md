@@ -60,6 +60,22 @@ metrics.
   above: 1/1, 5/5, and two 20/20 current-vFinal samples. None is a
   pre-vFinal same-environment, same-scenario, >=20-session baseline.
 
+2026-05-17 05:34 JST scoped latency artifact inventory guard:
+
+- Added `corepack pnpm grok:first-vfinal:latency-artifact-inventory` so #140
+  can be rechecked without an unbounded `C:\dev\AI_RPG*\out\**\summary.json`
+  scan.
+- Command:
+  `corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked --root out\grok_first_vfinal_latency`.
+- Result: PASS for expected BLOCKED state.
+- The scoped inventory visited 4 `summary.json` files, found 4 artifacts with
+  the three required latency metrics, found 2 artifacts with denominator >=20
+  and zero failed runs, found 2 current-vFinal-only candidates, and found 0
+  explicit pre-vFinal baseline candidates.
+- This guard is an inventory helper only. It does not approve a baseline and
+  does not replace `corepack pnpm grok:first-vfinal:latency-compare` once an
+  approved pre-vFinal baseline exists.
+
 ## Rejected Baseline Candidates
 
 | Candidate family | Example artifact | Runs | Reason it is not a strict baseline |
@@ -92,6 +108,10 @@ The next valid paths are:
 Comparison command once an approved baseline exists:
 
 ```bash
+corepack pnpm grok:first-vfinal:latency-artifact-inventory -- \
+  --expect=blocked \
+  --root out\grok_first_vfinal_latency
+
 corepack pnpm grok:first-vfinal:latency-compare -- \
   --baseline <pre-vFinal-summary.json> \
   --current out/grok_first_vfinal_latency/2026-05-16T14-32-01-504Z/summary.json \
