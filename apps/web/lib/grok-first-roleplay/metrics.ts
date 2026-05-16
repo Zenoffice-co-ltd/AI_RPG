@@ -84,6 +84,23 @@ export function logGrokFirstVFinalServerEvent(input: {
   );
 }
 
+export function logGrokFirstVFinalAuthEvent(input: {
+  phase: "invite.consume" | "session.auth" | "event.auth";
+  reason: string;
+  participantIdHash?: string | undefined;
+}) {
+  console.info(
+    JSON.stringify({
+      scope: "grokFirstVFinal",
+      kind: "auth.diagnostic",
+      phase: input.phase,
+      reason: input.reason,
+      participantIdHash: input.participantIdHash ?? null,
+      timestamp: new Date().toISOString(),
+    })
+  );
+}
+
 export function assertFixedAnswerEliminationMetric(metric: GrokFirstV50Metric) {
   if (
     metric.businessRegisteredSpeechHitCount !== 0 ||

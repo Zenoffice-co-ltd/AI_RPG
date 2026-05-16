@@ -19,6 +19,18 @@ runtime issues listed in this document.
 - Baseline prompt hash: blocked until vFinal session contract returns 200 in
   production
 
+## Official Docs Checked
+
+Checked on 2026-05-16 before starting the vFinal submission unblock work.
+
+| Area | Official doc | Adoption decision |
+|---|---|---|
+| Firebase App Hosting backend/config/secrets/service account | https://firebase.google.com/docs/app-hosting/configure | Keep deploy evidence tied to App Hosting backend config and Secret Manager references. Use `apphosting.vfinal.yaml` only for the later dedicated no-key runtime phase; PR-A does not change backend topology. |
+| Cloud Logging buckets/sinks/exclusions/retention | https://docs.cloud.google.com/logging/docs/buckets and https://docs.cloud.google.com/logging/docs/routing/overview | Later infra phase must create or update a metadata-only bucket/sink with retention >= 180 days. PR-A removes raw invite tokens from request URLs so request logging is no longer the primary mitigation. |
+| Cloud Armor security policy / preview mode / rate limiting | https://cloud.google.com/armor/docs/configure-security-policies and https://docs.cloud.google.com/armor/docs/rate-limiting-overview | Later infra phase must apply Cloud Armor to the relay backend in preview/log mode first. Application-level rate limits remain in vFinal `/access`, `/invite/consume`, `/session`, and `/event`. |
+| External Application Load Balancer / WebSocket support | https://cloud.google.com/load-balancing/docs/https | Google Cloud HTTP(S)-based load balancers support WebSocket upgrade without extra proxy configuration. WAF changes must not inspect streaming audio frames or break upgrade. |
+| Secret Manager IAM / secretAccessor scope | https://cloud.google.com/secret-manager/docs/access-control and https://docs.cloud.google.com/secret-manager/docs/best-practices | Later no-key runtime phase must enforce least privilege: relay keeps `XAI_API_KEY`; vFinal Web runtime must not have `XAI_API_KEY` access. |
+
 ## Session Contract Evidence
 
 The session response must return only public metadata and relay auth. It must
@@ -33,6 +45,12 @@ curl result:
   Manager values available to the operator shell. /demo/adecco-roleplay-vFinal/access
   also returned 403 for generated invite tokens. This blocks live browser and
   relay WebSocket evidence.
+
+PR-A local diagnostic:
+  PASS 2026-05-16: after normalizing signing helper secrets, a vFinal invite
+  generated from Secret Manager values is accepted by the local production
+  verifier, sets a scoped API cookie, and that cookie verifies for session
+  access. Production redeploy evidence is still required.
 
 Safe negative checks from the 401 response:
   instructions=false
@@ -123,7 +141,8 @@ Sensitive log scan command/result:
 Invite URL shape:
 
 ```text
-/demo/adecco-roleplay-vFinal/access?invite=<signedInviteToken>
+/demo/adecco-roleplay-vFinal/access#invite=<signedInviteToken>
+  -> POST /api/grok-first-vFinal/invite/consume
 ```
 
 Cookie scope:
@@ -138,11 +157,16 @@ Logs may contain only HMAC-derived `participantIdHash`.
 ```text
 Cookie capture:
   BLOCKED: /access currently returns 403 for generated invite tokens.
+  PR-A changes /access to a fragment bootstrap and moves invite consumption to
+  POST /api/grok-first-vFinal/invite/consume so raw invite tokens are not sent
+  in the HTTP request line.
 participantIdHash log sample:
   BLOCKED until /access or /session succeeds.
 raw participant/token scan:
   BLOCKED: see Logging And Retention Evidence. Raw invite query logging was
   observed before the sink exclusion was added.
+  PR-A code path no longer requires query invite tokens; production sensitive
+  log scan remains required after redeploy.
 ```
 
 ## Secret / IAM Evidence
