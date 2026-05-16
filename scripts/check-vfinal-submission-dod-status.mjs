@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { extname, join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { inflateRawSync } from "node:zlib";
 
 const root = process.cwd();
@@ -8,6 +9,9 @@ const workbookPaths = [
   ...listArgs("workbook"),
   ...envList("VFINAL_SUBMISSION_DOD_WORKBOOKS"),
 ];
+const shouldCheckGithubIssues =
+  boolArg("check-github-issues") || process.env.VFINAL_SUBMISSION_DOD_CHECK_GITHUB_ISSUES === "1";
+const requiredIssues = [138, 139, 140, 141];
 const allowedExpected = new Set(["auto", "blocked", "pass"]);
 if (!allowedExpected.has(expected)) {
   console.error(`Invalid --expect value: ${expected}. Use auto, blocked, or pass.`);
@@ -87,6 +91,9 @@ if (normalizedExpected === "pass") {
 const workbookResults = workbookPaths.map((path) =>
   checkWorkbook(path, normalizedExpected)
 );
+const githubIssues = shouldCheckGithubIssues
+  ? checkGithubIssues(normalizedExpected)
+  : [];
 
 if (failures.length > 0) {
   console.error("vFinal customer submission DoD status check FAILED");
@@ -106,11 +113,46 @@ console.log(
       questionnaireMapStatus,
       blockers: normalizedExpected === "blocked" ? ["#138", "#139", "#140", "#141"] : [],
       workbooks: workbookResults,
+      githubIssues,
     },
     null,
     2
   )
 );
+
+function checkGithubIssues(expectedStatus) {
+  const results = [];
+  for (const number of requiredIssues) {
+    const issue = readGithubIssue(number);
+    results.push(issue);
+    if (!issue.ok) continue;
+    if (expectedStatus === "blocked" && issue.state !== "OPEN") {
+      failures.push(`#${number} should stay OPEN while customer submission DoD is blocked; got ${issue.state}`);
+    }
+    if (expectedStatus === "pass" && issue.state !== "CLOSED") {
+      failures.push(`#${number} must be CLOSED before customer submission DoD PASS; got ${issue.state}`);
+    }
+  }
+  return results;
+}
+
+function readGithubIssue(number) {
+  const result = spawnSync(
+    "gh",
+    ["issue", "view", String(number), "--json", "number,state,title,updatedAt"],
+    { cwd: root, encoding: "utf8", windowsHide: true }
+  );
+  if (result.status !== 0) {
+    failures.push(`#${number} GitHub issue lookup failed: ${(result.stderr || result.stdout).trim()}`);
+    return { number, ok: false };
+  }
+  try {
+    return { ok: true, ...JSON.parse(result.stdout) };
+  } catch (error) {
+    failures.push(`#${number} GitHub issue JSON parse failed: ${error.message}`);
+    return { number, ok: false };
+  }
+}
 
 function checkWorkbook(path, expectedStatus) {
   const result = { path };
@@ -359,6 +401,15 @@ function stringArg(name, fallback) {
   const prefix = `--${name}=`;
   const arg = process.argv.find((value) => value.startsWith(prefix));
   return arg ? arg.slice(prefix.length) : fallback;
+}
+
+function boolArg(name) {
+  const flag = `--${name}`;
+  const prefix = `${flag}=`;
+  const value = process.argv.find((arg) => arg === flag || arg.startsWith(prefix));
+  if (!value) return false;
+  if (value === flag) return true;
+  return !["0", "false", "no"].includes(value.slice(prefix.length).toLowerCase());
 }
 
 function listArgs(name) {

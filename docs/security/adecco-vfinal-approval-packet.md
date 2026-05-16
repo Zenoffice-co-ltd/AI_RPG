@@ -149,6 +149,7 @@ After approvals or fresh evidence are recorded:
 git diff --check
 corepack pnpm grok:vfinal-security-invariants
 corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
+  --check-github-issues \
   --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" \
   --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
