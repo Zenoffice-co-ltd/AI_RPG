@@ -812,6 +812,22 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal cross-worktree latency baseline search
+
+- Searched `C:\dev\AI_RPG*\out\**\summary.json` across local worktrees for
+  the required #140 comparison metrics: `sessionApiMs`,
+  `firstAudioDeltaMs`, and `firstAudibleAudioMs`.
+- Many v50, v25, older Grok Voice, and browser audio E2E summaries contained
+  one or more latency/event fields, but only the four
+  `C:\dev\AI_RPG_vfinal_pr\out\grok_first_vfinal_latency\*\summary.json`
+  artifacts contained all three required vFinal comparison metrics.
+- The four matching files are the already-known current-vFinal sampler outputs
+  with denominators 1, 5, 20, and 20. No matching artifact was a pre-vFinal
+  same-environment, same-scenario, >=20-session baseline.
+- #140 remains BLOCKED pending an approved baseline source or approved
+  baseline collection path, followed by
+  `corepack pnpm grok:first-vfinal:latency-compare` PASS.
+
 ### 2026-05-17 — vFinal legacy XAI scope docs/IAM recheck
 
 - Rechecked current official docs before the #139 read-only IAM/config review:

@@ -48,6 +48,18 @@ No local `out/` artifact found in this rescan was both pre-vFinal and a
 same-environment, same-scenario, >=20-session baseline with the required
 metrics.
 
+2026-05-17 04:52 JST cross-worktree artifact search:
+
+- Searched `C:\dev\AI_RPG*\out\**\summary.json` across local worktrees for
+  `sessionApiMs`, `firstAudioDeltaMs`, and `firstAudibleAudioMs`.
+- Many v50, v25, older Grok Voice, and browser audio E2E summaries mentioned
+  one or more latency/event fields, but only the four
+  `C:\dev\AI_RPG_vfinal_pr\out\grok_first_vfinal_latency\*\summary.json`
+  artifacts contained all three required vFinal comparison metrics.
+- Those four artifacts are the same current-vFinal sampler outputs listed
+  above: 1/1, 5/5, and two 20/20 current-vFinal samples. None is a
+  pre-vFinal same-environment, same-scenario, >=20-session baseline.
+
 ## Rejected Baseline Candidates
 
 | Candidate family | Example artifact | Runs | Reason it is not a strict baseline |
