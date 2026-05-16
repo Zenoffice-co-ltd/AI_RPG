@@ -40,25 +40,39 @@ transcript, audio/base64, or tool definitions.
 
 ```text
 curl result:
-  BLOCKED 2026-05-16: /api/grok-first-vFinal/session returned 401 with a
-  syntactically valid vFinal API session cookie generated from the Secret
-  Manager values available to the operator shell. /demo/adecco-roleplay-vFinal/access
-  also returned 403 for generated invite tokens. This blocks live browser and
-  relay WebSocket evidence.
+  PASS 2026-05-16: POST /api/grok-first-vFinal/invite/consume returned 307 and
+  set roleplay_vfinal_access / roleplay_vfinal_api_access. POST
+  /api/grok-first-vFinal/session returned 200 in 0.190s using the scoped API
+  cookie from the consume response.
 
 PR-A local diagnostic:
   PASS 2026-05-16: after normalizing signing helper secrets, a vFinal invite
   generated from Secret Manager values is accepted by the local production
   verifier, sets a scoped API cookie, and that cookie verifies for session
-  access. Production redeploy evidence is still required.
+  access.
 
-Safe negative checks from the 401 response:
+Production session contract:
+  sessionIdPrefix=gfvfinal_
+  demoSlug=adecco-roleplay-vFinal
+  backend=grok-first-vFinal
+  scenarioId=staffing_order_hearing_adecco_manufacturer_busy_manager_medium_vfinal
+  promptVersion=grok-first-v50.6-2026-05-15
+  promptHash=6cca32a59894
+  guardrailVersion=grok-first-vfinal-guard-2026-05-16
+  realtimeTransport=mendan_cloud_run_relay_wss
+  wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay
+  realtimeAuth.mode=mendan_relay_subprotocol
+  realtimeAuth.protocol=mendan-relay-v1
+  relay ticket present=true
+
+Safe negative checks from the 200 response:
   instructions=false
   firstMessage=false
   hiddenAssistantHistory=false
   ephemeralToken=false
   XAI_API_KEY=false
   transcript=false
+  audioBase64=false
   tools=false
 ```
 
@@ -85,9 +99,9 @@ Direct api.x.ai connection count:
 - Cloud Run service: `xai-realtime-relay`
 - Service account:
   `xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com`
-- Revision: `xai-realtime-relay-00011-dt6`
+- Revision: `xai-realtime-relay-00012-gdb`
 - Traffic %: `100`
-- Git SHA: `bc8de3dc937e2feba0b398ff6c72476a4d79f26b`
+- Git SHA: `ac321404be1553fe8984b6daad1ab5e4ba8e86a3`
 
 The relay performs server-side `session.update`, injects hidden assistant
 history, queues client frames until setup is complete, strips client
@@ -156,17 +170,19 @@ Logs may contain only HMAC-derived `participantIdHash`.
 
 ```text
 Cookie capture:
-  BLOCKED: /access currently returns 403 for generated invite tokens.
+  PASS 2026-05-16: POST /api/grok-first-vFinal/invite/consume set
+  roleplay_vfinal_access and roleplay_vfinal_api_access.
   PR-A changes /access to a fragment bootstrap and moves invite consumption to
   POST /api/grok-first-vFinal/invite/consume so raw invite tokens are not sent
   in the HTTP request line.
 participantIdHash log sample:
   BLOCKED until /access or /session succeeds.
 raw participant/token scan:
-  BLOCKED: see Logging And Retention Evidence. Raw invite query logging was
-  observed before the sink exclusion was added.
-  PR-A code path no longer requires query invite tokens; production sensitive
-  log scan remains required after redeploy.
+  PASS scoped scan since PR-A deploy: Cloud Logging requestUrl hits for
+  /demo/adecco-roleplay-vFinal/access?invite= were 0 after
+  build-2026-05-16-009 rollout. POST /api/grok-first-vFinal/invite/consume
+  appeared with no token in requestUrl.
+  Full sensitive log scan remains required for final submission.
 ```
 
 ## Secret / IAM Evidence
@@ -277,10 +293,10 @@ verify:acceptance:
 
 ## Deploy Evidence
 
-- App Hosting Git SHA: `bc8de3dc937e2feba0b398ff6c72476a4d79f26b`
-- App Hosting rollout ID: `build-2026-05-16-007`
-- Cloud Run relay Git SHA: `bc8de3dc937e2feba0b398ff6c72476a4d79f26b`
-- Cloud Run relay revision: `xai-realtime-relay-00011-dt6`
+- App Hosting Git SHA: `ac321404be1553fe8984b6daad1ab5e4ba8e86a3`
+- App Hosting rollout ID: `build-2026-05-16-009`
+- Cloud Run relay Git SHA: `ac321404be1553fe8984b6daad1ab5e4ba8e86a3`
+- Cloud Run relay revision: `xai-realtime-relay-00012-gdb`
 - Cloud Run relay traffic %: `100`
 
 App Hosting and Cloud Run relay must be deployed from the same Git SHA.
@@ -290,14 +306,14 @@ Current same-SHA deploy evidence:
 ```text
 App Hosting:
   backend=adecco-roleplay
-  rollout=build-2026-05-16-007
-  revision=adecco-roleplay-build-2026-05-16-007
+  rollout=build-2026-05-16-009
+  revision=adecco-roleplay-build-2026-05-16-009
   traffic=100
 
 Cloud Run relay:
   service=xai-realtime-relay
-  image=gcr.io/adecco-mendan/xai-realtime-relay:bc8de3d
-  revision=xai-realtime-relay-00011-dt6
+  image=gcr.io/adecco-mendan/xai-realtime-relay:ac32140
+  revision=xai-realtime-relay-00012-gdb
   traffic=100
 ```
 
