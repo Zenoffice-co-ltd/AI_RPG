@@ -23,7 +23,7 @@ Current vFinal blockers:
 | --- | --- | --- |
 | #138 | Submitted URL decision | Approve the dedicated hosted.app URL for customer submission, or map an active dedicated vFinal `mendan.biz` custom domain to the dedicated backend. |
 | #139 | Legacy shared App Hosting `XAI_API_KEY` scope | Approve legacy shared direct/comparison routes as outside submitted vFinal scope, or migrate/de-scope them and remove shared App Hosting `XAI_API_KEY` access. |
-| #140 | Strict pre-vFinal latency baseline | Approve or collect a same-environment, same-scenario, >=20-session pre-vFinal baseline, compare it with the current-vFinal sample using `corepack pnpm grok:first-vfinal:latency-compare`, and record PASS against the documented thresholds. |
+| #140 | Strict pre-vFinal latency baseline | Approve or collect a same-environment, same-scenario, >=20-session pre-vFinal baseline, compare it with the current-vFinal sample using `corepack pnpm grok:first-vfinal:latency-compare`, and record PASS against the documented p95 thresholds plus closeCode1006 / `relay.error` counter comparison. |
 | #141 | Canonical `verify:acceptance` closure | Obtain clean `verify:acceptance` PASS, or formally approve the known legacy ConvAI judge blocker as outside submitted vFinal scope. |
 | #171 | Questionnaire workbook human confirmations | Confirm or rewrite the mapped questionnaire cells before treating the security-checksheet drafts as final submission artifacts. |
 
@@ -43,6 +43,15 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
 If an OPEN blocker is resolved by approval comment instead of issue closure,
 `--approval-author=<approver-github-login>` or
 `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required.
+
+Useful blocked-state prechecks before requesting approval:
+
+```bash
+corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked
+corepack pnpm grok:vfinal-legacy-xai-scope -- --expect=blocked
+corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked \
+  --root out\grok_first_vfinal_latency
+```
 
 Do not change the vFinal closeout final verdict to
 `Customer submission DoD: PASS` until the guard above passes and the final PR is

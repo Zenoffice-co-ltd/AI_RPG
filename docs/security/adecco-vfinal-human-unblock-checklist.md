@@ -49,6 +49,11 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
 
 `--approval-author` is required only when any blocker issue remains OPEN and is
 resolved by approval comment instead of closure.
+PASS mode also validates concrete evidence markers in the blocker inventories,
+including submitted-URL smoke, service-account / key scope evidence, #140
+latency comparison output with closeCode1006 / `relay.error`, acceptance
+evidence, and workbook artifact markers. Top-level `PASS` wording alone is not
+accepted as final evidence.
 
 For a read-only #138 hosted.app/custom-domain candidate precheck, run:
 

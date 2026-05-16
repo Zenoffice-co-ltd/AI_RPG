@@ -46,6 +46,17 @@ tracked items:
   Grok Voice roleplay is enabled. #139 remains blocked pending explicit scope
   approval or route migration/de-scope plus IAM removal and regression
   evidence.
+- 2026-05-17 05:49 JST #139 repo-local code/config guard:
+  `corepack pnpm grok:vfinal-legacy-xai-scope -- --expect=blocked` passed for
+  expected BLOCKED state. The guard confirmed the submitted vFinal App Hosting
+  config, session route, and vFinal session helper omit `XAI_API_KEY`, while
+  the vFinal session helper uses `XAI_RELAY_TICKET_SECRET` and the relay WSS
+  URL. It also confirmed the legacy shared runtime still has five XAI
+  dependency markers: shared `apphosting.yaml` binds `XAI_API_KEY`,
+  `server-env.ts` defines it, production env assertion requires it,
+  `/api/v3/session` can use `env.XAI_API_KEY`, and Grok Voice TTS uses
+  `env.XAI_API_KEY`. This strengthens #139 inventory evidence but does not
+  replace scope approval or migration/IAM removal.
 - 2026-05-17 04:44 JST acceptance permission/input recheck:
   active gcloud account was `iwase@zenoffice.co.jp` with active project
   `zapier-transfer`. Process-local `FIREBASE_PROJECT_ID`,
@@ -120,6 +131,15 @@ tracked items:
   `mendan.biz` candidates still lack verified DNS mapping in this environment.
   This narrows the #138 decision but does not replace approval or custom-domain
   mapping/certificate evidence.
+- 2026-05-17 05:43 JST #138 submitted URL candidate guard:
+  `corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked`
+  passed for expected BLOCKED state. The hosted.app candidate returned HTTP 200
+  and `active: true`; `roleplay-vfinal.mendan.biz` and
+  `adecco-roleplay.mendan.biz` did not return HTTP success and were
+  `active: false`. The helper records Node DNS output as diagnostic because
+  HTTPS fetch can succeed in this environment even when Node DNS lookup reports
+  resolver errors. This makes #138 candidate rechecks reproducible but does not
+  approve the submitted URL.
 - 2026-05-17 01:35 JST hosted.app start smoke:
   `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start` passed against
   `https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`.
@@ -251,6 +271,14 @@ tracked items:
   threshold failures, and using the same summary artifact as both baseline and
   current. This improves future #140 evidence quality but does not resolve
   #140 because the baseline itself is still missing.
+- 2026-05-17 05:54 JST #140 operational-counter inventory guard:
+  `corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked --root out\grok_first_vfinal_latency`
+  passed for expected BLOCKED state after being tightened to report operational
+  counter readiness. The inventory found 4 strict metric candidates, 2
+  denominator >=20 current-vFinal-only candidates, 0 artifacts with both
+  closeCode1006 and `relay.error` counters embedded, and 0 comparison-ready
+  explicit pre-vFinal baseline candidates. This prevents p95-only artifacts
+  from being treated as final #140 PASS evidence.
 - Security-checksheet submission uses the same final blocker set as customer
   submission because the source questionnaire workbooks and questionnaire map
   must stay BLOCKED until #138, #139, #141, and #171 are resolved or formally
@@ -276,9 +304,9 @@ tracked items:
 | 14 | Cloud Logging relay phases are present: `client.connected`, `ticket.accepted`, `upstream.connected`, `first.upstream.audio.delta` | PASS | Closeout records all required relay phases after dedicated vFinal browser text/voice E2E. |
 | 15 | Live text E2E PASS | PASS | `corepack pnpm grok:first-vfinal:browser-e2e -- --mode text` is recorded as PASS after same-SHA deploy. |
 | 16 | Live voice E2E PASS | PASS | `corepack pnpm grok:first-vfinal:browser-e2e -- --mode voice` is recorded as PASS after same-SHA deploy. |
-| 17 | Latency baseline comparison PASS: session API p95 <= baseline + 50ms, firstAudioDeltaMs p95 <= baseline + 100ms, firstAudibleAudioMs p95 <= baseline + 100ms | BLOCKED by #140 | Current-vFinal 20-session sample exists and passed, and PR #177 added `corepack pnpm grok:first-vfinal:latency-compare` for the future strict comparison. No approved same-environment, same-scenario, >=20-session pre-vFinal baseline exists yet. |
-| 18 | WSS close code 1006 increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded closeCode1006=0. Formal comparison remains tied to #140. |
-| 19 | `relay.error` increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded relay.error=0. Formal comparison remains tied to #140. |
+| 17 | Latency baseline comparison PASS: session API p95 <= baseline + 50ms, firstAudioDeltaMs p95 <= baseline + 100ms, firstAudibleAudioMs p95 <= baseline + 100ms | BLOCKED by #140 | Current-vFinal 20-session sample exists and passed, and `corepack pnpm grok:first-vfinal:latency-compare` is available for the future strict comparison. No approved same-environment, same-scenario, >=20-session pre-vFinal baseline exists yet, and the latest inventory found 0 comparison-ready explicit pre-vFinal candidates. |
+| 18 | WSS close code 1006 increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded closeCode1006=0. Formal comparison remains tied to #140, and the latest inventory found 0 artifacts with embedded operational counters. |
+| 19 | `relay.error` increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded relay.error=0. Formal comparison remains tied to #140, and p95-only artifacts cannot satisfy final comparison readiness without `relay.error` counter evidence. |
 | 20 | ZAP baseline/passive scan PASS | PASS | ZAP baseline/passive exitCode 0, FAIL=0, WARN=8 documented; no active scan was run. |
 | 21 | `verify:acceptance` PASS or explicit legacy blocker approval | BLOCKED by #141 | Latest 2026-05-17 00:44 JST full rerun had process-local secrets, reached the legacy publish scenario, and failed `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` across retries. This is not a vFinal runtime regression, but it is not PASS and is not eligible for the no-coaching-only exception without customer/operator approval. The acceptance blocker inventory is recorded in `docs/security/adecco-vfinal-acceptance-blocker-inventory.md`. |
 | 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED | Closeout still intentionally lists #138, #139, #140, #141, and #171 as unresolved. The submitted URL decision inventory is recorded in `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`. |

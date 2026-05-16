@@ -46,7 +46,7 @@ Workbook alignment update on 2026-05-17 JST:
 |---|---|---|
 | Submitted URL | BLOCKED by issue #138 | Approve the dedicated hosted.app URL for submission, or map an active dedicated vFinal `mendan.biz` custom domain to `adecco-roleplay-vfinal`. |
 | Submitted runtime scope | BLOCKED by issue #139 | Approve that only the dedicated no-key vFinal backend is in submission scope and legacy shared `XAI_API_KEY` access is out of scope, or migrate/remove the legacy dependency. |
-| Latency comparison | BLOCKED by issue #140 | Compare current-vFinal 20-session p95 evidence with an approved or newly collected >=20-session pre-vFinal baseline. |
+| Latency comparison | BLOCKED by issue #140 | Compare current-vFinal 20-session evidence with an approved or newly collected >=20-session pre-vFinal baseline using the required p95 metrics plus closeCode1006 / `relay.error` counters. |
 | `verify:acceptance` | BLOCKED by issue #141 | Obtain a clean full PASS, or formally approve the known legacy ConvAI judge failure as outside vFinal submission scope. |
 | Workbook human confirmations | BLOCKED by issue #171 | Confirm or rewrite the cells listed in `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`. |
 | Closeout final verdict | BLOCKED | Keep `docs/security/adecco-ai-roleplay-final-security-closeout.md` as BLOCKED for both customer submission and security-checksheet submission until all gates above are resolved or approved. |
@@ -58,10 +58,10 @@ These statements are currently supported by code/infrastructure evidence in
 
 | Questionnaire topic | Evidence-backed answer scope | Evidence |
 |---|---|---|
-| Submitted URL | Not supported as final until #138 is approved or mapped. | Inventory: `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`; hosted.app is live but not formally approved, and dedicated `mendan.biz` candidates lack verified DNS mapping. |
+| Submitted URL | Not supported as final until #138 is approved or mapped. | Inventory and guard: `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`; `corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked` shows hosted.app is active but not formally approved, and dedicated `mendan.biz` candidates are not active. |
 | Browser does not connect directly to xAI | Supported for dedicated vFinal hosted.app E2E evidence. Browser WebSocket was only `wss://voice.mendan.biz/api/v3/realtime-relay`; direct `api.x.ai` count was 0. | Post same-SHA text/voice browser E2E. |
 | API key is not exposed to browser or vFinal Web runtime | Supported for the dedicated `adecco-roleplay-vfinal` App Hosting backend and service account. | vFinal App Hosting env/IAM proof; `apphosting.vfinal.yaml` omits `XAI_API_KEY`. |
-| Legacy shared `XAI_API_KEY` access | Not supported as submitted vFinal scope until #139 is approved or migrated/removed. | Inventory: `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`; legacy shared `/api/v3` direct/session/TTS paths still depend on `XAI_API_KEY`. |
+| Legacy shared `XAI_API_KEY` access | Not supported as submitted vFinal scope until #139 is approved or migrated/removed. | Inventory and guard: `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`; `corepack pnpm grok:vfinal-legacy-xai-scope -- --expect=blocked` confirms submitted vFinal remains no-key while legacy shared `/api/v3` direct/session/TTS paths still depend on `XAI_API_KEY`. |
 | xAI connection uses Cloud Run relay | Supported for vFinal evidence. | Session contract and relay logs show `mendan_cloud_run_relay_wss`, ticket acceptance, upstream connection, and first upstream audio delta. |
 | Prompt and hidden history are server-side | Supported. Session response excludes prompt/instructions/hidden history; relay injects setup server-side. | Session contract evidence and relay tests. |
 | Invite/session auth uses scoped cookies and short-lived relay ticket | Supported. | Invite consume 307, session 200, scoped cookie paths, relay subprotocol ticket. |
@@ -69,7 +69,7 @@ These statements are currently supported by code/infrastructure evidence in
 | Cloud Armor / WAF | Supported only as relay LB Cloud Armor preview/log mode plus application rate limits, not app-wide enforced WAF. | Policy `xai-realtime-relay-preview-policy`; preview/log rules and relay WSS smoke. |
 | ZAP baseline/passive scan | Supported. | ZAP baseline/passive exitCode 0, FAIL=0, WARN=8 documented; no active scan was run. |
 | Current-vFinal latency sample | Supported only as current-vFinal scoped evidence, not formal comparison PASS. | 20/20 current-vFinal voice sample passed; pre-vFinal baseline missing. |
-| Pre-vFinal latency baseline | Not supported yet. | Candidate assessment: `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`; no approved strict >=20-session pre-vFinal baseline found. |
+| Pre-vFinal latency baseline | Not supported yet. | Candidate assessment and guards: `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`; no approved strict >=20-session pre-vFinal baseline found, and `corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked --root out\grok_first_vfinal_latency` reports 0 comparison-ready explicit pre-vFinal candidates with operational counters. |
 | Acceptance closure | Not supported yet. | Inventory: `docs/security/adecco-vfinal-acceptance-blocker-inventory.md`; latest full run failed legacy ConvAI judge paths and current-shell preflight lacks Secret Manager access. |
 
 ## Draft Answers Requiring Human Confirmation
@@ -111,8 +111,9 @@ The cell-level source for these items is tracked in
   comparison PASS, and `verify:acceptance` PASS must remain blocked or
   explicitly conditional until issues #138-#141 are resolved. For #140,
   "resolved" means a documented pre-vFinal baseline comparison within the
-  thresholds. Cell-level human confirmations must also remain blocked until
-  issue #171 is resolved.
+  thresholds, including closeCode1006 and `relay.error` counter comparison.
+  Cell-level human confirmations must also remain blocked until issue #171 is
+  resolved.
 
 ### TPISA Questionnaire
 
@@ -135,7 +136,7 @@ The cell-level source for these items is tracked in
 1. Resolve or formally approve issue #138.
 2. Resolve or formally approve issue #139.
 3. Resolve issue #140 with an approved >=20-session pre-vFinal baseline and
-   comparison.
+   comparison, including closeCode1006 and `relay.error` counters.
 4. Resolve or formally approve issue #141.
 5. Resolve or formally approve issue #171.
 6. Update both questionnaire workbooks so the final answers and
