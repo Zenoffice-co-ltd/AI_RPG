@@ -812,6 +812,23 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal #141 acceptance preflight input recheck
+
+- Rechecked current-shell acceptance inputs without printing secret values.
+  Process-local values were absent for `FIREBASE_PROJECT_ID`,
+  `SECRET_SOURCE_PROJECT_ID`, `QUEUE_SHARED_SECRET`, `OPENAI_API_KEY`,
+  `ELEVENLABS_API_KEY`, `LIVEAVATAR_API_KEY`,
+  `FIREBASE_CREDENTIALS_SECRET_NAME`, `DEFAULT_ELEVEN_VOICE_ID`,
+  `DEMO_ACCESS_TOKEN`, `XAI_API_KEY`, and `XAI_RELAY_TICKET_SECRET`.
+- Active gcloud account was `iwase@zenoffice.co.jp`; active project was
+  `zapier-transfer`.
+- `corepack pnpm verify:acceptance -- --preflight` still failed before product
+  checks with Secret Manager `secretmanager.versions.access` permission denied.
+- No secret values were read, printed, persisted, or copied into docs.
+- #141 remains BLOCKED pending clean full `verify:acceptance` PASS with
+  adequate process-local inputs/permissions, explicit legacy blocker approval,
+  or legacy judge path re-scope/fix followed by a clean gate.
+
 ### 2026-05-17 — vFinal #140 latency artifact inventory guard
 
 - Added `corepack pnpm grok:first-vfinal:latency-artifact-inventory` as a
