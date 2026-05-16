@@ -789,6 +789,46 @@ describe("grok-first v50 runtime", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("uses relay server-side setup for vFinal without browser session.update", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("{}", { status: 200 }));
+    const realtimeInstances: FakeRealtime[] = [];
+    const vfinalSession = {
+      ...testSession("vfinal-session"),
+      demoSlug: "adecco-roleplay-vFinal",
+      backend: "grok-first-vFinal",
+    } as GrokFirstV50Session;
+    const { result } = renderHook(() =>
+      useGrokFirstRoleplayConversation("live", {
+        micEnabled: false,
+        fetchSession: vi.fn(() => Promise.resolve(vfinalSession)),
+        createRealtime: (opts) => {
+          const realtime = new FakeRealtime(opts);
+          realtimeInstances.push(realtime);
+          return realtime as never;
+        },
+        createAudioQueue: () => fakeAudioQueue() as never,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    expect(realtimeInstances).toHaveLength(1);
+    expect(realtimeInstances[0]?.sessionUpdateCount).toBe(0);
+    expect(realtimeInstances[0]?.assistantHistoryCount).toBe(0);
+    expect(realtimeInstances[0]?.serverSideSetupReadyCount).toBe(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/grok-first-v50/event",
+      expect.objectContaining({
+        body: expect.stringContaining("\"session.ready\""),
+        method: "POST",
+      }),
+    );
+  });
 });
 
 function listFiles(dir: string): string[] {
@@ -844,6 +884,9 @@ function testSession(sessionId: string): GrokFirstV50Session {
 class FakeRealtime {
   private ready = false;
   private closedByUs = false;
+  sessionUpdateCount = 0;
+  assistantHistoryCount = 0;
+  serverSideSetupReadyCount = 0;
 
   constructor(
     private readonly opts: {
@@ -862,9 +905,18 @@ class FakeRealtime {
     return this.ready;
   }
 
-  sendSessionUpdate() {}
+  sendSessionUpdate() {
+    this.sessionUpdateCount += 1;
+  }
 
   sendAssistantHistory() {
+    this.assistantHistoryCount += 1;
+    this.ready = true;
+    this.opts.onReady?.();
+  }
+
+  markServerSideSetupReady() {
+    this.serverSideSetupReadyCount += 1;
     this.ready = true;
     this.opts.onReady?.();
   }
