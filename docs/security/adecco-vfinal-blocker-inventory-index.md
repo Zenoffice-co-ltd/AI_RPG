@@ -24,6 +24,14 @@ being closed or formally approved.
 2026-05-17 JST recheck after PR #188 and PR #189:
 
 - #128, #138, #139, #140, #141, and #171 are still OPEN.
+- Fresh #141 permission/input recheck found the active gcloud account
+  `iwase@zenoffice.co.jp` on project `zapier-transfer`, with no process-local
+  `FIREBASE_PROJECT_ID`, `SECRET_SOURCE_PROJECT_ID`, `QUEUE_SHARED_SECRET`,
+  `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `LIVEAVATAR_API_KEY`, or
+  `FIREBASE_CREDENTIALS_SECRET_NAME`. The current shell still fails
+  `verify:acceptance -- --preflight` before product checks on Secret Manager
+  `secretmanager.versions.access`, so #141 remains blocked until the required
+  inputs/permissions or formal approval are supplied.
 - Fresh #171 source workbook recheck found both `vFinal提出DOD照合` first
   sheets still in `BLOCKED` mode with `Excel人間確認 (#171) BLOCKED`.
   All mapped #171 cells were non-empty, but confirmation/unresolved markers
