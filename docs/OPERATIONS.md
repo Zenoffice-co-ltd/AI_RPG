@@ -1012,6 +1012,12 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 - Negative check: `--expect=pass` failed as expected while closeout, audit,
   questionnaire map, and workbook status cells remain BLOCKED. No production
   changes were made.
+- 2026-05-17 follow-up: corrected workbook submitted-URL wording that still
+  referred to `roleplay.mendan.biz` as the browser data-flow URL. The source
+  drafts now state that #138 is pending and the submitted URL is either the
+  dedicated hosted.app candidate or an approved dedicated `mendan.biz` custom
+  domain. The guard now rejects the stale `roleplay.mendan.biz` submitted-flow
+  wording and requires `vFinal提出URLは#138未確定` in BLOCKED mode.
 - Follow-up guard update: the same command now accepts `--check-github-issues`.
   In BLOCKED mode it confirms #138, #139, #140, and #141 remain OPEN; in PASS
   mode it fails unless those four blocker issues are CLOSED, or

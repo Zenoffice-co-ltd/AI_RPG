@@ -65,6 +65,12 @@ const files = {
   audit: join(root, "docs", "security", "adecco-vfinal-customer-submission-dod-audit.md"),
   questionnaireMap: join(root, "docs", "security", "adecco-vfinal-questionnaire-submission-map.md"),
   approvalPacket: join(root, "docs", "security", "adecco-vfinal-approval-packet.md"),
+  blockerInventoryIndex: join(
+    root,
+    "docs",
+    "security",
+    "adecco-vfinal-blocker-inventory-index.md"
+  ),
   submittedUrlDecisionInventory: join(
     root,
     "docs",
@@ -125,6 +131,7 @@ const submittedUrlDecisionInventoryStatus = matchSubmittedUrlDecisionInventorySt
 const legacyXaiScopeInventoryStatus = matchLegacyXaiScopeInventoryStatus();
 const latencyBaselineAssessmentStatus = matchLatencyBaselineAssessmentStatus();
 const acceptanceBlockerInventoryStatus = matchAcceptanceBlockerInventoryStatus();
+const blockerInventoryIndexStatus = matchBlockerInventoryIndexStatus();
 
 const normalizedExpected =
   expected === "auto" ? closeoutVerdict?.toLowerCase() : expected;
@@ -138,6 +145,32 @@ if (normalizedExpected === "blocked") {
   requireEqual(legacyXaiScopeInventoryStatus, "BLOCKED", "legacy XAI scope inventory status");
   requireEqual(latencyBaselineAssessmentStatus, "BLOCKED", "latency baseline assessment status");
   requireEqual(acceptanceBlockerInventoryStatus, "BLOCKED", "acceptance blocker inventory status");
+  requireEqual(blockerInventoryIndexStatus, "BLOCKED", "blocker inventory index status");
+  requireIncludes(
+    source.blockerInventoryIndex,
+    "all blocker inventories still require resolution or approval",
+    "blocker inventory index blocked status"
+  );
+  for (const linkedDoc of [
+    "docs/security/adecco-vfinal-submitted-url-decision-inventory.md",
+    "docs/security/adecco-vfinal-legacy-xai-scope-inventory.md",
+    "docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md",
+    "docs/security/adecco-vfinal-acceptance-blocker-inventory.md",
+  ]) {
+    requireIncludes(source.blockerInventoryIndex, linkedDoc, `blocker inventory index link ${linkedDoc}`);
+  }
+  for (const [surfaceName, surface] of [
+    ["closeout", source.closeout],
+    ["audit", source.audit],
+    ["questionnaire map", source.questionnaireMap],
+    ["approval packet", source.approvalPacket],
+  ]) {
+    requireIncludes(
+      surface,
+      "docs/security/adecco-vfinal-blocker-inventory-index.md",
+      `${surfaceName} blocker inventory index link`
+    );
+  }
   requireIncludes(
     source.submittedUrlDecisionInventory,
     "submitted URL approval or custom domain mapping still required",
@@ -269,8 +302,19 @@ if (normalizedExpected === "pass") {
   requireEqual(legacyXaiScopeInventoryStatus, "PASS", "legacy XAI scope inventory status");
   requireEqual(latencyBaselineAssessmentStatus, "PASS", "latency baseline assessment status");
   requireEqual(acceptanceBlockerInventoryStatus, "PASS", "acceptance blocker inventory status");
+  requireEqual(blockerInventoryIndexStatus, "PASS", "blocker inventory index status");
   rejectIncludes(source.closeout, "Remaining blockers:", "closeout should not list blockers after PASS");
   rejectIncludes(source.audit, "Customer submission remains blocked", "audit should not say blocked after PASS");
+  rejectIncludes(
+    source.blockerInventoryIndex,
+    "all blocker inventories still require resolution or approval",
+    "blocker inventory index should not say resolution/approval required after PASS"
+  );
+  rejectIncludes(
+    source.blockerInventoryIndex,
+    "BLOCKED:",
+    "blocker inventory index should not list BLOCKED rows after PASS"
+  );
   rejectIncludes(
     source.submittedUrlDecisionInventory,
     "submitted URL approval or custom domain mapping still required",
@@ -361,6 +405,7 @@ console.log(
       legacyXaiScopeInventoryStatus,
       latencyBaselineAssessmentStatus,
       acceptanceBlockerInventoryStatus,
+      blockerInventoryIndexStatus,
       blockers: normalizedExpected === "blocked" ? ["#138", "#139", "#140", "#141"] : [],
       workbooks: workbookResults,
       githubIssues,
@@ -418,6 +463,19 @@ function matchAcceptanceBlockerInventoryStatus() {
   }
   failures.push(
     "acceptance blocker inventory status must be PASS or acceptance PASS or explicit legacy blocker approval still required"
+  );
+  return null;
+}
+
+function matchBlockerInventoryIndexStatus() {
+  const text = source.blockerInventoryIndex;
+  if (typeof text !== "string") return null;
+  if (/^Status as of .*?: \*\*PASS\b.*?\*\*\./m.test(text)) return "PASS";
+  if (/^Status as of .*?: \*\*all blocker inventories still require resolution or approval\*\*\./m.test(text)) {
+    return "BLOCKED";
+  }
+  failures.push(
+    "blocker inventory index status must be PASS or all blocker inventories still require resolution or approval"
   );
   return null;
 }
@@ -551,6 +609,17 @@ function checkWorkbook(path, expectedStatus) {
     .join("\n");
   if (allText.includes("プランが完了した前提")) {
     failures.push(`workbook still contains old completion premise wording: ${path}`);
+  }
+  for (const staleUrlClaim of [
+    "参加者ブラウザ -> roleplay.mendan.biz",
+    "ブラウザは roleplay.mendan.biz と voice.mendan.biz のみに接続",
+  ]) {
+    if (allText.includes(staleUrlClaim)) {
+      failures.push(`workbook still contains stale submitted URL wording (${staleUrlClaim}): ${path}`);
+    }
+  }
+  if (expectedStatus === "blocked" && !allText.includes("vFinal提出URLは#138未確定")) {
+    failures.push(`workbook missing #138 submitted URL uncertainty wording: ${path}`);
   }
   for (const forbidden of [
     "Customer submission DoD: PASS",
@@ -710,6 +779,8 @@ function xmlAttrs(source) {
 
 function decodeXml(value) {
   return value
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, decimal) => String.fromCodePoint(Number.parseInt(decimal, 10)))
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, "\"")

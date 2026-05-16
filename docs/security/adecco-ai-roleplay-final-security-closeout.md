@@ -24,6 +24,8 @@ The requirement-by-requirement customer submission audit is tracked in
 `docs/security/adecco-vfinal-customer-submission-dod-audit.md`.
 The human decision packet for the four remaining approval-sensitive blockers is
 tracked in `docs/security/adecco-vfinal-approval-packet.md`.
+The consolidated blocker inventory index is tracked in
+`docs/security/adecco-vfinal-blocker-inventory-index.md`.
 The #138 submitted URL decision inventory is tracked in
 `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`.
 The #139 legacy shared XAI scope inventory is tracked in
@@ -887,6 +889,8 @@ Questionnaire alignment:
 
 Human-decision tracking:
   - Umbrella blocker issue: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/128
+  - Consolidated blocker inventory index:
+    docs/security/adecco-vfinal-blocker-inventory-index.md
   - Domain/submitted URL decision: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/138
   - Legacy shared App Hosting XAI_API_KEY scope: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/139
   - Pre-vFinal latency baseline approval/collection: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/140
