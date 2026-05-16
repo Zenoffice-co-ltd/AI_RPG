@@ -112,6 +112,29 @@ denied on resource (or it may not exist).
 - #141 was reopened to avoid treating issue closure as clean acceptance PASS
   or approval. The valid resolution paths below remain unchanged.
 
+2026-05-17 07:48 JST current-shell preflight recheck:
+
+- `corepack pnpm grok:vfinal-acceptance-input-inventory -- --expect=blocked`
+  passed for expected BLOCKED. The helper checks only process environment and
+  `apps/web/.env.local` key presence; it does not read Secret Manager payloads.
+- `apps/web/.env.local` was absent. Active gcloud account was
+  `iwase@zenoffice.co.jp`; active gcloud project was `zapier-transfer`.
+- Missing direct inputs without Secret Manager were `FIREBASE_PROJECT_ID`,
+  `SECRET_SOURCE_PROJECT_ID`, and `QUEUE_SHARED_SECRET`.
+- Missing process/env-local overrides for Secret Manager fallback keys were
+  `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `LIVEAVATAR_API_KEY`,
+  `DEMO_ACCESS_TOKEN`, `XAI_API_KEY`, and `XAI_RELAY_TICKET_SECRET`.
+- Missing context/default inputs were `FIREBASE_CREDENTIALS_SECRET_NAME` and
+  `DEFAULT_ELEVEN_VOICE_ID`.
+- A fresh `corepack pnpm verify:acceptance -- --preflight` attempt still failed
+  before product checks with Secret Manager `secretmanager.versions.access`
+  permission denied.
+- No secret values were read, printed, persisted, or copied into docs. This
+  current-shell blocker does not supersede the earlier executable full-run
+  evidence that reached the legacy ConvAI judge path; #141 still requires a
+  clean full PASS, explicit legacy blocker approval, or legacy judge
+  fix/re-scope.
+
 This means a fresh clean rerun still requires one of:
 
 - process-local vendor secrets and project inputs supplied without printing or
