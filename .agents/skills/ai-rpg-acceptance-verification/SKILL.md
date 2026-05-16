@@ -50,22 +50,38 @@ Report scoped evidence precisely. A `5/5 x3` back-to-back fixed-guard harness is
 valuable, but it is not the same as Excel `13/13 x3` or `69/69` unless the same
 case set was executed.
 
+For v50-family voice E2E, `AGENTS.md` `## Voice E2E Natural Conversation SoT`
+is the acceptance source of truth. As of 2026-05-16, v50.8 fixed_external
+back-to-back stability is only scoped evidence. Human-test readiness requires
+normal sales naturalness first: Natural Smoke Text `30/30 x3`, Backchannel
+`50/50`, Customer-led Output Guard `100/100`, Natural Transition E2E `>=11/12`
+with P0 hard fail `0`, Voice/STT Natural Smoke P0 hard fail `0`, Fixed Guard P0
+pass, and PASS-case false-pass audit `0`.
+
 ## v50-family Production Evidence Order
 
 For `/demo/adecco-roleplay-v50*` work, use this order before broad acceptance:
 
 1. Targeted unit/typecheck for touched v50 files.
-2. Local focused fixed-guard or voice browser E2E, if the requested denominator
+2. Version / route sanity capture for the exact route: `demoSlug`, `backend`,
+   `promptVersion`, `guardrailVersion`, `promptHash`, commit SHA, model,
+   voice, `realtimeTransport`, and `session.created`. Missing provenance is
+   `INVALID RUN`, not PASS/FAIL.
+3. Natural conversation gates before fixed-guard-only claims: customer-led
+   output, backchannel/low-info, reveal depth, over-disclosure, audio leak, and
+   PASS-case false-pass audit. Use
+   `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md`.
+4. Local focused fixed-guard or voice browser E2E, if the requested denominator
    has a runner.
-3. Deploy through `pnpm deploy:adecco-roleplay` or
+5. Deploy through `pnpm deploy:adecco-roleplay` or
    `pnpm deploy:adecco-roleplay:gcloud`; avoid bare deploy except Cloud Build
    debugging.
-4. Production session API smoke for `/api/grok-first-v50*/session`.
-5. Production URL smoke with `pnpm grok:first-v50:prod-smoke`.
-6. Relay health/log check if `realtimeTransport=mendan_cloud_run_relay_wss`.
-7. Production `grokFirstV50` Cloud Logging query for the same `sessionId` via
+6. Production session API smoke for `/api/grok-first-v50*/session`.
+7. Production URL smoke with `pnpm grok:first-v50:prod-smoke`.
+8. Relay health/log check if `realtimeTransport=mendan_cloud_run_relay_wss`.
+9. Production `grokFirstV50` Cloud Logging query for the same `sessionId` via
    `pnpm grok:first-v50:prod-logs`.
-8. Only then run spreadsheet/full E2E or `pnpm verify:acceptance`.
+10. Only then run spreadsheet/full E2E or `pnpm verify:acceptance`.
 
 v50-family evidence is not emitted through `/api/v3/event`; use
 `/api/grok-first-v50*/event` and `jsonPayload.scope="grokFirstV50"`.
