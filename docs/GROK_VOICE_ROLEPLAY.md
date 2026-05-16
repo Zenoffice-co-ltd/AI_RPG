@@ -158,11 +158,16 @@ balancer; App Hosting direct custom domains rely on invite/session controls,
 application rate limits, secret isolation, and relay-side WAF/rate monitoring
 as compensating controls.
 
-Verification note: before claiming v50-family final DoD, map the requested
-case-set denominator to an executable runner. A dedicated 5-case back-to-back
-fixed_external harness is scoped evidence and is not a substitute for
+Verification note: `AGENTS.md` `## Voice E2E Natural Conversation SoT` is the
+current v50 voice E2E source of truth. Before claiming v50-family final DoD, map
+the requested case-set denominator to an executable runner. A dedicated 5-case
+back-to-back fixed_external harness is scoped evidence and is not a substitute
+for Natural Smoke `30/30 x3`, Backchannel `50/50`, Customer-led Output Guard
+`100/100`, Natural Transition E2E `>=11/12`, Voice/STT Natural Smoke,
 spreadsheet-defined `13/13 x3`, `69 P0 guards`, or `93-turn full` runs unless
-those exact cases are executed. For local browser E2E, resolve
+those exact cases are executed. Human testing remains blocked until normal sales
+naturalness gates pass with P0 hard fail `0` and PASS-case false-pass audit `0`.
+For local browser E2E, resolve
 `DEMO_ACCESS_TOKEN` (Secret Manager alias `demo-access-token`) and
 `XAI_RELAY_TICKET_SECRET` without printing values, and start Next from
 `apps/web` so workspace package links resolve.

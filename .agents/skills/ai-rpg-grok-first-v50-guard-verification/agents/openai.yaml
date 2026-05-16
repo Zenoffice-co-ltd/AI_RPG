@@ -1,4 +1,4 @@
 interface:
-  display_name: "AI RPG v50 Guard Verification"
-  short_description: "Verify Grok-first v50 fixed guard, drain, and browser E2E evidence."
-  default_prompt: "Use this skill for v50 fixed guard smoke, assistant-only drain verification, spreadsheet guard plans, and browser E2E evidence."
+  display_name: "AI RPG v50 Voice E2E Verification"
+  short_description: "Verify Grok-first v50 normal sales naturalness, voice E2E, fixed guard, and browser evidence."
+  default_prompt: "Use this skill for v50 normal-sales naturalness gates, customer-led/backchannel/reveal-depth checks, fixed guard smoke, assistant-only drain verification, spreadsheet test plans, and browser E2E evidence."
