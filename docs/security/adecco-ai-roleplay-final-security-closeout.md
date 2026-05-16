@@ -810,6 +810,14 @@ Remaining blockers:
     `mendan.biz` candidates still lack verified DNS mapping in this
     environment. This keeps #138 blocked pending explicit hosted.app approval
     or custom-domain mapping/certificate evidence.
+    2026-05-17 04:29 JST browser start smoke against the dedicated hosted.app
+    submitted URL candidate passed: session 200, `wsUrl`
+    `wss://voice.mendan.biz/api/v3/realtime-relay`, only relay WSS observed,
+    direct `api.x.ai` count 0, and forbidden session keys absent. The same
+    recheck still found no DNS result for `roleplay-vfinal.mendan.biz` or
+    `adecco-roleplay.mendan.biz`; `curl -I` to both dedicated custom-domain
+    candidates failed with host resolution error. This is fresh evidence for
+    #138 but does not replace the required approval or custom-domain mapping.
   - Issue #139: project-wide XAI_API_KEY secretAccessor still includes the
     legacy shared App Hosting service account for non-submitted direct
     comparison routes. Removing it would risk breaking existing v3/direct xAI

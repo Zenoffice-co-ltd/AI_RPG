@@ -21,6 +21,38 @@ being closed or formally approved.
 
 ## Latest Continuation Recheck
 
+2026-05-17 JST recheck after PR #188 and PR #189:
+
+- #128, #138, #139, #140, #141, and #171 are still OPEN.
+- Fresh #138 hosted.app submitted URL start smoke passed at 2026-05-17
+  04:29 JST: session 200, `wsUrl`
+  `wss://voice.mendan.biz/api/v3/realtime-relay`, browser WebSocket URL only
+  the relay WSS, direct `api.x.ai` count 0, and forbidden session keys absent.
+  Dedicated `mendan.biz` candidates still did not resolve in this environment,
+  and `curl -I` failed with host resolution error for both checked candidates.
+  This supports the hosted.app approval path but does not itself approve #138.
+- PR #188 tightened #138 approval matching. A hosted.app approval is no longer
+  accepted with the URL alone; both hosted.app and dedicated custom-domain
+  paths must include submitted-URL smoke evidence: invite consume 307,
+  session 200, `wsUrl`
+  `wss://voice.mendan.biz/api/v3/realtime-relay`, direct `api.x.ai` count 0,
+  and forbidden session keys absent. The custom-domain path also still requires
+  active DNS/certificate status and must not use the legacy shared
+  `roleplay.mendan.biz` domain.
+- PR #189 refreshed #139 IAM evidence without reading secret values. The
+  dedicated submitted vFinal service account remains absent from the
+  `XAI_API_KEY` IAM policy, while the legacy shared App Hosting compute service
+  account and Cloud Run relay service account still have access. #139 remains
+  BLOCKED pending explicit scope approval or migration/de-scope plus IAM
+  removal and regression evidence.
+- PR #189 also refreshed #141 current-shell evidence. `corepack pnpm
+  verify:acceptance -- --preflight` still stops before product checks on Secret
+  Manager `secretmanager.versions.access` in this shell. #141 remains BLOCKED
+  pending clean full `verify:acceptance` PASS, explicit legacy blocker
+  approval using the stricter wording, or legacy judge path re-scope/fix.
+- The Excel source workbooks still report `vFinal提出DOD照合` overall status
+  `BLOCKED`.
+
 2026-05-17 JST recheck after PR #177:
 
 - #138, #139, #140, #141, and #171 are still OPEN.
@@ -65,6 +97,7 @@ blockers #138, #139, #140, #141, and #171:
 corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
   --check-github-issues \
   --allow-open-approved-issues \
+  --approval-author=<approver-github-login> \
   --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" \
   --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
@@ -72,9 +105,28 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
 If any open issue is resolved by approval text instead of closure,
 `--approval-author=<approver-github-login>` or
 `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required.
+For #138, approval text must include the exact submitted URL and submitted-URL
+smoke evidence: invite consume 307, session 200, `wsUrl`
+`wss://voice.mendan.biz/api/v3/realtime-relay`, direct `api.x.ai` count 0, and
+forbidden session keys absent. Dedicated custom-domain approval also requires
+active DNS/certificate status and cannot use `roleplay.mendan.biz`.
+For #139, approval text must name the submitted vFinal service account and the
+legacy shared App Hosting service account so the scope boundary is explicit.
+For #140, approval text must cite a same-environment, same-scenario,
+>=20-session pre-vFinal baseline, p95 threshold comparison, closeCode1006 /
+relay.error comparison, `corepack pnpm grok:first-vfinal:latency-compare` PASS,
+a comparison summary artifact, and `Comparison result: PASS`.
 For #171, approval text must name both source questionnaire workbooks, confirm
 the `vFinal提出DOD照合` overall status is PASS, and state that blocked-mode
 markers were removed.
 For #141, approval text must identify
-`staffing_order_hearing_busy_manager_medium` and state that no vFinal session,
-relay, WAF, logging, or no-key runtime regression is indicated.
+`staffing_order_hearing_busy_manager_medium`, acknowledge the latest full
+rerun included `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` so
+the no-coaching-only exception is not being applied, and state that no vFinal
+session, relay, WAF, logging, or no-key runtime regression is indicated.
+
+While any row remains BLOCKED, PR titles and bodies should avoid GitHub
+auto-closing phrases such as `close #128`, `fix #141`, or `resolve #138`.
+Use `remains BLOCKED`, `pending`, or `tracks` wording for evidence-refresh and
+guard-hardening PRs. Only the final PASS closeout PR should close blocker
+issues, and only after the final PASS guard has succeeded.

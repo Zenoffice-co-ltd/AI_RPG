@@ -17,6 +17,12 @@ https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-
 
 Read-only evidence:
 
+- 2026-05-17 04:29 JST browser start smoke passed against the hosted.app
+  candidate: session 200, `wsUrl`
+  `wss://voice.mendan.biz/api/v3/realtime-relay`, browser WebSocket URL only
+  the relay WSS, direct `api.x.ai` count 0, and forbidden session keys absent.
+  Evidence directory:
+  `out/grok_first_vfinal_browser_e2e/2026-05-16T19-29-24-165Z/`.
 - 2026-05-17 01:35 JST browser start smoke passed against the hosted.app
   candidate: invite consume 307, session 200, relay WSS only, direct
   `api.x.ai` count 0, and forbidden session keys absent.
@@ -39,11 +45,13 @@ adecco-roleplay.mendan.biz
 ```
 
 Latest read-only checks in this environment still returned no DNS resolver
-result for both candidates. 2026-05-17 04:16 JST recheck:
+result for both candidates. 2026-05-17 04:29 JST recheck:
 
 - `Resolve-DnsName roleplay-vfinal.mendan.biz` returned no result.
 - `Resolve-DnsName adecco-roleplay.mendan.biz` returned no result.
 - `curl -I https://roleplay-vfinal.mendan.biz/demo/adecco-roleplay-vFinal`
+  failed with host resolution error.
+- `curl -I https://adecco-roleplay.mendan.biz/demo/adecco-roleplay-vFinal`
   failed with host resolution error.
 
 That means there is no verified active dedicated custom-domain
