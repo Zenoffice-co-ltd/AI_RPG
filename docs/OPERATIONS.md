@@ -896,6 +896,14 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   approval, legacy shared backend de-scope, formal latency comparison PASS, or
   full acceptance closure until the related issues are resolved or formally
   approved out of scope.
+- 2026-05-17 JST follow-up: updated the two source workbook drafts in
+  `C:\Users\yukih\Downloads\` with a first sheet named `vFinal提出DOD照合`.
+  The new sheet marks overall customer submission DoD as BLOCKED and lists
+  #138, #139, #140, and #141 as unresolved. The `回答前提・要確認` opening note
+  was revised so it no longer says the security foundation plan is complete for
+  submission. Pre-edit backups were saved under
+  `C:\Users\yukih\Downloads\vfinal_dod_excel_backups\`. The TPISA `.xlsm`
+  workbook was saved with its VBA project present.
 
 ### 2026-05-16 — vFinal submission unblock PR-A
 

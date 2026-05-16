@@ -12,6 +12,19 @@ Reviewed workbook drafts:
 - `C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx`
 - `C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm`
 
+Workbook alignment update on 2026-05-17 JST:
+
+- Both source workbook drafts now include a first sheet named
+  `vFinal提出DOD照合`.
+- The sheet records `Overall customer submission DoD` as `BLOCKED` and lists
+  #138, #139, #140, and #141 as unresolved.
+- The `回答前提・要確認` sheet was updated so it no longer says the security
+  foundation plan is complete for submission; it now states that completed
+  vFinal evidence is usable only as scoped evidence and that the overall
+  customer submission DoD remains blocked.
+- Backup copies were saved under
+  `C:\Users\yukih\Downloads\vfinal_dod_excel_backups\` before editing.
+
 ## Current DoD Verdict
 
 | Gate | Current status | Required before PASS |
