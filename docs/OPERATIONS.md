@@ -812,6 +812,27 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-16 — vFinal security foundation PR status
+
+- PR #110 adds the invite-gated vFinal route
+  `/demo/adecco-roleplay-vFinal` and `/api/grok-first-vFinal/*` as a
+  security-foundation submission path separated from the v50-family comparison
+  routes.
+- Code-level P0 security gates are implemented in the PR branch: vFinal
+  session payload excludes prompt/instructions/hidden history, relay setup is
+  server-side, client frames are exact-schema filtered, relay/event logging is
+  allowlisted, invite cookies are vFinal-scoped, production invite/hash secret
+  fallback is fail-closed, and `apphosting.vfinal.yaml` intentionally omits
+  `XAI_API_KEY`.
+- Customer-submission closeout remains blocked until production evidence is
+  captured: App Hosting rollout, Cloud Run relay revision/traffic, same Git
+  SHA deploy, IAM proof, Cloud Logging retention and sensitive-log scan, WAF
+  state, browser direct `api.x.ai` zero evidence, live text/voice E2E, latency
+  baseline comparison, ZAP baseline/passive scan, and `pnpm verify:acceptance`.
+- Closeout evidence belongs in
+  `docs/security/adecco-ai-roleplay-final-security-closeout.md`. Do not mark
+  the vFinal DoD complete from local unit/type/invariant checks alone.
+
 ### 2026-05-14 — roleplay.mendan.biz custom domain cutover PASS
 
 - DNS operator added the Firebase App Hosting records at Value Domain /
@@ -854,6 +875,21 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   ElevenLabs ConvAI judge variance
   `staffing_order_hearing_busy_manager_medium::no-coaching`. This is not a
   v25/domain/relay regression.
+
+### 2026-05-16 — v50 verification productivity guardrails
+
+- Added repo SoT guidance for long-running E2E/DoD preflight: map the requested
+  denominator to an executable runner, confirm required secrets and aliases
+  without printing values, check package scripts, check stale local Next/Turbo
+  processes, and distinguish scoped harness evidence from final DoD.
+- Added focused skill
+  `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md` for v50
+  fixed guard smoke, spreadsheet guard plans, and assistant-only drain evidence.
+  Cursor/Claude/Codex mirrors now restate the operational safety and Secret
+  Manager alias rules.
+- This entry documents process guardrails only. It is not a claim that
+  spreadsheet-defined `13/13 x3`, `69 P0 guards`, or `93-turn full` DoD has
+  passed; those require an exact case-set runner and fresh evidence.
 
 ### 2026-05-14 — roleplay.mendan.biz custom domain cutover BLOCKED_DNS
 

@@ -56,6 +56,7 @@
     "grok:first-v50:prod-smoke": "node scripts/grok-first-v50-prod-smoke.mjs",
     "grok:first-v50:prod-logs": "node scripts/grok-first-v50-prod-logs.mjs",
     "grok:first-v50:voice-e2e": "node scripts/grok-first-v50-voice-e2e.mjs",
+    "grok:first-v50-8:guard-e2e": "node scripts/grok-first-v50-8-fixed-guard-browser-e2e.mjs",
     "grok:vfinal-security-invariants": "node scripts/check-vfinal-security-invariants.mjs",
     "grok:audio-e2e:prod-log-assert": "node scripts/grok-voice-registered-speech-prod-log-assert.mjs",
     "grok:forbid-modelless-ws": "tsx scripts/grok-voice-forbid-modelless-ws.ts",

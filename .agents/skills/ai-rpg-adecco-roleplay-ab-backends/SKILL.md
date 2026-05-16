@@ -14,6 +14,7 @@ and as fallbacks.
 ## Canonical Sources
 
 - [docs/GROK_VOICE_ROLEPLAY.md](../../docs/GROK_VOICE_ROLEPLAY.md) — Grok Voice runbook
+- [docs/security/adecco-ai-roleplay-final-security-closeout.md](../../docs/security/adecco-ai-roleplay-final-security-closeout.md) — vFinal security closeout evidence template
 - [docs/OPERATIONS.md](../../docs/OPERATIONS.md) § "Adecco Roleplay 3-way A/B Backend Comparison" — quantitative results
 - [docs/OPERATIONS.md](../../docs/OPERATIONS.md) § "Adecco Roleplay — Claude Haiku 4.5 + Fish Audio A/B backend" — Haiku Fish runbook
 - [apps/web/apphosting.yaml](../../apps/web/apphosting.yaml) — env + secret bindings (single source of truth for what's wired)
@@ -101,12 +102,27 @@ v50, v50.1, and v50.4 use the same Cloud Run enterprise relay transport as v25:
 `realtimeAuth.mode=mendan_relay_subprotocol`. They must not expose xAI
 ephemeral tokens to the browser. The relay ticket is short-lived and sent only
 through `Sec-WebSocket-Protocol`.
+
+`/demo/adecco-roleplay-vFinal` is the security-foundation submission route, not
+a v50-family comparison route. It uses `/api/grok-first-vFinal/*`, relay-only
+transport, participant invite cookies, and server-side relay prompt setup. Do
+not expose prompt text, instructions, hidden assistant history, first-message
+history, xAI ephemeral tokens, or `XAI_API_KEY` from the Web/App Hosting
+runtime. Keep `@top-performer/grok-first-roleplay-config` server-only, run
+`pnpm grok:vfinal-security-invariants` after build, and deploy App Hosting plus
+Cloud Run relay from the same Git SHA before marking the vFinal closeout done.
 Keep the v50-family relay hardening intact: normal production requires
 `XAI_RELAY_TICKET_SECRET`, while `GROK_FIRST_V50_BROWSER_DOD_E2E=1` is only an
 internal browser-DOD bypass. `GROK_VOICE_RELAY_WS_URL` must fail fast unless it
 uses `ws:`/`wss:`, path `/api/v3/realtime-relay`, and no query/hash. Browser DOD
 fake sessions should mirror the relay contract rather than the legacy xAI
 ephemeral-token contract.
+For v50 fixed guard verification, prefer the focused repo skill
+`.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md`. Before
+claiming final guard DoD, map the requested denominator to an actual runner:
+a 5-case back-to-back fixed_external browser harness is scoped evidence and
+does not replace Excel-defined `13/13 x3`, `69 P0 guards`, or `93-turn full`
+case sets unless those exact cases were executed.
 
 For v6/v7/v8/v9/v10/v15/v16/v17/v18/v19, never route to the legacy `fallback_unknown` artifact text
 `求人要件の範囲で整理します。`; that remains only for the existing v3/v4/v5

@@ -9,6 +9,10 @@ import {
   shouldRequireDemoAccess,
   verifyAccessSignature,
 } from "@/lib/roleplay/auth";
+import {
+  VFINAL_ACCESS_COOKIE,
+  verifyVFinalAccessCookieValue,
+} from "@/lib/grok-first-roleplay/vfinal-auth";
 import { assertDemoAccessEnvForProduction } from "@/lib/roleplay/server-env";
 import { GrokFirstV50RoleplayShell } from "./GrokFirstV50RoleplayShell";
 
@@ -23,13 +27,16 @@ export type GrokFirstV50PageProps = GrokFirstV50RouteProps & {
     | "/api/grok-first-v50-1"
     | "/api/grok-first-v50-4"
     | "/api/grok-first-v50-5"
-    | "/api/grok-first-v50-6";
+    | "/api/grok-first-v50-6"
+    | "/api/grok-first-vFinal";
+  accessMode?: "demo-token" | "vfinal-invite";
 };
 
 export async function GrokFirstV50RoleplayPage({
   searchParams,
   accessAction = "/demo/adecco-roleplay-v50/access",
   apiBase = "/api/grok-first-v50",
+  accessMode = "demo-token",
 }: GrokFirstV50PageProps) {
   try {
     assertDemoAccessEnvForProduction();
@@ -42,13 +49,22 @@ export async function GrokFirstV50RoleplayPage({
 
   const params = await searchParams;
   const cookieStore = await cookies();
-  const hasAccess = verifyAccessSignature(
-    cookieStore.get(DEMO_ACCESS_COOKIE)?.value,
-  );
+  const hasAccess =
+    accessMode === "vfinal-invite"
+      ? Boolean(
+          verifyVFinalAccessCookieValue(
+            cookieStore.get(VFINAL_ACCESS_COOKIE)?.value,
+          ),
+        )
+      : verifyAccessSignature(cookieStore.get(DEMO_ACCESS_COOKIE)?.value);
   const mock = stringParam(params["mock"]) === "1";
   const visualTest = stringParam(params["visualTest"]) === "1";
   const fakeLive = stringParam(params["fakeLive"]) === "1";
   const debugMetrics = stringParam(params["debugMetrics"]) === "1";
+
+  if (accessMode === "vfinal-invite" && !hasAccess && !visualTest) {
+    return <ServiceUnavailable />;
+  }
 
   if (shouldRequireDemoAccess() && !hasAccess && !visualTest) {
     return (
