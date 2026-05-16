@@ -17,6 +17,12 @@ https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-
 
 Read-only evidence:
 
+- 2026-05-17 05:04 JST browser start smoke passed against the hosted.app
+  candidate: invite consume 307, session 200, `wsUrl`
+  `wss://voice.mendan.biz/api/v3/realtime-relay`, browser WebSocket URL only
+  the relay WSS, direct `api.x.ai` count 0, and forbidden session keys absent.
+  Evidence directory:
+  `out/grok_first_vfinal_browser_e2e/2026-05-16T20-03-58-582Z/`.
 - 2026-05-17 04:29 JST browser start smoke passed against the hosted.app
   candidate: session 200, `wsUrl`
   `wss://voice.mendan.biz/api/v3/realtime-relay`, browser WebSocket URL only
