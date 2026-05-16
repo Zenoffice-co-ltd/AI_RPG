@@ -51,6 +51,16 @@ submitted URL.
 or
 
 ```text
+Approved: the dedicated vFinal mendan.biz custom domain is active as the vFinal customer
+submitted URL.
+DNS/certificate status is active.
+Submitted-URL smoke passed with session 200, relay WSS only, direct api.x.ai count 0,
+and forbidden session keys absent.
+```
+
+or
+
+```text
 Do not submit yet. Map a dedicated vFinal mendan.biz custom domain to the
 adecco-roleplay-vfinal backend, wait for DNS/certificate active status, then
 rerun the submitted-URL smoke.
@@ -195,6 +205,10 @@ After approvals or fresh evidence are recorded:
 3. Update `docs/security/adecco-vfinal-customer-submission-dod-audit.md`.
 4. Update questionnaire workbooks and
    `docs/security/adecco-vfinal-questionnaire-submission-map.md`.
+   The source workbooks must not retain BLOCKED-mode markers such as
+   `vFinal提出URLは#138未確定`, `Excel人間確認 (#171)`, or
+   `baseline不足の免除ではPASS不可` after their overall DoD status is changed
+   to PASS.
 5. Run:
 
 ```bash
