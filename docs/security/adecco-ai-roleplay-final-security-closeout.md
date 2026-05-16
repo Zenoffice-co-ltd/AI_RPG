@@ -18,8 +18,9 @@ Secret Manager without printing or persisting values. Current vFinal
 pre-vFinal baseline comparison is still missing.
 The questionnaire draft alignment review is tracked in
 `docs/security/adecco-vfinal-questionnaire-submission-map.md`; the workbook
-drafts must stay marked as blocked/conditional until issues #138-#141 and
-#171 are resolved or formally approved out of scope.
+drafts must stay marked as blocked/conditional until #138, #139, #141, and
+#171 are resolved or formally approved out of scope, and #140 has an approved
+pre-vFinal baseline comparison that meets the documented thresholds.
 The requirement-by-requirement customer submission audit is tracked in
 `docs/security/adecco-vfinal-customer-submission-dod-audit.md`.
 The human decision packet for the remaining approval-sensitive blockers is
@@ -903,8 +904,9 @@ Questionnaire alignment:
     metadata logging, WAF preview/log, ZAP, text/voice E2E, sensitive scan, and
     current-vFinal 20-session evidence, but must not claim submitted URL
     approval, legacy shared backend de-scope, formal latency comparison PASS,
-    or full acceptance closure until issues #138-#141 and #171 are resolved or
-    explicitly approved out of scope.
+    or full acceptance closure until #138, #139, #141, and #171 are resolved or
+    explicitly approved out of scope and #140 has a passing pre-vFinal baseline
+    comparison.
 
 Human-decision tracking:
   - Umbrella blocker issue: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/128
@@ -928,7 +930,8 @@ Current final evidence verdict:
   FAIL=0 and documented WARN classes. PASS for current-vFinal 20-session voice
   latency sample, with closeCode1006=0 and relay.error=0 in the sample window.
   FAIL/BLOCKED for overall customer submission DoD until the remaining blockers
-  above are resolved or formally approved as out of scope.
+  above are resolved, with #140 requiring a passing pre-vFinal baseline
+  comparison rather than a waiver of the missing baseline.
 ```
 
 ## Rollback

@@ -146,6 +146,10 @@ tracked items:
   `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
   Security-checksheet submission remains BLOCKED until #171 is closed or
   formally approved out of scope.
+- 2026-05-17 #140 no-waiver clarification:
+  customer submission DoD still requires a pre-vFinal >=20-session baseline
+  comparison within threshold. Approval to treat the current-vFinal sample alone
+  as sufficient is no longer a valid PASS path for this DoD.
 - 2026-05-17 #140 baseline candidate assessment:
   `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`
   records the artifact review. The two eligible 20-run artifacts are
@@ -155,8 +159,8 @@ tracked items:
   >=20-session denominator.
 - Security-checksheet submission uses the same final blocker set as customer
   submission because the source questionnaire workbooks and questionnaire map
-  must stay BLOCKED until #138, #139, #140, and #141 are resolved or formally
-  approved out of scope.
+  must stay BLOCKED until #138, #139, #141, and #171 are resolved or formally
+  approved out of scope and #140 has a passing pre-vFinal baseline comparison.
 
 ## DoD Matrix
 
@@ -185,8 +189,8 @@ tracked items:
 | 21 | `verify:acceptance` PASS or explicit legacy blocker approval | BLOCKED by #141 | Latest 2026-05-17 00:44 JST full rerun had process-local secrets, reached the legacy publish scenario, and failed `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` across retries. This is not a vFinal runtime regression, but it is not PASS and is not eligible for the no-coaching-only exception without customer/operator approval. The acceptance blocker inventory is recorded in `docs/security/adecco-vfinal-acceptance-blocker-inventory.md`. |
 | 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED | Closeout still intentionally lists #138, #139, #140, #141, and #171 as unresolved. The submitted URL decision inventory is recorded in `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`. |
 | 23 | Closeout records official docs checked, backend/rollout/revision/traffic, relay image/revision/traffic, same Git SHA deploy, service account/IAM proof, log retention proof, WAF proof, session contract, browser WS capture, direct `api.x.ai` 0, relay phases, sensitive scan, live E2E, latency, ZAP, and acceptance | PASS for recorded evidence; blockers remain explicit | The closeout contains the required evidence sections. Latency and acceptance sections are recorded as BLOCKED rather than PASS. |
-| 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs are merged through the latest blocker-recheck updates, but no final PASS PR can be honestly created until #138-#141 and #171 are resolved or approved. |
-| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED | Closeout final verdicts remain BLOCKED and must stay that way until #138-#141 and #171 are closed or formally approved out of scope. |
+| 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs are merged through the latest blocker-recheck updates, but no final PASS PR can be honestly created until #138, #139, #141, and #171 are resolved or approved and #140 has a passing pre-vFinal baseline comparison. |
+| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED | Closeout final verdicts remain BLOCKED and must stay that way until #138, #139, #141, and #171 are closed or formally approved out of scope and #140 has a passing pre-vFinal baseline comparison. |
 
 Workbook human-confirmation cells are tracked separately in
 `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` and must
@@ -197,8 +201,8 @@ final submission artifacts. GitHub issue #171 tracks this blocker.
 
 1. Resolve or formally approve #138.
 2. Resolve or formally approve #139.
-3. Resolve #140 with an approved pre-vFinal baseline and comparison, or obtain
-   explicit approval for an alternate baseline interpretation.
+3. Resolve #140 with an approved pre-vFinal baseline and comparison that meets
+   the documented thresholds.
 4. Resolve #141 with a clean full `verify:acceptance` run or explicit approval
    of the legacy ConvAI judge blocker as outside vFinal submission scope.
 5. Resolve #171 by confirming or rewriting the mapped workbook cells.
@@ -211,4 +215,4 @@ final submission artifacts. GitHub issue #171 tracks this blocker.
    `--approval-author=<approver-github-login>` or set
    `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS`.
 7. Update the closeout final verdict only after all blocking issues are closed
-   or approved out of scope.
+   or approved, with #140 backed by a passing baseline comparison.

@@ -102,8 +102,15 @@ Current state:
 Approve one:
 
 ```text
-Approved: accept the current-vFinal 20-session latency sample as scoped evidence
-and waive the missing strict pre-vFinal baseline for this submission.
+Approved: use the following pre-vFinal latency baseline for the vFinal customer submission comparison.
+Baseline source: <specific artifact, deployment, or approved measurement source>.
+pre-vFinal sessions >=20.
+sessionApiMs p95: baseline <ms>, current <ms>, threshold baseline+50ms, result <PASS|FAIL>.
+firstAudioDeltaMs p95: baseline <ms>, current <ms>, threshold baseline+100ms, result <PASS|FAIL>.
+firstAudibleAudioMs p95: baseline <ms>, current <ms>, threshold baseline+100ms, result <PASS|FAIL>.
+closeCode1006 increase: <none|details>.
+relay.error increase: <none|details>.
+Comparison result: PASS.
 ```
 
 or
@@ -196,4 +203,5 @@ before running the final PASS guard.
 
 6. Create the final closeout PR and set the final verdict to
    `Customer submission DoD: PASS` only if all remaining blockers are closed or
-   explicitly approved out of scope.
+   explicitly approved, with #140 backed by a passing pre-vFinal baseline
+   comparison rather than a waiver of the missing baseline.
