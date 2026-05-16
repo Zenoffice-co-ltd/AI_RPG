@@ -812,6 +812,27 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal #139 legacy XAI scope code/config guard
+
+- Added `corepack pnpm grok:vfinal-legacy-xai-scope` as a repo-local,
+  read-only helper for the #139 submitted-scope decision. It does not read
+  Secret Manager payloads or mutate IAM.
+- Rechecked code/config scope with:
+  `corepack pnpm grok:vfinal-legacy-xai-scope -- --expect=blocked`.
+- Result: PASS for expected BLOCKED state. The submitted vFinal App Hosting
+  config, session route, and vFinal session helper all omit `XAI_API_KEY`, while
+  the vFinal session helper still uses `XAI_RELAY_TICKET_SECRET` and the relay
+  WSS URL.
+- The legacy shared runtime still has five XAI dependency markers:
+  shared `apphosting.yaml` binds `XAI_API_KEY`, `server-env.ts` defines it,
+  production env assertion requires it, `/api/v3/session` can pass
+  `env.XAI_API_KEY` to the xAI ephemeral-token path, and Grok Voice TTS uses
+  `env.XAI_API_KEY`.
+- This is code/config inventory evidence only. #139 remains BLOCKED until the
+  legacy shared backend scope is explicitly approved as outside vFinal customer
+  submission, or the legacy/direct routes are migrated/de-scoped and IAM is
+  removed with regression evidence.
+
 ### 2026-05-17 — vFinal #138 submitted URL candidate guard
 
 - Added `corepack pnpm grok:vfinal-submitted-url-candidates` as a read-only
