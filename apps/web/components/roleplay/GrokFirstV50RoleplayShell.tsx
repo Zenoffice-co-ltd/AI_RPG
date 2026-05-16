@@ -11,6 +11,7 @@ import {
 } from "@/lib/grok-first-roleplay/client";
 import { useGrokFirstRoleplayConversation } from "@/lib/grok-first-roleplay/useGrokFirstRoleplayConversation";
 import type { GrokFirstV50Metric } from "@/lib/grok-first-roleplay/types";
+import type { GrokFirstBrowserEvaluationConfig } from "@/lib/grok-first-roleplay/types";
 import type {
   RoleplayMode,
   RoleplayStatus,
@@ -38,6 +39,8 @@ export function GrokFirstV50RoleplayShell({
     | "/api/grok-first-v50-5"
     | "/api/grok-first-v50-6"
     | "/api/grok-first-v50-7"
+    | "/api/grok-first-v50-8"
+    | "/api/grok-first-v51"
     | "/api/grok-first-vFinal";
 }) {
   const router = useRouter();
@@ -61,9 +64,13 @@ export function GrokFirstV50RoleplayShell({
   }, [initialMock, visualTest, fakeLive]);
 
   const orbState = useMemo(() => toOrbState(roleplay.status), [roleplay.status]);
+  const browserEvaluation = resolveBrowserEvaluationConfig(
+    apiBase,
+    roleplay.session?.browserEvaluation,
+    roleplay.session?.browserEvaluationEnabled
+  );
   const browserEvaluationEnabled =
-    apiBase === "/api/grok-first-v50-7" &&
-    roleplay.session?.browserEvaluationEnabled !== false;
+    browserEvaluation?.enabled === true;
 
   const handleCall = () => {
     if (roleplay.isConnected || roleplay.isConnecting) {
@@ -71,6 +78,7 @@ export function GrokFirstV50RoleplayShell({
         void endAndStartBrowserEvaluation({
           roleplay,
           router,
+          browserEvaluation,
           isEndingAndRedirecting,
           setIsEndingAndRedirecting,
         });
@@ -132,15 +140,17 @@ export function GrokFirstV50RoleplayShell({
 async function endAndStartBrowserEvaluation({
   roleplay,
   router,
+  browserEvaluation,
   isEndingAndRedirecting,
   setIsEndingAndRedirecting,
 }: {
   roleplay: ReturnType<typeof useGrokFirstRoleplayConversation>;
   router: ReturnType<typeof useRouter>;
+  browserEvaluation: GrokFirstBrowserEvaluationConfig | null;
   isEndingAndRedirecting: boolean;
   setIsEndingAndRedirecting: (next: boolean) => void;
 }) {
-  if (isEndingAndRedirecting) return;
+  if (isEndingAndRedirecting || !browserEvaluation?.enabled) return;
   const session = roleplay.session;
   const messages = [...roleplay.messages];
   setIsEndingAndRedirecting(true);
@@ -155,7 +165,7 @@ async function endAndStartBrowserEvaluation({
     const transcript = toEvaluationTranscript(messages);
     let startFailed = transcript.length < 2;
     if (!startFailed) {
-      const response = await fetch("/api/grok-first-v50-7/evaluation/start", {
+      const response = await fetch(browserEvaluation.startEndpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
@@ -163,19 +173,39 @@ async function endAndStartBrowserEvaluation({
           transcript,
           startedAt: new Date().toISOString(),
           endedAt: new Date().toISOString(),
-          source: "grok_first_v50_7_browser",
+          source: browserEvaluation.source,
         }),
       }).catch(() => null);
       startFailed = !response?.ok;
     }
 
-    const resultPath = `/demo/adecco-roleplay-v50-7/result/${encodeURIComponent(
+    const resultPath = `${browserEvaluation.resultBasePath}/${encodeURIComponent(
       session.sessionId
     )}${startFailed ? "?startFailed=1" : ""}`;
     router.push(resultPath as Route);
   } finally {
     setIsEndingAndRedirecting(false);
   }
+}
+
+export function resolveBrowserEvaluationConfig(
+  apiBase: string,
+  browserEvaluation: GrokFirstBrowserEvaluationConfig | undefined,
+  legacyEnabled: boolean | undefined
+): GrokFirstBrowserEvaluationConfig | null {
+  if (browserEvaluation) {
+    return browserEvaluation;
+  }
+  if (apiBase === "/api/grok-first-v50-7" && legacyEnabled !== false) {
+    return {
+      enabled: true,
+      startEndpoint: "/api/grok-first-v50-7/evaluation/start",
+      resultBasePath: "/demo/adecco-roleplay-v50-7/result",
+      source: "grok_first_v50_7_browser",
+      runtimeVersion: "v50-7",
+    };
+  }
+  return null;
 }
 
 function toEvaluationTranscript(messages: TranscriptMessage[]) {

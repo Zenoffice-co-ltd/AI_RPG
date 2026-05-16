@@ -38,7 +38,20 @@ Expected response fields:
 
 ```text
 status=accepted
-evaluationMode=node
+evaluation=enqueued
+taskName=<Cloud Tasks task name>
+sessionId=<session id>
+conversationId=<conversation id>
+agentId=agent_2801kpj49tj1f43sr840cvy17zcc
+```
+
+The vendor route must return quickly with HTTP 202. Do not expect Claude scoring
+or Gmail delivery fields in this response; those run asynchronously in the
+Cloud Tasks worker at `/api/internal/adecco-eval`.
+
+Confirm email delivery from the worker log `adecco_eval_task_completed`:
+
+```text
 model=claude-sonnet-4-5-20250929
 validation.ok=true
 mail.routed_to=iwase@zenoffice.co.jp
@@ -60,9 +73,10 @@ Then POST to the production webhook and report:
 ```text
 input_path=<exact local path>
 sessionId=<returned sessionId>
-validation.ok=<returned validation.ok>
-mail.ok=<returned mail.ok>
-gmail_message_id=<returned mail.id>
+taskName=<returned taskName>
+worker.validation.ok=<from adecco_eval_task_completed log>
+worker.mail.ok=<from adecco_eval_task_completed log>
+worker.gmail_message_id=<from adecco_eval_task_completed log mail.id>
 ```
 
 ## HTML Email Equality

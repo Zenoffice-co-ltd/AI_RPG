@@ -16,7 +16,8 @@ export type AdeccoBrowserEvaluationTaskPayload = {
   transcript: NormalizedTurn[];
   startedAt: string;
   endedAt: string;
-  source: "grok_first_v50_7_browser";
+  source: "grok_first_v50_7_browser" | "grok_first_v51_browser";
+  runtimeVersion: "v50-7" | "v51";
 };
 
 export async function enqueueSessionAnalysis(sessionId: string) {

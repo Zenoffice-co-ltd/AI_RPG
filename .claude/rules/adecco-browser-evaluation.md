@@ -1,4 +1,4 @@
-# v50 Browser Evaluation — Claude Code rule
+# v50/v51 Browser Evaluation — Claude Code rule
 
 **Source of Truth:** repository-root [`AGENTS.md`](../../AGENTS.md)
 `## Browser Evaluation / Scoring Delivery SoT`. This file is the Claude-side
@@ -16,5 +16,7 @@ surface of that SoT.
   required for scoring.
 - Use the safe mock result route before production checks:
   `/demo/adecco-roleplay-v50-7/result/mock-session?mock=1`.
+- For customer criteria v2 / v51 work, use:
+  `/demo/adecco-roleplay-v51/result/mock-session?mock=1`.
 - Do not run production Gmail smoke unless explicitly requested for the legacy
   email pipeline.

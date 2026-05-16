@@ -255,6 +255,32 @@
   gap: 8px;
 }
 
+.groupGrid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.groupCard {
+  border: 1px solid #e6eaf0;
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.groupTitle {
+  color: #0f2649;
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0 0 12px;
+}
+
+.groupItem {
+  align-items: start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 72px minmax(120px, 0.75fr) minmax(0, 1fr);
+}
+
 .captureHeader,
 .captureRow {
   display: grid;
@@ -402,6 +428,14 @@
   }
 
   .captureRow {
+    grid-template-columns: 1fr;
+  }
+
+  .groupGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .groupItem {
     grid-template-columns: 1fr;
   }
 }

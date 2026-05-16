@@ -11,14 +11,21 @@
     "rubric_scores",
     "must_capture_summary",
     "must_capture_items",
+    "must_capture_groups",
     "agent_quality_flags",
+    "sales_compliance_flags",
+    "modality_limitations",
     "strengths",
     "improvement_points",
     "learner_feedback",
+    "next_training_actions",
     "scoring_notes"
   ],
   "properties": {
-    "schema_version": { "type": "string" },
+    "schema_version": {
+      "type": "string",
+      "enum": ["adecco_order_hearing_eval_v2"]
+    },
     "session_id": { "type": "string" },
     "scenario_id": { "type": "string" },
     "total_score": { "type": "number", "minimum": 0, "maximum": 100 },
@@ -72,7 +79,28 @@
     },
     "must_capture_items": {
       "type": "array",
+      "minItems": 18,
+      "maxItems": 18,
       "items": { "$ref": "#/$defs/mustCaptureItem" }
+    },
+    "must_capture_groups": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["group_id", "group_label", "items"],
+        "properties": {
+          "group_id": { "type": "string" },
+          "group_label": { "type": "string" },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/mustCaptureItem" }
+          }
+        }
+      }
     },
     "agent_quality_flags": {
       "type": "object",
@@ -97,6 +125,28 @@
         }
       }
     },
+    "sales_compliance_flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inappropriate_demographic_requirement_deepened",
+        "inappropriate_requirement_reframed",
+        "details"
+      ],
+      "properties": {
+        "inappropriate_demographic_requirement_deepened": { "type": "boolean" },
+        "inappropriate_requirement_reframed": { "type": "boolean" },
+        "details": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/flagDetail" }
+        }
+      }
+    },
+    "modality_limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
     "strengths": {
       "type": "array",
       "items": { "type": "string" },
@@ -112,6 +162,7 @@
     },
     "next_training_actions": {
       "type": "array",
+      "minItems": 1,
       "items": { "type": "string" },
       "maxItems": 5
     },
@@ -209,7 +260,9 @@
             "coaching_leakage",
             "role_break",
             "transcript_quality_issue",
-            "scoring_blocker"
+            "scoring_blocker",
+            "inappropriate_demographic_requirement_deepened",
+            "inappropriate_requirement_reframed"
           ]
         },
         "turn_id": { "type": ["string", "null"] },

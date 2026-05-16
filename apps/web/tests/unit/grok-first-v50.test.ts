@@ -120,6 +120,20 @@ function validV507Request() {
   });
 }
 
+function validV51Request() {
+  const headers = new Headers({
+    "content-type": "application/json",
+    origin: "http://127.0.0.1:3000",
+    referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v51",
+    cookie: `roleplay_api_access=${signAccessToken("demo-secret")}`,
+  });
+  return new NextRequest("http://127.0.0.1:3000/api/grok-first-v51/session", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({}),
+  });
+}
+
 describe("grok-first v50 runtime", () => {
   beforeEach(() => {
     vi.stubEnv("DEMO_ACCESS_TOKEN", "demo-secret");
@@ -422,7 +436,39 @@ describe("grok-first v50 runtime", () => {
     expect(body["browserEvaluationEnabled"]).toBe(false);
   });
 
-  it("sends relay tickets through websocket subprotocols", () => {
+  it("serves v51 with customer criteria persona and browser evaluation config", async () => {
+    const { POST } = await import("../../app/api/grok-first-v51/session/route");
+    const response = await POST(validV51Request());
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(body["demoSlug"]).toBe("adecco-roleplay-v51");
+    expect(body["backend"]).toBe("grok-first-v51");
+    expect(String(body["scenarioId"])).toContain("v51");
+    expect(String(body["promptVersion"])).toContain("v51");
+    expect(String(body["guardrailVersion"])).toContain("v51");
+    expect(body["browserEvaluation"]).toMatchObject({
+      enabled: true,
+      startEndpoint: "/api/grok-first-v51/evaluation/start",
+      resultBasePath: "/demo/adecco-roleplay-v51/result",
+      source: "grok_first_v51_browser",
+      runtimeVersion: "v51",
+    });
+    const instructions = String(body["instructions"]);
+    expect(instructions).toContain("中堅住宅設備メーカー");
+    expect(instructions).toContain("人事課主任");
+    expect(instructions).toContain("アデコへの発注は初めて");
+    expect(instructions).toContain("既存派遣会社");
+    expect(instructions).toContain("現場課長にも確認が必要");
+    expect(instructions).toContain("アデコさんの人材派遣の特徴");
+    expect(instructions).toContain("年齢、性別、容姿、ビジュアル");
+    expect(body["realtimeAuth"]).toMatchObject({
+      mode: "mendan_relay_subprotocol",
+      protocol: "mendan-relay-v1",
+    });
+  });
+
+  it("uses the MENDAN relay subprotocol for v50 browser WebSockets", () => {
     expect(
       buildProtocols({
         mode: "mendan_relay_subprotocol",
