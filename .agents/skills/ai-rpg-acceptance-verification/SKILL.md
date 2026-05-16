@@ -116,7 +116,7 @@ Canonical sources:
 Final PASS guard:
 
 ```bash
-corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass --check-github-issues --allow-open-approved-issues --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
+corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass --check-github-issues --allow-open-approved-issues --approval-author=<approver-github-login> --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
 
 Both source questionnaire workbooks are required in PASS mode; the final guard
@@ -175,6 +175,11 @@ Rules:
   is approved while open, the approval comment must name both source workbooks,
   confirm `vFinal提出DOD照合` overall PASS, and state blocked-mode markers were
   removed.
+- #141 approval must identify the legacy scenario
+  `staffing_order_hearing_busy_manager_medium`, acknowledge the latest full
+  rerun included `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` so
+  the no-coaching-only exception is not being applied, and state that no vFinal
+  session, relay, WAF, logging, or no-key runtime regression is indicated.
 - If `verify:acceptance` is blocked by Secret Manager IAM or current-shell
   secret access, record the blocker and required permission; do not claim
   acceptance PASS.
