@@ -932,6 +932,24 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 - No production changes were made. Customer submission DoD remains BLOCKED
   pending #138, #139, #140, and #141 resolution or explicit approval.
 
+### 2026-05-17 — vFinal hosted.app submitted URL smoke refresh
+
+- Re-ran a read-only hosted.app start smoke for the current submitted URL
+  candidate:
+  `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --out out/grok_first_vfinal_browser_e2e/2026-05-17T01-35-00-hosted-url-start-recheck`.
+- Result: PASS. Evidence:
+  `out/grok_first_vfinal_browser_e2e/2026-05-17T01-35-00-hosted-url-start-recheck/evidence.json`.
+- Observed `POST /api/grok-first-vFinal/invite/consume -> 307`,
+  `POST /api/grok-first-vFinal/session -> 200`, `sessionApiMs=121`,
+  `demoSlug=adecco-roleplay-vFinal`, `backend=grok-first-vFinal`,
+  `realtimeTransport=mendan_cloud_run_relay_wss`, and
+  `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`.
+- Browser network evidence still showed `directApiXaiConnectionCount=0`, no
+  forbidden outgoing realtime keys, and all forbidden session key checks false.
+- No production changes were made. This refresh supports the hosted.app option
+  for #138, but customer submission DoD remains BLOCKED until #138, #139,
+  #140, and #141 are resolved or explicitly approved.
+
 ### 2026-05-17 — vFinal questionnaire workbook status guard
 
 - Added workbook-aware checks to
