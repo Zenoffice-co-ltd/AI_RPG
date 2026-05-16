@@ -65,6 +65,12 @@ const files = {
   audit: join(root, "docs", "security", "adecco-vfinal-customer-submission-dod-audit.md"),
   questionnaireMap: join(root, "docs", "security", "adecco-vfinal-questionnaire-submission-map.md"),
   approvalPacket: join(root, "docs", "security", "adecco-vfinal-approval-packet.md"),
+  legacyXaiScopeInventory: join(
+    root,
+    "docs",
+    "security",
+    "adecco-vfinal-legacy-xai-scope-inventory.md"
+  ),
   latencyBaselineAssessment: join(
     root,
     "docs",
@@ -103,6 +109,7 @@ const questionnaireMapStatus = matchOne(
   /^Status as of .*?: \*\*(PASS|BLOCKED)\b.*?\*\*\./m,
   "questionnaire map top-level status"
 );
+const legacyXaiScopeInventoryStatus = matchLegacyXaiScopeInventoryStatus();
 const latencyBaselineAssessmentStatus = matchLatencyBaselineAssessmentStatus();
 
 const normalizedExpected =
@@ -113,7 +120,33 @@ if (normalizedExpected === "blocked") {
   requireEqual(securityChecksheetVerdict, "BLOCKED", "security-checksheet verdict");
   requireEqual(auditStatus, "BLOCKED", "audit status");
   requireEqual(questionnaireMapStatus, "BLOCKED", "questionnaire map status");
+  requireEqual(legacyXaiScopeInventoryStatus, "BLOCKED", "legacy XAI scope inventory status");
   requireEqual(latencyBaselineAssessmentStatus, "BLOCKED", "latency baseline assessment status");
+  requireIncludes(
+    source.legacyXaiScopeInventory,
+    "legacy shared XAI_API_KEY scope decision still required",
+    "legacy XAI scope inventory blocked status"
+  );
+  requireIncludes(
+    source.closeout,
+    "docs/security/adecco-vfinal-legacy-xai-scope-inventory.md",
+    "closeout #139 legacy XAI scope inventory link"
+  );
+  requireIncludes(
+    source.audit,
+    "docs/security/adecco-vfinal-legacy-xai-scope-inventory.md",
+    "audit #139 legacy XAI scope inventory link"
+  );
+  requireIncludes(
+    source.questionnaireMap,
+    "docs/security/adecco-vfinal-legacy-xai-scope-inventory.md",
+    "questionnaire map #139 legacy XAI scope inventory link"
+  );
+  requireIncludes(
+    source.approvalPacket,
+    "docs/security/adecco-vfinal-legacy-xai-scope-inventory.md",
+    "approval packet #139 legacy XAI scope inventory link"
+  );
   requireIncludes(
     source.latencyBaselineAssessment,
     "no approved strict pre-vFinal baseline found",
@@ -166,9 +199,20 @@ if (normalizedExpected === "pass") {
   requireEqual(securityChecksheetVerdict, "PASS", "security-checksheet verdict");
   requireEqual(auditStatus, "PASS", "audit status");
   requireEqual(questionnaireMapStatus, "PASS", "questionnaire map status");
+  requireEqual(legacyXaiScopeInventoryStatus, "PASS", "legacy XAI scope inventory status");
   requireEqual(latencyBaselineAssessmentStatus, "PASS", "latency baseline assessment status");
   rejectIncludes(source.closeout, "Remaining blockers:", "closeout should not list blockers after PASS");
   rejectIncludes(source.audit, "Customer submission remains blocked", "audit should not say blocked after PASS");
+  rejectIncludes(
+    source.legacyXaiScopeInventory,
+    "legacy shared XAI_API_KEY scope decision still required",
+    "legacy XAI scope inventory should not say scope decision required after PASS"
+  );
+  rejectIncludes(
+    source.legacyXaiScopeInventory,
+    "Issue #139 remains blocked",
+    "legacy XAI scope inventory should not say #139 remains blocked after PASS"
+  );
   rejectIncludes(
     source.latencyBaselineAssessment,
     "no approved strict pre-vFinal baseline found",
@@ -225,6 +269,7 @@ console.log(
       securityChecksheetVerdict,
       auditStatus,
       questionnaireMapStatus,
+      legacyXaiScopeInventoryStatus,
       latencyBaselineAssessmentStatus,
       blockers: normalizedExpected === "blocked" ? ["#138", "#139", "#140", "#141"] : [],
       workbooks: workbookResults,
@@ -234,6 +279,19 @@ console.log(
     2
   )
 );
+
+function matchLegacyXaiScopeInventoryStatus() {
+  const text = source.legacyXaiScopeInventory;
+  if (typeof text !== "string") return null;
+  if (/^Status as of .*?: \*\*PASS\b.*?\*\*\./m.test(text)) return "PASS";
+  if (/^Status as of .*?: \*\*legacy shared XAI_API_KEY scope decision still required\*\*\./m.test(text)) {
+    return "BLOCKED";
+  }
+  failures.push(
+    "legacy XAI scope inventory status must be PASS or legacy shared XAI_API_KEY scope decision still required"
+  );
+  return null;
+}
 
 function matchLatencyBaselineAssessmentStatus() {
   const text = source.latencyBaselineAssessment;

@@ -50,6 +50,13 @@ tracked items:
   `serviceAccount:firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com`.
   This confirms the dedicated submitted vFinal runtime remains no-key, while
   the legacy shared backend scope decision remains open.
+- 2026-05-17 #139 legacy XAI scope inventory:
+  `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md` records the
+  code/config split. The submitted vFinal path uses the dedicated no-key
+  backend and `XAI_RELAY_TICKET_SECRET` for relay tickets. The legacy shared
+  backend still binds `XAI_API_KEY`, and `/api/v3/*` Grok Voice session/TTS
+  paths still contain code paths that depend on `XAI_API_KEY`. This narrows the
+  #139 decision but does not replace approval or migration.
 - 2026-05-17 acceptance preflight rerun:
   `corepack pnpm verify:acceptance -- --preflight` failed before product checks
   with Secret Manager `secretmanager.versions.access` permission denied. The
@@ -117,7 +124,7 @@ tracked items:
 |---|---|---|---|
 | 1 | vFinal dedicated Web/App Hosting runtime is separated | PASS | Dedicated App Hosting backend `adecco-roleplay-vfinal` and dedicated service account are recorded in the closeout. |
 | 2 | vFinal Web/App Hosting runtime / service account cannot access `XAI_API_KEY` | PASS for submitted runtime | Closeout IAM proof and 2026-05-17 read-only IAM recheck show `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` has no `XAI_API_KEY` access. |
-| 3 | Only Cloud Run relay service account can access `XAI_API_KEY` | BLOCKED by #139 | True for the dedicated submitted vFinal runtime, but project-wide `XAI_API_KEY` still includes legacy shared App Hosting access for non-submitted comparison/direct routes. 2026-05-17 read-only IAM recheck confirmed `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` still has secretAccessor/viewer access. |
+| 3 | Only Cloud Run relay service account can access `XAI_API_KEY` | BLOCKED by #139 | True for the dedicated submitted vFinal runtime, but project-wide `XAI_API_KEY` still includes legacy shared App Hosting access for non-submitted comparison/direct routes. 2026-05-17 read-only IAM recheck confirmed `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` still has secretAccessor/viewer access. The legacy XAI scope inventory is recorded in `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`. |
 | 4 | Metadata-only Cloud Logging bucket or sink retention is >=180 days | PASS | Closeout records metadata bucket `adecco-vfinal-metadata`, metadata sink, and 180-day retention. |
 | 5 | Sensitive log scan is 0 for raw invite token, raw cookie, raw participantId, relay ticket, Authorization/Bearer, `XAI_API_KEY`, transcript body, prompt/instructions, and base64 audio | PASS scoped to collected evidence | Post same-SHA text/voice E2E sensitive metadata bucket scan recorded 0 hits for the required sensitive markers. |
 | 6 | Cloud Armor / WAF is applied to relay LB in preview/log mode | PASS | Closeout records `xai-realtime-relay-preview-policy` attached to `xai-realtime-relay-backend` with preview rules. |

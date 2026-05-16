@@ -24,6 +24,8 @@ The requirement-by-requirement customer submission audit is tracked in
 `docs/security/adecco-vfinal-customer-submission-dod-audit.md`.
 The human decision packet for the four remaining approval-sensitive blockers is
 tracked in `docs/security/adecco-vfinal-approval-packet.md`.
+The #139 legacy shared XAI scope inventory is tracked in
+`docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`.
 The #140 latency baseline candidate assessment is tracked in
 `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`.
 
@@ -796,6 +798,12 @@ Remaining blockers:
     present on the `XAI_API_KEY` policy; the legacy shared App Hosting compute
     service account still had `secretAccessor` and `viewer`, and the relay
     service account still had `secretAccessor` as expected.
+    2026-05-17 legacy XAI scope inventory:
+    `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md` records that
+    submitted vFinal uses only relay tickets in the dedicated no-key backend,
+    while the shared `/api/v3/*` Grok Voice session/TTS paths still have code
+    paths that depend on `XAI_API_KEY`. This keeps #139 blocked pending explicit
+    scope approval or migration/de-scope.
   - Issue #140: latency baseline comparison is not complete. Current-vFinal
     20-session voice sampling is complete and passed, but the required
     20-session pre-vFinal baseline is unavailable without approved rollback or a

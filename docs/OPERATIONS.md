@@ -967,6 +967,13 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` and
   still included the legacy shared App Hosting compute service account plus the
   relay service account.
+- Added `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md` for #139.
+  It records the shared runtime paths that still depend on `XAI_API_KEY`:
+  legacy `/api/v3/session` ephemeral-token/direct transport paths,
+  and server-side xAI TTS endpoints/helpers under `/api/v3/greet`,
+  `/api/v3/locked-response-tts`,
+  `/api/v3/sanitized-response-tts`, and `apps/web/server/grokVoice/tts.ts`.
+  This is documentation only; no IAM or runtime changes were made.
 - Latency artifact scan still found current-vFinal 20-run summaries only, not
   an approved strict pre-vFinal >=20-session baseline with
   `sessionApiMs`/`firstAudioDeltaMs`/`firstAudibleAudioMs`.
