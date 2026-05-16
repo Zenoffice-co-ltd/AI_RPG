@@ -34,6 +34,8 @@ Current state:
   `https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-vFinal`
 - `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` had no DNS
   resolver result in the latest read-only check.
+- The submitted URL decision inventory is tracked in
+  `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`.
 
 Approve one:
 

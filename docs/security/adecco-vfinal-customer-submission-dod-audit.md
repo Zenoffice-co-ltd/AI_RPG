@@ -30,6 +30,13 @@ tracked items:
   DNS result in this environment. The dedicated hosted.app URL returned HTTP
   200. This supports hosted.app availability but does not replace #138
   approval.
+- 2026-05-17 #138 submitted URL decision inventory:
+  `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` records
+  that the dedicated hosted.app URL is live and separated, but not formally
+  approved for customer submission. It also records that dedicated
+  `mendan.biz` candidates still lack verified DNS mapping in this environment.
+  This narrows the #138 decision but does not replace approval or custom-domain
+  mapping/certificate evidence.
 - 2026-05-17 01:35 JST hosted.app start smoke:
   `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start` passed against
   `https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`.
@@ -143,7 +150,7 @@ tracked items:
 | 19 | `relay.error` increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded relay.error=0. Formal comparison remains tied to #140. |
 | 20 | ZAP baseline/passive scan PASS | PASS | ZAP baseline/passive exitCode 0, FAIL=0, WARN=8 documented; no active scan was run. |
 | 21 | `verify:acceptance` PASS or Secret Manager IAM blocker formally issue-tracked and approved outside customer submission | BLOCKED by #141 | Latest 2026-05-17 00:44 JST full rerun had process-local secrets, reached the legacy publish scenario, and failed `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` across retries. This is not a vFinal runtime regression, but it is not PASS and is not eligible for the no-coaching-only exception without customer/operator approval. |
-| 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED | Closeout still intentionally lists #138, #139, #140, and #141 as unresolved. |
+| 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED | Closeout still intentionally lists #138, #139, #140, and #141 as unresolved. The submitted URL decision inventory is recorded in `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`. |
 | 23 | Closeout records official docs checked, backend/rollout/revision/traffic, relay image/revision/traffic, same Git SHA deploy, service account/IAM proof, log retention proof, WAF proof, session contract, browser WS capture, direct `api.x.ai` 0, relay phases, sensitive scan, live E2E, latency, ZAP, and acceptance | PASS for recorded evidence; blockers remain explicit | The closeout contains the required evidence sections. Latency and acceptance sections are recorded as BLOCKED rather than PASS. |
 | 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs are merged through the latest blocker-recheck updates, but no final PASS PR can be honestly created until #138-#141 are resolved or approved. |
 | 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED | Closeout final verdicts remain BLOCKED and must stay that way until #138-#141 are closed or formally approved out of scope. |

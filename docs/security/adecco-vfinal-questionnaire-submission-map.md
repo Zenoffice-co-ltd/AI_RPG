@@ -45,6 +45,7 @@ These statements are currently supported by code/infrastructure evidence in
 
 | Questionnaire topic | Evidence-backed answer scope | Evidence |
 |---|---|---|
+| Submitted URL | Not supported as final until #138 is approved or mapped. | Inventory: `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`; hosted.app is live but not formally approved, and dedicated `mendan.biz` candidates lack verified DNS mapping. |
 | Browser does not connect directly to xAI | Supported for dedicated vFinal hosted.app E2E evidence. Browser WebSocket was only `wss://voice.mendan.biz/api/v3/realtime-relay`; direct `api.x.ai` count was 0. | Post same-SHA text/voice browser E2E. |
 | API key is not exposed to browser or vFinal Web runtime | Supported for the dedicated `adecco-roleplay-vfinal` App Hosting backend and service account. | vFinal App Hosting env/IAM proof; `apphosting.vfinal.yaml` omits `XAI_API_KEY`. |
 | Legacy shared `XAI_API_KEY` access | Not supported as submitted vFinal scope until #139 is approved or migrated/removed. | Inventory: `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`; legacy shared `/api/v3` direct/session/TTS paths still depend on `XAI_API_KEY`. |
