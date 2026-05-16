@@ -24,6 +24,8 @@ The requirement-by-requirement customer submission audit is tracked in
 `docs/security/adecco-vfinal-customer-submission-dod-audit.md`.
 The human decision packet for the four remaining approval-sensitive blockers is
 tracked in `docs/security/adecco-vfinal-approval-packet.md`.
+The #138 submitted URL decision inventory is tracked in
+`docs/security/adecco-vfinal-submitted-url-decision-inventory.md`.
 The #139 legacy shared XAI scope inventory is tracked in
 `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`.
 The #140 latency baseline candidate assessment is tracked in
@@ -790,6 +792,12 @@ Remaining blockers:
     2026-05-17 post-PR149 recheck: hosted.app returned HTTP 200;
     `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still had no
     DNS resolver result in this environment.
+    2026-05-17 submitted URL decision inventory:
+    `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` records
+    that hosted.app is live but not formally approved, while the dedicated
+    `mendan.biz` candidates still lack verified DNS mapping in this
+    environment. This keeps #138 blocked pending explicit hosted.app approval
+    or custom-domain mapping/certificate evidence.
   - Issue #139: project-wide XAI_API_KEY secretAccessor still includes the
     legacy shared App Hosting service account for non-submitted direct
     comparison routes. Removing it would risk breaking existing v3/direct xAI

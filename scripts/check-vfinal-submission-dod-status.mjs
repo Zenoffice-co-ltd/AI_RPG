@@ -65,6 +65,12 @@ const files = {
   audit: join(root, "docs", "security", "adecco-vfinal-customer-submission-dod-audit.md"),
   questionnaireMap: join(root, "docs", "security", "adecco-vfinal-questionnaire-submission-map.md"),
   approvalPacket: join(root, "docs", "security", "adecco-vfinal-approval-packet.md"),
+  submittedUrlDecisionInventory: join(
+    root,
+    "docs",
+    "security",
+    "adecco-vfinal-submitted-url-decision-inventory.md"
+  ),
   legacyXaiScopeInventory: join(
     root,
     "docs",
@@ -109,6 +115,7 @@ const questionnaireMapStatus = matchOne(
   /^Status as of .*?: \*\*(PASS|BLOCKED)\b.*?\*\*\./m,
   "questionnaire map top-level status"
 );
+const submittedUrlDecisionInventoryStatus = matchSubmittedUrlDecisionInventoryStatus();
 const legacyXaiScopeInventoryStatus = matchLegacyXaiScopeInventoryStatus();
 const latencyBaselineAssessmentStatus = matchLatencyBaselineAssessmentStatus();
 
@@ -120,8 +127,34 @@ if (normalizedExpected === "blocked") {
   requireEqual(securityChecksheetVerdict, "BLOCKED", "security-checksheet verdict");
   requireEqual(auditStatus, "BLOCKED", "audit status");
   requireEqual(questionnaireMapStatus, "BLOCKED", "questionnaire map status");
+  requireEqual(submittedUrlDecisionInventoryStatus, "BLOCKED", "submitted URL decision inventory status");
   requireEqual(legacyXaiScopeInventoryStatus, "BLOCKED", "legacy XAI scope inventory status");
   requireEqual(latencyBaselineAssessmentStatus, "BLOCKED", "latency baseline assessment status");
+  requireIncludes(
+    source.submittedUrlDecisionInventory,
+    "submitted URL approval or custom domain mapping still required",
+    "submitted URL decision inventory blocked status"
+  );
+  requireIncludes(
+    source.closeout,
+    "docs/security/adecco-vfinal-submitted-url-decision-inventory.md",
+    "closeout #138 submitted URL decision inventory link"
+  );
+  requireIncludes(
+    source.audit,
+    "docs/security/adecco-vfinal-submitted-url-decision-inventory.md",
+    "audit #138 submitted URL decision inventory link"
+  );
+  requireIncludes(
+    source.questionnaireMap,
+    "docs/security/adecco-vfinal-submitted-url-decision-inventory.md",
+    "questionnaire map #138 submitted URL decision inventory link"
+  );
+  requireIncludes(
+    source.approvalPacket,
+    "docs/security/adecco-vfinal-submitted-url-decision-inventory.md",
+    "approval packet #138 submitted URL decision inventory link"
+  );
   requireIncludes(
     source.legacyXaiScopeInventory,
     "legacy shared XAI_API_KEY scope decision still required",
@@ -199,10 +232,21 @@ if (normalizedExpected === "pass") {
   requireEqual(securityChecksheetVerdict, "PASS", "security-checksheet verdict");
   requireEqual(auditStatus, "PASS", "audit status");
   requireEqual(questionnaireMapStatus, "PASS", "questionnaire map status");
+  requireEqual(submittedUrlDecisionInventoryStatus, "PASS", "submitted URL decision inventory status");
   requireEqual(legacyXaiScopeInventoryStatus, "PASS", "legacy XAI scope inventory status");
   requireEqual(latencyBaselineAssessmentStatus, "PASS", "latency baseline assessment status");
   rejectIncludes(source.closeout, "Remaining blockers:", "closeout should not list blockers after PASS");
   rejectIncludes(source.audit, "Customer submission remains blocked", "audit should not say blocked after PASS");
+  rejectIncludes(
+    source.submittedUrlDecisionInventory,
+    "submitted URL approval or custom domain mapping still required",
+    "submitted URL decision inventory should not say approval/mapping required after PASS"
+  );
+  rejectIncludes(
+    source.submittedUrlDecisionInventory,
+    "Issue #138 remains blocked",
+    "submitted URL decision inventory should not say #138 remains blocked after PASS"
+  );
   rejectIncludes(
     source.legacyXaiScopeInventory,
     "legacy shared XAI_API_KEY scope decision still required",
@@ -269,6 +313,7 @@ console.log(
       securityChecksheetVerdict,
       auditStatus,
       questionnaireMapStatus,
+      submittedUrlDecisionInventoryStatus,
       legacyXaiScopeInventoryStatus,
       latencyBaselineAssessmentStatus,
       blockers: normalizedExpected === "blocked" ? ["#138", "#139", "#140", "#141"] : [],
@@ -279,6 +324,19 @@ console.log(
     2
   )
 );
+
+function matchSubmittedUrlDecisionInventoryStatus() {
+  const text = source.submittedUrlDecisionInventory;
+  if (typeof text !== "string") return null;
+  if (/^Status as of .*?: \*\*PASS\b.*?\*\*\./m.test(text)) return "PASS";
+  if (/^Status as of .*?: \*\*submitted URL approval or custom domain mapping still required\*\*\./m.test(text)) {
+    return "BLOCKED";
+  }
+  failures.push(
+    "submitted URL decision inventory status must be PASS or submitted URL approval or custom domain mapping still required"
+  );
+  return null;
+}
 
 function matchLegacyXaiScopeInventoryStatus() {
   const text = source.legacyXaiScopeInventory;

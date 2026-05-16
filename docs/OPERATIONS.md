@@ -1032,6 +1032,18 @@ add `--approval-author=<approver-github-login>` or set
 `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` so the guard verifies the approval came
 from the expected GitHub account.
 
+### 2026-05-17 — vFinal submitted URL decision inventory
+
+- Added `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` for
+  #138.
+- Latest read-only check: the dedicated hosted.app URL returned HTTP 200 and
+  resolved to A/AAAA records in this environment; `roleplay-vfinal.mendan.biz`
+  and `adecco-roleplay.mendan.biz` still returned no DNS result.
+- This is documentation only. It does not approve hosted.app as the submitted
+  URL and does not create or change DNS/domain mappings. Customer submission DoD
+  remains BLOCKED pending #138 approval or custom-domain mapping/certificate
+  evidence.
+
 - CI guard update: `.github/workflows/vfinal-security-verify.yml` now also runs
   `corepack pnpm grok:vfinal-submission-dod-status` for checked-in closeout,
   DoD audit, questionnaire map, approval packet, and operations changes.
