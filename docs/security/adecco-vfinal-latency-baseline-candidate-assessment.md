@@ -90,6 +90,21 @@ metrics.
   artifacts with both operational counters embedded, and found 0
   comparison-ready explicit pre-vFinal baseline candidates.
 
+2026-05-17 06:24 JST comparison identity guard:
+
+- Tightened `corepack pnpm grok:first-vfinal:latency-compare` so comparison
+  PASS now requires identity markers on both artifacts:
+  - the baseline artifact/path must identify itself as pre-vFinal or baseline
+    evidence; and
+  - the current artifact/path must identify itself as current vFinal evidence.
+- The existing same-artifact path check remains in place. This extra guard
+  prevents a copied or renamed current-vFinal artifact from being used as the
+  pre-vFinal baseline merely because the p95 thresholds and operational
+  counters are present.
+- `corepack pnpm grok:first-vfinal:latency-compare -- --self-test` passed with
+  negative fixtures for missing baseline identity, missing current identity,
+  missing operational counters, weak denominator, and same-artifact comparison.
+
 ## Rejected Baseline Candidates
 
 | Candidate family | Example artifact | Runs | Reason it is not a strict baseline |
