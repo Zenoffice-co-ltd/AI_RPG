@@ -6,7 +6,7 @@ This packet is for the human/customer decision maker who can close the remaining
 approval-sensitive vFinal DoD items. It does not change the closeout verdict.
 `docs/security/adecco-ai-roleplay-final-security-closeout.md` must remain
 BLOCKED until the required approvals or fresh evidence are recorded.
-The consolidated inventory index for #138-#141 is
+The consolidated inventory index for #138-#141 plus workbook issue #171 is
 `docs/security/adecco-vfinal-blocker-inventory-index.md`.
 Workbook cells that still require human/legal/operator confirmation are tracked
 in `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
@@ -146,11 +146,33 @@ Do not submit yet. Obtain a clean full corepack pnpm verify:acceptance run, or
 fix/re-scope the legacy ConvAI judge path until the canonical gate passes.
 ```
 
+### #171 Workbook Human Confirmations
+
+Current state:
+
+- The two source questionnaire drafts still contain cells whose final answers
+  require human/legal/operator confirmation.
+- The cell-level map is tracked in
+  `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
+
+Approve one:
+
+```text
+Approved: all cells listed in docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md have been human-confirmed or rewritten to explicit unresolved/not-applicable answers, and the questionnaire drafts may be treated as final submission artifacts.
+```
+
+or
+
+```text
+Do not submit yet. Confirm or rewrite each listed workbook cell, update the
+source questionnaire drafts, and rerun the final PASS guard.
+```
+
 ## After Approval
 
 After approvals or fresh evidence are recorded:
 
-1. Update issues #138, #139, #140, and #141 with the approval or evidence.
+1. Update issues #138, #139, #140, #141, and #171 with the approval or evidence.
 2. Update `docs/security/adecco-ai-roleplay-final-security-closeout.md`.
 3. Update `docs/security/adecco-vfinal-customer-submission-dod-audit.md`.
 4. Update questionnaire workbooks and
@@ -167,7 +189,7 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
   --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
 
-If any of #138, #139, #140, or #141 remain OPEN and are resolved by approval
+If any of #138, #139, #140, #141, or #171 remain OPEN and are resolved by approval
 comment rather than closure, add `--approval-author=<approver-github-login>` or
 set `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` to the approved GitHub login list
 before running the final PASS guard.

@@ -14,7 +14,7 @@ The workbook cell-level human-confirmation map is
 
 ## Blocking Summary
 
-Customer submission and security-checksheet submission remain blocked by four
+Customer submission and security-checksheet submission remain blocked by five
 tracked items:
 
 - #138: submitted URL decision. Approve the dedicated hosted.app URL or map an
@@ -26,6 +26,9 @@ tracked items:
   same-scenario, >=20-session pre-vFinal baseline.
 - #141: canonical acceptance. Obtain clean `verify:acceptance` PASS or approve
   the legacy ConvAI judge blocker as outside vFinal submission scope.
+- #171: questionnaire workbook human confirmations. Confirm or rewrite the
+  mapped cells before treating the security-checksheet drafts as final
+  submission artifacts.
 
 ## Latest Read-Only Rechecks
 
@@ -138,6 +141,11 @@ tracked items:
   `corepack pnpm verify:acceptance -- --preflight` still fails before product
   checks with Secret Manager `secretmanager.versions.access` permission denied
   in this shell. No secret values were printed or persisted.
+- 2026-05-17 workbook human-confirmation issue:
+  issue #171 now tracks the cells listed in
+  `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
+  Security-checksheet submission remains BLOCKED until #171 is closed or
+  formally approved out of scope.
 - 2026-05-17 #140 baseline candidate assessment:
   `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`
   records the artifact review. The two eligible 20-run artifacts are
@@ -175,15 +183,15 @@ tracked items:
 | 19 | `relay.error` increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded relay.error=0. Formal comparison remains tied to #140. |
 | 20 | ZAP baseline/passive scan PASS | PASS | ZAP baseline/passive exitCode 0, FAIL=0, WARN=8 documented; no active scan was run. |
 | 21 | `verify:acceptance` PASS or explicit legacy blocker approval | BLOCKED by #141 | Latest 2026-05-17 00:44 JST full rerun had process-local secrets, reached the legacy publish scenario, and failed `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` across retries. This is not a vFinal runtime regression, but it is not PASS and is not eligible for the no-coaching-only exception without customer/operator approval. The acceptance blocker inventory is recorded in `docs/security/adecco-vfinal-acceptance-blocker-inventory.md`. |
-| 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED | Closeout still intentionally lists #138, #139, #140, and #141 as unresolved. The submitted URL decision inventory is recorded in `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`. |
+| 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED | Closeout still intentionally lists #138, #139, #140, #141, and #171 as unresolved. The submitted URL decision inventory is recorded in `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`. |
 | 23 | Closeout records official docs checked, backend/rollout/revision/traffic, relay image/revision/traffic, same Git SHA deploy, service account/IAM proof, log retention proof, WAF proof, session contract, browser WS capture, direct `api.x.ai` 0, relay phases, sensitive scan, live E2E, latency, ZAP, and acceptance | PASS for recorded evidence; blockers remain explicit | The closeout contains the required evidence sections. Latency and acceptance sections are recorded as BLOCKED rather than PASS. |
-| 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs are merged through the latest blocker-recheck updates, but no final PASS PR can be honestly created until #138-#141 are resolved or approved. |
-| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED | Closeout final verdicts remain BLOCKED and must stay that way until #138-#141 are closed or formally approved out of scope. |
+| 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs are merged through the latest blocker-recheck updates, but no final PASS PR can be honestly created until #138-#141 and #171 are resolved or approved. |
+| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED | Closeout final verdicts remain BLOCKED and must stay that way until #138-#141 and #171 are closed or formally approved out of scope. |
 
 Workbook human-confirmation cells are tracked separately in
 `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` and must
 be confirmed or rewritten before the questionnaire drafts can be treated as
-final submission artifacts.
+final submission artifacts. GitHub issue #171 tracks this blocker.
 
 ## Minimal Restart Path
 
@@ -193,7 +201,8 @@ final submission artifacts.
    explicit approval for an alternate baseline interpretation.
 4. Resolve #141 with a clean full `verify:acceptance` run or explicit approval
    of the legacy ConvAI judge blocker as outside vFinal submission scope.
-5. Re-run the lightweight integrity checks:
+5. Resolve #171 by confirming or rewriting the mapped workbook cells.
+6. Re-run the lightweight integrity checks:
    `git diff --check`, `corepack pnpm grok:vfinal-security-invariants`, and
    `corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass
    --check-github-issues --allow-open-approved-issues` with the two source
@@ -201,5 +210,5 @@ final submission artifacts.
    issue is accepted by approval comment instead of issue closure, also pass
    `--approval-author=<approver-github-login>` or set
    `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS`.
-6. Update the closeout final verdict only after all blocking issues are closed
+7. Update the closeout final verdict only after all blocking issues are closed
    or approved out of scope.

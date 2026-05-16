@@ -18,11 +18,11 @@ Secret Manager without printing or persisting values. Current vFinal
 pre-vFinal baseline comparison is still missing.
 The questionnaire draft alignment review is tracked in
 `docs/security/adecco-vfinal-questionnaire-submission-map.md`; the workbook
-drafts must stay marked as blocked/conditional until issues #138-#141 are
-resolved or formally approved out of scope.
+drafts must stay marked as blocked/conditional until issues #138-#141 and
+#171 are resolved or formally approved out of scope.
 The requirement-by-requirement customer submission audit is tracked in
 `docs/security/adecco-vfinal-customer-submission-dod-audit.md`.
-The human decision packet for the four remaining approval-sensitive blockers is
+The human decision packet for the remaining approval-sensitive blockers is
 tracked in `docs/security/adecco-vfinal-approval-packet.md`.
 The workbook cell-level human-confirmation map is tracked in
 `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
@@ -861,6 +861,10 @@ Remaining blockers:
     product checks with Secret Manager `secretmanager.versions.access`
     permission denied. No secret values were printed or persisted, and no
     production changes were made.
+  - Issue #171: source questionnaire workbook cells still require human/legal/
+    operator confirmation before the questionnaire drafts can be treated as
+    final submission artifacts. The cell-level map is tracked in
+    `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
   - 2026-05-17 #141 acceptance blocker inventory:
     `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` records that
     the latest executable full rerun failed on legacy ConvAI judge paths beyond
@@ -893,11 +897,13 @@ Questionnaire alignment:
     `回答前提・要確認` opening note no longer says the security foundation plan
     is complete for submission. Pre-edit backups are under
     C:\Users\yukih\Downloads\vfinal_dod_excel_backups\.
+  - Issue #171 tracks workbook cell-level human confirmations that cannot be
+    proven from repository or infrastructure evidence alone.
   - The questionnaire drafts can cite completed vFinal no-key runtime, relay,
     metadata logging, WAF preview/log, ZAP, text/voice E2E, sensitive scan, and
     current-vFinal 20-session evidence, but must not claim submitted URL
     approval, legacy shared backend de-scope, formal latency comparison PASS,
-    or full acceptance closure until issues #138-#141 are resolved or
+    or full acceptance closure until issues #138-#141 and #171 are resolved or
     explicitly approved out of scope.
 
 Human-decision tracking:
@@ -908,6 +914,7 @@ Human-decision tracking:
   - Legacy shared App Hosting XAI_API_KEY scope: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/139
   - Pre-vFinal latency baseline approval/collection: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/140
   - Legacy verify:acceptance ConvAI judge blocker: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/141
+  - Workbook human confirmations: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/171
   - Requirement-by-requirement audit:
     docs/security/adecco-vfinal-customer-submission-dod-audit.md
   - Human approval packet:

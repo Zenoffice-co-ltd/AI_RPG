@@ -2,10 +2,10 @@
 
 Status as of 2026-05-17 JST: **all blocker inventories still require resolution or approval**.
 
-This index is the human-facing table of the four approval/evidence-sensitive
-items that still block customer submission DoD and security-checksheet
-submission DoD. It does not replace the individual inventory files or the
-GitHub issues; it makes the finalization checklist easier to audit.
+This index is the human-facing table of the approval/evidence-sensitive items
+that still block customer submission DoD and security-checksheet submission
+DoD. It does not replace the individual inventory files or the GitHub issues;
+it makes the finalization checklist easier to audit.
 
 | Issue | Blocker | Inventory / assessment | Current index verdict |
 |---|---|---|---|
@@ -13,12 +13,14 @@ GitHub issues; it makes the finalization checklist easier to audit.
 | #139 | Legacy shared App Hosting `XAI_API_KEY` scope | `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md` | BLOCKED: submitted vFinal runtime is no-key, but legacy shared `/api/v3` session/TTS paths still require explicit scope approval or migration/de-scope. |
 | #140 | Strict pre-vFinal latency baseline comparison | `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md` | BLOCKED: current-vFinal 20-session sample exists, but no approved strict pre-vFinal >=20-session baseline is available. |
 | #141 | Canonical `verify:acceptance` closure | `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` | BLOCKED: latest executable full run failed legacy ConvAI judge paths beyond the no-coaching-only exception; current-shell preflight lacks Secret Manager access. |
+| #171 | Workbook human confirmations | `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` | BLOCKED: final questionnaire cells still require human/legal/operator confirmation or explicit unresolved/not-applicable wording. |
 
 ## Latest Continuation Recheck
 
 2026-05-17 JST recheck after PR #169:
 
 - #138, #139, #140, and #141 are still OPEN.
+- #171 was opened to track workbook cell-level human confirmations.
 - The `Approved:` strings currently present on those issues are approval
   templates in fenced code blocks or blockquotes from the approval packet, not
   accepted approval comments.
