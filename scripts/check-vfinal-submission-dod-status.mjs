@@ -390,6 +390,9 @@ if (normalizedExpected === "blocked") {
 }
 
 if (normalizedExpected === "pass") {
+  if (!shouldCheckGithubIssues) {
+    failures.push("PASS mode requires --check-github-issues or VFINAL_SUBMISSION_DOD_CHECK_GITHUB_ISSUES=1");
+  }
   requirePassWorkbooks();
   requireEqual(closeoutVerdict, "PASS", "closeout verdict");
   requireEqual(securityChecksheetVerdict, "PASS", "security-checksheet verdict");

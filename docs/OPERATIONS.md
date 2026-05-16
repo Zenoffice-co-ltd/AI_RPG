@@ -812,6 +812,18 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal PASS guard GitHub issue check requirement
+
+- Updated `corepack pnpm grok:vfinal-submission-dod-status` so PASS mode now
+  requires `--check-github-issues` or
+  `VFINAL_SUBMISSION_DOD_CHECK_GITHUB_ISSUES=1`.
+- This prevents a final customer/security-checksheet PASS claim from being
+  evaluated without checking #138, #139, #140, #141, and #171 issue state or
+  approved open-issue comments.
+- The submitted URL and workbook guard hardening from the previous entry still
+  applies: the final guard also requires both source workbooks and rejects
+  `roleplay.mendan.biz` as a #138 submitted vFinal custom-domain URL.
+
 ### 2026-05-17 — vFinal submitted URL approval guard hardening
 
 - Updated `corepack pnpm grok:vfinal-submission-dod-status` so #138
