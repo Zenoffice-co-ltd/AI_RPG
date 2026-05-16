@@ -54,8 +54,8 @@ function validEventRequest(body: Record<string, unknown>) {
 describe("grok-first vFinal security contract", () => {
   beforeEach(() => {
     vi.stubEnv("XAI_RELAY_TICKET_SECRET", SECRET);
-    vi.stubEnv("GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET", SECRET);
-    vi.stubEnv("GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET", SECRET);
+    vi.stubEnv("GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET", `${SECRET}\n`);
+    vi.stubEnv("GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET", `${SECRET}\n`);
     vi.stubEnv("GROK_VOICE_RELAY_WS_URL", "wss://voice.mendan.biz/api/v3/realtime-relay");
     vi.stubEnv("GROK_VOICE_RELAY_EXPECTED_AUD", "voice.mendan.biz");
     clearVFinalRateLimitForTests();
