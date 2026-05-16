@@ -59,6 +59,14 @@ corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked \
   --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
 
+For a scoped #140 artifact precheck before choosing or approving a baseline,
+run:
+
+```bash
+corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked \
+  --root out\grok_first_vfinal_latency
+```
+
 ## Current Codex Stop Conditions
 
 Codex must not change the final verdict to PASS until the checks above are

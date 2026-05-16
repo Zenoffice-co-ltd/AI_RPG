@@ -812,6 +812,24 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal #140 latency artifact inventory guard
+
+- Added `corepack pnpm grok:first-vfinal:latency-artifact-inventory` as a
+  scoped inventory helper for #140. The helper scans only explicitly supplied
+  roots for `summary.json` files, reports denominator/metric/candidate counts,
+  and avoids the unbounded cross-worktree scan that can time out.
+- Rechecked the current vFinal latency artifact directory with:
+  `corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked --root out\grok_first_vfinal_latency`.
+- Result: PASS for expected BLOCKED state. The scoped inventory visited 4
+  `summary.json` files, found 4 artifacts with `sessionApiMs`,
+  `firstAudioDeltaMs`, and `firstAudibleAudioMs`, found 2 artifacts with
+  denominator >=20 and zero failed runs, found 2 current-vFinal-only candidates,
+  and found 0 explicit pre-vFinal baseline candidates.
+- This is inventory evidence only. #140 remains BLOCKED until an approved
+  same-environment, same-scenario, >=20-session pre-vFinal baseline exists and
+  `corepack pnpm grok:first-vfinal:latency-compare` passes with closeCode1006 /
+  relay.error comparison evidence.
+
 ### 2026-05-17 — vFinal #171 workbook human-confirmation count guard
 
 - Added `corepack pnpm grok:vfinal-workbook-human-confirmations` as a
