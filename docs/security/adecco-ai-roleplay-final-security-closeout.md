@@ -48,6 +48,18 @@ was reopened and PR #210 recorded that issue closure alone is not approval
 evidence. Customer submission DoD remains BLOCKED on #138, #139, #140, #141,
 and #171.
 
+2026-05-17 post-PR #212 continuation recheck: the final DoD guard and individual
+blocker helpers still pass only for the expected BLOCKED state. #138, #139,
+#140, #141, #171, and umbrella #128 remain OPEN. `verify:acceptance --
+--preflight` still stops before product checks with Secret Manager
+`secretmanager.versions.access` permission denied in the current Codex shell.
+No secret values were read, printed, persisted, or committed. No production,
+DNS, IAM, Firebase, App Hosting, Cloud Run, Cloud Armor, Cloud Logging, or
+workbook changes were made in this recheck. Resuming to PASS still requires
+explicit submitted URL approval or domain mapping, legacy shared XAI scope
+approval or de-scope, strict pre-vFinal latency comparison evidence, acceptance
+PASS or explicit approval, and workbook human confirmation.
+
 ## Target
 
 - Submitted vFinal no-key URL:
