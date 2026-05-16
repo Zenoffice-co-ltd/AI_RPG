@@ -948,6 +948,17 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 - Negative check: `--expect=pass` failed as expected while closeout, audit,
   questionnaire map, and workbook status cells remain BLOCKED. No production
   changes were made.
+- Follow-up guard update: the same command now accepts `--check-github-issues`.
+  In BLOCKED mode it confirms #138, #139, #140, and #141 remain OPEN; in PASS
+  mode it fails unless those four blocker issues are CLOSED. The final PASS
+  closeout check should include both source workbooks and issue state:
+
+```bash
+corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
+  --check-github-issues \
+  --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" \
+  --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
+```
 
 ### 2026-05-16 — vFinal submission unblock PR-A
 
