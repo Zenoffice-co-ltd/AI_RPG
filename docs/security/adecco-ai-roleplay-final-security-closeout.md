@@ -1,10 +1,10 @@
 # Adecco AI Roleplay vFinal Security Closeout
 
-Status as of 2026-05-16 19:00 JST: code-level P0, PR-A production auth
-unblock, and PR-B no-key App Hosting backend separation evidence are complete.
-Customer submission DoD is still blocked by log retention, WAF, browser/voice
-E2E, latency, ZAP, acceptance, and final same-SHA production closeout evidence
-listed in this document.
+Status as of 2026-05-16 19:15 JST: code-level P0, PR-A production auth
+unblock, PR-B no-key App Hosting backend separation, and PR-C metadata-only
+Cloud Logging retention evidence are complete. Customer submission DoD is still
+blocked by WAF, browser/voice E2E, latency, ZAP, acceptance, and final
+same-SHA production closeout evidence listed in this document.
 
 ## Target
 
@@ -154,21 +154,47 @@ Sensitive values that must not appear:
 
 ```text
 Log bucket:
-  projects/adecco-mendan/locations/global/buckets/_Default
+  projects/adecco-mendan/locations/global/buckets/adecco-vfinal-metadata
 Retention:
-  30 days
+  180 days
 Inclusion filter:
-  BLOCKED: metadata-only 180+ day bucket/sink has not been configured.
+  sink=adecco-vfinal-metadata-sink
+  destination=logging.googleapis.com/projects/adecco-mendan/locations/global/buckets/adecco-vfinal-metadata
+  filter:
+    resource.type="cloud_run_revision"
+    AND (
+      jsonPayload.scope="grokFirstVFinal"
+      OR jsonPayload.scope="grokVoice.realtimeRelay"
+      OR jsonPayload.scope=~"^vfinal\\."
+    )
 Exclusion filter:
   _Default exclusion drop-vfinal-access-raw-invite:
   resource.type="cloud_run_revision"
   AND resource.labels.service_name="adecco-roleplay"
   AND httpRequest.requestUrl=~"/demo/adecco-roleplay-vFinal/access\\?invite="
 Sensitive log scan command/result:
-  BLOCKED: a production diagnostic request before the exclusion confirmed that
-  raw invite query values can enter Cloud Run request logs via httpRequest.requestUrl.
-  The exclusion above prevents future _Default ingestion for that URL shape, but
-  this must be remediated or scoped out before customer submission.
+  PASS scoped PR-C scan against adecco-vfinal-metadata bucket after a live
+  vFinal session generated post-sink metadata:
+    mvi1.=0
+    roleplay_vfinal=0
+    relay-ticket=0
+    mendan-relay-ticket.=0
+    Authorization=0
+    Bearer=0
+    XAI_API_KEY=0
+    transcript=0
+    instructions=0
+    prompt body=0
+    input_audio_buffer.append=0
+    response.output_audio.delta=0
+    audioBase64=0
+    participantId"=0
+    participantId:=0
+  NOTE: a production diagnostic request before PR-A confirmed that raw invite
+  query values can enter Cloud Run request logs via httpRequest.requestUrl. PR-A
+  moved invite consumption to URL fragments + POST body, and the _Default
+  exclusion above remains as a defense-in-depth guard for the deprecated query
+  shape.
 ```
 
 ## Invite Auth Evidence
@@ -407,8 +433,7 @@ Remaining blockers:
     Hosting service account for non-submitted direct comparison routes. Removing
     it would risk breaking existing v3/direct xAI routes unless those routes are
     migrated or formally de-scoped.
-  - metadata-only Cloud Logging bucket/sink with retention >=180 days is not yet configured.
-  - final sensitive log scan is not complete.
+  - final sensitive log scan after browser/voice E2E and relay phase evidence is not complete.
   - Cloud Armor/WAF preview/log mode is not yet applied to relay LB.
   - browser WS capture, direct api.x.ai=0 evidence, live text E2E, and live
     voice E2E are not complete.
