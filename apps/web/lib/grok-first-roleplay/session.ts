@@ -15,6 +15,8 @@ import {
   GROK_FIRST_V50_5_DEMO_SLUG,
   GROK_FIRST_V50_6_BACKEND,
   GROK_FIRST_V50_6_DEMO_SLUG,
+  GROK_FIRST_V50_7_BACKEND,
+  GROK_FIRST_V50_7_DEMO_SLUG,
   GROK_FIRST_V50_BACKEND,
   GROK_FIRST_V50_DEMO_SLUG,
   GROK_FIRST_V50_MODEL,
@@ -34,33 +36,46 @@ const envSchema = z.object({
   GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED: z
     .enum(["true", "false"])
     .optional(),
+  ADECCO_BROWSER_EVAL_ENABLED: z.string().optional(),
 });
+
+export const GROK_FIRST_V50_7_GUARDRAIL_VERSION =
+  "grok-first-v50.7-guard-2026-05-15";
 
 export async function createGrokFirstV50Session(input?: {
   variant?: GrokFirstPromptVariant;
+  promptVariant?: GrokFirstPromptVariant;
+  runtimeVariant?: GrokFirstPromptVariant | "v50.7";
 }): Promise<GrokFirstV50Session> {
+  await Promise.resolve();
   const env = getEnv();
-  const variant = input?.variant ?? "v50";
-  const prompt = buildGrokFirstV50Prompt(variant);
+  const promptVariant = input?.promptVariant ?? input?.variant ?? "v50";
+  const runtimeVariant = input?.runtimeVariant ?? input?.variant ?? promptVariant;
+  const prompt = buildGrokFirstV50Prompt(promptVariant);
   const voiceId = env.GROK_FIRST_V50_VOICE_ID ?? GROK_FIRST_V50_VOICE_ID;
   const sessionId = `gfv50_${randomUUID()}`;
   const identity =
-    variant === "v50.6"
+    runtimeVariant === "v50.7"
+      ? {
+          demoSlug: GROK_FIRST_V50_7_DEMO_SLUG,
+          backend: GROK_FIRST_V50_7_BACKEND,
+        }
+      : runtimeVariant === "v50.6"
       ? {
           demoSlug: GROK_FIRST_V50_6_DEMO_SLUG,
           backend: GROK_FIRST_V50_6_BACKEND,
         }
-      : variant === "v50.5"
+      : runtimeVariant === "v50.5"
         ? {
             demoSlug: GROK_FIRST_V50_5_DEMO_SLUG,
             backend: GROK_FIRST_V50_5_BACKEND,
           }
-        : variant === "v50.4"
+        : runtimeVariant === "v50.4"
           ? {
               demoSlug: GROK_FIRST_V50_4_DEMO_SLUG,
               backend: GROK_FIRST_V50_4_BACKEND,
             }
-          : variant === "v50.1"
+          : runtimeVariant === "v50.1"
             ? {
                 demoSlug: GROK_FIRST_V50_1_DEMO_SLUG,
                 backend: GROK_FIRST_V50_1_BACKEND,
@@ -89,7 +104,10 @@ export async function createGrokFirstV50Session(input?: {
     scenarioId: prompt.scenarioId,
     promptVersion: prompt.promptVersion,
     promptHash: prompt.promptHash,
-    guardrailVersion: prompt.guardrailVersion,
+    guardrailVersion:
+      runtimeVariant === "v50.7"
+        ? GROK_FIRST_V50_7_GUARDRAIL_VERSION
+        : prompt.guardrailVersion,
     model: GROK_FIRST_V50_MODEL,
     voiceId,
     realtimeTransport: "mendan_cloud_run_relay_wss",
@@ -121,6 +139,10 @@ export async function createGrokFirstV50Session(input?: {
     fullTurnBufferEnabled: false,
     debugTranscriptPreviewEnabled:
       env.GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED === "true",
+    browserEvaluationEnabled:
+      runtimeVariant === "v50.7"
+        ? env.ADECCO_BROWSER_EVAL_ENABLED !== "0"
+        : false,
   };
 }
 

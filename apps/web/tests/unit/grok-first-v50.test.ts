@@ -106,6 +106,20 @@ function validV506Request() {
   });
 }
 
+function validV507Request() {
+  const headers = new Headers({
+    "content-type": "application/json",
+    origin: "http://127.0.0.1:3000",
+    referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v50-7",
+    cookie: `roleplay_api_access=${signAccessToken("demo-secret")}`,
+  });
+  return new NextRequest("http://127.0.0.1:3000/api/grok-first-v50-7/session", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({}),
+  });
+}
+
 describe("grok-first v50 runtime", () => {
   beforeEach(() => {
     vi.stubEnv("DEMO_ACCESS_TOKEN", "demo-secret");
@@ -349,6 +363,63 @@ describe("grok-first v50 runtime", () => {
     });
     expect(body["ephemeralToken"]).toBeUndefined();
     expect(body["ephemeralExpiresAt"]).toBeUndefined();
+  });
+
+  it("serves v50.7 with v50.6 prompt and v50.7 runtime guard contract", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const { POST } =
+      await import("../../app/api/grok-first-v50-7/session/route");
+    const response = await POST(validV507Request());
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(body["demoSlug"]).toBe("adecco-roleplay-v50-7");
+    expect(body["backend"]).toBe("grok-first-v50-7");
+    expect(body["promptVersion"]).toBe("grok-first-v50.6-2026-05-15");
+    expect(String(body["guardrailVersion"])).toContain("v50.7");
+    expect(body["browserEvaluationEnabled"]).toBe(true);
+    expect(body["model"]).toBe("grok-voice-think-fast-1.0");
+    expect(body["voiceId"]).toBe("99c95cc8a177");
+    expect(body["realtimeTransport"]).toBe("mendan_cloud_run_relay_wss");
+    expect(body["tools"]).toEqual([]);
+    expect(body["registeredSpeechPayloadIncluded"]).toBe(false);
+    expect(body["lockedResponseAudioBundleIncluded"]).toBe(false);
+    expect(body["runtimeTtsEnabled"]).toBe(false);
+    expect(body["replacementTtsEnabled"]).toBe(false);
+    expect(body["fullTurnBufferEnabled"]).toBe(false);
+    expect(body["ephemeralToken"]).toBeUndefined();
+    expect(body["ephemeralExpiresAt"]).toBeUndefined();
+    expect(String(body["instructions"])).toContain("# v50.6");
+
+    const auth = body["realtimeAuth"] as Record<string, unknown>;
+    const verification = verifyRelayTicket({
+      ticket: String(auth["ticket"]),
+      secret: "0123456789abcdef0123456789abcdef",
+      expectedAud: "voice.mendan.biz",
+      expectedPath: DEFAULT_RELAY_TICKET_PATH,
+    });
+    expect(verification).toMatchObject({
+      ok: true,
+      payload: {
+        demoSlug: "adecco-roleplay-v50-7",
+        backend: "grok-first-v50-7",
+        transport: "mendan_cloud_run_relay_wss",
+      },
+    });
+    expect(JSON.stringify(body)).not.toContain(
+      "0123456789abcdef0123456789abcdef",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("disables v50.7 browser evaluation through the rollback flag", async () => {
+    vi.stubEnv("ADECCO_BROWSER_EVAL_ENABLED", "0");
+    const { POST } =
+      await import("../../app/api/grok-first-v50-7/session/route");
+    const response = await POST(validV507Request());
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body["browserEvaluationEnabled"]).toBe(false);
   });
 
   it("sends relay tickets through websocket subprotocols", () => {
@@ -678,8 +749,8 @@ describe("grok-first v50 runtime", () => {
     const { result } = renderHook(() =>
       useGrokFirstRoleplayConversation("live", {
         micEnabled: false,
-        fetchSession: vi.fn(
-          async () => sessions.shift() ?? testSession("extra"),
+        fetchSession: vi.fn(() =>
+          Promise.resolve(sessions.shift() ?? testSession("extra")),
         ),
         createRealtime: (opts) => {
           const realtime = new FakeRealtime(opts);
@@ -823,7 +894,7 @@ function fakeAudioQueue() {
   return {
     enqueueBase64: vi.fn(),
     setVolume: vi.fn(),
-    stop: vi.fn(async () => undefined),
+    stop: vi.fn(() => Promise.resolve()),
     getOutputVolume: vi.fn(() => 0),
   };
 }

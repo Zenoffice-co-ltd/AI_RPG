@@ -1,5 +1,6 @@
 import type {
   RoleplayMode,
+  RoleplayStatus,
   TranscriptMessage,
 } from "@/lib/roleplay/conversation-types";
 
@@ -8,12 +9,14 @@ export const GROK_FIRST_V50_1_DEMO_SLUG = "adecco-roleplay-v50-1" as const;
 export const GROK_FIRST_V50_4_DEMO_SLUG = "adecco-roleplay-v50-4" as const;
 export const GROK_FIRST_V50_5_DEMO_SLUG = "adecco-roleplay-v50-5" as const;
 export const GROK_FIRST_V50_6_DEMO_SLUG = "adecco-roleplay-v50-6" as const;
+export const GROK_FIRST_V50_7_DEMO_SLUG = "adecco-roleplay-v50-7" as const;
 export const GROK_FIRST_VFINAL_DEMO_SLUG = "adecco-roleplay-vFinal" as const;
 export const GROK_FIRST_V50_BACKEND = "grok-first-v50" as const;
 export const GROK_FIRST_V50_1_BACKEND = "grok-first-v50-1" as const;
 export const GROK_FIRST_V50_4_BACKEND = "grok-first-v50-4" as const;
 export const GROK_FIRST_V50_5_BACKEND = "grok-first-v50-5" as const;
 export const GROK_FIRST_V50_6_BACKEND = "grok-first-v50-6" as const;
+export const GROK_FIRST_V50_7_BACKEND = "grok-first-v50-7" as const;
 export const GROK_FIRST_VFINAL_BACKEND = "grok-first-vFinal" as const;
 export const GROK_FIRST_V50_MODEL = "grok-voice-think-fast-1.0" as const;
 export const GROK_FIRST_V50_VOICE_ID = "99c95cc8a177" as const;
@@ -25,6 +28,7 @@ export type GrokFirstDemoSlug =
   | typeof GROK_FIRST_V50_4_DEMO_SLUG
   | typeof GROK_FIRST_V50_5_DEMO_SLUG
   | typeof GROK_FIRST_V50_6_DEMO_SLUG
+  | typeof GROK_FIRST_V50_7_DEMO_SLUG
   | typeof GROK_FIRST_VFINAL_DEMO_SLUG;
 export type GrokFirstBackend =
   | typeof GROK_FIRST_V50_BACKEND
@@ -32,6 +36,7 @@ export type GrokFirstBackend =
   | typeof GROK_FIRST_V50_4_BACKEND
   | typeof GROK_FIRST_V50_5_BACKEND
   | typeof GROK_FIRST_V50_6_BACKEND
+  | typeof GROK_FIRST_V50_7_BACKEND
   | typeof GROK_FIRST_VFINAL_BACKEND;
 
 export type GrokFirstV50RealtimeTransport = "mendan_cloud_run_relay_wss";
@@ -76,6 +81,7 @@ export type GrokFirstV50Session = {
   replacementTtsEnabled: false;
   fullTurnBufferEnabled: false;
   debugTranscriptPreviewEnabled: boolean;
+  browserEvaluationEnabled?: boolean;
 };
 
 export type GrokFirstV50ServerEvent = {
@@ -158,7 +164,7 @@ export type NegativeGuardDecision = {
 
 export type GrokFirstV50Conversation = {
   mode: RoleplayMode;
-  status: import("@/lib/roleplay/conversation-types").RoleplayStatus;
+  status: RoleplayStatus;
   messages: TranscriptMessage[];
   isConnected: boolean;
   isConnecting: boolean;

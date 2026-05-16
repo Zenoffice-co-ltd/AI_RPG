@@ -1,0 +1,421 @@
+.page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  background: #f6f8fb;
+  color: #152033;
+  overflow-x: clip;
+}
+
+.page *,
+.page *::before,
+.page *::after {
+  box-sizing: border-box;
+}
+
+.topbar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  border-bottom: 1px solid #e6eaf0;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 18px 32px;
+}
+
+.brand {
+  color: #0f2649;
+  font-size: 18px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.button,
+.buttonSecondary {
+  border: 1px solid #d8e0ea;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #152033;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 16px;
+  text-decoration: none;
+}
+
+.button {
+  background: #0f2649;
+  border-color: #0f2649;
+  color: #ffffff;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.shell {
+  margin: 0 auto;
+  max-width: 1280px;
+  padding: 28px 28px 56px;
+  width: 100%;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 18px;
+}
+
+.scoreCard,
+.metaCard,
+.card,
+.panel,
+.debug {
+  background: #ffffff;
+  border: 1px solid #e6eaf0;
+  border-radius: 18px;
+  box-shadow: 0 14px 40px rgba(15, 38, 73, 0.06);
+}
+
+.scoreCard {
+  padding: 30px;
+}
+
+.eyebrow {
+  color: #637089;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.score {
+  align-items: baseline;
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.scoreValue {
+  color: #0f2649;
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.scoreMax {
+  color: #7b8798;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.metaCard {
+  display: grid;
+  gap: 12px;
+  padding: 24px;
+}
+
+.metaRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 14px;
+}
+
+.metaLabel {
+  color: #637089;
+  font-weight: 700;
+}
+
+.metaValue {
+  color: #152033;
+  font-weight: 800;
+  text-align: right;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.card {
+  padding: 20px;
+}
+
+.cardLabel {
+  color: #637089;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.cardValue {
+  display: block;
+  font-size: 30px;
+  font-weight: 800;
+  margin-top: 8px;
+}
+
+.mainGrid {
+  align-items: start;
+  display: grid;
+  grid-template-columns: minmax(0, 1.85fr) minmax(320px, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.panel {
+  padding: 24px;
+}
+
+.panelTitle {
+  color: #0f2649;
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0 0 16px;
+}
+
+.rubrics {
+  display: grid;
+  gap: 14px;
+}
+
+.rubric {
+  border: 1px solid #e6eaf0;
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.rubricHeader {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.rubricName {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.rubricScore {
+  color: #0f2649;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.bar {
+  background: #eef2f7;
+  border-radius: 999px;
+  height: 8px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+
+.barFill {
+  background: linear-gradient(90deg, #1f7a4f, #3d6bb3);
+  height: 100%;
+}
+
+.bodyText {
+  color: #34435a;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.sticky {
+  position: sticky;
+  top: 16px;
+}
+
+.summaryList {
+  display: grid;
+  gap: 12px;
+}
+
+.summaryItem {
+  background: #f8fafc;
+  border: 1px solid #e6eaf0;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.captureGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.captureHeader,
+.captureRow {
+  display: grid;
+  grid-template-columns: 56px minmax(220px, 1fr) 80px 94px minmax(260px, 1.2fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.captureHeader {
+  color: #637089;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 0 14px;
+}
+
+.captureRow {
+  background: #ffffff;
+  border: 1px solid #e6eaf0;
+  border-radius: 14px;
+  font-size: 14px;
+  padding: 13px 14px;
+}
+
+.badge {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  justify-content: center;
+  padding: 5px 10px;
+}
+
+.captured {
+  background: #e8f5ee;
+  color: #1f7a4f;
+}
+
+.partial {
+  background: #fef4e8;
+  color: #9a6418;
+}
+
+.missed {
+  background: #fdecec;
+  color: #b8312f;
+}
+
+.feedbackGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.numbered {
+  display: grid;
+  gap: 10px;
+}
+
+.numberedItem {
+  align-items: start;
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: 12px;
+}
+
+.number {
+  align-items: center;
+  background: #0f2649;
+  border-radius: 10px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 13px;
+  font-weight: 800;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+}
+
+.debug {
+  margin-top: 18px;
+  padding: 18px 22px;
+}
+
+.debug summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.pre {
+  background: #0d1321;
+  border-radius: 14px;
+  color: #e7edf7;
+  font-size: 12px;
+  margin-top: 14px;
+  overflow: auto;
+  padding: 16px;
+  white-space: pre-wrap;
+}
+
+.stateBox {
+  margin: 70px auto;
+  max-width: 720px;
+  text-align: center;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  border: 4px solid #d9e2ef;
+  border-top-color: #0f2649;
+  border-radius: 50%;
+  height: 44px;
+  margin: 0 auto 18px;
+  width: 44px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  .topbar,
+  .hero,
+  .mainGrid,
+  .feedbackGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    justify-content: flex-start;
+  }
+
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sticky {
+    position: static;
+  }
+
+  .captureHeader {
+    display: none;
+  }
+
+  .captureRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .shell {
+    padding: 18px 14px 36px;
+  }
+
+  .scoreValue {
+    font-size: 52px;
+  }
+
+  .kpis {
+    grid-template-columns: 1fr;
+  }
+}
