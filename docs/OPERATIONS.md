@@ -812,6 +812,25 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal #138 submitted URL candidate guard
+
+- Added `corepack pnpm grok:vfinal-submitted-url-candidates` as a read-only
+  helper for the #138 hosted.app/custom-domain decision. It checks the
+  dedicated hosted.app candidate and the dedicated `mendan.biz` candidates
+  without requiring secrets or printing sensitive values.
+- Rechecked the submitted URL candidates with:
+  `corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked`.
+- Result: PASS for expected BLOCKED state. The dedicated hosted.app candidate
+  returned HTTP 200. The two dedicated `mendan.biz` candidates did not return
+  HTTP success, so no active custom-domain candidate was found.
+- The helper records DNS diagnostics separately. In this environment, Node DNS
+  lookup for hosted.app returned resolver errors while HTTP HEAD still
+  succeeded, so hosted.app availability is determined by HTTP success and the
+  DNS diagnostic is not used as a failure by itself.
+- This is availability/candidate evidence only. #138 remains BLOCKED until the
+  hosted.app URL is explicitly approved for submission, or a dedicated
+  `mendan.biz` custom domain is active and passes submitted-URL smoke.
+
 ### 2026-05-17 — vFinal #141 acceptance preflight input recheck
 
 - Rechecked current-shell acceptance inputs without printing secret values.
