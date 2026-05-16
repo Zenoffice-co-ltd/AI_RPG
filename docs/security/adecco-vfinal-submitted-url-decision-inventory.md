@@ -66,18 +66,23 @@ belongs to the dedicated `adecco-roleplay-vfinal` App Hosting backend.
 Issue #138 remains blocked until one of these is true:
 
 1. A customer/operator explicitly approves the dedicated hosted.app URL as the
-   vFinal customer-submitted URL.
+   vFinal customer-submitted URL with the existing submitted-URL smoke evidence:
+   invite consume 307, session 200, `wsUrl`
+   `wss://voice.mendan.biz/api/v3/realtime-relay`, direct `api.x.ai` count 0,
+   and forbidden session keys absent.
 2. A dedicated vFinal `mendan.biz` custom domain is mapped to the
    `adecco-roleplay-vfinal` backend, DNS/certificate status is active, and a
-   submitted-URL smoke confirms session 200, relay WSS only, direct
-   `api.x.ai` count 0, and forbidden session keys absent.
+   submitted-URL smoke confirms invite consume 307, session 200, `wsUrl`
+   `wss://voice.mendan.biz/api/v3/realtime-relay`, direct `api.x.ai` count 0,
+   and forbidden session keys absent.
 
 If #138 is left OPEN and resolved by approval/evidence comment rather than
 issue closure, the final guard accepts either the dedicated hosted.app approval
 text or the dedicated `mendan.biz` custom-domain approval text in
-`docs/security/adecco-vfinal-approval-packet.md`. The custom-domain approval
-text must include DNS/certificate active status plus submitted-URL smoke
-evidence; DNS/certificate approval alone is not enough. The approval comment
+`docs/security/adecco-vfinal-approval-packet.md`. Both approval paths must
+include submitted-URL smoke evidence; the custom-domain approval text must also
+include DNS/certificate active status. DNS/certificate approval alone is not
+enough for a custom-domain path. The approval comment
 must include the exact submitted URL, and any `<placeholder>` text from the
 approval packet must be replaced before the guard will accept it.
 

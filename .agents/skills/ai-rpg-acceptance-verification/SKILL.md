@@ -154,6 +154,11 @@ Rules:
 - #138 custom-domain approval must name a dedicated vFinal `mendan.biz` URL
   mapped to `adecco-roleplay-vfinal`. The legacy shared comparison domain
   `roleplay.mendan.biz` is not a valid submitted vFinal URL.
+- #138 hosted.app or custom-domain approval must include submitted-URL smoke
+  evidence: invite consume 307, session 200, `wsUrl`
+  `wss://voice.mendan.biz/api/v3/realtime-relay`, direct `api.x.ai` count 0,
+  and forbidden session keys absent. Custom-domain approval must also include
+  active DNS/certificate status.
 - #139 approval must name the submitted vFinal service account
   `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` and the
   legacy shared App Hosting service account
