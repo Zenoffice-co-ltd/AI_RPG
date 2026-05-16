@@ -24,6 +24,8 @@ Read-only evidence:
   candidate page.
 - 2026-05-17 03:26 JST HEAD request returned HTTP 200 for the hosted.app
   candidate page.
+- 2026-05-17 04:16 JST HEAD request returned HTTP 200 for the hosted.app
+  candidate page.
 - DNS resolution in this environment returned A/AAAA records for
   `adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`.
 
@@ -37,7 +39,7 @@ adecco-roleplay.mendan.biz
 ```
 
 Latest read-only checks in this environment still returned no DNS resolver
-result for both candidates. 2026-05-17 03:26 JST recheck:
+result for both candidates. 2026-05-17 04:16 JST recheck:
 
 - `Resolve-DnsName roleplay-vfinal.mendan.biz` returned no result.
 - `Resolve-DnsName adecco-roleplay.mendan.biz` returned no result.
