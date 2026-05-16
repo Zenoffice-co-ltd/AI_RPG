@@ -46,6 +46,13 @@ Latest current-shell result:
 denied on resource (or it may not exist).
 ```
 
+2026-05-17 04:20 JST recheck:
+
+- `corepack pnpm verify:acceptance -- --preflight` still failed before product
+  checks with the same Secret Manager `secretmanager.versions.access`
+  permission denial.
+- Secret values were not printed or persisted.
+
 This means a fresh clean rerun still requires one of:
 
 - process-local vendor secrets and project inputs supplied without printing or

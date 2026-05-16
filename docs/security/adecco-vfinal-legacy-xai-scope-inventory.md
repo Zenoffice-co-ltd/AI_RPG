@@ -34,6 +34,19 @@ does not require or access `XAI_API_KEY`.
 The legacy shared App Hosting backend is still configured for broader internal
 comparison/direct Grok Voice routes.
 
+Latest read-only IAM recheck, 2026-05-17 04:20 JST:
+
+- `gcloud secrets get-iam-policy XAI_API_KEY --project=adecco-mendan
+  --format=json` succeeded without reading secret values.
+- `roles/secretmanager.secretAccessor` still includes
+  `serviceAccount:firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com`
+  and `serviceAccount:xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com`.
+- `roles/secretmanager.viewer` still includes
+  `serviceAccount:firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com`.
+- The dedicated submitted vFinal service account
+  `serviceAccount:firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com`
+  was not present on the `XAI_API_KEY` IAM policy.
+
 Code/config evidence:
 
 - `apps/web/apphosting.yaml` still binds `XAI_API_KEY`.
