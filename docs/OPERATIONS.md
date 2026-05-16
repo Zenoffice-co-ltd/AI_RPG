@@ -828,6 +828,23 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   --workbook=<TPISA workbook>` after reopening #141. Result: PASS for expected
   BLOCKED, with #128, #138, #139, #140, #141, and #171 listed as blockers.
 
+### 2026-05-17 — vFinal #140 Cloud Logging latency inventory
+
+- Official docs rechecked before the read-only GCP query:
+  `gcloud logging read` and Cloud Logging query language.
+- Added `corepack pnpm grok:vfinal-cloud-log-latency-inventory` as a
+  no-raw-log-output helper for the #140 latency baseline search.
+- Command:
+  `corepack pnpm grok:vfinal-cloud-log-latency-inventory -- --expect=blocked
+  --project=adecco-mendan --freshness=7d --limit=1000`.
+- Result: PASS for expected BLOCKED.
+- The inventory found 53 current dedicated `adecco-roleplay-vfinal`
+  `grokFirstVFinal` turn metadata entries and 0 comparison-ready explicit
+  pre-vFinal baseline candidates. The turn metadata lacks `sessionApiMs`, so it
+  cannot satisfy the strict #140 comparison gate.
+- Raw Cloud Logging JSON was not printed or persisted. No secret values were
+  read, printed, persisted, or committed.
+
 ### 2026-05-17 — vFinal #138 issue-state correction
 
 - During post-merge verification for PR #209, the final DoD guard failed
