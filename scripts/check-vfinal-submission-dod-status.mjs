@@ -26,10 +26,13 @@ const issueApprovalNeedles = new Map([
       [
         "Approved: the dedicated hosted.app URL is acceptable as the vFinal customer",
         "submitted URL.",
+        "Submitted URL: https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-vFinal",
       ],
       [
         "Approved: the dedicated vFinal mendan.biz custom domain is active as the vFinal customer",
         "submitted URL.",
+        "Submitted URL: https://",
+        ".mendan.biz/demo/adecco-roleplay-vFinal",
         "DNS/certificate status is active.",
         "Submitted-URL smoke passed with session 200, relay WSS only, direct api.x.ai count 0,",
         "forbidden session keys absent.",
@@ -607,6 +610,12 @@ function checkGithubIssues(expectedStatus) {
       failures.push(`#${number} should stay OPEN while customer submission DoD is blocked; got ${issue.state}`);
     }
     if (expectedStatus === "pass" && issue.state !== "CLOSED") {
+      if (allowOpenApprovedIssues && approvalAuthors.length === 0) {
+        failures.push(
+          `#${number} is OPEN and approval-based PASS requires --approval-author or ` +
+            "VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS"
+        );
+      }
       if (allowOpenApprovedIssues && issueHasApproval(issue)) {
         issue.approvalAccepted = true;
       } else {
@@ -643,14 +652,19 @@ function readGithubIssue(number, options = {}) {
 }
 
 function issueHasApproval(issue) {
+  if (approvalAuthors.length === 0) {
+    return false;
+  }
   const needles = issueApprovalNeedles.get(issue.number) ?? [];
   const needleSets = Array.isArray(needles[0]) ? needles : [needles];
   const comments = Array.isArray(issue.comments) ? issue.comments : [];
   return comments.some((comment) => {
-    if (approvalAuthors.length > 0 && !approvalAuthors.includes(comment?.author?.login)) {
+    if (!approvalAuthors.includes(comment?.author?.login)) {
       return false;
     }
-    const body = normalizeApprovalText(approvalCandidateText(comment?.body ?? ""));
+    const candidateText = approvalCandidateText(comment?.body ?? "");
+    if (hasUnfilledPlaceholder(candidateText)) return false;
+    const body = normalizeApprovalText(candidateText);
     if (!body.startsWith("Approved:")) return false;
     return needleSets.some((set) =>
       set.every((needle) => body.includes(normalizeApprovalText(needle)))
@@ -676,6 +690,10 @@ function approvalCandidateText(markdown) {
 
 function normalizeApprovalText(value) {
   return value.replace(/\s+/g, " ").trim();
+}
+
+function hasUnfilledPlaceholder(value) {
+  return /<[^>\r\n]+>/.test(String(value));
 }
 
 function checkWorkbook(path, expectedStatus) {
@@ -1049,12 +1067,30 @@ function runSelfTest() {
             body: [
               "Approved: the dedicated hosted.app URL is acceptable as the vFinal customer",
               "submitted URL.",
+              "Submitted URL: https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-vFinal",
             ].join("\n"),
           },
         ],
       },
       authors: ["approver"],
       expected: true,
+    },
+    {
+      name: "submitted hosted.app approval without exact URL is rejected",
+      issue: {
+        number: 138,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: the dedicated hosted.app URL is acceptable as the vFinal customer",
+              "submitted URL.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
     },
     {
       name: "custom domain submitted URL approval text is accepted",
@@ -1066,6 +1102,7 @@ function runSelfTest() {
             body: [
               "Approved: the dedicated vFinal mendan.biz custom domain is active as the vFinal customer",
               "submitted URL.",
+              "Submitted URL: https://roleplay-vfinal.mendan.biz/demo/adecco-roleplay-vFinal",
               "DNS/certificate status is active.",
               "Submitted-URL smoke passed with session 200, relay WSS only, direct api.x.ai count 0,",
               "and forbidden session keys absent.",
@@ -1086,7 +1123,32 @@ function runSelfTest() {
             body: [
               "Approved: the dedicated vFinal mendan.biz custom domain is active as the vFinal customer",
               "submitted URL.",
+              "Submitted URL: https://roleplay-vfinal.mendan.biz/demo/adecco-roleplay-vFinal",
               "DNS/certificate status is active.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
+    },
+    {
+      name: "approval with unfilled placeholders is rejected",
+      issue: {
+        number: 140,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: use the following pre-vFinal latency baseline for the vFinal customer submission comparison.",
+              "Baseline source: <specific artifact>.",
+              "pre-vFinal sessions >=20.",
+              "sessionApiMs p95: baseline <ms>, current <ms>, threshold baseline+50ms, result PASS.",
+              "firstAudioDeltaMs p95: baseline <ms>, current <ms>, threshold baseline+100ms, result PASS.",
+              "firstAudibleAudioMs p95: baseline <ms>, current <ms>, threshold baseline+100ms, result PASS.",
+              "closeCode1006 increase: none.",
+              "relay.error increase: none.",
+              "Comparison result: PASS.",
             ].join("\n"),
           },
         ],
@@ -1305,6 +1367,26 @@ function runSelfTest() {
         ],
       },
       authors: ["approver"],
+      expected: false,
+    },
+    {
+      name: "approval without expected author list is rejected",
+      issue: {
+        number: 139,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: the vFinal customer-submitted runtime scope is limited to the",
+              "dedicated no-key App Hosting backend adecco-roleplay-vfinal and its submitted",
+              "URL. Legacy shared App Hosting routes and their XAI_API_KEY access are internal",
+              "comparison/continuity infrastructure and are out of scope for the vFinal",
+              "customer submission.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: [],
       expected: false,
     },
   ];

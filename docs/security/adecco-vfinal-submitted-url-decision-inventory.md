@@ -75,7 +75,9 @@ issue closure, the final guard accepts either the dedicated hosted.app approval
 text or the dedicated `mendan.biz` custom-domain approval text in
 `docs/security/adecco-vfinal-approval-packet.md`. The custom-domain approval
 text must include DNS/certificate active status plus submitted-URL smoke
-evidence; DNS/certificate approval alone is not enough.
+evidence; DNS/certificate approval alone is not enough. The approval comment
+must include the exact submitted URL, and any `<placeholder>` text from the
+approval packet must be replaced before the guard will accept it.
 
 Until then, the customer submission DoD and security-checksheet submission DoD
 must remain BLOCKED for #138.
