@@ -49,6 +49,8 @@ Approve one:
 Approved: the dedicated hosted.app URL is acceptable as the vFinal customer
 submitted URL.
 Submitted URL: https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-vFinal
+Submitted-URL smoke passed with invite consume 307, session 200, wsUrl wss://voice.mendan.biz/api/v3/realtime-relay,
+direct api.x.ai count 0, and forbidden session keys absent.
 ```
 
 or
@@ -58,8 +60,8 @@ Approved: the dedicated vFinal mendan.biz custom domain is active as the vFinal 
 submitted URL.
 Submitted URL: https://<dedicated-vFinal-mendan.biz>/demo/adecco-roleplay-vFinal
 DNS/certificate status is active.
-Submitted-URL smoke passed with session 200, relay WSS only, direct api.x.ai count 0,
-and forbidden session keys absent.
+Submitted-URL smoke passed with invite consume 307, session 200, wsUrl wss://voice.mendan.biz/api/v3/realtime-relay,
+direct api.x.ai count 0, and forbidden session keys absent.
 ```
 
 The custom-domain approval path must name a dedicated vFinal domain mapped to
