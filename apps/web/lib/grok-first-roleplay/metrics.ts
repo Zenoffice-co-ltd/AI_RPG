@@ -12,6 +12,9 @@ export type GrokFirstV50EventKind =
   | "stt.failed"
   | "stt.skipped"
   | "guard.detected"
+  | "guard.drain.ignored"
+  | "fixed_guard.playback.started"
+  | "fixed_guard.playback.completed"
   | "tail_guard.released"
   | "tail_guard.dropped"
   | "turn.completed"
@@ -69,7 +72,7 @@ export function logGrokFirstVFinalServerEvent(input: {
   participantIdHash?: string | undefined;
   details?: Record<string, unknown> | undefined;
 }) {
-  console.log(
+  console.info(
     JSON.stringify({
       scope: "grokFirstVFinal",
       kind: input.kind,

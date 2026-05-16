@@ -3,6 +3,12 @@
 Status: implementation evidence template. Fill every evidence field during the
 final production rollout.
 
+PR-local status as of 2026-05-16: code-level P0 security checks pass locally
+after rebasing the PR branch onto `origin/main`, but production closeout is not
+complete. GitHub Actions, App Hosting rollout, Cloud Run revision/traffic, IAM,
+Cloud Logging retention, WAF state, live browser E2E, latency baseline, ZAP,
+and acceptance evidence remain required before customer submission.
+
 ## Target
 
 - URL: `https://roleplay.mendan.biz/demo/adecco-roleplay-vFinal`
@@ -183,7 +189,17 @@ Voice E2E:
 Latency baseline:
 Latency vFinal:
 ZAP baseline/passive:
+Local code gates:
+  PASS corepack pnpm grok:vfinal-security-invariants
+  PASS corepack pnpm exec vitest run --config vitest.config.ts apps/web/tests/unit/grok-first-vfinal.test.ts apps/xai-realtime-relay/src/server.test.ts packages/grok-realtime-relay-auth/src/ticket.test.ts
+  PASS corepack pnpm --filter @top-performer/web typecheck
+  PASS corepack pnpm --filter @top-performer/xai-realtime-relay typecheck
+  PASS corepack pnpm -r --workspace-concurrency=1 --if-present typecheck
+  PASS corepack pnpm -r --workspace-concurrency=1 --if-present test
+  BLOCKED corepack pnpm typecheck / test: Turbo on Windows cannot find package manager binary
 verify:acceptance:
+  BLOCKED corepack pnpm verify:acceptance -- --preflight:
+  [vendor_failure] 7 PERMISSION_DENIED: Permission 'secretmanager.versions.access' denied on resource (or it may not exist).
 ```
 
 ## Deploy Evidence
