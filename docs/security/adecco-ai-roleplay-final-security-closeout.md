@@ -642,6 +642,19 @@ verify:acceptance:
     acceptance_status=not PASS. DoD G no-coaching-only exception is not applied
       by Codex because retry 1 also failed no-hidden-fact-leak; customer/
       operator approval or a clean rerun remains required for issue #141.
+  BLOCKED preflight rerun 2026-05-17 JST:
+    command=corepack pnpm verify:acceptance -- --preflight
+    result=[vendor_failure] 7 PERMISSION_DENIED: Permission
+      'secretmanager.versions.access' denied on resource (or it may not exist).
+    local input check:
+      process env OPENAI_API_KEY/ELEVENLABS_API_KEY/LIVEAVATAR_API_KEY/
+        QUEUE_SHARED_SECRET/FIREBASE_PROJECT_ID/SECRET_SOURCE_PROJECT_ID
+        were missing in this shell.
+      apps/web/.env.local was missing.
+    classification=current operator-shell credential/input blocker. Earlier
+      full-run evidence remains valid for the legacy ConvAI judge blocker, but
+      a fresh clean rerun requires process-local secrets or an identity with
+      Secret Manager access. Secret values were not printed or persisted.
 ```
 
 ## Deploy Evidence

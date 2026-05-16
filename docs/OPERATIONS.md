@@ -821,6 +821,12 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 - The packet is not a PASS verdict. It is a human decision aid. Keep the
   closeout and questionnaire drafts BLOCKED until the approvals or fresh
   evidence are recorded and the final closeout PR is merged.
+- A fresh `corepack pnpm verify:acceptance -- --preflight` attempt in the
+  current shell failed before product checks with Secret Manager
+  `secretmanager.versions.access` permission denied. Process-local vendor
+  secrets and `apps/web/.env.local` were absent. Secret values were not printed
+  or persisted. A clean #141 rerun requires process-local secrets or an
+  execution identity with Secret Manager access.
 
 ### 2026-05-17 — vFinal full DoD audit
 

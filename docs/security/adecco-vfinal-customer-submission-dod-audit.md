@@ -39,6 +39,14 @@ Customer submission remains blocked by four tracked items:
   `serviceAccount:firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com`.
   This confirms the dedicated submitted vFinal runtime remains no-key, while
   the legacy shared backend scope decision remains open.
+- 2026-05-17 acceptance preflight rerun:
+  `corepack pnpm verify:acceptance -- --preflight` failed before product checks
+  with Secret Manager `secretmanager.versions.access` permission denied. The
+  current shell had no process-local
+  `OPENAI_API_KEY`/`ELEVENLABS_API_KEY`/`LIVEAVATAR_API_KEY`/
+  `QUEUE_SHARED_SECRET` and no `apps/web/.env.local`. This does not replace the
+  earlier full-run legacy ConvAI judge evidence; it means a fresh clean rerun
+  currently needs process-local secrets or a stronger execution identity.
 
 ## DoD Matrix
 
@@ -64,7 +72,7 @@ Customer submission remains blocked by four tracked items:
 | 18 | WSS close code 1006 increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded closeCode1006=0. Formal comparison remains tied to #140. |
 | 19 | `relay.error` increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded relay.error=0. Formal comparison remains tied to #140. |
 | 20 | ZAP baseline/passive scan PASS | PASS | ZAP baseline/passive exitCode 0, FAIL=0, WARN=8 documented; no active scan was run. |
-| 21 | `verify:acceptance` PASS or Secret Manager IAM blocker formally issue-tracked and approved outside customer submission | BLOCKED by #141 | Preflight is ready, but full run is blocked by legacy ConvAI judge failures. The current blocker is no longer Secret Manager IAM, so customer/operator approval or a clean rerun is required. |
+| 21 | `verify:acceptance` PASS or Secret Manager IAM blocker formally issue-tracked and approved outside customer submission | BLOCKED by #141 | Earlier preflight was ready and full run reached the legacy ConvAI judge blocker. A later 2026-05-17 preflight rerun in this shell failed on Secret Manager IAM because process-local secrets and `.env.local` were absent. A fresh clean rerun requires process-local secrets or stronger execution identity; otherwise customer/operator approval is required. |
 | 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED | Closeout still intentionally lists #138, #139, #140, and #141 as unresolved. |
 | 23 | Closeout records official docs checked, backend/rollout/revision/traffic, relay image/revision/traffic, same Git SHA deploy, service account/IAM proof, log retention proof, WAF proof, session contract, browser WS capture, direct `api.x.ai` 0, relay phases, sensitive scan, live E2E, latency, ZAP, and acceptance | PASS for recorded evidence; blockers remain explicit | The closeout contains the required evidence sections. Latency and acceptance sections are recorded as BLOCKED rather than PASS. |
 | 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs through #144 are merged, but no final PASS PR can be honestly created until #138-#141 are resolved or approved. |
