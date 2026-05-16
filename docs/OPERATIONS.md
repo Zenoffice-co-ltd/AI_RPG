@@ -812,6 +812,16 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal acceptance approval guard hardening
+
+- Updated `corepack pnpm grok:vfinal-submission-dod-status` so an OPEN #141
+  approval comment must identify `staffing_order_hearing_busy_manager_medium`
+  and state that no vFinal session, relay, WAF, logging, or no-key runtime
+  regression is indicated.
+- This prevents final PASS from relying on a generic acceptance waiver that
+  does not name the exact legacy scenario or preserve the vFinal runtime and
+  security evidence boundary.
+
 ### 2026-05-17 — vFinal workbook approval guard hardening
 
 - Updated `corepack pnpm grok:vfinal-submission-dod-status` so an OPEN #171

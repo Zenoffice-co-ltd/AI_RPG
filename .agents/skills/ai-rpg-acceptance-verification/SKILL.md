@@ -175,6 +175,9 @@ Rules:
   is approved while open, the approval comment must name both source workbooks,
   confirm `vFinal提出DOD照合` overall PASS, and state blocked-mode markers were
   removed.
+- #141 approval must identify the legacy scenario
+  `staffing_order_hearing_busy_manager_medium` and state that no vFinal session,
+  relay, WAF, logging, or no-key runtime regression is indicated.
 - If `verify:acceptance` is blocked by Secret Manager IAM or current-shell
   secret access, record the blocker and required permission; do not claim
   acceptance PASS.

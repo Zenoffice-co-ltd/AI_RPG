@@ -180,8 +180,10 @@ Approve one:
 
 ```text
 Approved: the current verify:acceptance blocker is a legacy ConvAI vendor judge
-blocker outside the vFinal submitted runtime/security scope. It may remain open
+on staffing_order_hearing_busy_manager_medium.
+The blocker is outside the vFinal submitted runtime/security scope. It may remain open
 outside the customer submission DoD.
+No vFinal session, relay, WAF, logging, or no-key runtime regression is indicated.
 ```
 
 or
