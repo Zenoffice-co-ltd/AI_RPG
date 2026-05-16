@@ -838,8 +838,9 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   text/voice E2E, sensitive scan, ZAP baseline/passive, and same-SHA deploy
   evidence.
 - The audit keeps the final customer-submission verdict BLOCKED on #138, #139,
-  #140, and #141. Do not change the closeout verdict to PASS until those issues
-  are closed or formally approved out of scope.
+  #140, and #141. Do not change the closeout verdict to PASS until #138, #139,
+  and #141 are closed or formally approved out of scope and #140 has a passing
+  pre-vFinal baseline comparison.
 - Read-only rechecks for the audit:
   `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` had no DNS
   result in this environment; the dedicated hosted.app URL returned HTTP 200.
@@ -880,8 +881,9 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 - Issue #140 baseline artifact scan found current-vFinal 20-session samples
   and unrelated v50/Grok Voice artifacts, but no same-environment,
   same-scenario, >=20-session pre-vFinal baseline with the required metrics.
-  The latency comparison remains BLOCKED pending explicit baseline approval or
-  approved controlled baseline collection.
+  The latency comparison remains BLOCKED pending explicit baseline approval and
+  a passing comparison, or approved controlled baseline collection followed by
+  that comparison.
 
 ### 2026-05-17 — vFinal questionnaire submission alignment
 
@@ -898,8 +900,9 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   WAF preview/log, ZAP baseline/passive, text/voice E2E, sensitive scan, and
   current-vFinal 20-session evidence. They must not claim submitted URL
   approval, legacy shared backend de-scope, formal latency comparison PASS, or
-  full acceptance closure until the related issues are resolved or formally
-  approved out of scope.
+  full acceptance closure until the related issues are resolved. For #140, this
+  means a passing pre-vFinal baseline comparison rather than an out-of-scope
+  waiver.
 - 2026-05-17 JST follow-up: updated the two source workbook drafts in
   `C:\Users\yukih\Downloads\` with a first sheet named `vFinal提出DOD照合`.
   The new sheet marks overall customer submission DoD as BLOCKED and lists
@@ -1063,6 +1066,19 @@ from the expected GitHub account.
   `corepack pnpm grok:vfinal-security-invariants` PASS.
 - No production, DNS, IAM, Secret Manager, App Hosting, Cloud Run, Cloud Armor,
   or Cloud Logging changes were made.
+
+### 2026-05-17 — vFinal latency baseline no-waiver guard
+
+- Tightened #140 handling for the active customer submission DoD: the final
+  PASS path requires an approved >=20-session pre-vFinal baseline and p95
+  comparison within threshold. Treating the current-vFinal 20-session sample
+  alone as sufficient is not a valid PASS path for this DoD.
+- Updated the approval packet and `grok:vfinal-submission-dod-status`
+  approval matching so an OPEN #140 issue can only satisfy PASS mode if the
+  approval comment names a pre-vFinal baseline source, denominator, required
+  p95 metrics, and `Comparison result: PASS`.
+- No production, DNS, IAM, Secret Manager, App Hosting, Cloud Run, Cloud Armor,
+  Cloud Logging, workbook, or runtime changes were made.
 
 ### 2026-05-17 — vFinal workbook human-confirmation issue
 
