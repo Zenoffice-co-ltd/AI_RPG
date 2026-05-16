@@ -110,6 +110,7 @@ Customer submission remains blocked by four tracked items:
 4. Resolve #141 with a clean full `verify:acceptance` run or explicit approval
    of the legacy ConvAI judge blocker as outside vFinal submission scope.
 5. Re-run the lightweight integrity checks:
-   `git diff --check` and `corepack pnpm grok:vfinal-security-invariants`.
+   `git diff --check`, `corepack pnpm grok:vfinal-security-invariants`, and
+   `corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass`.
 6. Update the closeout final verdict only after all blocking issues are closed
    or approved out of scope.
