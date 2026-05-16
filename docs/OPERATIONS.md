@@ -812,6 +812,19 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal submitted URL read-only recheck
+
+- Rechecked #138 submitted URL candidates without DNS, App Hosting, or
+  certificate changes.
+- Dedicated hosted.app candidate still returned HTTP 200:
+  `https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-vFinal`.
+- `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still returned
+  no DNS resolver result in this environment; `curl -I` to
+  `https://roleplay-vfinal.mendan.biz/demo/adecco-roleplay-vFinal` failed with
+  host resolution error.
+- #138 remains BLOCKED pending explicit hosted.app approval or active dedicated
+  `mendan.biz` mapping/certificate plus submitted-URL smoke evidence.
+
 ### 2026-05-17 — vFinal acceptance approval guard hardening
 
 - Updated `corepack pnpm grok:vfinal-submission-dod-status` so an OPEN #141
