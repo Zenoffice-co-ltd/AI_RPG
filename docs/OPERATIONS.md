@@ -932,6 +932,23 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 - No production changes were made. Customer submission DoD remains BLOCKED
   pending #138, #139, #140, and #141 resolution or explicit approval.
 
+### 2026-05-17 — vFinal questionnaire workbook status guard
+
+- Added workbook-aware checks to
+  `corepack pnpm grok:vfinal-submission-dod-status` so the final closeout gate
+  can also verify the two source questionnaire drafts with `--workbook=...`.
+- Checked the source workbook drafts:
+  `C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx`
+  and
+  `C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm`.
+- `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
+  --workbook=... --workbook=...` PASS: both workbooks had first sheet
+  `vFinal提出DOD照合`, overall status `BLOCKED`, and #138, #139, #140, and
+  #141 listed as unresolved. The `.xlsm` retained `vbaProject.bin`.
+- Negative check: `--expect=pass` failed as expected while closeout, audit,
+  questionnaire map, and workbook status cells remain BLOCKED. No production
+  changes were made.
+
 ### 2026-05-16 — vFinal submission unblock PR-A
 
 - PR-A scope is limited to vFinal auth unblock and raw invite query removal.
