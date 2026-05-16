@@ -16,6 +16,48 @@ export type VFinalAccessSession = {
   exp: number;
 };
 
+export type VFinalInviteFailureReason =
+  | "invite.missing"
+  | "invite.malformed"
+  | "invite.invalid_signature"
+  | "invite.invalid_payload"
+  | "invite.expired"
+  | "invite.wrong_tenant"
+  | "invite.wrong_purpose"
+  | "invite.secret_missing";
+
+export type VFinalSessionFailureReason =
+  | "session.cookie_missing"
+  | "session.malformed"
+  | "session.invalid_signature"
+  | "session.invalid_payload"
+  | "session.expired"
+  | "session.wrong_tenant"
+  | "session.wrong_purpose"
+  | "session.secret_missing";
+
+export type VFinalInviteAccessResult =
+  | {
+      ok: true;
+      response: NextResponse;
+      participantIdHash: string;
+    }
+  | {
+      ok: false;
+      response: NextResponse;
+      reason: VFinalInviteFailureReason;
+    };
+
+export type VFinalSessionAccessResult =
+  | {
+      ok: true;
+      session: VFinalAccessSession;
+    }
+  | {
+      ok: false;
+      reason: VFinalSessionFailureReason;
+    };
+
 type InvitePayload = {
   participantId: string;
   tenant: typeof TENANT;
@@ -62,12 +104,25 @@ export function createVFinalSessionToken(input: {
   );
 }
 
-export function handleVFinalInviteAccess(request: NextRequest) {
-  const env = getEnv();
-  const invite = request.nextUrl.searchParams.get("invite") ?? "";
+export function createVFinalInviteAccessResponse(
+  request: NextRequest,
+  invite: string
+): VFinalInviteAccessResult {
+  const env = getEnvResult();
+  if (!env.ok) {
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "access denied" }, { status: 403 }),
+      reason: "invite.secret_missing",
+    };
+  }
   const parsed = verifyInviteToken(invite, env.inviteSigningSecret);
   if (!parsed.ok) {
-    return NextResponse.json({ error: "access denied" }, { status: 403 });
+    return {
+      ok: false,
+      response: NextResponse.json({ error: "access denied" }, { status: 403 }),
+      reason: parsed.reason,
+    };
   }
   const participantIdHash = hashParticipantId(
     parsed.payload.participantId,
@@ -99,15 +154,22 @@ export function handleVFinalInviteAccess(request: NextRequest) {
     path: VFINAL_API_COOKIE_PATH,
     maxAge,
   });
-  return response;
+  return { ok: true, response, participantIdHash };
 }
 
 export function getVFinalApiAccessSession(
   request: NextRequest
 ): VFinalAccessSession | null {
+  const result = getVFinalApiAccessSessionResult(request);
+  return result.ok ? result.session : null;
+}
+
+export function getVFinalApiAccessSessionResult(
+  request: NextRequest
+): VFinalSessionAccessResult {
   return verifySessionCookie(
     request.cookies.get(VFINAL_API_ACCESS_COOKIE)?.value,
-    getEnv().inviteSigningSecret
+    "api"
   );
 }
 
@@ -120,80 +182,134 @@ export function getVFinalUiAccessSession(
 export function verifyVFinalAccessCookieValue(
   value: string | undefined
 ): VFinalAccessSession | null {
-  return verifySessionCookie(value, getEnv().inviteSigningSecret);
+  const result = verifySessionCookie(value, "ui");
+  return result.ok ? result.session : null;
 }
 
 export function hashParticipantId(participantId: string, secret: string): string {
-  return createHmac("sha256", secret).update(participantId).digest("hex").slice(0, 16);
+  return createHmac("sha256", normalizeSecret(secret))
+    .update(participantId)
+    .digest("hex")
+    .slice(0, 16);
 }
 
 function verifyInviteToken(
   token: string,
   secret: string
-): { ok: true; payload: InvitePayload } | { ok: false } {
-  const payload = verifyToken(token, secret);
-  if (!payload) return { ok: false };
+): { ok: true; payload: InvitePayload } | { ok: false; reason: VFinalInviteFailureReason } {
+  const verified = verifyToken(token, secret);
+  if (!verified.ok) return { ok: false, reason: `invite.${verified.reason}` };
+  const payload = verified.payload;
   if (
     typeof payload["participantId"] !== "string" ||
     payload["participantId"].length === 0 ||
-    payload["tenant"] !== TENANT ||
-    payload["purpose"] !== PURPOSE ||
-    typeof payload["exp"] !== "number" ||
-    payload["exp"] <= Math.floor(Date.now() / 1000)
+    typeof payload["exp"] !== "number"
   ) {
-    return { ok: false };
+    return { ok: false, reason: "invite.invalid_payload" };
+  }
+  if (payload["tenant"] !== TENANT) return { ok: false, reason: "invite.wrong_tenant" };
+  if (payload["purpose"] !== PURPOSE) return { ok: false, reason: "invite.wrong_purpose" };
+  if (payload["exp"] <= Math.floor(Date.now() / 1000)) {
+    return { ok: false, reason: "invite.expired" };
   }
   return { ok: true, payload: payload as InvitePayload };
 }
 
 function verifySessionCookie(
   token: string | undefined,
-  secret: string
-): VFinalAccessSession | null {
-  const payload = verifyToken(token ?? "", secret);
-  if (!payload) return null;
+  _scope: "api" | "ui"
+): VFinalSessionAccessResult {
+  if (!token) return { ok: false, reason: "session.cookie_missing" };
+  const env = getEnvResult();
+  if (!env.ok) return { ok: false, reason: "session.secret_missing" };
+  const verified = verifyToken(token, env.inviteSigningSecret);
+  if (!verified.ok) {
+    return {
+      ok: false,
+      reason:
+        verified.reason === "missing"
+          ? "session.cookie_missing"
+          : `session.${verified.reason}`,
+    };
+  }
+  const payload = verified.payload;
   if (
     typeof payload["participantIdHash"] !== "string" ||
     payload["participantIdHash"].length !== 16 ||
-    payload["tenant"] !== TENANT ||
-    payload["purpose"] !== PURPOSE ||
-    typeof payload["exp"] !== "number" ||
-    payload["exp"] <= Math.floor(Date.now() / 1000)
+    typeof payload["exp"] !== "number"
   ) {
-    return null;
+    return { ok: false, reason: "session.invalid_payload" };
+  }
+  if (payload["tenant"] !== TENANT) return { ok: false, reason: "session.wrong_tenant" };
+  if (payload["purpose"] !== PURPOSE) return { ok: false, reason: "session.wrong_purpose" };
+  if (payload["exp"] <= Math.floor(Date.now() / 1000)) {
+    return { ok: false, reason: "session.expired" };
   }
   return {
-    participantIdHash: payload["participantIdHash"],
-    exp: payload["exp"],
+    ok: true,
+    session: {
+      participantIdHash: payload["participantIdHash"],
+      exp: payload["exp"],
+    },
   };
 }
 
 function signToken(payload: InvitePayload | SessionPayload, secret: string): string {
-  assertSecret(secret);
+  const normalizedSecret = normalizeSecret(secret);
+  assertSecret(normalizedSecret);
   const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
-  const signature = createHmac("sha256", secret).update(encoded).digest("base64url");
+  const signature = createHmac("sha256", normalizedSecret).update(encoded).digest("base64url");
   return `${TOKEN_VERSION}.${encoded}.${signature}`;
 }
 
-function verifyToken(token: string, secret: string): Record<string, unknown> | null {
-  assertSecret(secret);
+function verifyToken(
+  token: string,
+  secret: string
+):
+  | { ok: true; payload: Record<string, unknown> }
+  | {
+      ok: false;
+      reason: "missing" | "malformed" | "invalid_signature" | "invalid_payload";
+    } {
+  const normalizedSecret = normalizeSecret(secret);
+  assertSecret(normalizedSecret);
+  if (!token) return { ok: false, reason: "missing" };
   const parts = token.split(".");
   if (parts.length !== 3 || parts[0] !== TOKEN_VERSION || !parts[1] || !parts[2]) {
-    return null;
+    return { ok: false, reason: "malformed" };
   }
-  const expected = createHmac("sha256", secret).update(parts[1]).digest("base64url");
-  if (!safeEqual(parts[2], expected)) return null;
+  const expected = createHmac("sha256", normalizedSecret).update(parts[1]).digest("base64url");
+  if (!safeEqual(parts[2], expected)) return { ok: false, reason: "invalid_signature" };
   try {
-    return JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as Record<
-      string,
-      unknown
-    >;
+    return {
+      ok: true,
+      payload: JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as Record<
+        string,
+        unknown
+      >,
+    };
   } catch {
-    return null;
+    return { ok: false, reason: "invalid_payload" };
   }
 }
 
 function getEnv() {
+  const result = getEnvResult();
+  if (!result.ok) {
+    throw new Error(
+      "GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET and GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET are required in production"
+    );
+  }
+  return result;
+}
+
+function getEnvResult():
+  | {
+      ok: true;
+      inviteSigningSecret: string;
+      participantHashSecret: string;
+    }
+  | { ok: false } {
   ensureEnvLoaded();
   const inviteSigningSecret =
     process.env["GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET"]?.trim() ?? "";
@@ -201,16 +317,16 @@ function getEnv() {
     process.env["GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET"]?.trim() ?? "";
   if (process.env["NODE_ENV"] === "production") {
     if (inviteSigningSecret.length < 32 || participantHashSecret.length < 32) {
-      throw new Error(
-        "GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET and GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET are required in production"
-      );
+      return { ok: false };
     }
     return {
+      ok: true,
       inviteSigningSecret,
       participantHashSecret,
     };
   }
   return {
+    ok: true,
     inviteSigningSecret:
       inviteSigningSecret || process.env["XAI_RELAY_TICKET_SECRET"] || "",
     participantHashSecret:
@@ -222,6 +338,10 @@ function assertSecret(secret: string) {
   if (secret.length < 32) {
     throw new Error("vFinal invite/hash secrets must be at least 32 characters");
   }
+}
+
+function normalizeSecret(secret: string) {
+  return secret.trim();
 }
 
 function safeEqual(left: string, right: string) {

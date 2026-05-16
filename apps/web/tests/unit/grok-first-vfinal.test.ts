@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_RELAY_TICKET_PATH,
@@ -21,7 +22,7 @@ function sessionCookie() {
   return createVFinalSessionToken({
     participantIdHash: PARTICIPANT_HASH,
     exp: Math.floor(Date.now() / 1000) + 3600,
-    signingSecret: SECRET,
+    signingSecret: `${SECRET}\n`,
   });
 }
 
@@ -49,6 +50,24 @@ function validEventRequest(body: Record<string, unknown>) {
     },
     body: JSON.stringify(body),
   });
+}
+
+function validInviteConsumeRequest(invite: string) {
+  return new NextRequest("http://127.0.0.1:3000/api/grok-first-vFinal/invite/consume", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin: "http://127.0.0.1:3000",
+      referer: "http://127.0.0.1:3000/demo/adecco-roleplay-vFinal/access",
+    },
+    body: JSON.stringify({ invite }),
+  });
+}
+
+function signedInviteWithPayload(payload: Record<string, unknown>) {
+  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const signature = createHmac("sha256", SECRET).update(encoded).digest("base64url");
+  return `mvi1.${encoded}.${signature}`;
 }
 
 describe("grok-first vFinal security contract", () => {
@@ -108,19 +127,37 @@ describe("grok-first vFinal security contract", () => {
     });
   });
 
-  it("sets vFinal-scoped invite cookies without raw participant id", async () => {
-    const invite = createVFinalInviteToken({
-      participantId: "adecco-user-001@example.test",
-      exp: Math.floor(Date.now() / 1000) + 3600,
-      signingSecret: SECRET,
-    });
+  it("serves fragment bootstrap and rejects legacy query invite access", async () => {
     const { GET } = await import("../../app/demo/adecco-roleplay-vFinal/access/route");
-    const response = GET(
+    const bootstrap = GET(
+      new NextRequest("http://127.0.0.1:3000/demo/adecco-roleplay-vFinal/access", {
+        method: "GET",
+      })
+    );
+    expect(bootstrap.status).toBe(200);
+    const html = await bootstrap.text();
+    expect(html).toContain("window.location.hash");
+    expect(html).toContain("/api/grok-first-vFinal/invite/consume");
+    expect(html).not.toContain("mvi1.");
+
+    const legacy = GET(
       new NextRequest(
-        `http://127.0.0.1:3000/demo/adecco-roleplay-vFinal/access?invite=${invite}`,
+        "http://127.0.0.1:3000/demo/adecco-roleplay-vFinal/access?invite=mvi1.raw-token",
         { method: "GET" }
       )
     );
+    expect(legacy.status).toBe(410);
+    expect(await legacy.text()).not.toContain("mvi1.raw-token");
+  });
+
+  it("sets vFinal-scoped invite cookies from POST body without raw participant id", async () => {
+    const invite = createVFinalInviteToken({
+      participantId: "adecco-user-001@example.test",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      signingSecret: `${SECRET}\n`,
+    });
+    const { POST } = await import("../../app/api/grok-first-vFinal/invite/consume/route");
+    const response = await POST(validInviteConsumeRequest(invite));
 
     expect(response.status).toBe(307);
     const setCookie = response.headers.get("set-cookie") ?? "";
@@ -134,6 +171,53 @@ describe("grok-first vFinal security contract", () => {
     expect(setCookie).not.toContain(invite);
   });
 
+  it("logs only safe invite failure reason codes", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const invite = `${createVFinalInviteToken({
+      participantId: "adecco-user-001@example.test",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      signingSecret: SECRET,
+    })}tampered`;
+    const { POST } = await import("../../app/api/grok-first-vFinal/invite/consume/route");
+    const response = await POST(validInviteConsumeRequest(invite));
+
+    expect(response.status).toBe(403);
+    const output = info.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("invite.invalid_signature");
+    expect(output).not.toContain(invite);
+    expect(output).not.toContain("adecco-user-001");
+  });
+
+  it("rejects expired, wrong tenant, and wrong purpose invite tokens", async () => {
+    const { POST } = await import("../../app/api/grok-first-vFinal/invite/consume/route");
+    const base = {
+      participantId: "adecco-user-001@example.test",
+      tenant: "adecco",
+      purpose: "ai_roleplay",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    };
+
+    await expect(
+      POST(validInviteConsumeRequest(signedInviteWithPayload({ ...base, exp: 1 }))).then(
+        (response) => response.status
+      )
+    ).resolves.toBe(403);
+    await expect(
+      POST(
+        validInviteConsumeRequest(
+          signedInviteWithPayload({ ...base, tenant: "other-tenant" })
+        )
+      ).then((response) => response.status)
+    ).resolves.toBe(403);
+    await expect(
+      POST(
+        validInviteConsumeRequest(
+          signedInviteWithPayload({ ...base, purpose: "other-purpose" })
+        )
+      ).then((response) => response.status)
+    ).resolves.toBe(403);
+  });
+
   it("fails closed in production when invite/hash secrets are not separated", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET", "");
@@ -143,13 +227,8 @@ describe("grok-first vFinal security contract", () => {
       exp: Math.floor(Date.now() / 1000) + 3600,
       signingSecret: SECRET,
     });
-    const { GET } = await import("../../app/demo/adecco-roleplay-vFinal/access/route");
-    const response = GET(
-      new NextRequest(
-        `http://127.0.0.1:3000/demo/adecco-roleplay-vFinal/access?invite=${invite}`,
-        { method: "GET" }
-      )
-    );
+    const { POST } = await import("../../app/api/grok-first-vFinal/invite/consume/route");
+    const response = await POST(validInviteConsumeRequest(invite));
 
     expect(response.status).toBe(403);
   });

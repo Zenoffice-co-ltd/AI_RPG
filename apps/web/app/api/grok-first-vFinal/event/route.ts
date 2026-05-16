@@ -1,8 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { validateSameOrigin } from "@/lib/roleplay/auth";
-import { logGrokFirstVFinalServerEvent } from "@/lib/grok-first-roleplay/metrics";
-import { getVFinalApiAccessSession } from "@/lib/grok-first-roleplay/vfinal-auth";
+import {
+  logGrokFirstVFinalAuthEvent,
+  logGrokFirstVFinalServerEvent,
+} from "@/lib/grok-first-roleplay/metrics";
+import { getVFinalApiAccessSessionResult } from "@/lib/grok-first-roleplay/vfinal-auth";
 import { checkVFinalRateLimit } from "@/lib/grok-first-roleplay/vfinal-rate-limit";
 
 const eventSchema = z.object({
@@ -34,11 +37,17 @@ const eventSchema = z.object({
 
 export async function POST(request: NextRequest) {
   if (!validateSameOrigin(request)) return NextResponse.json({}, { status: 403 });
-  const access = getVFinalApiAccessSession(request);
-  if (!access) return NextResponse.json({}, { status: 401 });
+  const access = getVFinalApiAccessSessionResult(request);
+  if (!access.ok) {
+    logGrokFirstVFinalAuthEvent({
+      phase: "event.auth",
+      reason: access.reason,
+    });
+    return NextResponse.json({}, { status: 401 });
+  }
   const rate = checkVFinalRateLimit({
     scope: "vfinal.event",
-    key: access.participantIdHash || clientIp(request),
+    key: access.session.participantIdHash || clientIp(request),
     limit: 600,
     windowMs: 5 * 60 * 1000,
   });
@@ -56,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) return NextResponse.json({}, { status: 400 });
     logGrokFirstVFinalServerEvent({
       ...parsed.data,
-      participantIdHash: access.participantIdHash,
+      participantIdHash: access.session.participantIdHash,
     });
     return NextResponse.json({ ok: true });
   } catch {

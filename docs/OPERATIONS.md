@@ -812,6 +812,37 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-16 — vFinal submission unblock PR-A
+
+- PR-A scope is limited to vFinal auth unblock and raw invite query removal.
+  Infrastructure DOD for no-key App Hosting, 180-day metadata logging, Cloud
+  Armor, live E2E, latency, ZAP, and final customer submission remains out of
+  scope for this PR.
+- The invite flow is changed from
+  `/demo/adecco-roleplay-vFinal/access?invite=<token>` to
+  `/demo/adecco-roleplay-vFinal/access#invite=<token>` followed by
+  same-origin `POST /api/grok-first-vFinal/invite/consume`. This prevents raw
+  invite tokens from entering the HTTP request line during the supported flow.
+- The root cause of local production verifier mismatch was asymmetric secret
+  normalization: verifier env secrets were trimmed, but the invite/session
+  token generation helper accepted the raw caller-provided signing secret. The
+  helper now normalizes signing and participant-hash secrets before HMAC use.
+- Safe auth diagnostics now log reason codes only, such as
+  `invite.invalid_signature`, `invite.expired`, `invite.wrong_tenant`,
+  `invite.wrong_purpose`, and `session.cookie_missing`; raw invite tokens,
+  session cookies, participant IDs, signatures, and secret material must not be
+  logged.
+- Local gates passed:
+  `corepack pnpm exec vitest run --config vitest.config.ts apps/web/tests/unit/grok-first-vfinal.test.ts`,
+  `corepack pnpm --filter @top-performer/web typecheck`,
+  `corepack pnpm grok:vfinal-security-invariants`, and `git diff --check`.
+- `corepack pnpm verify:acceptance` remains blocked in this operator
+  environment with `[vendor_failure] 7 PERMISSION_DENIED:
+  Permission 'secretmanager.versions.access' denied on resource (or it may not
+  exist).` Acceptance criterion: run the canonical gate from an environment
+  with the required Secret Manager access, or formally track that IAM blocker
+  outside PR-A before customer submission.
+
 ### 2026-05-16 — vFinal security foundation PR status
 
 - PR #110 adds the invite-gated vFinal route

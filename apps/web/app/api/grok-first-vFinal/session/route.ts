@@ -1,22 +1,31 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { validateSameOrigin } from "@/lib/roleplay/auth";
 import {
-  getVFinalApiAccessSession,
+  getVFinalApiAccessSessionResult,
 } from "@/lib/grok-first-roleplay/vfinal-auth";
 import { checkVFinalRateLimit } from "@/lib/grok-first-roleplay/vfinal-rate-limit";
 import { createGrokFirstVFinalSession } from "@/lib/grok-first-roleplay/vfinal-session";
-import { logGrokFirstVFinalServerEvent } from "@/lib/grok-first-roleplay/metrics";
+import {
+  logGrokFirstVFinalAuthEvent,
+  logGrokFirstVFinalServerEvent,
+} from "@/lib/grok-first-roleplay/metrics";
 
 const SAFE_ERROR =
   "セッションの開始に失敗しました。時間をおいて再試行してください。";
 
 export async function POST(request: NextRequest) {
   if (!validateSameOrigin(request)) return safeError(403);
-  const access = getVFinalApiAccessSession(request);
-  if (!access) return safeError(401);
+  const access = getVFinalApiAccessSessionResult(request);
+  if (!access.ok) {
+    logGrokFirstVFinalAuthEvent({
+      phase: "session.auth",
+      reason: access.reason,
+    });
+    return safeError(401);
+  }
   const rate = checkVFinalRateLimit({
     scope: "vfinal.session",
-    key: access.participantIdHash || clientIp(request),
+    key: access.session.participantIdHash || clientIp(request),
     limit: 60,
     windowMs: 5 * 60 * 1000,
   });
@@ -32,12 +41,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const session = await createGrokFirstVFinalSession({
-      participantIdHash: access.participantIdHash,
+      participantIdHash: access.session.participantIdHash,
     });
     logGrokFirstVFinalServerEvent({
       kind: "session.created",
       sessionId: session.sessionId,
-      participantIdHash: access.participantIdHash,
+      participantIdHash: access.session.participantIdHash,
       details: {
         demoSlug: session.demoSlug,
         backend: session.backend,
