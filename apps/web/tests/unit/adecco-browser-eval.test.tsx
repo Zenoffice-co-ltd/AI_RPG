@@ -89,6 +89,7 @@ function workerRequest(init: { secret?: string; body?: unknown } = {}) {
         startedAt: "2026-05-16T00:00:00.000Z",
         endedAt: "2026-05-16T00:01:00.000Z",
         source: "grok_first_v50_7_browser",
+        runtimeVersion: "v50-7",
       }
     ),
   });
@@ -212,6 +213,8 @@ describe("v50.7 browser evaluation APIs", () => {
     expect(scoringMock).toHaveBeenCalledTimes(1);
     expect(savedArtifacts.get("gv_sess_eval:scorecard")?.payload).toMatchObject({
       evaluationFormat: "adecco_order_hearing_browser_v1",
+      evaluationProfile: "adecco_order_hearing_eval_v2",
+      runtimeVersion: "v50-7",
       report: { total_score: 88 },
     });
     expect(savedArtifacts.get("gv_sess_eval:model_raw_output")?.payload).toMatchObject({
@@ -323,6 +326,34 @@ describe("v50.7 browser evaluation APIs", () => {
     expect(completed.status).toBe("completed");
   });
 
+  it("accepts v51 browser evaluation source and records runtime metadata", async () => {
+    const { POST } = await import(
+      "../../app/api/grok-first-v51/evaluation/start/route"
+    );
+    const response = await POST(
+      apiRequest("http://127.0.0.1:3000/api/grok-first-v51/evaluation/start", {
+        sessionId: "gv_sess_v51_eval",
+        transcript: [
+          { turn_id: "u1", role: "user", text: "募集背景を教えてください" },
+          { turn_id: "a1", role: "agent", text: "増員です。" },
+        ],
+        source: "grok_first_v51_browser",
+      })
+    );
+    expect(response.status).toBe(202);
+    expect(enqueueMock).toHaveBeenCalledTimes(1);
+    const payload = enqueueMock.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      sessionId: "gv_sess_v51_eval",
+      source: "grok_first_v51_browser",
+      runtimeVersion: "v51",
+    });
+    expect(JSON.stringify(payload)).not.toContain("ticket");
+    expect(JSON.stringify(payload)).not.toContain("secret");
+    expect(JSON.stringify(payload)).not.toContain("audio");
+    expect(JSON.stringify(payload)).not.toContain("instructions");
+  });
+
   it("result API returns completed scorecard without raw or sensitive fields", async () => {
     savedArtifacts.set("gv_sess_eval:scorecard", {
       id: "scorecard",
@@ -331,6 +362,8 @@ describe("v50.7 browser evaluation APIs", () => {
       createdAt: "2026-05-16T00:01:00.000Z",
       payload: {
         evaluationFormat: "adecco_order_hearing_browser_v1",
+        evaluationProfile: "adecco_order_hearing_eval_v2",
+        runtimeVersion: "v51",
         scenarioId: "scenario",
         sessionId: "gv_sess_eval",
         conversationId: null,
@@ -373,6 +406,8 @@ describe("v50.7 browser evaluation APIs", () => {
     expect(serialized).not.toContain("audio");
     expect(serialized).not.toContain("instructions");
     expect(serialized).not.toContain("raw secret-ish model output");
+    expect(serialized).toContain("adecco_order_hearing_eval_v2");
+    expect(serialized).toContain("v51");
   });
 });
 
@@ -386,6 +421,8 @@ describe("AdeccoEvaluationReportView", () => {
         showRawJson={false}
         scorecard={{
           evaluationFormat: "adecco_order_hearing_browser_v1",
+          evaluationProfile: "adecco_order_hearing_eval_v2",
+          runtimeVersion: "v51",
           scenarioId: "scenario",
           metadata: {
             sessionId: "mock-session",

@@ -16,6 +16,10 @@ import {
   GROK_FIRST_V50_6_FIRST_MESSAGE,
   GROK_FIRST_V50_6_SYSTEM_PROMPT,
 } from "./prompt-v50-6";
+import {
+  GROK_FIRST_V51_FIRST_MESSAGE,
+  GROK_FIRST_V51_SYSTEM_PROMPT,
+} from "./prompt-v51";
 
 export const GROK_FIRST_V50_SCENARIO_ID =
   "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50";
@@ -27,13 +31,22 @@ export const GROK_FIRST_V50_5_SCENARIO_ID =
   "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_5";
 export const GROK_FIRST_V50_6_SCENARIO_ID =
   "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_6";
+export const GROK_FIRST_V51_SCENARIO_ID =
+  "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v51";
 export const GROK_FIRST_V50_PROMPT_VERSION = "grok-first-v50-2026-05-13";
 export const GROK_FIRST_V50_1_PROMPT_VERSION = "grok-first-v50.1-2026-05-14";
 export const GROK_FIRST_V50_4_PROMPT_VERSION = "grok-first-v50.4-2026-05-15";
 export const GROK_FIRST_V50_5_PROMPT_VERSION = "grok-first-v50.5-2026-05-15";
 export const GROK_FIRST_V50_6_PROMPT_VERSION = "grok-first-v50.6-2026-05-15";
+export const GROK_FIRST_V51_PROMPT_VERSION = "grok-first-v51-2026-05-16";
 export const GROK_FIRST_V50_GUARDRAIL_VERSION =
   "negative-guard-only-v50-2026-05-13";
+export const GROK_FIRST_V50_7_GUARDRAIL_VERSION =
+  "grok-first-v50.7-guard-2026-05-15";
+export const GROK_FIRST_V50_8_GUARDRAIL_VERSION =
+  "grok-first-v50.8-guard-2026-05-16";
+export const GROK_FIRST_V51_GUARDRAIL_VERSION =
+  "grok-first-v51-guard-2026-05-16";
 
 export const GROK_FIRST_V50_FIRST_MESSAGE =
   "お電話ありがとうございます。じんじ課の佐藤です。本日はよろしくお願いします。";
@@ -43,7 +56,8 @@ export type GrokFirstPromptVariant =
   | "v50.1"
   | "v50.4"
   | "v50.5"
-  | "v50.6";
+  | "v50.6"
+  | "v51";
 
 export type GrokFirstPromptBuild = {
   instructions: string;
@@ -87,6 +101,14 @@ export function buildGrokFirstV50Prompt(
       promptVersion: GROK_FIRST_V50_6_PROMPT_VERSION,
       scenarioId: GROK_FIRST_V50_6_SCENARIO_ID,
       firstMessage: GROK_FIRST_V50_6_FIRST_MESSAGE,
+    });
+  }
+  if (variant === "v51") {
+    return buildPrompt({
+      instructions: GROK_FIRST_V51_SYSTEM_PROMPT,
+      promptVersion: GROK_FIRST_V51_PROMPT_VERSION,
+      scenarioId: GROK_FIRST_V51_SCENARIO_ID,
+      firstMessage: GROK_FIRST_V51_FIRST_MESSAGE,
     });
   }
 

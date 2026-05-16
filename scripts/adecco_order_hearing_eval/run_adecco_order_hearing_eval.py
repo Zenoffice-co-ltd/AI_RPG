@@ -26,13 +26,17 @@ RETRY_MAX_TOKENS = 12000
 DEFAULT_TEMPERATURE = 0
 
 REQUIRED_TOP_LEVEL_KEYS = [
+    "schema_version",
     "total_score",
     "rubric_scores",
     "must_capture_items",
+    "must_capture_groups",
+    "modality_limitations",
+    "sales_compliance_flags",
+    "next_training_actions",
 ]
 
 ADDITIONAL_TOP_LEVEL_KEYS = [
-    "schema_version",
     "session_id",
     "scenario_id",
     "score_confidence",

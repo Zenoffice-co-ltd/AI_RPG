@@ -38,6 +38,10 @@ Use the mock result route first:
 
 `/demo/adecco-roleplay-v50-7/result/mock-session?mock=1`
 
+For customer criteria v2 / v51 work, use:
+
+`/demo/adecco-roleplay-v51/result/mock-session?mock=1`
+
 Expected browser checks at 1440x900:
 
 - no horizontal scroll
@@ -51,6 +55,9 @@ Expected browser checks at 1440x900:
 - Debug collapsed by default
 - raw Claude output not visible
 - `<table>` count is 0
+
+v51/customer-criteria checks also expect schema/profile version, grouped
+must-capture data, modality limitations, and sales compliance flags.
 
 ## Required Verification
 

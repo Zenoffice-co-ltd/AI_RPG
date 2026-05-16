@@ -1,14 +1,16 @@
 ---
-description: v50 browser evaluation result pages and scoring/delivery separation. Source of Truth is AGENTS.md `## Browser Evaluation / Scoring Delivery SoT`.
+description: v50/v51 browser evaluation result pages and scoring/delivery separation. Source of Truth is AGENTS.md `## Browser Evaluation / Scoring Delivery SoT`.
 globs:
   - "apps/web/app/api/grok-first-v50-*/evaluation/**"
+  - "apps/web/app/api/grok-first-v51/evaluation/**"
   - "apps/web/app/demo/adecco-roleplay-v50-*/result/**"
+  - "apps/web/app/demo/adecco-roleplay-v51/result/**"
   - "apps/web/components/roleplay/evaluation/**"
   - "apps/web/server/use-cases/adeccoBrowserEval.ts"
 alwaysApply: false
 ---
 
-# v50 Browser Evaluation — Cursor rule
+# v50/v51 Browser Evaluation — Cursor rule
 
 Source of Truth: `AGENTS.md` `## Browser Evaluation / Scoring Delivery SoT`.
 
@@ -19,5 +21,6 @@ Source of Truth: `AGENTS.md` `## Browser Evaluation / Scoring Delivery SoT`.
   instructions, or raw audio.
 - Cloud Tasks payload may include only the normalized evaluation transcript
   required for scoring.
-- Use the mock result route before production checks.
+- Use the mock result route before production checks. For v51/customer criteria
+  work, use `/demo/adecco-roleplay-v51/result/mock-session?mock=1`.
 - Do not run production Gmail smoke unless explicitly requested.

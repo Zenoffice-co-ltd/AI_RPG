@@ -8,6 +8,7 @@ prefix_rule(
     ],
     not_match = [
         "curl http://127.0.0.1:3000/demo/adecco-roleplay-v50-7/result/mock-session?mock=1",
+        "curl http://127.0.0.1:3000/demo/adecco-roleplay-v51/result/mock-session?mock=1",
     ],
 )
 
@@ -21,5 +22,6 @@ prefix_rule(
     ],
     not_match = [
         "Invoke-WebRequest http://127.0.0.1:3000/demo/adecco-roleplay-v50-7/result/mock-session?mock=1",
+        "Invoke-WebRequest http://127.0.0.1:3000/demo/adecco-roleplay-v51/result/mock-session?mock=1",
     ],
 )

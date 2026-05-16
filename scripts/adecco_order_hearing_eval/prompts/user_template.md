@@ -1,6 +1,6 @@
 <task>
 以下のAIロープレ会話ログを評価してください。
-評価は system prompt のルーブリックに厳密に従ってください。
+評価は system prompt の Adecco order hearing evaluation v2 ルーブリックに厳密に従ってください。
 </task>
 
 <session_metadata>
@@ -45,5 +45,5 @@ conversation_transcript_json は以下の形式です。
 </optional_calibration_examples>
 
 <final_instruction>
-会話ログのみを根拠に採点し、指定されたJSON形式だけを返してください。
+会話ログのみを根拠に採点し、schema_version が adecco_order_hearing_eval_v2 の指定JSON形式だけを返してください。
 </final_instruction>

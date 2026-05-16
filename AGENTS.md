@@ -85,7 +85,7 @@
 - Legacy ElevenLabs post-call webhook → Cloud Tasks → Claude → Gmail must remain compatible unless explicitly changing that workflow.
 - Browser result APIs must never expose raw Claude output, API secrets, relay tickets, prompt instructions, raw audio, or hidden system prompts.
 - Cloud Tasks payload may include only the normalized evaluation transcript required for scoring.
-- Browser evaluation result pages must have a safe mock route for browser-use / Playwright confirmation that does not call Claude, Gmail, ElevenLabs, or production webhook. Current v50-7 route: `/demo/adecco-roleplay-v50-7/result/mock-session?mock=1`.
+- Browser evaluation result pages must have a safe mock route for browser-use / Playwright confirmation that does not call Claude, Gmail, ElevenLabs, or production webhook. Current safe routes: `/demo/adecco-roleplay-v50-7/result/mock-session?mock=1` and `/demo/adecco-roleplay-v51/result/mock-session?mock=1`.
 - Browser evaluation DoD requires: session contract, rollback flag, result page render, data exposure check, targeted unit tests, web typecheck/test/build, changed-file lint, no table-based email layout, no raw output exposure, and a 1440x900 browser screenshot.
 - Production Gmail smoke is not required for browser evaluation DoD and must be explicitly avoided unless the task is the legacy email pipeline.
 
