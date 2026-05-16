@@ -56,6 +56,13 @@ For a read-only #138 hosted.app/custom-domain candidate precheck, run:
 corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked
 ```
 
+For a repo-local #139 code/config scope precheck that does not read Secret
+Manager payloads or mutate IAM, run:
+
+```bash
+corepack pnpm grok:vfinal-legacy-xai-scope -- --expect=blocked
+```
+
 For a count-only #171 precheck that does not copy workbook answer values into
 docs or issue comments, run:
 

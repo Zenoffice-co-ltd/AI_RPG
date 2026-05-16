@@ -130,6 +130,16 @@ Latest read-only IAM recheck, 2026-05-17 04:20 JST:
 
 Code/config evidence:
 
+- 2026-05-17 05:49 JST repo-local guard:
+  `corepack pnpm grok:vfinal-legacy-xai-scope -- --expect=blocked` passed for
+  expected BLOCKED state. The guard confirmed the submitted vFinal App Hosting
+  config, session route, and vFinal session helper omit `XAI_API_KEY`; the
+  vFinal session helper still uses `XAI_RELAY_TICKET_SECRET` and
+  `wss://voice.mendan.biz/api/v3/realtime-relay`. It also found five legacy
+  shared XAI dependency markers: shared `apphosting.yaml` binds `XAI_API_KEY`,
+  `server-env.ts` defines it, production env assertion requires it,
+  `/api/v3/session` can pass `env.XAI_API_KEY` to the xAI ephemeral-token path,
+  and Grok Voice TTS uses `env.XAI_API_KEY`.
 - `apps/web/apphosting.yaml` still binds `XAI_API_KEY`.
 - `apps/web/lib/roleplay/server-env.ts` defines `XAI_API_KEY` in the Grok Voice
   server env schema and `assertGrokVoiceEnvForProduction()` requires it when
@@ -145,6 +155,12 @@ Code/config evidence:
 
 Scripts and local harnesses also mention `XAI_API_KEY`, but they are operator
 tools and do not justify App Hosting runtime secret access by themselves.
+
+Read-only code/config precheck:
+
+```bash
+corepack pnpm grok:vfinal-legacy-xai-scope -- --expect=blocked
+```
 
 ## Removal Risk
 
