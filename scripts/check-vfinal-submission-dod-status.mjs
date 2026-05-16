@@ -18,7 +18,7 @@ const approvalAuthors = [
   ...listArgs("approval-author"),
   ...envList("VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS"),
 ];
-const requiredIssues = [138, 139, 140, 141];
+const requiredIssues = [138, 139, 140, 141, 171];
 const issueApprovalNeedles = new Map([
   [
     138,
@@ -31,8 +31,9 @@ const issueApprovalNeedles = new Map([
     139,
     [
       "Approved: the vFinal customer-submitted runtime scope is limited to the",
-      "dedicated no-key App Hosting backend adecco-roleplay-vfinal and its submitted",
-      "customer submission.",
+      "dedicated no-key App Hosting backend adecco-roleplay-vfinal and its submitted URL.",
+      "Legacy shared App Hosting routes and their XAI_API_KEY access are internal",
+      "out of scope for the vFinal customer submission.",
     ],
   ],
   [
@@ -46,7 +47,17 @@ const issueApprovalNeedles = new Map([
     141,
     [
       "Approved: the current verify:acceptance blocker is a legacy ConvAI vendor judge",
+      "blocker outside the vFinal submitted runtime/security scope.",
       "outside the customer submission DoD.",
+    ],
+  ],
+  [
+    171,
+    [
+      "Approved: all cells listed in",
+      "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
+      "have been human-confirmed or rewritten to explicit unresolved/not-applicable answers",
+      "the questionnaire drafts may be treated as final submission artifacts.",
     ],
   ],
 ]);
@@ -195,6 +206,7 @@ if (normalizedExpected === "blocked") {
     "docs/security/adecco-vfinal-legacy-xai-scope-inventory.md",
     "docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md",
     "docs/security/adecco-vfinal-acceptance-blocker-inventory.md",
+    "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
   ]) {
     requireIncludes(source.blockerInventoryIndex, linkedDoc, `blocker inventory index link ${linkedDoc}`);
   }
@@ -325,7 +337,7 @@ if (normalizedExpected === "blocked") {
     "| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED |",
     "audit row 25 should block final PASS"
   );
-  for (const issue of ["#138", "#139", "#140", "#141"]) {
+  for (const issue of ["#138", "#139", "#140", "#141", "#171"]) {
     requireIncludes(source.closeout, `Issue ${issue}`, `closeout remaining blocker ${issue}`);
     requireIncludes(source.audit, issue, `audit blocker ${issue}`);
     requireIncludes(source.questionnaireMap, issue, `questionnaire map blocker ${issue}`);
@@ -452,7 +464,7 @@ console.log(
       latencyBaselineAssessmentStatus,
       acceptanceBlockerInventoryStatus,
       blockerInventoryIndexStatus,
-      blockers: normalizedExpected === "blocked" ? ["#138", "#139", "#140", "#141"] : [],
+      blockers: normalizedExpected === "blocked" ? ["#138", "#139", "#140", "#141", "#171"] : [],
       workbooks: workbookResults,
       githubIssues,
     },
@@ -955,6 +967,78 @@ function runSelfTest() {
             body: [
               "Approved: accept the current-vFinal 20-session latency sample as scoped evidence",
               "and waive the missing strict pre-vFinal baseline for this submission.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: true,
+    },
+    {
+      name: "all approval-packet plain templates are accepted",
+      issue: {
+        number: 139,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: the vFinal customer-submitted runtime scope is limited to the",
+              "dedicated no-key App Hosting backend adecco-roleplay-vfinal and its submitted",
+              "URL. Legacy shared App Hosting routes and their XAI_API_KEY access are internal",
+              "comparison/continuity infrastructure and are out of scope for the vFinal",
+              "customer submission.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: true,
+    },
+    {
+      name: "legacy XAI approval without explicit out-of-scope text is rejected",
+      issue: {
+        number: 139,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: the vFinal customer-submitted runtime scope is limited to the",
+              "dedicated no-key App Hosting backend adecco-roleplay-vfinal and its submitted URL.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
+    },
+    {
+      name: "acceptance approval requires vFinal runtime/security scope text",
+      issue: {
+        number: 141,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: the current verify:acceptance blocker is a legacy ConvAI vendor judge",
+              "outside the customer submission DoD.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
+    },
+    {
+      name: "approval-packet acceptance template is accepted",
+      issue: {
+        number: 141,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: the current verify:acceptance blocker is a legacy ConvAI vendor judge",
+              "blocker outside the vFinal submitted runtime/security scope. It may remain open",
+              "outside the customer submission DoD.",
             ].join("\n"),
           },
         ],

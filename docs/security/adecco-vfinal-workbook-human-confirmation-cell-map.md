@@ -7,6 +7,8 @@ or vFinal infrastructure evidence alone. It supports the requirement that the
 Excel drafts must not be promoted to final PASS while unconfirmed organization,
 legal, insurance, audit, contract, or operational facts remain open.
 
+GitHub tracking issue: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/171
+
 ## Source Workbooks
 
 - `C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx`
@@ -84,4 +86,5 @@ above needs either:
   answer that does not overclaim the control.
 
 The final closeout PR should update this file to `PASS` only after those cell
-answers are confirmed or rewritten.
+answers are confirmed or rewritten and issue #171 is closed or formally
+approved out of scope.

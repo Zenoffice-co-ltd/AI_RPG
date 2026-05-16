@@ -4,11 +4,12 @@ Status as of 2026-05-17 JST: **BLOCKED for customer submission DoD and security-
 
 This map reconciles the two questionnaire drafts with the vFinal security
 closeout evidence. It must not be used to claim final submission readiness
-until the four remaining decisions/evidence gaps are resolved or formally
+until the remaining decisions/evidence gaps are resolved or formally
 approved out of scope. The same blocker set applies to the security-checksheet
 submission DoD because the questionnaire drafts cannot be promoted to final
 answers while submitted URL, runtime scope, latency comparison, and acceptance
-remain unresolved.
+remain unresolved. The cell-level human confirmations are tracked separately in
+issue #171.
 The consolidated blocker inventory index is
 `docs/security/adecco-vfinal-blocker-inventory-index.md`.
 The workbook cell-level human-confirmation map is
@@ -24,7 +25,9 @@ Workbook alignment update on 2026-05-17 JST:
 - Both source workbook drafts now include a first sheet named
   `vFinal提出DOD照合`.
 - The sheet records `Overall customer submission DoD` as `BLOCKED` and lists
-  #138, #139, #140, and #141 as unresolved.
+  #138, #139, #140, and #141 as unresolved. Issue #171 is tracked in this repo
+  for the cell-level human confirmations that must also be closed or approved
+  before final questionnaire submission.
 - The `回答前提・要確認` sheet was updated so it no longer says the security
   foundation plan is complete for submission; it now states that completed
   vFinal evidence is usable only as scoped evidence and that the overall
@@ -45,6 +48,7 @@ Workbook alignment update on 2026-05-17 JST:
 | Submitted runtime scope | BLOCKED by issue #139 | Approve that only the dedicated no-key vFinal backend is in submission scope and legacy shared `XAI_API_KEY` access is out of scope, or migrate/remove the legacy dependency. |
 | Latency comparison | BLOCKED by issue #140 | Compare current-vFinal 20-session p95 evidence with an approved or newly collected >=20-session pre-vFinal baseline. |
 | `verify:acceptance` | BLOCKED by issue #141 | Obtain a clean full PASS, or formally approve the known legacy ConvAI judge failure as outside vFinal submission scope. |
+| Workbook human confirmations | BLOCKED by issue #171 | Confirm or rewrite the cells listed in `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`. |
 | Closeout final verdict | BLOCKED | Keep `docs/security/adecco-ai-roleplay-final-security-closeout.md` as BLOCKED for both customer submission and security-checksheet submission until all gates above are resolved or approved. |
 
 ## Evidence-Backed Draft Answers
@@ -105,7 +109,8 @@ The cell-level source for these items is tracked in
   closeout evidence.
 - Answers about URL approval, legacy shared backend de-scope, latency
   comparison PASS, and `verify:acceptance` PASS must remain blocked or
-  explicitly conditional until issues #138-#141 are resolved.
+  explicitly conditional until issues #138-#141 are resolved. Cell-level human
+  confirmations must also remain blocked until issue #171 is resolved.
 
 ### TPISA Questionnaire
 
@@ -130,7 +135,8 @@ The cell-level source for these items is tracked in
 3. Resolve issue #140 with an approved >=20-session pre-vFinal baseline and
    comparison.
 4. Resolve or formally approve issue #141.
-5. Update both questionnaire workbooks so the final answers and
+5. Resolve or formally approve issue #171.
+6. Update both questionnaire workbooks so the final answers and
    `docs/security/adecco-ai-roleplay-final-security-closeout.md` agree.
-6. Only then change the closeout verdicts to `Customer submission DoD: PASS`
+7. Only then change the closeout verdicts to `Customer submission DoD: PASS`
    and `Security-checksheet submission DoD: PASS`.

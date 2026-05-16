@@ -1064,6 +1064,16 @@ from the expected GitHub account.
 - No production, DNS, IAM, Secret Manager, App Hosting, Cloud Run, Cloud Armor,
   or Cloud Logging changes were made.
 
+### 2026-05-17 — vFinal workbook human-confirmation issue
+
+- Created issue #171 to track the workbook cell-level human confirmations in
+  `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
+- Updated `corepack pnpm grok:vfinal-submission-dod-status` so
+  `--check-github-issues` includes #171 in both BLOCKED and PASS modes.
+- Customer submission DoD and security-checksheet submission DoD remain
+  BLOCKED until #138, #139, #140, #141, and #171 are closed or formally
+  approved out of scope.
+
 ### 2026-05-17 — vFinal submitted URL decision inventory
 
 - Added `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` for
