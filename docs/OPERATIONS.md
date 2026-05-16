@@ -939,6 +939,22 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   answers, both source workbooks are promoted out of BLOCKED mode, and the
   final PASS guard succeeds with both workbook paths.
 
+### 2026-05-17 — vFinal #171 workbook final-PASS helper recheck
+
+- Tightened `corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=pass`
+  so the standalone workbook helper rejects final submission when either source
+  workbook still has non-PASS `vFinal提出DOD照合` status, B3:B7 `BLOCKED` rows,
+  empty mapped human-confirmation cells, mapped blocker references, or
+  workbook-wide blocked-mode markers.
+- Kept broad confirmation-word marker counts as diagnostics only. PASS mode
+  now blocks mapped cells on concrete blocker references, avoiding false
+  rejection of a final human-confirmed answer that legitimately says
+  "confirmed" or "確認済み".
+- Rechecked both source workbooks. `--expect=blocked` passed; `--expect=pass`
+  failed as expected while both workbooks still show overall `BLOCKED` and
+  B3:B7 blocker rows. No workbook answer values were copied into docs or issue
+  comments.
+
 ### 2026-05-17 — vFinal #139 Secret Manager IAM boundary recheck
 
 - Rechecked official Secret Manager IAM and Firebase App Hosting config/secrets

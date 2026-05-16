@@ -77,6 +77,21 @@ corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked \
   --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
 
+Before closing #171 or promoting the workbooks to final submission artifacts,
+run the same helper in final PASS mode:
+
+```bash
+corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=pass \
+  --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" \
+  --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
+```
+
+PASS mode requires the `vFinal提出DOD照合` first sheet overall status to be
+`PASS`, B3:B7 blocker rows to be clear of `BLOCKED`, all mapped
+human-confirmation cells to be non-empty, mapped blocker references to be
+removed, blocked-mode workbook markers to be removed, and `.xlsm` VBA content
+to remain intact.
+
 For a scoped #140 artifact precheck before choosing or approving a baseline,
 run:
 

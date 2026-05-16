@@ -202,6 +202,7 @@ function inspectWorkbook(path) {
     requiresHumanConfirmation: expanded.length,
     nonEmpty,
     markerCells,
+    blockingMarkerCells: markerTypeCounts.blockerRef,
     cleanCells: expanded.length - markerCells,
     markerTypeCounts,
     bySheet: Object.fromEntries([...bySheet.entries()]),
@@ -211,8 +212,8 @@ function inspectWorkbook(path) {
     if (nonEmpty !== expanded.length) {
       failures.push(`workbook ${path} has empty mapped human-confirmation cells`);
     }
-    if (markerCells > 0) {
-      failures.push(`workbook ${path} still has ${markerCells} mapped marker cells`);
+    if (markerTypeCounts.blockerRef > 0) {
+      failures.push(`workbook ${path} still has ${markerTypeCounts.blockerRef} mapped blocker marker cells`);
     }
     const allText = workbook.sheets
       .flatMap((sheet) => [...worksheetCells(entries, sheet.target, workbook.sharedStrings, path).values()])
