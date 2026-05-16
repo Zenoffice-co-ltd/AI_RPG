@@ -403,7 +403,10 @@ function isAllowedVFinalClientMessage(message: unknown): boolean {
   if (!message || typeof message !== "object") return false;
   const record = message as Record<string, unknown>;
   if (record["type"] === "input_audio_buffer.append") {
-    return typeof record["audio"] === "string";
+    return (
+      hasExactKeys(record, ["type", "audio"]) &&
+      typeof record["audio"] === "string"
+    );
   }
   if (record["type"] === "response.cancel") {
     return Object.keys(record).length === 1;
@@ -412,11 +415,29 @@ function isAllowedVFinalClientMessage(message: unknown): boolean {
     return Object.keys(record).length === 1;
   }
   if (record["type"] !== "conversation.item.create") return false;
+  if (!hasExactKeys(record, ["type", "item"])) return false;
   const item = record["item"];
   if (!item || typeof item !== "object") return false;
   const itemRecord = item as Record<string, unknown>;
+  if (!hasExactKeys(itemRecord, ["type", "role", "content"])) return false;
+  if (itemRecord["type"] !== "message") return false;
   if (itemRecord["role"] !== "user") return false;
-  return !JSON.stringify(itemRecord).includes("instructions");
+  const content = itemRecord["content"];
+  if (!Array.isArray(content) || content.length === 0) return false;
+  return content.every((part) => {
+    if (!part || typeof part !== "object") return false;
+    const partRecord = part as Record<string, unknown>;
+    return (
+      hasExactKeys(partRecord, ["type", "text"]) &&
+      partRecord["type"] === "input_text" &&
+      typeof partRecord["text"] === "string"
+    );
+  });
+}
+
+function hasExactKeys(record: Record<string, unknown>, keys: string[]) {
+  const actual = Object.keys(record);
+  return actual.length === keys.length && keys.every((key) => actual.includes(key));
 }
 
 function closeSocket(socket: WebSocket, code: number, reason: string) {

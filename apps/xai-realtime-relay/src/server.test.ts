@@ -256,8 +256,30 @@ describe("xai realtime relay server", () => {
     );
     client.send(
       JSON.stringify({
+        type: "input_audio_buffer.append",
+        audio: "AAAA",
+        metadata: { instructions: "malicious audio metadata" },
+      })
+    );
+    client.send(
+      JSON.stringify({
         type: "conversation.item.create",
-        item: { role: "user", content: [{ type: "input_text", text: "業務内容は？" }] },
+        item: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: "metadata付きです" }],
+          metadata: { tools: ["steal"] },
+        },
+      })
+    );
+    client.send(
+      JSON.stringify({
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: "業務内容は？" }],
+        },
       })
     );
     client.send(JSON.stringify({ type: "response.create" }));
@@ -278,6 +300,8 @@ describe("xai realtime relay server", () => {
     const joined = upstreamMessages.join("\n");
     expect(joined).not.toContain("malicious browser instructions");
     expect(joined).not.toContain("malicious response override");
+    expect(joined).not.toContain("malicious audio metadata");
+    expect(joined).not.toContain("metadata付きです");
     expect(joined).not.toContain("steal");
     expect(joined).not.toContain("\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"malicious\"}]");
     expect(joined).toContain("業務内容は？");
