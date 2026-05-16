@@ -32,6 +32,18 @@ tracked items:
 
 ## Latest Read-Only Rechecks
 
+- 2026-05-17 04:50 JST legacy XAI scope recheck:
+  Secret Manager IAM and Firebase App Hosting configuration docs were
+  rechecked before the #139 read-only IAM/config review. The dedicated
+  submitted vFinal App Hosting service account remained absent from the
+  `XAI_API_KEY` IAM policy, while the legacy shared App Hosting compute service
+  account still had `secretAccessor`. Shared `apps/web/apphosting.yaml` still
+  binds `XAI_API_KEY`; `apps/web/apphosting.vfinal.yaml` still omits it. The
+  shared deterministic-only flag reduces some legacy runtime TTS/realtime use,
+  but shared `/api/v3` production env assertion still requires the key when
+  Grok Voice roleplay is enabled. #139 remains blocked pending explicit scope
+  approval or route migration/de-scope plus IAM removal and regression
+  evidence.
 - 2026-05-17 04:44 JST acceptance permission/input recheck:
   active gcloud account was `iwase@zenoffice.co.jp` with active project
   `zapier-transfer`. Process-local `FIREBASE_PROJECT_ID`,

@@ -8,6 +8,24 @@ shared App Hosting backend still has `XAI_API_KEY` access for non-submitted
 comparison/direct routes. Removing that access without a migration or formal
 de-scope decision can break existing legacy behavior.
 
+## Official Docs Rechecked
+
+Rechecked on 2026-05-17 before the latest read-only #139 IAM/config review:
+
+- Secret Manager access control with IAM:
+  https://cloud.google.com/secret-manager/docs/access-control
+  (page redirected to `docs.cloud.google.com`; last updated 2026-05-15 UTC).
+  Relevant decision: `roles/secretmanager.secretAccessor` grants
+  `secretmanager.versions.access`, while `roles/secretmanager.viewer` is
+  metadata-only and does not grant payload access. Least privilege should be
+  granted at the lowest practical resource level.
+- Firebase App Hosting backend/config/secrets:
+  https://firebase.google.com/docs/app-hosting/configure
+  (last updated 2026-05-15 UTC). Relevant decision: App Hosting can reference
+  Cloud Secret Manager secrets from `apphosting.yaml`, secret values load
+  during rollout, and App Hosting backend creation/management is an
+  operator/admin-controlled action.
+
 ## Submitted vFinal Runtime
 
 The submitted vFinal path is the dedicated App Hosting backend
@@ -46,6 +64,26 @@ Latest read-only IAM recheck, 2026-05-17 04:20 JST:
 - The dedicated submitted vFinal service account
   `serviceAccount:firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com`
   was not present on the `XAI_API_KEY` IAM policy.
+
+2026-05-17 04:50 JST read-only IAM/config recheck:
+
+- `gcloud secrets get-iam-policy XAI_API_KEY --project=adecco-mendan
+  --format=json` still showed the legacy shared App Hosting compute service
+  account and Cloud Run relay service account under
+  `roles/secretmanager.secretAccessor`; it still showed the legacy shared App
+  Hosting compute service account under `roles/secretmanager.viewer`.
+- The dedicated submitted vFinal service account
+  `serviceAccount:firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com`
+  was still not present on the `XAI_API_KEY` IAM policy.
+- `apps/web/apphosting.yaml` still binds `XAI_API_KEY` for the shared backend.
+- `apps/web/apphosting.vfinal.yaml` still omits `XAI_API_KEY` and binds only
+  the relay ticket, invite-signing, and participant-hash secrets needed by the
+  submitted vFinal web runtime.
+- `GROK_VOICE_PRODUCTION_DETERMINISTIC_ONLY=true` in the shared backend lowers
+  some legacy runtime TTS/realtime usage, but the shared `/api/v3` environment
+  schema and production assertion still require `XAI_API_KEY` whenever Grok
+  Voice roleplay is enabled. That means IAM removal remains a migration /
+  de-scope decision, not a safe read-only cleanup.
 
 Code/config evidence:
 
@@ -91,6 +129,23 @@ Issue #139 remains blocked until one of these is true:
    formally de-scoped so the shared App Hosting service account no longer needs
    `XAI_API_KEY`; then the IAM binding is removed and v50/v3 comparison
    non-regression plus vFinal smoke are rerun.
+
+The migration/removal path must include, at minimum:
+
+- an operator-approved route inventory for shared `/api/v3/*` and any
+  v50/v3 comparison routes that still use the shared App Hosting backend;
+- confirmation that direct xAI ephemeral-token and runtime-TTS/cache-miss paths
+  are migrated to the Cloud Run relay, disabled, or explicitly de-scoped;
+- removal of `XAI_API_KEY` from `apps/web/apphosting.yaml` or deployment of an
+  equivalent no-key shared backend configuration;
+- Secret Manager IAM removal of
+  `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` from
+  `roles/secretmanager.secretAccessor` on `XAI_API_KEY`;
+- post-change smoke for the submitted vFinal URL and non-regression checks for
+  retained v50/v3 comparison routes;
+- a final Secret Manager IAM proof showing only the approved relay service
+  account, and any explicitly approved operators/service agents, retain
+  payload access to `XAI_API_KEY`.
 
 Until then, the customer submission DoD and security-checksheet submission DoD
 must remain BLOCKED for #139.
