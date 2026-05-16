@@ -812,6 +812,22 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal workbook human-confirmation recheck
+
+- Rechecked the two source questionnaire workbooks without copying workbook
+  answer values into docs:
+  `Adecco_データ保護アンケート_v01_回答ドラフト.xlsx` and
+  `Adecco_TPISAアンケート_v01_回答ドラフト.xlsm`.
+- Both first sheets remain `vFinal提出DOD照合`, and both still include
+  `Overall customer submission DoD BLOCKED` plus
+  `Excel人間確認 (#171) BLOCKED`.
+- Data protection workbook: 25/25 mapped #171 cells were non-empty, but 17
+  still contained confirmation or unresolved markers.
+- TPISA workbook: 34/34 expanded mapped #171 cells were non-empty, but 19
+  still contained confirmation or unresolved markers.
+- #171 remains BLOCKED until the mapped cells are human-confirmed or rewritten
+  to explicit unresolved/not-applicable answers.
+
 ### 2026-05-17 — vFinal submitted URL smoke recheck
 
 - Re-ran hosted.app submitted URL start smoke:

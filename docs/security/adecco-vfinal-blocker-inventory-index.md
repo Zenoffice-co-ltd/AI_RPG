@@ -24,6 +24,12 @@ being closed or formally approved.
 2026-05-17 JST recheck after PR #188 and PR #189:
 
 - #128, #138, #139, #140, #141, and #171 are still OPEN.
+- Fresh #171 source workbook recheck found both `vFinal提出DOD照合` first
+  sheets still in `BLOCKED` mode with `Excel人間確認 (#171) BLOCKED`.
+  All mapped #171 cells were non-empty, but confirmation/unresolved markers
+  remain in 17/25 data-protection cells and 19/34 expanded TPISA cells. This
+  keeps #171 blocked pending human confirmation or explicit unresolved /
+  not-applicable wording.
 - Fresh #138 hosted.app submitted URL start smoke passed at 2026-05-17
   04:29 JST: session 200, `wsUrl`
   `wss://voice.mendan.biz/api/v3/realtime-relay`, browser WebSocket URL only
