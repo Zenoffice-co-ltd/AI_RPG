@@ -1,6 +1,6 @@
 # Adecco AI Roleplay vFinal Security Closeout
 
-Status as of 2026-05-16 23:18 JST: code-level P0, PR-A production auth
+Status as of 2026-05-16 23:38 JST: code-level P0, PR-A production auth
 unblock, PR-B no-key App Hosting backend separation, PR-C metadata-only Cloud
 Logging retention, and PR-D relay Cloud Armor preview/log evidence are
 complete. Browser text/voice E2E now passes on the dedicated vFinal backend.
@@ -12,7 +12,9 @@ failure, and custom-domain/customer-scope decisions listed in this document.
 The earlier ZAP and Secret Manager IAM blockers have been reduced: ZAP
 baseline/passive executed with FAIL=0, and `verify:acceptance --preflight`
 became ready after resolving required secrets into process-local env from
-Secret Manager without printing or persisting values.
+Secret Manager without printing or persisting values. Current vFinal
+20-session voice latency sampling is complete, but the required 20-session
+pre-vFinal baseline comparison is still missing.
 
 ## Target
 
@@ -494,12 +496,40 @@ Post same-SHA deploy E2E:
     audioBytes=360960
     websocketReconnectCount=0
 Latency baseline:
-  BLOCKED: >=20-session baseline comparison is not complete.
+  BLOCKED: >=20-session pre-vFinal baseline comparison is not complete.
+  Evidence check 2026-05-16 23:24 JST:
+    Cloud Logging bucket=adecco-vfinal-metadata, view=_AllLogs,
+    since=2026-05-16T00:00:00Z contains only 7 vFinal turn.completed entries
+    before the new 20-session sample below. That is insufficient for the
+    required 20-session p95 baseline. Reconstructing the formal baseline would
+    require an approved rollback or separate same-environment deployment of the
+    latest approved pre-vFinal App Hosting/relay runtime, which Codex should not
+    do without operator approval.
 Latency vFinal:
-  PARTIAL: post same-SHA text and voice browser E2E runs passed and captured
-  firstAudioDeltaMs / firstAudibleAudioMs. This is not sufficient for the
-  formal p95 latency DoD because the required >=20-session baseline comparison
-  is still missing.
+  PASS scoped current-vFinal 20-session sample:
+    command=corepack pnpm grok:first-vfinal:latency-sample -- --mode voice --runs 20
+    evidence=out/grok_first_vfinal_latency/2026-05-16T14-32-01-504Z/summary.json
+    runCount=20
+    passCount=20
+    failCount=0
+    sessionApiMs p50=161 p95=301 max=332
+    firstAudioDeltaMs p50=4407 p95=5529 max=10779
+    firstAudibleAudioMs p50=4659 p95=5743 max=10989
+    doneMs p50=6402 p95=6807 max=11508
+    directApiXaiConnectionCount=0
+    websocketReconnectCount=0
+    unexpectedWebsocketUrlCount=0
+  Relay log check for this sample:
+    since=2026-05-16T14:31:54Z
+    client.connected=20
+    ticket.accepted=20
+    upstream.connected=20
+    first.upstream.audio.delta=20
+    closeCode1006=0
+    relayError=0
+  NOTE: one non-p95 outlier was observed in the current-vFinal sample
+  (firstAudibleAudioMs max=10989ms). The formal DoD is still blocked because
+  the corresponding 20-session pre-vFinal baseline is unavailable.
 ZAP baseline/passive:
   PASS 2026-05-16 23:06 JST:
     command=docker run --rm -t -v <outDir>:/zap/wrk:rw ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-vFinal -J zap-report.json -r zap-report.html -w zap-report.md -I
@@ -522,6 +552,8 @@ ZAP baseline/passive:
     Cross-Origin-Embedder-Policy Header Missing or Invalid
   No active scan or destructive test was run.
 Local code gates:
+  PASS node --check scripts/grok-first-vfinal-browser-e2e.mjs
+  PASS node --check scripts/grok-first-vfinal-latency-sample.mjs
   PASS corepack pnpm grok:vfinal-security-invariants
   PASS node --check scripts/deploy-adecco-roleplay-gcloud.mjs
   PASS corepack pnpm --filter @top-performer/web test -- tests/unit/grok-first-vfinal.test.ts
@@ -643,7 +675,10 @@ Remaining blockers:
     Hosting service account for non-submitted direct comparison routes. Removing
     it would risk breaking existing v3/direct xAI routes unless those routes are
     migrated or formally de-scoped.
-  - latency baseline comparison is not complete.
+  - latency baseline comparison is not complete. Current-vFinal 20-session
+    voice sampling is complete and passed, but the required 20-session
+    pre-vFinal baseline is unavailable without approved rollback or a separate
+    same-environment baseline deployment.
   - verify:acceptance full run is blocked by ElevenLabs publish judge failures
     after three attempts. This is not currently covered by the documented
     DoD G no-coaching-only legacy exception because the final failed attempt
@@ -658,7 +693,8 @@ Current final evidence verdict:
   E2E, browser direct api.x.ai=0, relay phase evidence, closeCode1006=0,
   relay.error=0, and sensitive metadata bucket scan=0 for raw secret/token/
   prompt/transcript/audio markers. PASS for ZAP baseline/passive execution with
-  FAIL=0 and documented WARN classes.
+  FAIL=0 and documented WARN classes. PASS for current-vFinal 20-session voice
+  latency sample, with closeCode1006=0 and relay.error=0 in the sample window.
   FAIL/BLOCKED for overall customer submission DoD until the remaining blockers
   above are resolved or formally approved as out of scope.
 ```
