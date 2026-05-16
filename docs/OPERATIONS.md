@@ -812,6 +812,16 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal human unblock checklist
+
+- Added `docs/security/adecco-vfinal-human-unblock-checklist.md` as the
+  shortest operator-facing restart path for #138, #139, #140, #141, and #171.
+- The checklist links back to the approval packet, blocker inventory, customer
+  submission audit, and final closeout as the authoritative detail.
+- It does not change verdicts: customer submission DoD and security-checksheet
+  submission DoD remain BLOCKED until the listed issues are closed or formally
+  approved and the final PASS guard succeeds.
+
 ### 2026-05-17 — vFinal cross-worktree latency baseline search
 
 - Searched `C:\dev\AI_RPG*\out\**\summary.json` across local worktrees for

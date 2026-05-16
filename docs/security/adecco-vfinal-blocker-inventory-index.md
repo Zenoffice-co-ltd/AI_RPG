@@ -6,6 +6,8 @@ This index is the human-facing table of the approval/evidence-sensitive items
 that still block customer submission DoD and security-checksheet submission
 DoD. It does not replace the individual inventory files or the GitHub issues;
 it makes the finalization checklist easier to audit.
+The shortest operator-facing action checklist is
+`docs/security/adecco-vfinal-human-unblock-checklist.md`.
 
 Umbrella tracker: #128 remains OPEN while any row below is unresolved. The
 final PASS guard requires #128 to be CLOSED in addition to the blocker rows
