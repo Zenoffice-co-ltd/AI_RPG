@@ -42,8 +42,10 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 - **Research v50.4 / v50.1 relay runtime with latest System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-4
 - **Research v50.5 / v50 runtime with fixed output-contract System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-5
 - **Research v50.6 / v50 runtime with one-sentence guarded System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-6
+- **Research v50.7 / v50.6 prompt with runtime input guard**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7
+- **Research v50.8 / v50.6 prompt with assistant-only fixed guard drain**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-8
 - **vFinal security foundation / invite-gated relay route**: https://roleplay.mendan.biz/demo/adecco-roleplay-vFinal
-- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1/v50.4/v50.5/v50.6/vFinal: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1,50-4,50-5,50-6,Final}`
+- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1/v50.4/v50.5/v50.6/v50.7/v50.8/vFinal: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1,50-4,50-5,50-6,50-7,50-8,Final}`
 
 ## v50 Grok-first negative guard runtime
 
@@ -82,12 +84,63 @@ sentence, collapse off-role/ending guard handling to one fixed response, remove
 customer-side reverse questions, and keep the first message free of forbidden
 polite-request wording.
 
+`/demo/adecco-roleplay-v50-7` keeps the v50.6 System Prompt, first message, and
+scenario id unchanged (`promptVersion=grok-first-v50.6-2026-05-15`). Its API
+namespace is `/api/grok-first-v50-7/*`, route identity is
+`demoSlug=adecco-roleplay-v50-7` / `backend=grok-first-v50-7`, and runtime guard
+evidence is separated as `guardrailVersion=grok-first-v50.7-guard-2026-05-15`.
+For exit and meta/evaluation/prompt requests, the browser classifies the final
+STT text immediately, sends `response.cancel`, clears the tail/audio queues, and
+shows/plays only the app-side fixed response. The guarantee is that xAI-generated
+assistant text/audio is not displayed or heard; live mic audio may already have
+been streamed to the relay before STT completion.
+
+`/demo/adecco-roleplay-v50-8` keeps the same v50.6 System Prompt, first message,
+scenario id, fixed guard text, and fixed PCM artifacts as v50.7
+(`promptVersion=grok-first-v50.6-2026-05-15`). Its API namespace is
+`/api/grok-first-v50-8/*`, route identity is
+`demoSlug=adecco-roleplay-v50-8` / `backend=grok-first-v50-8`, and runtime guard
+evidence is separated as `guardrailVersion=grok-first-v50.8-guard-2026-05-16`.
+The v50.8 runtime changes only the post-fixed-guard drain: while fixed playback
+is active, mic/input/assistant events remain blocked; during the 1.5 second
+drain after playback completes, only stale assistant `response.*` events are
+ignored. New `speech_started`, `speech_stopped`, STT completion/failure, and mic
+chunks are allowed so back-to-back fixed_external turns do not become
+`<missing>`. Ignored assistant response events may be logged as
+`guard.drain.ignored`.
+
+For fixed guard turns, `firstAudibleAudioMs` still measures from turn start and
+therefore includes user speech and STT time. v50.8 also records
+`audioSource=static_guard_pcm_base64`, `sttCompletedToGuardDetectedMs`,
+`guardDetectedToPlaybackStartedMs`, `fixedPlaybackDurationMs`, and
+`fixedAudioBytes` so fixed artifact playback latency can be separated from STT
+latency.
+
+Verification note: `AGENTS.md` `## Voice E2E Natural Conversation SoT` is the
+current v50 voice E2E source of truth. Before claiming v50.8 final DoD, map the
+requested case-set denominator to an executable runner. The dedicated
+`pnpm grok:first-v50-8:guard-e2e` harness covers the 5-case back-to-back
+fixed_external race by default and captures `/api/grok-first-v50-8/event`
+directly. For the spreadsheet-defined fixed guard smoke, run
+`pnpm grok:first-v50-8:guard-e2e -- --case-set guard-smoke --repeat 3`; this
+loads `04_Turn_Cases` / `E2E-02` from
+`C:/Users/yukih/Downloads/v50_8_guard_voice_e2e_test_cases.xlsx` and executes
+the 13 fixed guard cases three times. This is scoped text-input browser
+evidence, not a substitute for Natural Smoke `30/30 x3`, Backchannel `50/50`,
+Customer-led Output Guard `100/100`, Natural Transition E2E `>=11/12`,
+Voice/STT Natural Smoke, `69 P0 guards`, or `93-turn full` runs unless those
+exact cases are executed. Human testing remains blocked until normal sales
+naturalness gates pass with P0 hard fail `0` and PASS-case false-pass audit `0`.
+For local browser E2E, resolve `DEMO_ACCESS_TOKEN` (Secret Manager alias
+`demo-access-token`) and `XAI_RELAY_TICKET_SECRET` without printing values, and
+start Next from `apps/web` so workspace package links resolve.
+
 For v50-family production smoke and log reconstruction, use the reusable
 scripts instead of one-off `.codex_tmp` harnesses:
 
 ```bash
-pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode start
-pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode voice-turn
+pnpm grok:first-v50:prod-smoke -- --variant <v50-x> --mode start
+pnpm grok:first-v50:prod-smoke -- --variant <v50-x> --mode voice-turn
 pnpm grok:first-v50:prod-logs -- --session <gfv50_...>
 ```
 
@@ -122,7 +175,7 @@ Session defaults:
   logs. Set `GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED=true` only for
   controlled local debugging; previews are capped at 200 characters and secret,
   instruction, and raw audio fields are dropped at the logger boundary.
-- Enterprise transport: v50, v50.1, v50.4, v50.5, and v50.6 use
+- Enterprise transport: v50, v50.1, v50.4, v50.5, v50.6, v50.7, and v50.8 use
   `realtimeTransport=mendan_cloud_run_relay_wss`,
   `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, and
   `realtimeAuth.mode=mendan_relay_subprotocol`. These sessions do not issue xAI

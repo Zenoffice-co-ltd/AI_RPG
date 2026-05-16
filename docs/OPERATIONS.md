@@ -876,12 +876,12 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   `staffing_order_hearing_busy_manager_medium::no-coaching`. This is not a
   v25/domain/relay regression.
 
-### 2026-05-16 — v50 normal sales naturalness becomes voice E2E SoT
+### 2026-05-16 — v50.8 normal sales naturalness becomes voice E2E SoT
 
-- Updated `AGENTS.md` with `## Voice E2E Natural Conversation SoT`: the
-  2026-05-16 v50.8 CTO report confirms mainly back-to-back `fixed_external`
-  stability, not Excel `04_Turn_Cases`, `05_P0_Guards`, full 93-turn E2E,
-  normal sales Realtime quality, or human-test readiness.
+- Updated `AGENTS.md` with `## Voice E2E Natural Conversation SoT`: v50.8
+  currently proves mainly back-to-back `fixed_external` stability, not Excel
+  `04_Turn_Cases`, `05_P0_Guards`, full 93-turn E2E, normal sales Realtime
+  quality, or human-test readiness.
 - Test priority changed from fixed guard first to normal sales naturalness
   first: Version/Route Sanity -> Natural Conversation Smoke -> Customer-led
   Output -> Backchannel/Low-Info -> Reveal Depth -> Normal Sales Voice E2E ->
@@ -910,9 +910,24 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   drain evidence. Later on 2026-05-16, this same skill was promoted to the
   broader v50 voice E2E naturalness SoT described above. Cursor/Claude/Codex
   mirrors now restate the operational safety and Secret Manager alias rules.
-- This entry documents process guardrails only. It is not a claim that
-  spreadsheet-defined `13/13 x3`, `69 P0 guards`, or `93-turn full` DoD has
-  passed; those require an exact case-set runner and fresh evidence.
+- v50.8 browser harness hardening: start Next from `apps/web`, use Windows
+  process-tree cleanup for the child server, wait for the message input before
+  first send, try `DEMO_ACCESS_TOKEN` and `demo-access-token`, and support
+  `XAI_RELAY_TICKET_SECRET`.
+- Scoped fixed_external browser evidence passed 3 consecutive clean runs:
+  `out/grok_first_v50_8_fixed_guard_e2e/20260516T063916Z/`,
+  `out/grok_first_v50_8_fixed_guard_e2e/20260516T064047Z/`, and
+  `out/grok_first_v50_8_fixed_guard_e2e/20260516T064223Z/`.
+- The same harness now supports
+  `pnpm grok:first-v50-8:guard-e2e -- --case-set guard-smoke --repeat 3`,
+  which loads spreadsheet `04_Turn_Cases` / `E2E-02` and runs the 13 fixed guard
+  smoke cases three consecutive times. Latest scoped text-input browser
+  evidence passed `39/39` with `guard.detected=39`, playback started/completed
+  `39/39`, and `turn.completed=39`:
+  `out/grok_first_v50_8_fixed_guard_e2e/20260516T075432Z/`.
+- This is not a claim that `69 P0 guards`, Voice/STT guard smoke, normal sales
+  naturalness gates, or `93-turn full` DoD has passed; those require exact
+  case-set runners/evidence.
 
 ### 2026-05-14 — roleplay.mendan.biz custom domain cutover BLOCKED_DNS
 

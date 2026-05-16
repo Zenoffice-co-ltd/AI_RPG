@@ -1,6 +1,6 @@
 ---
 name: ai-rpg-grok-first-v50-guard-verification
-description: Use when verifying or reporting Grok-first v50 normal sales conversation naturalness, voice E2E, fixed guard behavior, guard smoke, assistant-only drain, spreadsheet-defined test plans, or browser E2E evidence for `/demo/adecco-roleplay-v50*` and `/api/grok-first-v50*`.
+description: Use when verifying or reporting Grok-first v50 normal sales conversation naturalness, voice E2E, fixed guard behavior, guard smoke, v50.8 assistant-only drain, spreadsheet-defined test plans, or browser E2E evidence for `/demo/adecco-roleplay-v50*` and `/api/grok-first-v50*`.
 ---
 
 # AI RPG Grok-first v50 Voice E2E Verification
@@ -19,10 +19,11 @@ required, but it can no longer stand in for normal sales Realtime quality.
 - `scripts/grok-first-v50-prod-smoke.mjs`
 - `scripts/grok-first-v50-prod-logs.mjs`
 - `scripts/grok-first-v50-voice-e2e.mjs`
+- `scripts/grok-first-v50-8-fixed-guard-browser-e2e.mjs`
 
 ## Current Evidence Boundary
 
-As of the 2026-05-16 v50.8 CTO report, confirmed evidence is mainly
+As of the 2026-05-16 v50.8 CTO report, v50.8 has mainly proven
 back-to-back `fixed_external` stabilization. Do not claim these are complete
 unless an exact runner/evidence set exists:
 
@@ -32,7 +33,7 @@ unless an exact runner/evidence set exists:
 - normal sales-turn Realtime quality
 - human-test readiness
 
-Scoped fixed_external evidence is valuable, but it is not final DoD.
+Scoped `5/5 x3` fixed_external evidence is valuable, but it is not final DoD.
 
 ## Gate Order
 
@@ -70,10 +71,24 @@ For v50.8 naturalness work, expected identity is:
 
 - `promptVersion=grok-first-v50.6-2026-05-15`
 - `guardrailVersion=grok-first-v50.8-guard-2026-05-16`
+- `demoSlug=adecco-roleplay-v50-8`
+- `backend=grok-first-v50-8`
+- `realtimeTransport=mendan_cloud_run_relay_wss`
 
 Require `session.created` and either `ws.connected` or an explainable fixed
 guard bypass. If provenance is missing, report `INVALID RUN`, not PASS/FAIL.
-Do not report a prompt improvement if only the guard runtime changed.
+
+Version quick reference:
+
+| Route | `promptVersion` | `guardrailVersion` | Notes |
+|---|---|---|---|
+| `/demo/adecco-roleplay-v50-7` | `grok-first-v50.6-2026-05-15` | `grok-first-v50.7-guard-2026-05-15` | v50.6 prompt with runtime input guard |
+| `/demo/adecco-roleplay-v50-8` | `grok-first-v50.6-2026-05-15` | `grok-first-v50.8-guard-2026-05-16` | v50.6 prompt with assistant-only fixed guard drain |
+
+Fixed guard text stays app-owned: external guard
+`その話は今回の商談では扱いません。`; exit guard
+`本日はここまでで大丈夫です。`. Do not report a prompt improvement if only the
+guard runtime changed.
 
 ## Natural Conversation Smoke
 
@@ -352,9 +367,13 @@ Before any long-running run:
    harness final DoD.
 3. Confirm the runner/package script exists. For production smoke and logs:
    `pnpm grok:first-v50:prod-smoke` and `pnpm grok:first-v50:prod-logs`.
-   For spreadsheet or case-set voice E2E:
-   `pnpm grok:first-v50:voice-e2e` or the existing
-   `pnpm grok-first:v50:xlsx-voice-e2e`.
+   For v50.8 back-to-back fixed guard:
+   `pnpm grok:first-v50-8:guard-e2e` or
+   `node scripts/grok-first-v50-8-fixed-guard-browser-e2e.mjs`.
+   For spreadsheet `13/13 x3` fixed guard smoke, use:
+   `pnpm grok:first-v50-8:guard-e2e -- --case-set guard-smoke --repeat 3`.
+   Use `--list-cases` first when mapping the denominator without starting a
+   browser run.
 4. Confirm secrets without printing values:
    - `DEMO_ACCESS_TOKEN` env or Secret Manager `demo-access-token`
    - `XAI_RELAY_TICKET_SECRET` for relay-ticket v50/v25 routes
@@ -385,8 +404,8 @@ Before redeploying or broadening the run:
 Useful commands:
 
 ```bash
-pnpm grok:first-v50:prod-smoke -- --variant <v50-x> --mode start
-pnpm grok:first-v50:prod-smoke -- --variant <v50-x> --mode voice-turn
+pnpm grok:first-v50:prod-smoke -- --variant v50-8 --mode start
+pnpm grok:first-v50:prod-smoke -- --variant v50-8 --mode voice-turn
 pnpm grok:first-v50:prod-logs -- --session gfv50_...
 ```
 
@@ -440,7 +459,8 @@ Always distinguish:
 - backchannel evidence, e.g. `50/50`
 - transition evidence, e.g. `11/12 scenarios, 95% turns`
 - scoped fixed harness evidence, e.g. `5/5 x3 back-to-back fixed_external`
-- Excel guard smoke evidence, e.g. `13/13 x3`
+- Excel guard smoke evidence, e.g. `13/13 x3`; name whether it is text-input
+  browser evidence or Voice/STT evidence
 - P0 guard evidence, e.g. `69/69`
 - full E2E evidence, e.g. `93 turns`
 
