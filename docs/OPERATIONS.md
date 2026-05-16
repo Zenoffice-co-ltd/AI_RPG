@@ -812,6 +812,27 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal full DoD audit
+
+- Added `docs/security/adecco-vfinal-customer-submission-dod-audit.md` to map
+  all 25 active customer-submission close conditions to current evidence and
+  blockers.
+- The audit records PASS for the dedicated no-key vFinal runtime, metadata-only
+  logging retention, Cloud Armor preview/log, WebSocket relay path, live
+  text/voice E2E, sensitive scan, ZAP baseline/passive, and same-SHA deploy
+  evidence.
+- The audit keeps the final customer-submission verdict BLOCKED on #138, #139,
+  #140, and #141. Do not change the closeout verdict to PASS until those issues
+  are closed or formally approved out of scope.
+- Read-only rechecks for the audit:
+  `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` had no DNS
+  result in this environment; the dedicated hosted.app URL returned HTTP 200.
+  `gcloud secrets get-iam-policy XAI_API_KEY --project=adecco-mendan
+  --format=json` confirmed the dedicated vFinal service account was not on the
+  policy, while the legacy shared App Hosting service account still had
+  `secretAccessor`/`viewer` access. This keeps #138 and #139 BLOCKED pending
+  approval or migration.
+
 ### 2026-05-17 — vFinal acceptance and submitted-domain recheck
 
 - Submitted-domain DNS recheck found no resolver result for
