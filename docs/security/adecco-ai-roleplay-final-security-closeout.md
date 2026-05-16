@@ -760,10 +760,17 @@ Remaining blockers:
     evidence uses the dedicated hosted.app backend URL. Resolve by either
     approving hosted.app as the submitted URL or mapping a dedicated vFinal
     mendan.biz custom domain to the dedicated backend.
+    2026-05-17 post-PR149 recheck: hosted.app returned HTTP 200;
+    `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still had no
+    DNS resolver result in this environment.
   - Issue #139: project-wide XAI_API_KEY secretAccessor still includes the
     legacy shared App Hosting service account for non-submitted direct
     comparison routes. Removing it would risk breaking existing v3/direct xAI
     routes unless those routes are migrated or formally de-scoped.
+    2026-05-17 post-PR149 recheck: the dedicated vFinal service account was not
+    present on the `XAI_API_KEY` policy; the legacy shared App Hosting compute
+    service account still had `secretAccessor` and `viewer`, and the relay
+    service account still had `secretAccessor` as expected.
   - Issue #140: latency baseline comparison is not complete. Current-vFinal
     20-session voice sampling is complete and passed, but the required
     20-session pre-vFinal baseline is unavailable without approved rollback or a
@@ -779,6 +786,9 @@ Remaining blockers:
     but applying the legacy vendor judge blocker to vFinal as out of scope
     requires customer/operator approval or a clean rerun during a stable vendor
     window.
+    2026-05-17 post-PR149 current-shell preflight still fails before product
+    checks with Secret Manager `secretmanager.versions.access` permission denied
+    when process-local vendor env values and `apps/web/.env.local` are absent.
   - local DNS/Google API resolution remains unreliable for gcloud CLI
     post-verify commands. REST calls with explicit Google API IP resolution were
     used for Cloud Run/App Hosting/Logging/Secret Manager evidence; this is an

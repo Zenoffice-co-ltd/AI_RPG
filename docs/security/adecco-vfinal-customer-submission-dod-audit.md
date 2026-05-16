@@ -61,6 +61,15 @@ Customer submission remains blocked by four tracked items:
   `BLOCKED`, list #138, #139, #140, and #141 as unresolved, and no longer
   contain the old `プランが完了した前提` opening wording. The TPISA `.xlsm`
   still contains `vbaProject.bin`.
+- 2026-05-17 post-PR149 blocker recheck:
+  #138, #139, #140, and #141 remained OPEN with no approval comments. The
+  dedicated hosted.app URL returned HTTP 200, both dedicated `mendan.biz`
+  candidates still had no DNS resolver result, `XAI_API_KEY` IAM still excluded
+  the dedicated vFinal service account but included the legacy shared App
+  Hosting compute service account, and current-shell
+  `corepack pnpm verify:acceptance -- --preflight` still failed with Secret
+  Manager `secretmanager.versions.access` permission denied when process-local
+  vendor env values and `apps/web/.env.local` were absent.
 
 ## DoD Matrix
 
