@@ -1,8 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { extname, join } from "node:path";
+import { inflateRawSync } from "node:zlib";
 
 const root = process.cwd();
 const expected = stringArg("expect", process.env.VFINAL_SUBMISSION_DOD_EXPECT ?? "auto");
+const workbookPaths = [
+  ...listArgs("workbook"),
+  ...envList("VFINAL_SUBMISSION_DOD_WORKBOOKS"),
+];
 const allowedExpected = new Set(["auto", "blocked", "pass"]);
 if (!allowedExpected.has(expected)) {
   console.error(`Invalid --expect value: ${expected}. Use auto, blocked, or pass.`);
@@ -79,6 +84,10 @@ if (normalizedExpected === "pass") {
   );
 }
 
+const workbookResults = workbookPaths.map((path) =>
+  checkWorkbook(path, normalizedExpected)
+);
+
 if (failures.length > 0) {
   console.error("vFinal customer submission DoD status check FAILED");
   for (const failure of failures) {
@@ -96,11 +105,227 @@ console.log(
       auditStatus,
       questionnaireMapStatus,
       blockers: normalizedExpected === "blocked" ? ["#138", "#139", "#140", "#141"] : [],
+      workbooks: workbookResults,
     },
     null,
     2
   )
 );
+
+function checkWorkbook(path, expectedStatus) {
+  const result = { path };
+  if (!existsSync(path)) {
+    failures.push(`missing workbook: ${path}`);
+    return { ...result, exists: false };
+  }
+  result.exists = true;
+  const entries = readZipEntries(path);
+  const entryNames = new Set(entries.keys());
+  const extension = extname(path).toLowerCase();
+  if (extension === ".xlsm" && ![...entryNames].some((name) => name.endsWith("vbaProject.bin"))) {
+    failures.push(`xlsm workbook missing vbaProject.bin: ${path}`);
+  }
+
+  const workbook = workbookModel(entries, path);
+  result.sheets = workbook.sheets.map((sheet) => sheet.name);
+  result.firstSheet = result.sheets[0] ?? null;
+  const dodSheet = workbook.sheets.find((sheet) => sheet.name === "vFinal提出DOD照合");
+  if (!dodSheet) {
+    failures.push(`workbook missing vFinal提出DOD照合 sheet: ${path}`);
+    return result;
+  }
+  if (workbook.sheets[0]?.name !== "vFinal提出DOD照合") {
+    failures.push(`workbook first sheet is not vFinal提出DOD照合: ${path}`);
+  }
+
+  const dodCells = worksheetCells(entries, dodSheet.target, workbook.sharedStrings, path);
+  const overallStatus = dodCells.get("B2");
+  result.overallStatus = overallStatus ?? null;
+  if (expectedStatus === "blocked") {
+    requireEqual(overallStatus, "BLOCKED", `workbook ${path} overall DoD status`);
+    for (const cell of ["B3", "B4", "B5", "B6"]) {
+      requireEqual(dodCells.get(cell), "BLOCKED", `workbook ${path} ${cell}`);
+    }
+  }
+  if (expectedStatus === "pass") {
+    requireEqual(overallStatus, "PASS", `workbook ${path} overall DoD status`);
+    for (const cell of ["B3", "B4", "B5", "B6"]) {
+      if (dodCells.get(cell) === "BLOCKED") {
+        failures.push(`workbook ${path} still has BLOCKED in ${cell}`);
+      }
+    }
+  }
+
+  const allText = workbook.sheets
+    .flatMap((sheet) => [...worksheetCells(entries, sheet.target, workbook.sharedStrings, path).values()])
+    .join("\n");
+  if (allText.includes("プランが完了した前提")) {
+    failures.push(`workbook still contains old completion premise wording: ${path}`);
+  }
+  for (const forbidden of [
+    "Customer submission DoD: PASS",
+    "総合DODはPASS",
+    "正式提出PASSとして扱う",
+  ]) {
+    if (allText.includes(forbidden)) {
+      failures.push(`workbook contains unsupported final PASS claim (${forbidden}): ${path}`);
+    }
+  }
+  result.checked = true;
+  return result;
+}
+
+function workbookModel(entries, path) {
+  const workbookXml = textEntry(entries, "xl/workbook.xml", path);
+  const relsXml = textEntry(entries, "xl/_rels/workbook.xml.rels", path);
+  const sharedStrings = entries.has("xl/sharedStrings.xml")
+    ? sharedStringValues(textEntry(entries, "xl/sharedStrings.xml", path))
+    : [];
+  const relTargets = new Map(
+    [...relsXml.matchAll(/<Relationship\b([^>]+)>/g)].map((match) => {
+      const attrs = xmlAttrs(match[1]);
+      return [attrs.Id, normalizeWorkbookTarget(attrs.Target ?? "")];
+    })
+  );
+  const sheets = [...workbookXml.matchAll(/<sheet\b([^>]+)>/g)].map((match) => {
+    const attrs = xmlAttrs(match[1]);
+    return {
+      name: decodeXml(attrs.name ?? ""),
+      id: attrs.sheetId ?? "",
+      relId: attrs["r:id"] ?? attrs.id ?? "",
+      target: relTargets.get(attrs["r:id"] ?? attrs.id ?? "") ?? "",
+    };
+  });
+  if (sheets.length === 0) {
+    failures.push(`workbook has no sheets: ${path}`);
+  }
+  return { sheets, sharedStrings };
+}
+
+function worksheetCells(entries, target, sharedStrings, path) {
+  const xml = textEntry(entries, target, path);
+  const cells = new Map();
+  for (const match of xml.matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)) {
+    const attrs = xmlAttrs(match[1]);
+    const ref = attrs.r;
+    if (!ref) continue;
+    const type = attrs.t;
+    const body = match[2];
+    let value = "";
+    if (type === "s") {
+      const index = Number(firstXmlValue(body, "v"));
+      value = sharedStrings[index] ?? "";
+    } else if (type === "inlineStr") {
+      value = inlineStringValue(body);
+    } else {
+      value = firstXmlValue(body, "v");
+    }
+    cells.set(ref, value);
+  }
+  return cells;
+}
+
+function sharedStringValues(xml) {
+  return [...xml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)].map((match) =>
+    inlineStringValue(match[1])
+  );
+}
+
+function inlineStringValue(xml) {
+  return [...xml.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)]
+    .map((match) => decodeXml(match[1]))
+    .join("");
+}
+
+function firstXmlValue(xml, tag) {
+  const match = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`).exec(xml);
+  return match ? decodeXml(match[1]) : "";
+}
+
+function textEntry(entries, name, path) {
+  const buffer = entries.get(name);
+  if (!buffer) {
+    failures.push(`workbook ${path} missing zip entry ${name}`);
+    return "";
+  }
+  return buffer.toString("utf8");
+}
+
+function readZipEntries(path) {
+  const buffer = readFileSync(path);
+  const entries = new Map();
+  let offset = findEndOfCentralDirectory(buffer);
+  if (offset < 0) {
+    failures.push(`workbook is not a readable zip file: ${path}`);
+    return entries;
+  }
+  const centralDirectorySize = buffer.readUInt32LE(offset + 12);
+  const centralDirectoryOffset = buffer.readUInt32LE(offset + 16);
+  const end = centralDirectoryOffset + centralDirectorySize;
+  offset = centralDirectoryOffset;
+  while (offset < end && buffer.readUInt32LE(offset) === 0x02014b50) {
+    const method = buffer.readUInt16LE(offset + 10);
+    const compressedSize = buffer.readUInt32LE(offset + 20);
+    const uncompressedSize = buffer.readUInt32LE(offset + 24);
+    const fileNameLength = buffer.readUInt16LE(offset + 28);
+    const extraLength = buffer.readUInt16LE(offset + 30);
+    const commentLength = buffer.readUInt16LE(offset + 32);
+    const localHeaderOffset = buffer.readUInt32LE(offset + 42);
+    const name = buffer
+      .subarray(offset + 46, offset + 46 + fileNameLength)
+      .toString("utf8")
+      .replace(/\\/g, "/");
+    const localNameLength = buffer.readUInt16LE(localHeaderOffset + 26);
+    const localExtraLength = buffer.readUInt16LE(localHeaderOffset + 28);
+    const dataOffset = localHeaderOffset + 30 + localNameLength + localExtraLength;
+    const compressed = buffer.subarray(dataOffset, dataOffset + compressedSize);
+    let data;
+    if (method === 0) {
+      data = compressed;
+    } else if (method === 8) {
+      data = inflateRawSync(compressed);
+    } else {
+      failures.push(`unsupported zip compression method ${method} in ${path}:${name}`);
+      data = Buffer.alloc(0);
+    }
+    if (uncompressedSize !== 0 && data.length !== uncompressedSize) {
+      failures.push(`zip entry size mismatch in ${path}:${name}`);
+    }
+    entries.set(name, data);
+    offset += 46 + fileNameLength + extraLength + commentLength;
+  }
+  return entries;
+}
+
+function findEndOfCentralDirectory(buffer) {
+  const min = Math.max(0, buffer.length - 0xffff - 22);
+  for (let offset = buffer.length - 22; offset >= min; offset -= 1) {
+    if (buffer.readUInt32LE(offset) === 0x06054b50) return offset;
+  }
+  return -1;
+}
+
+function normalizeWorkbookTarget(target) {
+  const normalized = target.replace(/\\/g, "/").replace(/^\//, "");
+  return normalized.startsWith("xl/") ? normalized : `xl/${normalized}`;
+}
+
+function xmlAttrs(source) {
+  const attrs = {};
+  for (const match of source.matchAll(/([\w:-]+)="([^"]*)"/g)) {
+    attrs[match[1]] = decodeXml(match[2]);
+  }
+  return attrs;
+}
+
+function decodeXml(value) {
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
+}
 
 function matchOne(text, regex, label) {
   if (typeof text !== "string") return null;
@@ -134,4 +359,19 @@ function stringArg(name, fallback) {
   const prefix = `--${name}=`;
   const arg = process.argv.find((value) => value.startsWith(prefix));
   return arg ? arg.slice(prefix.length) : fallback;
+}
+
+function listArgs(name) {
+  const prefix = `--${name}=`;
+  return process.argv
+    .filter((value) => value.startsWith(prefix))
+    .map((value) => value.slice(prefix.length))
+    .filter(Boolean);
+}
+
+function envList(name) {
+  return (process.env[name] ?? "")
+    .split(";")
+    .map((value) => value.trim())
+    .filter(Boolean);
 }
