@@ -5,8 +5,8 @@ Status as of 2026-05-17 JST: **no approved strict pre-vFinal baseline found**.
 This note supports issue #140. It does not change the customer submission DoD
 verdict. The formal latency gate remains blocked until an approved
 same-environment, same-scenario, >=20-session pre-vFinal baseline is compared
-against the current-vFinal 20-session evidence, or an authorized approver waives
-or replaces that strict baseline requirement.
+against the current-vFinal 20-session evidence and the comparison is within the
+thresholds below.
 
 ## Strict Baseline Requirement
 
@@ -57,9 +57,9 @@ statement:
 The next valid paths are:
 
 1. Obtain approval for a specific pre-existing baseline source and document its
-   denominator and three required p95 metrics.
+   denominator, three required p95 metrics, close code 1006 comparison, and
+   `relay.error` comparison.
 2. Obtain approval to collect a new baseline in a separate equivalent
    environment or approved rollback window.
-3. Obtain explicit customer/operator approval to waive or replace the strict
-   pre-vFinal baseline requirement for this submission.
-
+3. Compare that baseline against the current-vFinal 20-session sample and record
+   `PASS` only if all thresholds in this document are met.

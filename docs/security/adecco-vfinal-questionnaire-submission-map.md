@@ -4,11 +4,12 @@ Status as of 2026-05-17 JST: **BLOCKED for customer submission DoD and security-
 
 This map reconciles the two questionnaire drafts with the vFinal security
 closeout evidence. It must not be used to claim final submission readiness
-until the remaining decisions/evidence gaps are resolved or formally
-approved out of scope. The same blocker set applies to the security-checksheet
-submission DoD because the questionnaire drafts cannot be promoted to final
-answers while submitted URL, runtime scope, latency comparison, and acceptance
-remain unresolved. The cell-level human confirmations are tracked separately in
+until the remaining decisions/evidence gaps are resolved. The same blocker set
+applies to the security-checksheet submission DoD because the questionnaire
+drafts cannot be promoted to final answers while submitted URL, runtime scope,
+latency comparison, and acceptance remain unresolved. For #140, resolution
+requires a passing pre-vFinal baseline comparison rather than a waiver of the
+missing baseline. The cell-level human confirmations are tracked separately in
 issue #171.
 The consolidated blocker inventory index is
 `docs/security/adecco-vfinal-blocker-inventory-index.md`.
@@ -109,8 +110,10 @@ The cell-level source for these items is tracked in
   closeout evidence.
 - Answers about URL approval, legacy shared backend de-scope, latency
   comparison PASS, and `verify:acceptance` PASS must remain blocked or
-  explicitly conditional until issues #138-#141 are resolved. Cell-level human
-  confirmations must also remain blocked until issue #171 is resolved.
+  explicitly conditional until issues #138-#141 are resolved. For #140,
+  "resolved" means a documented pre-vFinal baseline comparison within the
+  thresholds. Cell-level human confirmations must also remain blocked until
+  issue #171 is resolved.
 
 ### TPISA Questionnaire
 

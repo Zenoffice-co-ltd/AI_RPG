@@ -39,8 +39,13 @@ const issueApprovalNeedles = new Map([
   [
     140,
     [
-      "Approved: accept the current-vFinal 20-session latency sample as scoped evidence",
-      "waive the missing strict pre-vFinal baseline for this submission.",
+      "Approved: use the following pre-vFinal latency baseline for the vFinal customer submission comparison.",
+      "Baseline source:",
+      "pre-vFinal sessions >=20",
+      "sessionApiMs p95",
+      "firstAudioDeltaMs p95",
+      "firstAudibleAudioMs p95",
+      "Comparison result: PASS",
     ],
   ],
   [
@@ -73,6 +78,7 @@ if (!allowedExpected.has(expected)) {
 
 const files = {
   closeout: join(root, "docs", "security", "adecco-ai-roleplay-final-security-closeout.md"),
+  deliveryStatus: join(root, "docs", "DELIVERY_STATUS.md"),
   audit: join(root, "docs", "security", "adecco-vfinal-customer-submission-dod-audit.md"),
   questionnaireMap: join(root, "docs", "security", "adecco-vfinal-questionnaire-submission-map.md"),
   approvalPacket: join(root, "docs", "security", "adecco-vfinal-approval-packet.md"),
@@ -134,6 +140,11 @@ const securityChecksheetVerdict = matchOne(
   /Security-checksheet submission DoD:\s*\r?\n\s*(PASS|BLOCKED)\b/,
   "closeout Security-checksheet submission DoD verdict"
 );
+const deliveryStatus = matchOne(
+  source.deliveryStatus,
+  /^Status as of .*?: \*\*(PASS|BLOCKED)\b.*?\*\*\./m,
+  "delivery status vFinal top-level status"
+);
 const auditStatus = matchOne(
   source.audit,
   /^Status as of .*?: \*\*(PASS|BLOCKED)\b.*?\*\*\./m,
@@ -157,6 +168,7 @@ const normalizedExpected =
 if (normalizedExpected === "blocked") {
   requireEqual(closeoutVerdict, "BLOCKED", "closeout verdict");
   requireEqual(securityChecksheetVerdict, "BLOCKED", "security-checksheet verdict");
+  requireEqual(deliveryStatus, "BLOCKED", "delivery status");
   requireEqual(auditStatus, "BLOCKED", "audit status");
   requireEqual(questionnaireMapStatus, "BLOCKED", "questionnaire map status");
   requireEqual(workbookHumanConfirmationMapStatus, "BLOCKED", "workbook human confirmation map status");
@@ -339,14 +351,26 @@ if (normalizedExpected === "blocked") {
   );
   for (const issue of ["#138", "#139", "#140", "#141", "#171"]) {
     requireIncludes(source.closeout, `Issue ${issue}`, `closeout remaining blocker ${issue}`);
+    requireIncludes(source.deliveryStatus, issue, `delivery status blocker ${issue}`);
     requireIncludes(source.audit, issue, `audit blocker ${issue}`);
     requireIncludes(source.questionnaireMap, issue, `questionnaire map blocker ${issue}`);
   }
+  requireIncludes(
+    source.deliveryStatus,
+    "corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass",
+    "delivery status final PASS guard"
+  );
+  requireIncludes(
+    source.deliveryStatus,
+    "security-checksheet submission DoD",
+    "delivery status security-checksheet verdict"
+  );
 }
 
 if (normalizedExpected === "pass") {
   requireEqual(closeoutVerdict, "PASS", "closeout verdict");
   requireEqual(securityChecksheetVerdict, "PASS", "security-checksheet verdict");
+  requireEqual(deliveryStatus, "PASS", "delivery status");
   requireEqual(auditStatus, "PASS", "audit status");
   requireEqual(questionnaireMapStatus, "PASS", "questionnaire map status");
   requireEqual(workbookHumanConfirmationMapStatus, "PASS", "workbook human confirmation map status");
@@ -356,6 +380,12 @@ if (normalizedExpected === "pass") {
   requireEqual(acceptanceBlockerInventoryStatus, "PASS", "acceptance blocker inventory status");
   requireEqual(blockerInventoryIndexStatus, "PASS", "blocker inventory index status");
   rejectIncludes(source.closeout, "Remaining blockers:", "closeout should not list blockers after PASS");
+  rejectIncludes(source.deliveryStatus, "BLOCKED for customer submission DoD", "delivery status should not say blocked after PASS");
+  rejectIncludes(source.deliveryStatus, "#138", "delivery status should not list #138 after PASS");
+  rejectIncludes(source.deliveryStatus, "#139", "delivery status should not list #139 after PASS");
+  rejectIncludes(source.deliveryStatus, "#140", "delivery status should not list #140 after PASS");
+  rejectIncludes(source.deliveryStatus, "#141", "delivery status should not list #141 after PASS");
+  rejectIncludes(source.deliveryStatus, "#171", "delivery status should not list #171 after PASS");
   rejectIncludes(source.audit, "Customer submission remains blocked", "audit should not say blocked after PASS");
   rejectIncludes(
     source.workbookHumanConfirmationMap,
@@ -456,6 +486,7 @@ console.log(
       expected: normalizedExpected,
       closeoutVerdict,
       securityChecksheetVerdict,
+      deliveryStatus,
       auditStatus,
       questionnaireMapStatus,
       workbookHumanConfirmationMapStatus,
@@ -958,7 +989,29 @@ function runSelfTest() {
       expected: false,
     },
     {
-      name: "plain approval text is accepted",
+      name: "latency baseline comparison approval text is accepted",
+      issue: {
+        number: 140,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: use the following pre-vFinal latency baseline for the vFinal customer submission comparison.",
+              "Baseline source: approved pre-vFinal same-environment sample 2026-05-17.",
+              "pre-vFinal sessions >=20.",
+              "sessionApiMs p95: baseline 260ms, current 301ms.",
+              "firstAudioDeltaMs p95: baseline 5450ms, current 5529ms.",
+              "firstAudibleAudioMs p95: baseline 5660ms, current 5743ms.",
+              "Comparison result: PASS.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: true,
+    },
+    {
+      name: "latency baseline waiver without comparison is rejected",
       issue: {
         number: 140,
         comments: [
@@ -972,7 +1025,7 @@ function runSelfTest() {
         ],
       },
       authors: ["approver"],
-      expected: true,
+      expected: false,
     },
     {
       name: "all approval-packet plain templates are accepted",
