@@ -21,6 +21,10 @@ const main = async () => {
   }
 
   const suggestions = [];
+  const isBrowserEvaluationPrompt =
+    /(browser evaluation|評価画面|評価結果|改善アクション|next training actions|scorecard|model_raw_output|adecco_browser_eval|v50-7.*result|result page|ブラウザで.*評価)/.test(
+      prompt,
+    );
 
   if (/(accounting|phase 3|phase 4|transcript|playbook|scenario compile|must-capture|enterprise ap)/.test(prompt)) {
     suggestions.push(
@@ -28,7 +32,13 @@ const main = async () => {
     );
   }
 
-  if (/(acceptance|release|publish readiness|smoke|e2e|scorecard|verify:acceptance)/.test(prompt)) {
+  if (isBrowserEvaluationPrompt) {
+    suggestions.push(
+      "For v50 browser evaluation result pages and Adecco scoring result APIs, prefer `.agents/skills/ai-rpg-v50-browser-evaluation/SKILL.md`. Keep scoring separate from Gmail delivery, use the mock result route for browser-use confirmation, and avoid production Gmail smoke unless explicitly requested.",
+    );
+  }
+
+  if (!isBrowserEvaluationPrompt && /(acceptance|release|publish readiness|smoke|e2e|scorecard|verify:acceptance)/.test(prompt)) {
     suggestions.push(
       "For release and evidence work, prefer `.agents/skills/ai-rpg-acceptance-verification/SKILL.md` and end on the canonical acceptance gate when feasible.",
     );
@@ -40,7 +50,7 @@ const main = async () => {
     );
   }
 
-  if (/(v50|grok-first|fixed guard|guard smoke|assistant-only drain|drain|guard e2e|excel test plan|spreadsheet.*dod)/.test(prompt)) {
+  if (!isBrowserEvaluationPrompt && /(v50|grok-first|fixed guard|guard smoke|assistant-only drain|drain|guard e2e|excel test plan|spreadsheet.*dod)/.test(prompt)) {
     suggestions.push(
       "For Grok-first v50 fixed guard verification, prefer `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md`; map the requested case-set denominator to an executable runner before running long E2E.",
     );

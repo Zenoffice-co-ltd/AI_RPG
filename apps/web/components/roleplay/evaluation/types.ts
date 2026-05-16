@@ -7,6 +7,8 @@ export type AdeccoBrowserEvaluationStatus =
 
 export type AdeccoBrowserEvaluationScorecard = {
   evaluationFormat: "adecco_order_hearing_browser_v1";
+  evaluationProfile?: "adecco_order_hearing_eval_v2";
+  runtimeVersion?: "v50-7" | "v51";
   scenarioId: string;
   metadata: {
     sessionId: string;

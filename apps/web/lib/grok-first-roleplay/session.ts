@@ -9,6 +9,7 @@ import {
   buildGrokFirstV50Prompt,
   GROK_FIRST_V50_7_GUARDRAIL_VERSION,
   GROK_FIRST_V50_8_GUARDRAIL_VERSION,
+  GROK_FIRST_V51_GUARDRAIL_VERSION,
   type GrokFirstPromptVariant,
 } from "./prompt";
 import {
@@ -26,6 +27,8 @@ import {
   GROK_FIRST_V50_7_DEMO_SLUG,
   GROK_FIRST_V50_8_BACKEND,
   GROK_FIRST_V50_8_DEMO_SLUG,
+  GROK_FIRST_V51_BACKEND,
+  GROK_FIRST_V51_DEMO_SLUG,
   GROK_FIRST_V50_BACKEND,
   GROK_FIRST_V50_DEMO_SLUG,
   GROK_FIRST_V50_MODEL,
@@ -48,7 +51,7 @@ const envSchema = z.object({
 export async function createGrokFirstV50Session(input?: {
   variant?: GrokFirstPromptVariant;
   promptVariant?: GrokFirstPromptVariant;
-  runtimeVariant?: GrokFirstPromptVariant | "v50.7" | "v50.8";
+  runtimeVariant?: GrokFirstPromptVariant | "v50.7" | "v50.8" | "v51";
 }): Promise<GrokFirstV50Session> {
   await Promise.resolve();
   const env = getEnv();
@@ -58,7 +61,12 @@ export async function createGrokFirstV50Session(input?: {
   const voiceId = env.GROK_FIRST_V50_VOICE_ID ?? GROK_FIRST_V50_VOICE_ID;
   const sessionId = `gfv50_${randomUUID()}`;
   const identity =
-    runtimeVariant === "v50.8"
+    runtimeVariant === "v51"
+      ? {
+          demoSlug: GROK_FIRST_V51_DEMO_SLUG,
+          backend: GROK_FIRST_V51_BACKEND,
+        }
+      : runtimeVariant === "v50.8"
       ? {
           demoSlug: GROK_FIRST_V50_8_DEMO_SLUG,
           backend: GROK_FIRST_V50_8_BACKEND,
@@ -118,7 +126,9 @@ export async function createGrokFirstV50Session(input?: {
     promptVersion: prompt.promptVersion,
     promptHash: prompt.promptHash,
     guardrailVersion:
-      runtimeVariant === "v50.8"
+      runtimeVariant === "v51"
+        ? GROK_FIRST_V51_GUARDRAIL_VERSION
+        : runtimeVariant === "v50.8"
         ? GROK_FIRST_V50_8_GUARDRAIL_VERSION
         : runtimeVariant === "v50.7"
         ? GROK_FIRST_V50_7_GUARDRAIL_VERSION
@@ -156,6 +166,24 @@ export async function createGrokFirstV50Session(input?: {
       runtimeVariant === "v50.7"
         ? env.ADECCO_BROWSER_EVAL_ENABLED !== "0"
         : false,
+    browserEvaluation:
+      runtimeVariant === "v51"
+        ? {
+            enabled: env.ADECCO_BROWSER_EVAL_ENABLED !== "0",
+            startEndpoint: "/api/grok-first-v51/evaluation/start",
+            resultBasePath: "/demo/adecco-roleplay-v51/result",
+            source: "grok_first_v51_browser",
+            runtimeVersion: "v51",
+          }
+        : runtimeVariant === "v50.7"
+        ? {
+            enabled: env.ADECCO_BROWSER_EVAL_ENABLED !== "0",
+            startEndpoint: "/api/grok-first-v50-7/evaluation/start",
+            resultBasePath: "/demo/adecco-roleplay-v50-7/result",
+            source: "grok_first_v50_7_browser",
+            runtimeVersion: "v50-7",
+          }
+        : undefined,
   };
 }
 

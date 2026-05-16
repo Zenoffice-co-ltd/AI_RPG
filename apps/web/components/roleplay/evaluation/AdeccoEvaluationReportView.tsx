@@ -10,6 +10,7 @@ function c(name: string) {
 type ReportViewProps = {
   scorecard: AdeccoBrowserEvaluationScorecard;
   showRawJson: boolean;
+  roleplayPath?: string;
 };
 
 const RUBRIC_ORDER = [
@@ -24,6 +25,7 @@ const RUBRIC_ORDER = [
 export function AdeccoEvaluationReportView({
   scorecard,
   showRawJson,
+  roleplayPath = "/demo/adecco-roleplay-v50-7",
 }: ReportViewProps) {
   const report = objectValue(scorecard.report);
   const totalScore = numberValue(report["total_score"]);
@@ -31,6 +33,9 @@ export function AdeccoEvaluationReportView({
   const confidence = stringValue(report["score_confidence"], "-");
   const summary = objectValue(report["must_capture_summary"]);
   const mustCaptureItems = arrayValue(report["must_capture_items"]);
+  const mustCaptureGroups = arrayValue(report["must_capture_groups"]);
+  const modalityLimitations = stringList(report["modality_limitations"]);
+  const complianceFlags = objectValue(report["sales_compliance_flags"]);
   const captured = numberValue(summary["captured_count"]) ?? 0;
   const partial = numberValue(summary["partial_count"]) ?? 0;
   const missed = numberValue(summary["missed_count"]) ?? 0;
@@ -39,6 +44,9 @@ export function AdeccoEvaluationReportView({
   const improvements = stringList(report["improvement_points"]);
   const actions = stringList(report["next_training_actions"]);
   const feedback = stringValue(report["learner_feedback"], "フィードバックを取得できませんでした。");
+  const schemaVersion = stringValue(report["schema_version"], "-");
+  const evaluationProfile = scorecard.evaluationProfile ?? schemaVersion;
+  const runtimeVersion = scorecard.runtimeVersion ?? "-";
 
   return (
     <div className={c("page")}>
@@ -48,10 +56,10 @@ export function AdeccoEvaluationReportView({
         </a>
         <div className={c("title")}>AIロープレ評価レポート</div>
         <div className={c("actions")}>
-          <a className={c("buttonSecondary")} href="/demo/adecco-roleplay-v50-7">
+          <a className={c("buttonSecondary")} href={roleplayPath}>
             ロープレに戻る
           </a>
-          <a className={c("button")} href="/demo/adecco-roleplay-v50-7">
+          <a className={c("button")} href={roleplayPath}>
             再実施
           </a>
         </div>
@@ -75,6 +83,8 @@ export function AdeccoEvaluationReportView({
           <div className={c("metaCard")}>
             <MetaRow label="Grade" value={gradeLabel} />
             <MetaRow label="評価信頼度" value={confidence} />
+            <MetaRow label="評価基準" value={evaluationProfile} />
+            <MetaRow label="runtime" value={runtimeVersion} />
             <MetaRow label="生成時刻" value={formatDate(scorecard.generatedAt)} />
             <MetaRow label="session" value={shortSession(scorecard.metadata.sessionId)} />
           </div>
@@ -120,6 +130,45 @@ export function AdeccoEvaluationReportView({
             </div>
           </aside>
         </section>
+
+        {mustCaptureGroups.length > 0 ? (
+          <section className={c("panel")} style={{ marginTop: 18 }}>
+            <h2 className={c("panelTitle")}>Must Capture Groups</h2>
+            <div className={c("groupGrid")}>
+              {mustCaptureGroups.map((rawGroup, index) => {
+                const group = objectValue(rawGroup);
+                return (
+                  <article
+                    className={c("groupCard")}
+                    key={`${index}-${stringValue(group["group_id"], "")}`}
+                  >
+                    <h3 className={c("groupTitle")}>
+                      {stringValue(group["group_label"], `グループ${index + 1}`)}
+                    </h3>
+                    <div className={c("summaryList")}>
+                      {arrayValue(group["items"]).map((rawItem, itemIndex) => {
+                        const item = objectValue(rawItem);
+                        const judgement = stringValue(item["judgement"], "missed");
+                        return (
+                          <div
+                            className={c("groupItem")}
+                            key={`${itemIndex}-${stringValue(item["label"], "")}`}
+                          >
+                            <span className={`${c("badge")} ${badgeClass(judgement)}`}>
+                              {judgementLabel(judgement)}
+                            </span>
+                            <strong>{stringValue(item["label"], `項目${itemIndex + 1}`)}</strong>
+                            <span className={c("bodyText")}>{captureEvidence(item)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
         <section className={c("panel")} style={{ marginTop: 18 }}>
           <h2 className={c("panelTitle")}>Must Capture 18項目</h2>
@@ -184,6 +233,21 @@ export function AdeccoEvaluationReportView({
           </div>
         </section>
 
+        <section className={c("feedbackGrid")}>
+          <div className={c("panel")}>
+            <h2 className={c("panelTitle")}>非言語評価の制約</h2>
+            <SummaryBlock
+              title="評価対象外または推定しない項目"
+              items={modalityLimitations}
+              empty="音声・映像がないため、声量・表情・視線・姿勢・メモ中の態度は直接評価していません。"
+            />
+          </div>
+          <div className={c("panel")}>
+            <h2 className={c("panelTitle")}>Compliance Flags</h2>
+            <ComplianceFlags flags={complianceFlags} />
+          </div>
+        </section>
+
         <details className={c("debug")}>
           <summary>Debug</summary>
           <p className={c("bodyText")}>validation: {scorecard.validation.status}</p>
@@ -198,6 +262,39 @@ export function AdeccoEvaluationReportView({
           ) : null}
         </details>
       </main>
+    </div>
+  );
+}
+
+function ComplianceFlags({ flags }: { flags: Record<string, unknown> }) {
+  const deepened = Boolean(flags["inappropriate_demographic_requirement_deepened"]);
+  const reframed = Boolean(flags["inappropriate_requirement_reframed"]);
+  const details = arrayValue(flags["details"]);
+  return (
+    <div className={c("summaryList")}>
+      <div className={c("summaryItem")}>
+        <strong>不適切属性の深掘り</strong>
+        <p className={c("bodyText")}>{deepened ? "検出あり" : "検出なし"}</p>
+      </div>
+      <div className={c("summaryItem")}>
+        <strong>職務関連要件への言い換え</strong>
+        <p className={c("bodyText")}>{reframed ? "検出あり" : "検出なし"}</p>
+      </div>
+      {details.length > 0 ? (
+        <div className={c("summaryItem")}>
+          <strong>詳細</strong>
+          <div className={c("summaryList")} style={{ marginTop: 10 }}>
+            {details.map((rawDetail, index) => {
+              const detail = objectValue(rawDetail);
+              return (
+                <span className={c("bodyText")} key={index}>
+                  {stringValue(detail["impact"], "詳細は取得できませんでした。")}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

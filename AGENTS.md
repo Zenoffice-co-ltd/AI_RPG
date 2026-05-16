@@ -55,6 +55,17 @@
 - App Hosting and Cloud Run relay are separate failure domains. App Hosting owns `/demo/*`, `/api/grok-first-v50*/session`, AccessGate cookies, env/secret binding, prompt/guardrail identity, and relay ticket issuance. Cloud Run relay owns `wss://voice.mendan.biz/api/v3/realtime-relay`, relay ticket validation, xAI upstream connection, and upstream audio deltas. `ticket.rejected` means ticket/audience/path/secret; missing `upstream.connected` means relay `XAI_API_KEY`/IAM/xAI upstream; missing `client.connected` means browser/CSP/DNS/LB before relay logic.
 - Do not repeatedly run one-off `.codex_tmp` harnesses for reusable release evidence. Promote recurring E2E/logging flows to `scripts/`, add a package script, make secret resolution fail closed, and write evidence under `out/<workflow>/<timestamp>/`.
 
+## Browser Evaluation / Scoring Delivery SoT
+
+- v50-family browser evaluation is a separate workflow from voice E2E / guard verification. Use `.agents/skills/ai-rpg-v50-browser-evaluation/SKILL.md` for result pages, scorecard APIs, Firestore artifacts, and browser-use evidence.
+- Scoring core must be separated from delivery. The scoring function may call Claude, but browser evaluation must not call Gmail.
+- Legacy ElevenLabs post-call webhook → Cloud Tasks → Claude → Gmail must remain compatible unless explicitly changing that workflow.
+- Browser result APIs must never expose raw Claude output, API secrets, relay tickets, prompt instructions, raw audio, or hidden system prompts.
+- Cloud Tasks payload may include only the normalized evaluation transcript required for scoring.
+- Browser evaluation result pages must have a safe mock route for browser-use / Playwright confirmation that does not call Claude, Gmail, ElevenLabs, or production webhook. Current safe routes: `/demo/adecco-roleplay-v50-7/result/mock-session?mock=1` and `/demo/adecco-roleplay-v51/result/mock-session?mock=1`.
+- Browser evaluation DoD requires: session contract, rollback flag, result page render, data exposure check, targeted unit tests, web typecheck/test/build, changed-file lint, no table-based email layout, no raw output exposure, and a 1440x900 browser screenshot.
+- Production Gmail smoke is not required for browser evaluation DoD and must be explicitly avoided unless the task is the legacy email pipeline.
+
 ## Voice E2E Natural Conversation SoT
 
 - As of the 2026-05-16 v50.8 CTO report, v50.8 evidence primarily proves `fixed_external` back-to-back stabilization. It does **not** prove Excel `04_Turn_Cases`, `05_P0_Guards`, full E2E, normal sales-turn Realtime quality, or human-test readiness.

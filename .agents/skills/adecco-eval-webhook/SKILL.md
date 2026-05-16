@@ -26,7 +26,7 @@ ElevenLabs post-call transcription -> AI_RPG Cloud Run `/api/vendor/eleven/postc
 - If runtime files under `scripts/` are needed by Next standalone, make sure Docker copies them into the runner image.
 - Preserve sandbox semantics in subject lines. The current report subject should include `[SANDBOX] [AIロープレ評価]`.
 - Treat the HTML report file as the visual design template only. The delivered report content must be dynamically rendered from Claude's JSON response (`total_score`, rubric scores, must-capture items, strengths, improvements, learner feedback, and training actions); never send the sample HTML with fixed placeholder scores as the final report.
-- Treat email delivery as incomplete until the route returns `mail.ok=true` and the user can visually confirm receipt.
+- Treat email delivery as incomplete until the Cloud Tasks worker completes with `mail.ok=true` and the user can visually confirm receipt.
 - Keep the ElevenLabs vendor webhook fast. `/api/vendor/eleven/postcall` must acknowledge with `202` after filtering/saving/enqueueing work; Claude evaluation, Conversation Details fallback, and Gmail sending belong in the Cloud Tasks worker `/api/internal/adecco-eval` to avoid ElevenLabs 504 auto-disable.
 - After the async Cloud Tasks split, do not expect `mail.ok=true` in the vendor webhook response. The webhook DOD is quick `202` with `evaluation=enqueued`; email DOD is confirmed from the worker log `adecco_eval_task_completed` plus inbox receipt.
 - If ElevenLabs auto-disables the webhook after repeated failures, first fix/deploy the endpoint, then re-enable the existing webhook and confirm `is_disabled=false` and `is_auto_disabled=false`. A stale `most_recent_failure_error_code=504` can remain as historical metadata after recovery.

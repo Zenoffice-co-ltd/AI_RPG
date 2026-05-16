@@ -31,6 +31,7 @@ export type GrokFirstV50PageProps = GrokFirstV50RouteProps & {
     | "/api/grok-first-v50-6"
     | "/api/grok-first-v50-7"
     | "/api/grok-first-v50-8"
+    | "/api/grok-first-v51"
     | "/api/grok-first-vFinal";
   accessMode?: "demo-token" | "vfinal-invite";
 };

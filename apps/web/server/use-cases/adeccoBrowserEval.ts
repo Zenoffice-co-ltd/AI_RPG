@@ -12,7 +12,12 @@ import {
 const SAFE_EVAL_ERROR =
   "評価に失敗しました。時間をおいて再試行してください。";
 const EVALUATION_FORMAT = "adecco_order_hearing_browser_v1";
-const BROWSER_EVAL_SOURCE = "grok_first_v50_7_browser";
+const EVALUATION_PROFILE = "adecco_order_hearing_eval_v2";
+const BROWSER_EVAL_SOURCES = [
+  "grok_first_v50_7_browser",
+  "grok_first_v51_browser",
+] as const;
+type BrowserEvalSource = (typeof BROWSER_EVAL_SOURCES)[number];
 
 export function isAdeccoBrowserEvaluationEnabled() {
   return process.env["ADECCO_BROWSER_EVAL_ENABLED"] !== "0";
@@ -37,7 +42,7 @@ export const adeccoBrowserEvalStartSchema = z.object({
   transcript: z.array(browserTranscriptTurnSchema),
   startedAt: z.string().min(1).optional(),
   endedAt: z.string().min(1).optional(),
-  source: z.literal(BROWSER_EVAL_SOURCE).optional(),
+  source: z.enum(BROWSER_EVAL_SOURCES).optional(),
 });
 
 const normalizedTurnSchema = z.object({
@@ -53,7 +58,8 @@ export const adeccoBrowserEvalTaskSchema = z.object({
   transcript: z.array(normalizedTurnSchema).min(2),
   startedAt: z.string().min(1),
   endedAt: z.string().min(1),
-  source: z.literal(BROWSER_EVAL_SOURCE),
+  source: z.enum(BROWSER_EVAL_SOURCES),
+  runtimeVersion: z.enum(["v50-7", "v51"]),
 });
 
 export type AdeccoBrowserEvalStartInput = z.infer<
@@ -88,10 +94,15 @@ export async function startAdeccoBrowserEvaluation(
     transcript,
     startedAt: input.startedAt ?? now,
     endedAt: input.endedAt ?? now,
-    source: BROWSER_EVAL_SOURCE,
+    source: input.source ?? "grok_first_v50_7_browser",
+    runtimeVersion: runtimeVersionForSource(
+      input.source ?? "grok_first_v50_7_browser"
+    ),
   };
 
-  await saveBrowserEvalStatus(input.sessionId, "queued");
+  await saveBrowserEvalStatus(input.sessionId, "queued", {
+    runtimeVersion: payload.runtimeVersion,
+  });
   await saveBrowserEvalRequest(payload);
 
   if (
@@ -121,7 +132,9 @@ export async function retryAdeccoBrowserEvaluation(sessionId: string) {
     return { retryAvailable: false as const, taskName: null };
   }
 
-  await saveBrowserEvalStatus(sessionId, "queued");
+  await saveBrowserEvalStatus(sessionId, "queued", {
+    runtimeVersion: parsed.data.runtimeVersion,
+  });
   if (
     process.env["ADECCO_BROWSER_EVAL_INLINE"] === "1" &&
     process.env["NODE_ENV"] !== "production"
@@ -144,15 +157,17 @@ export async function processAdeccoBrowserEvaluationTask(
 ) {
   const payload = adeccoBrowserEvalTaskSchema.parse(rawPayload);
   try {
-    await saveBrowserEvalStatus(payload.sessionId, "running");
+    await saveBrowserEvalStatus(payload.sessionId, "running", {
+      runtimeVersion: payload.runtimeVersion,
+    });
     const scoring = await runAdeccoOrderHearingScoring({
       sessionId: payload.sessionId,
       conversationId: payload.conversationId,
       transcript: payload.transcript,
       startedAt: payload.startedAt,
       endedAt: payload.endedAt,
-      transcriptSource: BROWSER_EVAL_SOURCE,
-      asrQualityNote: BROWSER_EVAL_SOURCE,
+      transcriptSource: payload.source,
+      asrQualityNote: payload.source,
     });
     const generatedAt = new Date().toISOString();
     const ctx = getAppContext();
@@ -163,6 +178,8 @@ export async function processAdeccoBrowserEvaluationTask(
       createdAt: generatedAt,
       payload: {
         evaluationFormat: EVALUATION_FORMAT,
+        evaluationProfile: EVALUATION_PROFILE,
+        runtimeVersion: payload.runtimeVersion,
         scenarioId: scoring.scenarioId,
         sessionId: scoring.sessionId,
         conversationId: scoring.conversationId,
@@ -183,6 +200,8 @@ export async function processAdeccoBrowserEvaluationTask(
       createdAt: generatedAt,
       payload: {
         evaluationFormat: EVALUATION_FORMAT,
+        evaluationProfile: EVALUATION_PROFILE,
+        runtimeVersion: payload.runtimeVersion,
         sessionId: scoring.sessionId,
         conversationId: scoring.conversationId,
         model: scoring.model,
@@ -193,6 +212,7 @@ export async function processAdeccoBrowserEvaluationTask(
       },
     });
     await saveBrowserEvalStatus(payload.sessionId, "completed", {
+      runtimeVersion: payload.runtimeVersion,
       generatedAt,
     });
     return {
@@ -248,6 +268,8 @@ export async function getAdeccoBrowserEvaluationResult(sessionId: string) {
       sessionId,
       scorecard: {
         evaluationFormat: scorecard["evaluationFormat"],
+        evaluationProfile: scorecard["evaluationProfile"],
+        runtimeVersion: scorecard["runtimeVersion"],
         scenarioId: scorecard["scenarioId"],
         metadata: {
           sessionId: scorecard["sessionId"],
@@ -304,12 +326,17 @@ async function saveBrowserEvalStatus(
     createdAt: new Date().toISOString(),
     payload: {
       evaluationFormat: EVALUATION_FORMAT,
+      evaluationProfile: EVALUATION_PROFILE,
       sessionId,
       status,
       updatedAt: new Date().toISOString(),
       ...extra,
     },
   });
+}
+
+function runtimeVersionForSource(source: BrowserEvalSource) {
+  return source === "grok_first_v51_browser" ? "v51" : "v50-7";
 }
 
 async function hasRetryRequest(sessionId: string) {

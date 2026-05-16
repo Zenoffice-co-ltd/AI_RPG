@@ -98,6 +98,52 @@ shows/plays only the app-side fixed response. The guarantee is that xAI-generate
 assistant text/audio is not displayed or heard; live mic audio may already have
 been streamed to the relay before STT completion.
 
+### v50-7 Browser Evaluation Result Page
+
+Safe mock route:
+`/demo/adecco-roleplay-v50-7/result/mock-session?mock=1`.
+
+Use this route for browser-use / Playwright visual verification. It does not
+call Claude, Gmail, ElevenLabs webhook, or Cloud Run production smoke.
+
+Live browser evaluation flow:
+roleplay end → `/api/grok-first-v50-7/evaluation/start` → Cloud Tasks →
+`/api/internal/adecco-browser-eval` → Firestore artifacts → result polling.
+
+Legacy email flow remains:
+ElevenLabs post-call webhook → `/api/vendor/eleven/postcall` → Cloud Tasks →
+`/api/internal/adecco-eval` → Claude → Gmail.
+
+### v51 Customer Criteria Evaluation Route
+
+`/demo/adecco-roleplay-v51` is an additive internal/customer-candidate route for
+the customer-provided Adecco order-hearing criteria. It uses the v50-family Grok
+Voice runtime shape with route identity `demoSlug=adecco-roleplay-v51` /
+`backend=grok-first-v51`, a v51 prompt containing the mid-sized housing
+equipment manufacturer HR主任 persona, first Adecco order consideration, current
+vendor dissatisfaction, incomplete-information behavior, and the late-stage
+question about アデコの強み・他社との違い.
+
+Safe mock result route:
+`/demo/adecco-roleplay-v51/result/mock-session?mock=1`.
+
+Browser evaluation is enabled from the session payload through
+`browserEvaluation`, not a hardcoded `/api/grok-first-v50-7` check:
+`/api/grok-first-v51/evaluation/start` → Cloud Tasks →
+`/api/internal/adecco-browser-eval` → Firestore artifacts → result polling.
+The browser evaluation worker calls Claude scoring only and does not send Gmail.
+
+Adecco scoring now uses shared customer criteria v2 by default. This intentionally
+applies to v51 browser evaluation, existing v50-7 browser evaluation, and the
+legacy ElevenLabs post-call Gmail scoring path. The runtime/session contract for
+v50-7 remains unchanged (`promptVersion=grok-first-v50.6-2026-05-15`,
+`runtimeVariant=v50.7`); only the shared scoring rubric changes to
+`schema_version=adecco_order_hearing_eval_v2`.
+
+This PR does not deploy App Hosting. Production availability is a separate
+post-merge operation, and production Gmail smoke / ElevenLabs live webhook
+changes are not part of this workflow.
+
 `/demo/adecco-roleplay-v50-8` keeps the same v50.6 System Prompt, first message,
 scenario id, fixed guard text, and fixed PCM artifacts as v50.7
 (`promptVersion=grok-first-v50.6-2026-05-15`). Its API namespace is

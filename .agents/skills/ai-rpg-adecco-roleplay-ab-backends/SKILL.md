@@ -11,6 +11,11 @@ Three side-by-side production routes that all hear the same Adecco 住宅設備�
 2026-05-04 A/B comparison. The other two are kept live for ongoing comparison
 and as fallbacks.
 
+For v50-family browser evaluation result pages, scorecard artifacts, and
+scoring / Gmail delivery separation, use
+`.agents/skills/ai-rpg-v50-browser-evaluation/SKILL.md`. Do not treat browser
+evaluation DoD as voice E2E or fixed guard DoD.
+
 ## Canonical Sources
 
 - [docs/GROK_VOICE_ROLEPLAY.md](../../docs/GROK_VOICE_ROLEPLAY.md) — Grok Voice runbook
