@@ -30,6 +30,9 @@ being closed or formally approved.
   with submitted-URL smoke evidence, and no dedicated `mendan.biz` active
   DNS/certificate + submitted-URL smoke evidence was present. #138 was
   reopened. Issue closure alone is not approval evidence.
+- After PR #210, #141 was also found CLOSED while no clean full
+  `verify:acceptance` PASS or stricter explicit legacy blocker approval was
+  recorded. #141 was reopened. Issue closure alone is not acceptance evidence.
 - `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
   --check-github-issues --allow-open-approved-issues
   --approval-author=iwase-cpu --workbook=<data-protection workbook>

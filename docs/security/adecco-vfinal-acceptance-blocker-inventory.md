@@ -100,6 +100,18 @@ denied on resource (or it may not exist).
   permission denied. No secret values were read, printed, persisted, or copied
   into docs.
 
+2026-05-17 06:34 JST issue-state recheck:
+
+- #141 had been closed, but no clean full `corepack pnpm verify:acceptance`
+  PASS was recorded and no comment contained the stricter explicit legacy
+  blocker approval required for vFinal submission scope.
+- The latest executable full-run evidence still shows legacy
+  `staffing_order_hearing_busy_manager_medium` ConvAI judge failures beyond
+  the no-coaching-only exception, and the current shell still lacks a clean
+  preflight because of Secret Manager `secretmanager.versions.access`.
+- #141 was reopened to avoid treating issue closure as clean acceptance PASS
+  or approval. The valid resolution paths below remain unchanged.
+
 This means a fresh clean rerun still requires one of:
 
 - process-local vendor secrets and project inputs supplied without printing or
