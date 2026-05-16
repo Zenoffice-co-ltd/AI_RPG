@@ -50,6 +50,15 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
 `--approval-author` is required only when any blocker issue remains OPEN and is
 resolved by approval comment instead of closure.
 
+For a count-only #171 precheck that does not copy workbook answer values into
+docs or issue comments, run:
+
+```bash
+corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked \
+  --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" \
+  --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
+```
+
 ## Current Codex Stop Conditions
 
 Codex must not change the final verdict to PASS until the checks above are
