@@ -17,6 +17,23 @@ https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-
 
 Read-only evidence:
 
+- 2026-05-17 07:35 JST submitted URL candidate and hosted.app start smoke
+  refresh:
+  - `corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked`
+    passed for expected BLOCKED. The dedicated hosted.app candidate returned
+    HTTP 200; `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz`
+    did not return HTTP success; active custom-domain candidate count was 0.
+  - `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --origin
+    https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app --out
+    out/grok_first_vfinal_browser_e2e/2026-05-17T07-35-00-hosted-url-start-recheck`
+    passed.
+  - Start smoke result: session 200, `sessionApiMs=90`,
+    `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, browser WebSocket
+    URL only the relay WSS, direct `api.x.ai` count 0, and forbidden session
+    keys absent.
+  - This refresh keeps the hosted.app approval path viable. It does not approve
+    hosted.app as the submitted customer URL and does not create or activate a
+    dedicated `mendan.biz` custom-domain mapping.
 - 2026-05-17 06:28 JST issue-state recheck: #138 had been closed, but no
   comment contained the required exact hosted.app submitted-URL approval with
   smoke evidence, and no dedicated `mendan.biz` active DNS/certificate +

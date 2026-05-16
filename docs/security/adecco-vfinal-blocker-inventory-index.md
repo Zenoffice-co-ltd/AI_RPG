@@ -43,6 +43,12 @@ being closed or formally approved.
   secret access, and the legacy shared App Hosting service account still has
   `XAI_API_KEY` access, so #139 remains blocked pending scope approval or
   migration/removal.
+- A refreshed #138 hosted.app start smoke passed at 2026-05-17 07:35 JST with
+  session 200, `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, relay WSS
+  only, direct `api.x.ai` count 0, and forbidden session keys absent. The
+  custom-domain candidates still had no HTTP success in the submitted URL
+  helper, so #138 remains blocked pending explicit hosted.app approval or
+  dedicated custom-domain mapping.
 - `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
   --check-github-issues --allow-open-approved-issues
   --approval-author=iwase-cpu --workbook=<data-protection workbook>
