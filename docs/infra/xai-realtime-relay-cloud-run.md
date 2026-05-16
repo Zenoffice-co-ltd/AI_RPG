@@ -1,7 +1,8 @@
 # xAI Realtime Relay on Cloud Run
 
 This runbook publishes the MENDAN xAI Realtime relay at `voice.mendan.biz`.
-It serves v25 and Grok-first v50-family routes such as v50, v50.1, and v50.4.
+It serves v25, Grok-first v50-family routes such as v50, v50.1, and v50.4,
+and the invite-gated vFinal security foundation route.
 
 ## Service
 
@@ -19,6 +20,10 @@ When a PR adds a new relay-ticket identity, for example a new
 `demoSlug` / `backend` pair for a v50-family route, deploying App Hosting alone
 is not enough. Rebuild and redeploy this relay service too; otherwise production
 sessions can mint the new ticket while the relay still rejects it as malformed.
+For vFinal, the same-Git-SHA deploy requirement is stricter: the Web session
+API mints only a short-lived relay ticket and public metadata, while this relay
+owns the server-side `session.update` and hidden assistant history. Deploying
+only one side can either reject tickets or run the wrong prompt config.
 
 ```bash
 IMAGE="gcr.io/adecco-mendan/xai-realtime-relay:$(git rev-parse --short HEAD)"
@@ -63,6 +68,26 @@ gcloud run deploy xai-realtime-relay `
   --update-secrets='XAI_API_KEY=XAI_API_KEY:latest,XAI_RELAY_TICKET_SECRET=XAI_RELAY_TICKET_SECRET:latest'
 ```
 
+- Deploy the Web App and Cloud Run relay from the same Git SHA for
+  `adecco-roleplay-vFinal`.
+- The relay is the only runtime that may hold `XAI_API_KEY` for vFinal.
+- The submitted vFinal Web/App Hosting environment must use the dedicated
+  `apps/web/apphosting.vfinal.yaml` contract or an equivalent backend/env that
+  omits `XAI_API_KEY`.
+- In production, invite signing and participant hash secrets are mandatory
+  separate secrets; do not reuse `XAI_RELAY_TICKET_SECRET` for invite/hash.
+- The relay must validate `Origin`, `Host`, ticket `aud`, ticket `path`, and
+  `transport` before connecting to xAI.
+- vFinal relay tickets include `participantIdHash` and a nonce. The relay
+  rejects same-instance nonce replay; cross-instance replay protection is
+  intentionally out of the first release and must be documented in the closeout.
+- vFinal relay sends server-side `session.update` and hidden assistant history.
+  Browser-sent `session.update`, assistant/system/developer messages, and tools
+  are dropped.
+- Relay logs are metadata allowlist only. Do not log raw headers,
+  `Sec-WebSocket-Protocol`, tickets, Authorization, audio/base64, transcript,
+  prompt, instructions, or user/agent text.
+
 Use an env file for deploys because comma-separated origin allowlists are easy
 to misparse in shells. Do not set a long backend-service timeout on the
 serverless NEG backend; Google Cloud rejects serverless NEG attachment when
@@ -82,6 +107,11 @@ Grant `roles/secretmanager.secretAccessor` on:
 XAI_API_KEY
 XAI_RELAY_TICKET_SECRET
 ```
+
+Do not grant this relay service account broad Secret Manager admin, deploy,
+owner/editor, or logging-admin roles. Conversely, the vFinal Web/App Hosting
+service account must not have `XAI_API_KEY` secret access; it only needs the
+relay ticket, invite signing, and participant hash secrets.
 
 ## Load Balancer And DNS
 

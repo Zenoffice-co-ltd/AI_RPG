@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { GrokFirstV50Metric } from "./types";
 
 export type GrokFirstV50EventKind =
@@ -11,6 +12,9 @@ export type GrokFirstV50EventKind =
   | "stt.failed"
   | "stt.skipped"
   | "guard.detected"
+  | "guard.drain.ignored"
+  | "fixed_guard.playback.started"
+  | "fixed_guard.playback.completed"
   | "tail_guard.released"
   | "tail_guard.dropped"
   | "turn.completed"
@@ -35,6 +39,46 @@ export function logGrokFirstV50ServerEvent(input: {
           input.debugTranscriptPreviewEnabled ??
           isGrokFirstV50DebugTranscriptPreviewEnabled(),
       }),
+      timestamp: new Date().toISOString(),
+    })
+  );
+}
+
+const VFINAL_EVENT_DETAIL_ALLOWLIST = new Set([
+  "turnIndex",
+  "inputMode",
+  "routePath",
+  "guardAction",
+  "guardReasons",
+  "userTextLen",
+  "agentTextLen",
+  "firstAudioDeltaMs",
+  "firstAudibleAudioMs",
+  "doneMs",
+  "audioBytes",
+  "tailGuardHoldMs",
+  "tailAudioDroppedBytes",
+  "websocketReconnectCount",
+  "promptHash",
+  "promptVersion",
+  "guardrailVersion",
+  "model",
+  "voiceId",
+]);
+
+export function logGrokFirstVFinalServerEvent(input: {
+  kind: GrokFirstV50EventKind;
+  sessionId?: string | undefined;
+  participantIdHash?: string | undefined;
+  details?: Record<string, unknown> | undefined;
+}) {
+  console.info(
+    JSON.stringify({
+      scope: "grokFirstVFinal",
+      kind: input.kind,
+      sessionIdHash: input.sessionId ? hashForLog(input.sessionId) : null,
+      participantIdHash: input.participantIdHash ?? null,
+      details: sanitizeAllowlistedDetails(input.details ?? {}),
       timestamp: new Date().toISOString(),
     })
   );
@@ -91,4 +135,21 @@ export function sanitizeGrokFirstV50Details(
     }
   }
   return trimmed;
+}
+
+export function sanitizeGrokFirstVFinalDetails(details: Record<string, unknown>) {
+  return sanitizeAllowlistedDetails(details);
+}
+
+function sanitizeAllowlistedDetails(details: Record<string, unknown>) {
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(details)) {
+    if (!VFINAL_EVENT_DETAIL_ALLOWLIST.has(key)) continue;
+    sanitized[key] = value;
+  }
+  return sanitized;
+}
+
+function hashForLog(value: string) {
+  return createHash("sha256").update(value).digest("hex").slice(0, 16);
 }

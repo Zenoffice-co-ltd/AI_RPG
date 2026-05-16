@@ -812,6 +812,27 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-16 — vFinal security foundation PR status
+
+- PR #110 adds the invite-gated vFinal route
+  `/demo/adecco-roleplay-vFinal` and `/api/grok-first-vFinal/*` as a
+  security-foundation submission path separated from the v50-family comparison
+  routes.
+- Code-level P0 security gates are implemented in the PR branch: vFinal
+  session payload excludes prompt/instructions/hidden history, relay setup is
+  server-side, client frames are exact-schema filtered, relay/event logging is
+  allowlisted, invite cookies are vFinal-scoped, production invite/hash secret
+  fallback is fail-closed, and `apphosting.vfinal.yaml` intentionally omits
+  `XAI_API_KEY`.
+- Customer-submission closeout remains blocked until production evidence is
+  captured: App Hosting rollout, Cloud Run relay revision/traffic, same Git
+  SHA deploy, IAM proof, Cloud Logging retention and sensitive-log scan, WAF
+  state, browser direct `api.x.ai` zero evidence, live text/voice E2E, latency
+  baseline comparison, ZAP baseline/passive scan, and `pnpm verify:acceptance`.
+- Closeout evidence belongs in
+  `docs/security/adecco-ai-roleplay-final-security-closeout.md`. Do not mark
+  the vFinal DoD complete from local unit/type/invariant checks alone.
+
 ### 2026-05-14 — roleplay.mendan.biz custom domain cutover PASS
 
 - DNS operator added the Firebase App Hosting records at Value Domain /
