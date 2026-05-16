@@ -1100,6 +1100,65 @@ function runSelfTest() {
       expected: true,
     },
     {
+      name: "fenced workbook confirmation approval template is ignored",
+      issue: {
+        number: 171,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "For #171 use:",
+              "```text",
+              "Approved: all cells listed in",
+              "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
+              "have been human-confirmed or rewritten to explicit unresolved/not-applicable answers,",
+              "and the questionnaire drafts may be treated as final submission artifacts.",
+              "```",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
+    },
+    {
+      name: "workbook confirmation approval template is accepted",
+      issue: {
+        number: 171,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: all cells listed in",
+              "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
+              "have been human-confirmed or rewritten to explicit unresolved/not-applicable answers,",
+              "and the questionnaire drafts may be treated as final submission artifacts.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: true,
+    },
+    {
+      name: "workbook confirmation approval without final artifact text is rejected",
+      issue: {
+        number: 171,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: all cells listed in",
+              "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
+              "have been human-confirmed or rewritten to explicit unresolved/not-applicable answers.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
+    },
+    {
       name: "wrong approval author is rejected",
       issue: {
         number: 138,
