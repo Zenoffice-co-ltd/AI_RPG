@@ -1,9 +1,9 @@
 ---
 name: ai-rpg-v50-browser-evaluation
-description: Use when implementing, verifying, or reporting v50-family browser evaluation result pages, Adecco scoring result APIs, scorecard/model_raw_output artifacts, browser-use result screenshots, or the separation of Claude scoring from Gmail delivery. Do not use this for voice naturalness E2E or fixed guard regression; use ai-rpg-grok-first-v50-guard-verification for those.
+description: Use when implementing, verifying, or reporting v50/v51 Adecco browser evaluation result pages, Adecco scoring result APIs, scorecard/model_raw_output artifacts, browser-use result screenshots, or the separation of Claude scoring from Gmail delivery. Do not use this for voice naturalness E2E or fixed guard regression; use ai-rpg-grok-first-v50-guard-verification for those.
 ---
 
-# AI RPG v50 Browser Evaluation
+# AI RPG v50/v51 Browser Evaluation
 
 Use this skill for browser evaluation result pages and scoring delivery evidence.
 Keep it separate from v50 voice naturalness, fixed guard, relay, and production
@@ -25,6 +25,17 @@ voice E2E work.
 - Browser evaluation must not call Gmail.
 - Legacy ElevenLabs post-call webhook Gmail flow must remain compatible unless
   explicitly changing that workflow.
+- Adecco order-hearing scoring now defaults to the shared customer-criteria v2
+  bundle in `scripts/adecco_order_hearing_eval/prompts/`. That shared default
+  intentionally affects v51 browser evaluation, v50-7 browser evaluation, and
+  legacy ElevenLabs Gmail scoring. Add an explicit `evaluationProfile`/prompt
+  bundle split before trying to preserve separate v1/v2 scoring behavior.
+- Versioned browser routes should read `session.browserEvaluation` for the
+  start endpoint, result base path, and source. Keep `browserEvaluationEnabled`
+  only as a v50-7 compatibility fallback.
+- Browser scorecard envelopes should include `evaluationProfile` and
+  `runtimeVersion` while preserving
+  `evaluationFormat=adecco_order_hearing_browser_v1`.
 - Raw Claude output may be stored server-side as `model_raw_output`, but must not
   be returned by browser/result APIs.
 - Result APIs must not expose raw audio, relay tickets, API secrets, prompt

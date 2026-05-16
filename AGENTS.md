@@ -80,9 +80,12 @@
 
 ## Browser Evaluation / Scoring Delivery SoT
 
-- v50-family browser evaluation is a separate workflow from voice E2E / guard verification. Use `.agents/skills/ai-rpg-v50-browser-evaluation/SKILL.md` for result pages, scorecard APIs, Firestore artifacts, and browser-use evidence.
+- v50/v51 Adecco browser evaluation is a separate workflow from voice E2E / guard verification. Use `.agents/skills/ai-rpg-v50-browser-evaluation/SKILL.md` for result pages, scorecard APIs, Firestore artifacts, and browser-use evidence.
 - Scoring core must be separated from delivery. The scoring function may call Claude, but browser evaluation must not call Gmail.
 - Legacy ElevenLabs post-call webhook → Cloud Tasks → Claude → Gmail must remain compatible unless explicitly changing that workflow.
+- The Adecco order-hearing scoring bundle under `scripts/adecco_order_hearing_eval/prompts/` is currently the shared default customer-criteria v2 profile (`schema_version=adecco_order_hearing_eval_v2`). This intentionally affects v51 browser evaluation, existing v50-7 browser evaluation, and legacy ElevenLabs Gmail scoring. If v1/v2 behavior must diverge later, add an explicit `evaluationProfile`/prompt-bundle split instead of silently editing the shared files.
+- Versioned browser evaluation routes should use `session.browserEvaluation` as the source of truth for `enabled`, `startEndpoint`, `resultBasePath`, and `source`. Keep legacy `browserEvaluationEnabled` only as a v50-7 compatibility fallback.
+- Browser scorecard envelopes should keep API-compatible `evaluationFormat=adecco_order_hearing_browser_v1` while carrying `evaluationProfile` and `runtimeVersion` so Firestore/result pages can distinguish v50-7 from v51 and future profiles.
 - Browser result APIs must never expose raw Claude output, API secrets, relay tickets, prompt instructions, raw audio, or hidden system prompts.
 - Cloud Tasks payload may include only the normalized evaluation transcript required for scoring.
 - Browser evaluation result pages must have a safe mock route for browser-use / Playwright confirmation that does not call Claude, Gmail, ElevenLabs, or production webhook. Current safe routes: `/demo/adecco-roleplay-v50-7/result/mock-session?mock=1` and `/demo/adecco-roleplay-v51/result/mock-session?mock=1`.

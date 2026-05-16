@@ -17,6 +17,11 @@ Source of Truth: `AGENTS.md` `## Browser Evaluation / Scoring Delivery SoT`.
 - Browser evaluation must not call Gmail.
 - Keep scoring core separated from delivery.
 - Preserve legacy ElevenLabs post-call Gmail path unless explicitly changing it.
+- The shared Adecco scoring prompt/schema bundle currently defaults to customer
+  criteria v2 and affects v51 browser evaluation, v50-7 browser evaluation, and
+  legacy Gmail scoring unless an explicit evaluation profile split is added.
+- Versioned browser evaluation routes should use `session.browserEvaluation` for
+  start endpoint, result base path, and source.
 - Result APIs must not expose raw Claude output, secrets, relay tickets, prompt
   instructions, or raw audio.
 - Cloud Tasks payload may include only the normalized evaluation transcript

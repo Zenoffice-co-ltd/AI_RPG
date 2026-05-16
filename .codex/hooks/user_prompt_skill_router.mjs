@@ -22,7 +22,7 @@ const main = async () => {
 
   const suggestions = [];
   const isBrowserEvaluationPrompt =
-    /(browser evaluation|評価画面|評価結果|改善アクション|next training actions|scorecard|model_raw_output|adecco_browser_eval|v50-7.*result|result page|ブラウザで.*評価)/.test(
+    /(browser evaluation|評価画面|評価結果|改善アクション|next training actions|scorecard|model_raw_output|adecco_browser_eval|v50-7.*result|v51.*result|grok-first-v51|adecco-roleplay-v51|customer criteria|評価基準v2|must_capture_groups|sales_compliance_flags|modality_limitations|result page|ブラウザで.*評価)/.test(
       prompt,
     );
 
@@ -34,7 +34,7 @@ const main = async () => {
 
   if (isBrowserEvaluationPrompt) {
     suggestions.push(
-      "For v50 browser evaluation result pages and Adecco scoring result APIs, prefer `.agents/skills/ai-rpg-v50-browser-evaluation/SKILL.md`. Keep scoring separate from Gmail delivery, use the mock result route for browser-use confirmation, and avoid production Gmail smoke unless explicitly requested.",
+      "For v50/v51 Adecco browser evaluation result pages and scoring result APIs, prefer `.agents/skills/ai-rpg-v50-browser-evaluation/SKILL.md`. Keep scoring separate from Gmail delivery, treat the shared Adecco scoring bundle as customer-criteria v2 unless an explicit evaluationProfile split exists, use the mock result route for browser-use confirmation, and avoid production Gmail smoke unless explicitly requested.",
     );
   }
 

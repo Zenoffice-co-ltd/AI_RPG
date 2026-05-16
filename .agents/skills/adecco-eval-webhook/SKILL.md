@@ -33,6 +33,7 @@ ElevenLabs post-call transcription -> AI_RPG Cloud Run `/api/vendor/eleven/postc
 - Before opening/merging a PR, re-check the user's DOD. Do not treat a visual-template match as sufficient when the user requires data to come from the LLM response.
 - If the user asks for "PR作成 -> main merge", verify `gh auth status` first. If `gh` is not authenticated, run the login flow and wait for authentication; do not substitute a direct main push.
 - HMAC webhooks may be registered in ElevenLabs, but endpoint-side signature verification is a separate hardening task unless explicitly implemented.
+- The evaluator prompt/schema bundle under `scripts/adecco_order_hearing_eval/prompts/` is shared with browser evaluation and currently defaults to customer criteria v2 (`schema_version=adecco_order_hearing_eval_v2`). Legacy Gmail reports therefore use the same v2 scoring unless a future PR introduces explicit evaluation profile routing.
 
 ## Implementation Checklist
 
@@ -40,8 +41,8 @@ ElevenLabs post-call transcription -> AI_RPG Cloud Run `/api/vendor/eleven/postc
 2. Confirm `ENABLE_ELEVEN_WEBHOOKS=true`, target agent ID filtering, and transcript extraction from both webhook payload and ElevenLabs Conversation Details API.
 3. Run Claude via standard Messages API first. Avoid Structured Outputs unless the API contract has been freshly verified.
 4. Validate model output with lightweight top-level JSON checks:
-   - required: `total_score`, `rubric_scores`, `must_capture_items`
-   - additional: `schema_version`, `session_id`, `scenario_id`, `score_confidence`, `agent_quality_flags`, `learner_feedback`
+   - required: `schema_version`, `total_score`, `rubric_scores`, `must_capture_items`, `must_capture_groups`, `next_training_actions`, `modality_limitations`, `sales_compliance_flags`
+   - additional: `session_id`, `scenario_id`, `score_confidence`, `agent_quality_flags`, `learner_feedback`
 5. Send Gmail through service account domain-wide delegation when OAuth refresh tokens fail.
 6. For HTML report updates, copy the requested HTML into `scripts/adecco_order_hearing_eval/email_templates/` and verify SHA-256 equality with the source file as a design-template integrity check.
 7. Render the HTML part dynamically from the parsed Claude JSON while preserving the template layout/styles. Keep plain text as a fallback with raw JSON and validation metadata.
