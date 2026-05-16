@@ -9,13 +9,37 @@ export const RELAY_TICKET_VERSION = "mra1";
 export const DEFAULT_RELAY_TICKET_PATH = "/api/v3/realtime-relay";
 export const DEFAULT_RELAY_TICKET_TTL_SECONDS = 60;
 
+export type RelayTicketDemoSlug =
+  | "adecco-roleplay-v25"
+  | "adecco-roleplay-v50"
+  | "adecco-roleplay-v50-1"
+  | "adecco-roleplay-v50-2"
+  | "adecco-roleplay-v50-3"
+  | "adecco-roleplay-v50-5"
+  | "adecco-roleplay-v50-6"
+  | "adecco-roleplay-v50-7"
+  | "adecco-roleplay-v50-8"
+  | "adecco-roleplay-vFinal";
+
 export type RelayTicketPayload = {
   aud: string;
   path: string;
   transport: "mendan_cloud_run_relay_wss";
-  demoSlug: "adecco-roleplay-v25";
-  routerVariant: "B_NARROW_FALLBACK_SEMANTIC";
+  demoSlug: RelayTicketDemoSlug;
+  routerVariant?: "B_NARROW_FALLBACK_SEMANTIC" | undefined;
+  backend?:
+    | "grok-first-v50"
+    | "grok-first-v50-1"
+    | "grok-first-v50-2"
+    | "grok-first-v50-3"
+    | "grok-first-v50-5"
+    | "grok-first-v50-6"
+    | "grok-first-v50-7"
+    | "grok-first-v50-8"
+    | "grok-first-vFinal"
+    | undefined;
   sessionId: string;
+  participantIdHash?: string | undefined;
   iat: number;
   exp: number;
   nonce: string;
@@ -143,9 +167,10 @@ function decodePayload(value: string): RelayTicketPayload | null {
       typeof parsed.aud !== "string" ||
       typeof parsed.path !== "string" ||
       parsed.transport !== "mendan_cloud_run_relay_wss" ||
-      parsed.demoSlug !== "adecco-roleplay-v25" ||
-      parsed.routerVariant !== "B_NARROW_FALLBACK_SEMANTIC" ||
+      !isValidRelayRouteIdentity(parsed) ||
       typeof parsed.sessionId !== "string" ||
+      (parsed.participantIdHash !== undefined &&
+        typeof parsed.participantIdHash !== "string") ||
       typeof parsed.iat !== "number" ||
       typeof parsed.exp !== "number" ||
       typeof parsed.nonce !== "string"
@@ -156,6 +181,44 @@ function decodePayload(value: string): RelayTicketPayload | null {
   } catch {
     return null;
   }
+}
+
+function isValidRelayRouteIdentity(parsed: Partial<RelayTicketPayload>): boolean {
+  if (parsed.demoSlug === "adecco-roleplay-v25") {
+    return parsed.routerVariant === "B_NARROW_FALLBACK_SEMANTIC";
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50") {
+    return parsed.backend === "grok-first-v50";
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50-1") {
+    return parsed.backend === "grok-first-v50-1";
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50-2") {
+    return parsed.backend === "grok-first-v50-2";
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50-3") {
+    return parsed.backend === "grok-first-v50-3";
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50-5") {
+    return parsed.backend === "grok-first-v50-5";
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50-6") {
+    return parsed.backend === "grok-first-v50-6";
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50-7") {
+    return parsed.backend === "grok-first-v50-7";
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50-8") {
+    return parsed.backend === "grok-first-v50-8";
+  }
+  if (parsed.demoSlug === "adecco-roleplay-vFinal") {
+    return (
+      parsed.backend === "grok-first-vFinal" &&
+      typeof parsed.participantIdHash === "string" &&
+      parsed.participantIdHash.length === 16
+    );
+  }
+  return false;
 }
 
 function safeEqualBase64Url(a: string, b: string): boolean {

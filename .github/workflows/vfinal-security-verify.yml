@@ -1,0 +1,35 @@
+name: vfinal-security-verify
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/app/api/grok-first-vFinal/**"
+      - "apps/web/app/demo/adecco-roleplay-vFinal/**"
+      - "apps/web/lib/grok-first-roleplay/**"
+      - "apps/web/components/roleplay/GrokFirstV50RoleplayPage.tsx"
+      - "apps/web/components/roleplay/GrokFirstV50RoleplayShell.tsx"
+      - "apps/xai-realtime-relay/**"
+      - "packages/grok-first-roleplay-config/**"
+      - "packages/grok-realtime-relay-auth/**"
+      - "scripts/check-vfinal-security-invariants.mjs"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.1
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: vFinal server/client boundary invariant
+        run: pnpm grok:vfinal-security-invariants
+      - name: vFinal targeted unit tests
+        run: |
+          pnpm --filter @top-performer/web test -- tests/unit/grok-first-vfinal.test.ts
+          pnpm --filter @top-performer/xai-realtime-relay test -- src/server.test.ts
+          pnpm --filter @top-performer/grok-realtime-relay-auth test

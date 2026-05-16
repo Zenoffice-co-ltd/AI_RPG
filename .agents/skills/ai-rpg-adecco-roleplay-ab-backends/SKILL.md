@@ -91,6 +91,37 @@ drop, cancel, suppress, or emit metrics; it must not generate fallback text or
 select a business answer. The v50 session payload must keep
 `registeredSpeechPayloadIncluded=false` and
 `lockedResponseAudioBundleIncluded=false`.
+`/demo/adecco-roleplay-v50-7` is the exception that still keeps the v50.6 prompt
+as the business-answer base, but adds a runtime input guard for exit/meta turns:
+after STT completion it cancels xAI output, clears queued audio, and plays only
+the app-owned fixed guard response. Its `promptVersion` must remain
+`grok-first-v50.6-2026-05-15`; its runtime guard evidence is
+`guardrailVersion=grok-first-v50.7-guard-2026-05-15`.
+`/demo/adecco-roleplay-v50-8` keeps the same v50.6 prompt and fixed guard
+audio/text, but changes the fixed-guard drain contract:
+`fixedGuardActive` still blocks mic/input/assistant events while app-owned fixed
+PCM plays; the following 1.5s drain ignores only stale assistant `response.*`
+events and must allow new user speech, STT completion/failure, and mic chunks.
+Its guard evidence is
+`guardrailVersion=grok-first-v50.8-guard-2026-05-16`, while
+`promptVersion` remains `grok-first-v50.6-2026-05-15`.
+v50-family routes should nevertheless use the same Cloud Run enterprise relay
+transport as v25 while they are being matured internally:
+`realtimeTransport=mendan_cloud_run_relay_wss`,
+`wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, and
+`realtimeAuth.mode=mendan_relay_subprotocol`. Do not expose direct browser
+`api.x.ai` access from v50-family sessions. Customer-facing docs should still
+list only the prodOK trial URL, not every internal v50-family experiment.
+
+`/demo/adecco-roleplay-vFinal` is the submitted security-hardened Grok-first
+route. Keep it separate from v50-family internal comparison routes. Its session
+API must return only public metadata and relay auth; prompt, instructions,
+hidden assistant history, and xAI API key stay server-side. The Cloud Run relay
+must perform server-side `session.update`, inject hidden assistant history, and
+drop browser-sent `session.update`, assistant/system/developer messages, and
+tools. Final security evidence goes in
+`docs/security/adecco-ai-roleplay-final-security-closeout.md`, and Web App plus
+relay must be deployed from the same Git SHA.
 
 For v6/v7/v8/v9/v10/v15/v16/v17/v18/v19, never route to the legacy `fallback_unknown` artifact text
 `求人要件の範囲で整理します。`; that remains only for the existing v3/v4/v5

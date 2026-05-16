@@ -35,9 +35,16 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 - **Production S / v20 short streaming runtime**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v21
 - **Production T / v21 ack-stream compact prompt**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v23
 - **Internal v24 / failed App Hosting relay evidence**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v24
-- **Enterprise v25 / Cloud Run relay transport**: https://mendan.biz/demo/adecco-roleplay-v25
-- **Research v50 / Grok-first negative guard only**: https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-v50
-- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50}`
+- **Enterprise v25 / Cloud Run relay transport**: https://roleplay.mendan.biz/demo/adecco-roleplay-v25
+- **Internal research v50 / Grok-first negative guard only**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50
+- **Internal research v50.1 / v50 runtime with revised System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-1
+- **Internal research v50.2 / v50 runtime with tightened System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-2
+- **Internal research v50.3 / v50 runtime with transcript-intelligence System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-3
+- **Internal research v50.5 / v50 runtime with fixed output-contract System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-5
+- **Internal research v50.6 / v50 runtime with one-sentence guarded System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-6
+- **Internal research v50.7 / v50.6 prompt with runtime input guard**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7
+- **Internal research v50.8 / v50.6 prompt with assistant-only fixed guard drain**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-8
+- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1/v50.2/v50.3/v50.5/v50.6/v50.7/v50.8: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1,50-2,50-3,50-5,50-6,50-7,50-8}`
 
 ## v50 Grok-first negative guard runtime
 
@@ -45,6 +52,72 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 legacy `/api/v3/*` stack. Its source lives under
 `apps/web/lib/grok-first-roleplay/` and its API namespace is
 `/api/grok-first-v50/*`.
+
+`/demo/adecco-roleplay-v50-1` uses the same v50 runtime and negative-guard-only
+contract, but its API namespace is `/api/grok-first-v50-1/*` and its
+`promptVersion` is `grok-first-v50.1-2026-05-14`. The only behavior change from
+v50 is the revised System Prompt / first message for the residential-equipment
+manufacturer sales-admin order-hearing scenario.
+
+`/demo/adecco-roleplay-v50-2` also uses the same v50 runtime and
+negative-guard-only contract. Its API namespace is `/api/grok-first-v50-2/*`
+and its `promptVersion` is `grok-first-v50.2-2026-05-14`. The behavior change
+from v50.1 is limited to the revised System Prompt that tightens short spoken
+responses, keeps feedback outside the customer role, and uses `人事`
+consistently.
+
+`/demo/adecco-roleplay-v50-3` also uses the same v50 runtime and
+negative-guard-only contract. Its API namespace is `/api/grok-first-v50-3/*`
+and its `promptVersion` is `grok-first-v50.3-2026-05-14`. The behavior change
+from v50.2 is limited to the revised System Prompt that adds transcript-like
+conversation intelligence and hypothesis/summary transition rules.
+
+`/demo/adecco-roleplay-v50-5` also uses the same v50 runtime and
+negative-guard-only contract. Its API namespace is `/api/grok-first-v50-5/*`
+and its `promptVersion` is `grok-first-v50.5-2026-05-15`. The behavior change
+from the prior v50-family prompt is limited to a revised System Prompt that
+places a top-priority one-or-two-sentence output contract, fixed ending/off-role
+guard responses, and stronger forbidden-phrase guidance in the prompt itself.
+
+`/demo/adecco-roleplay-v50-6` also uses the same v50 runtime and
+negative-guard-only contract. Its API namespace is `/api/grok-first-v50-6/*`
+and its `promptVersion` is `grok-first-v50.6-2026-05-15`. The behavior change
+from v50.5 is limited to a revised System Prompt and first message that push
+normal turns toward one sentence, collapse off-role/ending guard handling to one
+fixed response, remove customer-side reverse questions, and keep the first
+message free of forbidden polite-request wording.
+
+`/demo/adecco-roleplay-v50-7` keeps the v50.6 System Prompt, first message, and
+scenario id unchanged (`promptVersion=grok-first-v50.6-2026-05-15`). Its API
+namespace is `/api/grok-first-v50-7/*`, route identity is
+`demoSlug=adecco-roleplay-v50-7` / `backend=grok-first-v50-7`, and runtime guard
+evidence is separated as `guardrailVersion=grok-first-v50.7-guard-2026-05-15`.
+For exit and meta/evaluation/prompt requests, the browser classifies the final
+STT text immediately, sends `response.cancel`, clears the tail/audio queues, and
+shows/plays only the app-side fixed response. The guarantee is that xAI-generated
+assistant text/audio is not displayed or heard; live mic audio may already have
+been streamed to the relay before STT completion.
+
+`/demo/adecco-roleplay-v50-8` keeps the same v50.6 System Prompt, first message,
+scenario id, fixed guard text, and fixed PCM artifacts as v50.7
+(`promptVersion=grok-first-v50.6-2026-05-15`). Its API namespace is
+`/api/grok-first-v50-8/*`, route identity is
+`demoSlug=adecco-roleplay-v50-8` / `backend=grok-first-v50-8`, and runtime guard
+evidence is separated as `guardrailVersion=grok-first-v50.8-guard-2026-05-16`.
+The v50.8 runtime changes only the post-fixed-guard drain: while fixed playback
+is active, mic/input/assistant events remain blocked; during the 1.5 second
+drain after playback completes, only stale assistant `response.*` events are
+ignored. New `speech_started`, `speech_stopped`, STT completion/failure, and mic
+chunks are allowed so back-to-back fixed_external turns do not become
+`<missing>`. Ignored assistant response events may be logged as
+`guard.drain.ignored`.
+
+For fixed guard turns, `firstAudibleAudioMs` still measures from turn start and
+therefore includes user speech and STT time. v50.8 also records
+`audioSource=static_guard_pcm_base64`, `sttCompletedToGuardDetectedMs`,
+`guardDetectedToPlaybackStartedMs`, `fixedPlaybackDurationMs`, and
+`fixedAudioBytes` so fixed artifact playback latency can be separated from STT
+latency.
 
 Contract:
 
@@ -55,8 +128,22 @@ Contract:
   buffering.
 - The v50 session payload must not include `registeredSpeech` or
   `lockedResponseAudioBundle`.
+- v50, v50.1, v50.2, v50.3, v50.5, v50.6, v50.7, and v50.8 use the same Cloud Run relay transport as v25 while they are
+  matured internally: `realtimeTransport=mendan_cloud_run_relay_wss`,
+  `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, and
+  `realtimeAuth.mode=mendan_relay_subprotocol`.
+- v50, v50.1, v50.2, v50.3, v50.5, v50.6, v50.7, and v50.8 must not expose xAI ephemeral tokens to the browser.
 - v50 runtime imports from `registered-speech`, `grok-voice-pr60-*`,
   `locked-response-tts`, and `sanitized-response-tts` are forbidden.
+- `/demo/adecco-roleplay-vFinal` is the submitted security-hardened Grok-first
+  route. It is separate from v50-family comparison routes and uses
+  invite-scoped anonymous participant identity. The browser receives only public
+  metadata and relay auth; prompt, instructions, hidden assistant history, and
+  the xAI API key stay server-side. The Cloud Run relay performs the
+  authoritative `session.update`, injects hidden assistant history, and strips
+  browser-sent `session.update`, assistant/system/developer messages, and tool
+  definitions. Final submission evidence belongs in
+  `docs/security/adecco-ai-roleplay-final-security-closeout.md`.
 
 Session defaults:
 
@@ -130,12 +217,15 @@ session field:
 
 | Demo slug | realtimeTransport | Browser WebSocket |
 |---|---|---|
-| `adecco-roleplay-v3` / `v4` / `v5` and existing research routes | `xai_direct_wss` | `wss://api.x.ai/v1/realtime?model=grok-voice-think-fast-1.0` |
+| `adecco-roleplay-v3` / `v4` / `v5` and legacy comparison routes | `xai_direct_wss` | `wss://api.x.ai/v1/realtime?model=grok-voice-think-fast-1.0` |
 | `adecco-roleplay-v25` | `mendan_cloud_run_relay_wss` | `wss://voice.mendan.biz/api/v3/realtime-relay` |
+| `adecco-roleplay-v50` / `v50-1` / `v50-2` / `v50-3` / `v50-5` / `v50-6` / `v50-7` | `mendan_cloud_run_relay_wss` | `wss://voice.mendan.biz/api/v3/realtime-relay` |
 
-For v25, `/api/v3/session` does not issue an xAI ephemeral token. It returns a
-short-lived MENDAN relay ticket in `realtimeAuth`, and the browser sends it via
-`Sec-WebSocket-Protocol` as `mendan-relay-ticket.<ticket>`.
+For v25, `/api/v3/session` does not issue an xAI ephemeral token. For v50,
+v50.1, v50.2, v50.3, v50.5, v50.6, and v50.7, `/api/grok-first-v50*/session` follows the same
+browser auth rule. These routes return a short-lived MENDAN relay ticket in `realtimeAuth`,
+and the browser sends it via `Sec-WebSocket-Protocol` as
+`mendan-relay-ticket.<ticket>`.
 
 v6/v7/v8/v9/v10/v15/v16/v17/v18/v19 must not route to the legacy `fallback_unknown` artifact that says
 `求人要件の範囲で整理します。`; that artifact remains only for the existing

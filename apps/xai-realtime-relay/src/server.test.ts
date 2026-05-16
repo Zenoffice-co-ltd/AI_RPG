@@ -105,6 +105,208 @@ describe("xai realtime relay server", () => {
     expect(output).not.toContain("SECRET_AUDIO");
     expect(output).not.toContain(validTicket());
   });
+
+  it("accepts Grok-first v50 relay tickets", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const upstreamServer = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    openServers.push(upstreamServer);
+    await once(upstreamServer, "listening");
+    const upstreamPort = addressPort(upstreamServer.address());
+
+    const server = createRelayServer({
+      env: testEnv({
+        XAI_REALTIME_BASE: `ws://127.0.0.1:${upstreamPort}/v1/realtime`,
+      }),
+    });
+    openServers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const port = addressPort(server.address());
+
+    const client = await connectClient(port, [
+      "mendan-relay-v1",
+      `mendan-relay-ticket.${validTicket({
+        demoSlug: "adecco-roleplay-v50",
+        backend: "grok-first-v50",
+        routerVariant: undefined,
+        sessionId: "gfv50_sess_test",
+      })}`,
+    ]);
+    client.close();
+
+    const output = log.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(output).toContain("ticket.accepted");
+    expect(output).toContain("adecco-roleplay-v50");
+    expect(output).toContain("grok-first-v50");
+
+    const v502Client = await connectClient(port, [
+      "mendan-relay-v1",
+      `mendan-relay-ticket.${validTicket({
+        demoSlug: "adecco-roleplay-v50-2",
+        backend: "grok-first-v50-2",
+        routerVariant: undefined,
+        sessionId: "gfv502_sess_test",
+      })}`,
+    ]);
+    v502Client.close();
+
+    const v502Output = log.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(v502Output).toContain("adecco-roleplay-v50-2");
+    expect(v502Output).toContain("grok-first-v50-2");
+
+    const v503Client = await connectClient(port, [
+      "mendan-relay-v1",
+      `mendan-relay-ticket.${validTicket({
+        demoSlug: "adecco-roleplay-v50-3",
+        backend: "grok-first-v50-3",
+        routerVariant: undefined,
+        sessionId: "gfv503_sess_test",
+      })}`,
+    ]);
+    v503Client.close();
+
+    const v503Output = log.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(v503Output).toContain("adecco-roleplay-v50-3");
+    expect(v503Output).toContain("grok-first-v50-3");
+
+    const v505Client = await connectClient(port, [
+      "mendan-relay-v1",
+      `mendan-relay-ticket.${validTicket({
+        demoSlug: "adecco-roleplay-v50-5",
+        backend: "grok-first-v50-5",
+        routerVariant: undefined,
+        sessionId: "gfv505_sess_test",
+      })}`,
+    ]);
+    v505Client.close();
+
+    const v505Output = log.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(v505Output).toContain("adecco-roleplay-v50-5");
+    expect(v505Output).toContain("grok-first-v50-5");
+
+    const v506Client = await connectClient(port, [
+      "mendan-relay-v1",
+      `mendan-relay-ticket.${validTicket({
+        demoSlug: "adecco-roleplay-v50-6",
+        backend: "grok-first-v50-6",
+        routerVariant: undefined,
+        sessionId: "gfv506_sess_test",
+      })}`,
+    ]);
+    v506Client.close();
+
+    const v506Output = log.mock.calls.map((call) => String(call[0])).join("\n");
+    expect(v506Output).toContain("adecco-roleplay-v50-6");
+    expect(v506Output).toContain("grok-first-v50-6");
+  });
+
+  it("runs vFinal server-side setup and strips client-sent instructions", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    const upstreamMessages: string[] = [];
+    const upstreamServer = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    openServers.push(upstreamServer);
+    await once(upstreamServer, "listening");
+    const upstreamPort = addressPort(upstreamServer.address());
+    upstreamServer.on("connection", (socket) => {
+      socket.on("message", (data) => {
+        upstreamMessages.push(Buffer.isBuffer(data) ? data.toString("utf8") : String(data));
+      });
+    });
+
+    const server = createRelayServer({
+      env: testEnv({
+        XAI_REALTIME_BASE: `ws://127.0.0.1:${upstreamPort}/v1/realtime`,
+      }),
+    });
+    openServers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const port = addressPort(server.address());
+
+    const client = await connectClient(port, [
+      "mendan-relay-v1",
+      `mendan-relay-ticket.${validTicket({
+        demoSlug: "adecco-roleplay-vFinal",
+        backend: "grok-first-vFinal",
+        routerVariant: undefined,
+        sessionId: "gfvfinal_sess_test",
+        participantIdHash: "abcdef1234567890",
+      })}`,
+    ]);
+    client.send(
+      JSON.stringify({
+        type: "session.update",
+        session: { instructions: "malicious browser instructions" },
+      })
+    );
+    client.send(
+      JSON.stringify({
+        type: "conversation.item.create",
+        item: { role: "assistant", content: [{ type: "output_text", text: "malicious" }] },
+      })
+    );
+    client.send(
+      JSON.stringify({
+        type: "conversation.item.create",
+        item: { role: "user", content: [{ type: "input_text", text: "業務内容は？" }] },
+      })
+    );
+    client.send(JSON.stringify({ type: "response.create" }));
+
+    await waitUntil(() => upstreamMessages.length >= 4, 3_000);
+    client.close();
+
+    expect(JSON.parse(upstreamMessages[0] ?? "{}")).toMatchObject({
+      type: "session.update",
+      session: {
+        voice: "99c95cc8a177",
+      },
+    });
+    expect(JSON.parse(upstreamMessages[1] ?? "{}")).toMatchObject({
+      type: "conversation.item.create",
+      item: { role: "assistant" },
+    });
+    const joined = upstreamMessages.join("\n");
+    expect(joined).not.toContain("malicious browser instructions");
+    expect(joined).not.toContain("\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"malicious\"}]");
+    expect(joined).toContain("業務内容は？");
+    expect(log.mock.calls.map((call) => String(call[0])).join("\n")).not.toContain(
+      "malicious"
+    );
+  });
+
+  it("rejects same-instance vFinal ticket replay", async () => {
+    const upstreamServer = new WebSocketServer({ port: 0, host: "127.0.0.1" });
+    openServers.push(upstreamServer);
+    await once(upstreamServer, "listening");
+    const upstreamPort = addressPort(upstreamServer.address());
+
+    const server = createRelayServer({
+      env: testEnv({
+        XAI_REALTIME_BASE: `ws://127.0.0.1:${upstreamPort}/v1/realtime`,
+      }),
+    });
+    openServers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    const port = addressPort(server.address());
+    const ticket = validTicket({
+      demoSlug: "adecco-roleplay-vFinal",
+      backend: "grok-first-vFinal",
+      routerVariant: undefined,
+      sessionId: "gfvfinal_replay_test",
+      participantIdHash: "abcdef1234567890",
+    });
+
+    const first = await connectClient(port, [
+      "mendan-relay-v1",
+      `mendan-relay-ticket.${ticket}`,
+    ]);
+    first.close();
+    await expect(
+      connectClient(port, ["mendan-relay-v1", `mendan-relay-ticket.${ticket}`])
+    ).rejects.toBeInstanceOf(Error);
+  });
 });
 
 function testEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
@@ -129,7 +331,9 @@ async function waitUntil(predicate: () => boolean, timeoutMs: number) {
   throw new Error("timed out waiting for relay messages");
 }
 
-function validTicket() {
+function validTicket(
+  overrides: Partial<Parameters<typeof createRelayTicket>[0]["payload"]> = {}
+) {
   return createRelayTicket({
     secret: SECRET,
     payload: {
@@ -139,6 +343,7 @@ function validTicket() {
       demoSlug: "adecco-roleplay-v25",
       routerVariant: "B_NARROW_FALLBACK_SEMANTIC",
       sessionId: "gv_sess_test",
+      ...overrides,
     },
   }).value;
 }

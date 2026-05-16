@@ -522,6 +522,12 @@ Stage 3G の挙動:
 
 ## Follow-up Backlog
 
+- [ ] Local acceptance Secret Manager access for v50.8 verification
+  - Status: 2026-05-16 `corepack pnpm verify:acceptance` stopped before product checks with `7 PERMISSION_DENIED: Permission 'secretmanager.versions.access' denied on resource (or it may not exist)`.
+  - Scope: local operator credentials / Secret Manager IAM for the acceptance harness, not v50.8 runtime code.
+  - Owner: TBD
+  - Acceptance: rerun `corepack pnpm verify:acceptance` with credentials that satisfy the AGENTS.md secret precedence, then classify any downstream product/vendor failures separately.
+
 - [ ] `staffing_order_hearing_busy_manager_medium::no-coaching` legacy live ConvAI judge mismatch
   - Status: 3/3 fail on 2026-04-19 in the current working tree; pre-Adecco baseline `4bcb980` passed on `suite_1301kpj8dk0yeezbwqj72sqf681f`
   - Scope: legacy compileScenarios path / system prompt / vendor transport payload / vendor judge prompt のいずれか
@@ -761,6 +767,66 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 完全に独立しているので影響なし。
 
 ## Latest execution log
+
+### 2026-05-16 — vFinal security foundation implementation
+
+- Implemented submitted-only `/demo/adecco-roleplay-vFinal` and
+  `/api/grok-first-vFinal/*` surfaces, separated from v50-family internal
+  comparison routes. vFinal sessions return public metadata plus MENDAN relay
+  auth only; prompt, instructions, hidden assistant history, and tool
+  definitions are not returned to the browser.
+- Added server-only `@top-performer/grok-first-roleplay-config` for vFinal
+  prompt/config material, invite-scoped anonymous participant cookies, HMAC
+  `participantIdHash`, vFinal API rate limits, relay-side authoritative
+  `session.update`, hidden assistant history injection, client `session.update`
+  stripping, same-instance ticket nonce replay protection, and allowlist relay /
+  vFinal event logging.
+- Evidence added at
+  `docs/security/adecco-ai-roleplay-final-security-closeout.md`; final
+  production fields still require App Hosting rollout, Cloud Run revision,
+  Cloud Logging retention, IAM, WAF, browser capture, E2E, latency baseline, and
+  ZAP baseline evidence.
+- Verification:
+  `corepack pnpm grok:vfinal-security-invariants` PASS;
+  `corepack pnpm exec vitest run --config vitest.config.ts
+  apps/web/tests/unit/grok-first-vfinal.test.ts
+  packages/grok-realtime-relay-auth/src/ticket.test.ts
+  apps/xai-realtime-relay/src/server.test.ts` PASS;
+  `corepack pnpm -r --workspace-concurrency=1 --if-present typecheck` PASS;
+  `corepack pnpm -r --workspace-concurrency=1 --if-present test` PASS.
+- Root `corepack pnpm typecheck` and `corepack pnpm test` remain blocked by
+  Turbo on this Windows shell with `Unable to find package manager binary:
+  cannot find binary path`; the direct workspace script fallback above passed.
+- `corepack pnpm verify:acceptance -- --preflight` is blocked in this local
+  environment by Secret Manager IAM:
+  `7 PERMISSION_DENIED: Permission 'secretmanager.versions.access' denied on
+  resource (or it may not exist)`.
+
+### 2026-05-16 — v50.8 fixed guard drain stabilization
+
+- Implemented `/demo/adecco-roleplay-v50-8` and `/api/grok-first-v50-8/*` with
+  `promptVersion=grok-first-v50.6-2026-05-15` and
+  `guardrailVersion=grok-first-v50.8-guard-2026-05-16`; the v50.6 prompt,
+  fixed guard text, and fixed PCM artifacts were not changed.
+- Runtime fixed guard drain now ignores only stale assistant `response.*` events
+  during the 1.5s post-playback drain. New user speech/STT events and mic chunks
+  are allowed after fixed playback completes.
+- Targeted checks:
+  `corepack pnpm --filter @top-performer/web test -- grok-first-v50` PASS,
+  `corepack pnpm --filter @top-performer/web test -- grok-first-v50-client`
+  PASS, `corepack pnpm --filter @top-performer/grok-realtime-relay-auth test`
+  PASS, `corepack pnpm --filter @top-performer/web typecheck` PASS, and
+  `corepack pnpm --filter @top-performer/grok-realtime-relay-auth typecheck`
+  PASS. Targeted ESLint for the touched v50 web runtime/components/routes also
+  PASS.
+- Root `corepack pnpm typecheck` and `corepack pnpm test` were blocked by Turbo
+  on this Windows shell with `Unable to find package manager binary: cannot find
+  binary path`.
+- `corepack pnpm grok:first-v50-8:guard-e2e` was blocked before browser startup
+  because `DEMO_ACCESS_TOKEN` was not available. `corepack pnpm
+  verify:acceptance` was blocked by Secret Manager IAM:
+  `7 PERMISSION_DENIED: Permission 'secretmanager.versions.access' denied on
+  resource (or it may not exist)`.
 
 ### 2026-05-13 — Adecco Grok Voice v25 Cloud Run relay closeout
 
