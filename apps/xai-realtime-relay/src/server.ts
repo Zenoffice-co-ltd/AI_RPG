@@ -3,6 +3,8 @@ import { WebSocketServer, WebSocket, type RawData } from "ws";
 import {
   DEFAULT_RELAY_TICKET_PATH,
   hashRelaySessionId,
+  type RelayTicketBackend,
+  type RelayTicketDemoSlug,
   verifyRelayTicket,
 } from "@top-performer/grok-realtime-relay-auth";
 import { getGrokFirstVFinalConfig } from "@top-performer/grok-first-roleplay-config";
@@ -169,23 +171,9 @@ export function createRelayServer(options: RelayServerOptions = {}) {
 type UpgradeContext = {
   ok: true;
   sessionId: string;
-  demoSlug:
-    | "adecco-roleplay-v25"
-    | "adecco-roleplay-v50"
-    | "adecco-roleplay-v50-1"
-    | "adecco-roleplay-v50-4"
-    | "adecco-roleplay-v50-5"
-    | "adecco-roleplay-v50-6"
-    | "adecco-roleplay-vFinal";
+  demoSlug: RelayTicketDemoSlug;
   routerVariant?: "B_NARROW_FALLBACK_SEMANTIC" | undefined;
-  backend?:
-    | "grok-first-v50"
-    | "grok-first-v50-1"
-    | "grok-first-v50-4"
-    | "grok-first-v50-5"
-    | "grok-first-v50-6"
-    | "grok-first-vFinal"
-    | undefined;
+  backend?: RelayTicketBackend | undefined;
   transport: "mendan_cloud_run_relay_wss";
   participantIdHash?: string | undefined;
   nonce: string;
