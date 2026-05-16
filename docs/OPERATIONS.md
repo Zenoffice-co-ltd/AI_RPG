@@ -831,6 +831,16 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   not applying the no-coaching-only exception because retry 1 included
   `no-hidden-fact-leak`. Issue #141 remains BLOCKED pending a clean rerun or
   customer/operator approval.
+- Issue #139 scope decision package was posted: Codex can proceed only after
+  approval that submitted vFinal scope is limited to the dedicated no-key
+  backend and legacy shared App Hosting `XAI_API_KEY` access is internal
+  comparison continuity, or after a migration/decommission plan removes that
+  legacy dependency.
+- Issue #140 baseline artifact scan found current-vFinal 20-session samples
+  and unrelated v50/Grok Voice artifacts, but no same-environment,
+  same-scenario, >=20-session pre-vFinal baseline with the required metrics.
+  The latency comparison remains BLOCKED pending explicit baseline approval or
+  approved controlled baseline collection.
 
 ### 2026-05-17 — vFinal questionnaire submission alignment
 
