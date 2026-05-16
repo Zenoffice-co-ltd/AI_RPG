@@ -812,6 +812,30 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal #139 Secret Manager IAM boundary recheck
+
+- Rechecked official Secret Manager IAM and Firebase App Hosting config/secrets
+  docs before the read-only IAM review. Secret Accessor grants payload access;
+  Viewer is metadata-only; App Hosting `apphosting.yaml` can reference Cloud
+  Secret Manager secrets that load during rollout.
+- Rechecked `XAI_API_KEY` IAM in `adecco-mendan` and `zapier-transfer` without
+  reading secret values. The dedicated submitted vFinal service account was
+  absent from both `XAI_API_KEY` policies. The legacy shared App Hosting
+  compute service account still had payload access; the Cloud Run relay service
+  account had payload access on the `adecco-mendan` `XAI_API_KEY` policy.
+- Rechecked vFinal supporting secrets without reading values. In `adecco-mendan`,
+  `XAI_RELAY_TICKET_SECRET` granted Secret Accessor to the shared App Hosting
+  compute service account, dedicated submitted vFinal service account, and
+  Cloud Run relay service account. The invite-signing and participant-hash
+  secrets granted Secret Accessor to the shared and dedicated vFinal App
+  Hosting service accounts. `demo-access-token` granted Secret Accessor only to
+  the legacy shared App Hosting compute service account.
+- Config recheck confirmed `apps/web/apphosting.vfinal.yaml` still omits
+  `XAI_API_KEY` and binds only relay ticket / invite / participant-hash
+  secrets, while shared `apps/web/apphosting.yaml` still binds `XAI_API_KEY`.
+- #139 remains BLOCKED pending explicit scope approval or migration/de-scope
+  plus IAM removal and regression evidence.
+
 ### 2026-05-17 — vFinal hosted.app submitted URL smoke refresh
 
 - Re-ran hosted.app submitted URL start smoke:
