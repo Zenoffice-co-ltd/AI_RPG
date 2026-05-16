@@ -68,6 +68,26 @@ gcloud run deploy xai-realtime-relay `
   --update-secrets='XAI_API_KEY=XAI_API_KEY:latest,XAI_RELAY_TICKET_SECRET=XAI_RELAY_TICKET_SECRET:latest'
 ```
 
+- Deploy the Web App and Cloud Run relay from the same Git SHA for
+  `adecco-roleplay-vFinal`.
+- The relay is the only runtime that may hold `XAI_API_KEY` for vFinal.
+- The submitted vFinal Web/App Hosting environment must use the dedicated
+  `apps/web/apphosting.vfinal.yaml` contract or an equivalent backend/env that
+  omits `XAI_API_KEY`.
+- In production, invite signing and participant hash secrets are mandatory
+  separate secrets; do not reuse `XAI_RELAY_TICKET_SECRET` for invite/hash.
+- The relay must validate `Origin`, `Host`, ticket `aud`, ticket `path`, and
+  `transport` before connecting to xAI.
+- vFinal relay tickets include `participantIdHash` and a nonce. The relay
+  rejects same-instance nonce replay; cross-instance replay protection is
+  intentionally out of the first release and must be documented in the closeout.
+- vFinal relay sends server-side `session.update` and hidden assistant history.
+  Browser-sent `session.update`, assistant/system/developer messages, and tools
+  are dropped.
+- Relay logs are metadata allowlist only. Do not log raw headers,
+  `Sec-WebSocket-Protocol`, tickets, Authorization, audio/base64, transcript,
+  prompt, instructions, or user/agent text.
+
 Use an env file for deploys because comma-separated origin allowlists are easy
 to misparse in shells. Do not set a long backend-service timeout on the
 serverless NEG backend; Google Cloud rejects serverless NEG attachment when

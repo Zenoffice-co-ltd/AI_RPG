@@ -134,6 +134,26 @@ describe("grok-first vFinal security contract", () => {
     expect(setCookie).not.toContain(invite);
   });
 
+  it("fails closed in production when invite/hash secrets are not separated", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET", "");
+    vi.stubEnv("GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET", "");
+    const invite = createVFinalInviteToken({
+      participantId: "adecco-user-001@example.test",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      signingSecret: SECRET,
+    });
+    const { GET } = await import("../../app/demo/adecco-roleplay-vFinal/access/route");
+    const response = GET(
+      new NextRequest(
+        `http://127.0.0.1:3000/demo/adecco-roleplay-vFinal/access?invite=${invite}`,
+        { method: "GET" }
+      )
+    );
+
+    expect(response.status).toBe(403);
+  });
+
   it("allowlists event details and drops text/transcript/instructions", async () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
     const { POST } = await import("../../app/api/grok-first-vFinal/event/route");

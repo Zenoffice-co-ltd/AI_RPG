@@ -195,15 +195,26 @@ function verifyToken(token: string, secret: string): Record<string, unknown> | n
 
 function getEnv() {
   ensureEnvLoaded();
+  const inviteSigningSecret =
+    process.env["GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET"] ?? "";
+  const participantHashSecret =
+    process.env["GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET"] ?? "";
+  if (process.env["NODE_ENV"] === "production") {
+    if (inviteSigningSecret.length < 32 || participantHashSecret.length < 32) {
+      throw new Error(
+        "GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET and GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET are required in production"
+      );
+    }
+    return {
+      inviteSigningSecret,
+      participantHashSecret,
+    };
+  }
   return {
     inviteSigningSecret:
-      process.env["GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET"] ??
-      process.env["XAI_RELAY_TICKET_SECRET"] ??
-      "",
+      inviteSigningSecret || process.env["XAI_RELAY_TICKET_SECRET"] || "",
     participantHashSecret:
-      process.env["GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET"] ??
-      process.env["XAI_RELAY_TICKET_SECRET"] ??
-      "",
+      participantHashSecret || process.env["XAI_RELAY_TICKET_SECRET"] || "",
   };
 }
 

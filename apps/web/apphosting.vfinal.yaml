@@ -1,0 +1,45 @@
+# Submitted vFinal App Hosting environment.
+#
+# This file intentionally omits the upstream xAI API key. The vFinal web runtime issues
+# signed relay tickets and invite-scoped cookies only; the Cloud Run relay is
+# the only runtime that may access the upstream provider key for customer submission.
+runConfig:
+  cpu: 1
+  memoryMiB: 1024
+  minInstances: 0
+  maxInstances: 2
+env:
+  - variable: APP_BASE_URL
+    value: https://roleplay.mendan.biz
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: GCLOUD_LOCATION
+    value: asia-northeast1
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: SECRET_SOURCE_PROJECT_ID
+    value: zapier-transfer
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: FIREBASE_PROJECT_ID
+    value: adecco-mendan
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: GROK_VOICE_RELAY_WS_URL
+    value: "wss://voice.mendan.biz/api/v3/realtime-relay"
+    availability:
+      - RUNTIME
+  - variable: GROK_VOICE_RELAY_EXPECTED_AUD
+    value: "voice.mendan.biz"
+    availability:
+      - RUNTIME
+  - variable: XAI_RELAY_TICKET_SECRET
+    secret: XAI_RELAY_TICKET_SECRET
+  - variable: GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET
+    secret: GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET
+  - variable: GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET
+    secret: GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET
