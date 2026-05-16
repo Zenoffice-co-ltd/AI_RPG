@@ -812,6 +812,24 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal questionnaire submission alignment
+
+- Reviewed the provided questionnaire drafts:
+  `C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx`
+  and
+  `C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm`.
+- Added
+  `docs/security/adecco-vfinal-questionnaire-submission-map.md` to map
+  evidence-backed answers, human-confirmation items, and the four remaining
+  submission blockers (#138, #139, #140, #141).
+- Customer submission DoD remains BLOCKED. The drafts may cite completed
+  vFinal no-key runtime, relay-only browser connection, metadata-only logging,
+  WAF preview/log, ZAP baseline/passive, text/voice E2E, sensitive scan, and
+  current-vFinal 20-session evidence. They must not claim submitted URL
+  approval, legacy shared backend de-scope, formal latency comparison PASS, or
+  full acceptance closure until the related issues are resolved or formally
+  approved out of scope.
+
 ### 2026-05-16 — vFinal submission unblock PR-A
 
 - PR-A scope is limited to vFinal auth unblock and raw invite query removal.
