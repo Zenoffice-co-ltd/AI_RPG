@@ -114,6 +114,9 @@ corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked \
 
 This inventory guard treats closeCode1006 and `relay.error` counters as part of
 comparison readiness. A p95-only artifact is not enough for final #140 PASS.
+The final comparison helper also requires artifact identity markers: baseline
+input must be identifiable as pre-vFinal/baseline evidence, and current input
+must be identifiable as current vFinal evidence.
 
 ## Current Codex Stop Conditions
 

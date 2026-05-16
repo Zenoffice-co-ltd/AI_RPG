@@ -812,6 +812,22 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal #140 latency comparison identity guard
+
+- Tightened `corepack pnpm grok:first-vfinal:latency-compare` so a formal
+  comparison PASS requires the baseline artifact/path to identify itself as
+  pre-vFinal or baseline evidence and the current artifact/path to identify
+  itself as current vFinal evidence.
+- The existing denominator, fail-count, p95 threshold, closeCode1006,
+  `relay.error`, and same-artifact checks remain required. This change prevents
+  a copied or renamed current-vFinal artifact from satisfying the pre-vFinal
+  baseline side of #140.
+- `corepack pnpm grok:first-vfinal:latency-compare -- --self-test` passed with
+  negative fixtures for missing baseline identity, missing current identity,
+  missing operational counters, weak denominator, and same-artifact comparison.
+- #140 remains BLOCKED because no approved same-environment, same-scenario,
+  >=20-session pre-vFinal baseline exists in the current evidence.
+
 ### 2026-05-17 — vFinal #141 acceptance input inventory guard
 
 - Added `corepack pnpm grok:vfinal-acceptance-input-inventory` as a no-secret

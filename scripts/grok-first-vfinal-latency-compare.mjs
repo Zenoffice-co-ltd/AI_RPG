@@ -70,6 +70,14 @@ function compareSummaries({ baseline, current, baselinePath, currentPath, minRun
     actual: current.failCount ?? null,
     required: 0,
   });
+  pushCheck(checks, "baseline identity", hasBaselineIdentityMarker(baseline, baselinePath), {
+    baselinePath,
+    required: "baseline artifact must identify itself as pre-vFinal/baseline evidence",
+  });
+  pushCheck(checks, "current identity", hasCurrentVFinalIdentityMarker(current, currentPath), {
+    currentPath,
+    required: "current artifact must identify itself as current vFinal evidence",
+  });
 
   for (const [metric, thresholdMs] of metricThresholds) {
     const baselineMetric = metricSummary(baseline, metric);
@@ -172,6 +180,16 @@ function countValue(summary, explicitValue, keys) {
   return null;
 }
 
+function hasBaselineIdentityMarker(summary, path) {
+  const text = `${path}\n${JSON.stringify(summary)}`;
+  return /\bpre[-_ ]?vfinal\b|\bbaseline\b|before vfinal|before-vfinal/iu.test(text);
+}
+
+function hasCurrentVFinalIdentityMarker(summary, path) {
+  const text = `${path}\n${JSON.stringify(summary)}`;
+  return /\bcurrent[-_ ]?vfinal\b|adecco-roleplay-vfinal|grok[-_ ]first[-_ ]vfinal|\bvfinal\b/iu.test(text);
+}
+
 function pushCheck(checks, name, pass, details) {
   checks.push({ name, pass: Boolean(pass), ...details });
 }
@@ -249,40 +267,56 @@ async function runSelfTest() {
   const pass = compareSummaries({
     baseline,
     current: passingCurrent,
-    baselinePath: "baseline.json",
-    currentPath: "current.json",
+    baselinePath: "pre-vFinal-baseline-summary.json",
+    currentPath: "current-vFinal-summary.json",
     minRuns: 20,
     counts: {},
   });
   const fail = compareSummaries({
     baseline,
     current: failingCurrent,
-    baselinePath: "baseline.json",
-    currentPath: "current.json",
+    baselinePath: "pre-vFinal-baseline-summary.json",
+    currentPath: "current-vFinal-summary.json",
     minRuns: 20,
     counts: {},
   });
   const missingOperationalCounts = compareSummaries({
     baseline: { ...baseline, closeCode1006Count: undefined, relayErrorCount: undefined },
     current: { ...passingCurrent, closeCode1006Count: undefined, relayErrorCount: undefined },
-    baselinePath: "baseline.json",
-    currentPath: "current.json",
+    baselinePath: "pre-vFinal-baseline-summary.json",
+    currentPath: "current-vFinal-summary.json",
     minRuns: 20,
     counts: {},
   });
   const weakDenominator = compareSummaries({
     baseline: { ...baseline, runCount: 19, sessionApiMs: { count: 19, p95: 300 } },
     current: passingCurrent,
-    baselinePath: "baseline.json",
-    currentPath: "current.json",
+    baselinePath: "pre-vFinal-baseline-summary.json",
+    currentPath: "current-vFinal-summary.json",
     minRuns: 20,
     counts: {},
   });
   const sameArtifact = compareSummaries({
     baseline,
     current: passingCurrent,
-    baselinePath: "same.json",
-    currentPath: "same.json",
+    baselinePath: "pre-vFinal-baseline-summary.json",
+    currentPath: "pre-vFinal-baseline-summary.json",
+    minRuns: 20,
+    counts: {},
+  });
+  const missingBaselineIdentity = compareSummaries({
+    baseline,
+    current: passingCurrent,
+    baselinePath: "renamed-current-copy.json",
+    currentPath: "current-vFinal-summary.json",
+    minRuns: 20,
+    counts: {},
+  });
+  const missingCurrentIdentity = compareSummaries({
+    baseline,
+    current: passingCurrent,
+    baselinePath: "pre-vFinal-baseline-summary.json",
+    currentPath: "renamed-baseline-copy.json",
     minRuns: 20,
     counts: {},
   });
@@ -295,10 +329,28 @@ async function runSelfTest() {
   }
   if (weakDenominator.status !== "FAIL") failures.push("expected weak denominator to FAIL");
   if (sameArtifact.status !== "FAIL") failures.push("expected same artifact to FAIL");
+  if (missingBaselineIdentity.status !== "FAIL") {
+    failures.push("expected missing baseline identity marker to FAIL");
+  }
+  if (missingCurrentIdentity.status !== "FAIL") {
+    failures.push("expected missing current identity marker to FAIL");
+  }
   if (failures.length > 0) {
     await writeFile(
       join(dir, "debug.json"),
-      JSON.stringify({ pass, fail, missingOperationalCounts, weakDenominator, sameArtifact }, null, 2)
+      JSON.stringify(
+        {
+          pass,
+          fail,
+          missingOperationalCounts,
+          weakDenominator,
+          sameArtifact,
+          missingBaselineIdentity,
+          missingCurrentIdentity,
+        },
+        null,
+        2
+      )
     );
     throw new Error(`vFinal latency comparison self-test failed: ${failures.join("; ")}`);
   }
