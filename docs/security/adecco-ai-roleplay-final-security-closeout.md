@@ -688,17 +688,19 @@ Customer submission DoD:
   BLOCKED
 
 Remaining blockers:
-  - custom vFinal mendan.biz domain/DNS is not mapped; PR-B evidence uses the
-    dedicated hosted.app backend URL.
-  - project-wide XAI_API_KEY secretAccessor still includes the legacy shared App
-    Hosting service account for non-submitted direct comparison routes. Removing
-    it would risk breaking existing v3/direct xAI routes unless those routes are
-    migrated or formally de-scoped.
-  - latency baseline comparison is not complete. Current-vFinal 20-session
-    voice sampling is complete and passed, but the required 20-session
-    pre-vFinal baseline is unavailable without approved rollback or a separate
-    same-environment baseline deployment.
-  - verify:acceptance full rerun is blocked only by the known legacy
+  - Issue #138: custom vFinal mendan.biz domain/DNS is not mapped; PR-B
+    evidence uses the dedicated hosted.app backend URL. Resolve by either
+    approving hosted.app as the submitted URL or mapping a dedicated vFinal
+    mendan.biz custom domain to the dedicated backend.
+  - Issue #139: project-wide XAI_API_KEY secretAccessor still includes the
+    legacy shared App Hosting service account for non-submitted direct
+    comparison routes. Removing it would risk breaking existing v3/direct xAI
+    routes unless those routes are migrated or formally de-scoped.
+  - Issue #140: latency baseline comparison is not complete. Current-vFinal
+    20-session voice sampling is complete and passed, but the required
+    20-session pre-vFinal baseline is unavailable without approved rollback or a
+    separate same-environment baseline deployment.
+  - Issue #141: verify:acceptance full rerun is blocked only by the known legacy
     `staffing_order_hearing_busy_manager_medium::no-coaching` ElevenLabs
     ConvAI judge failure after three attempts. This is no longer a Secret
     Manager IAM blocker, but the vFinal customer-submission goal only named a
@@ -709,6 +711,13 @@ Remaining blockers:
     post-verify commands. REST calls with explicit Google API IP resolution were
     used for Cloud Run/App Hosting/Logging/Secret Manager evidence; this is an
     operator-environment issue, not a product runtime failure.
+
+Human-decision tracking:
+  - Umbrella blocker issue: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/128
+  - Domain/submitted URL decision: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/138
+  - Legacy shared App Hosting XAI_API_KEY scope: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/139
+  - Pre-vFinal latency baseline approval/collection: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/140
+  - Legacy verify:acceptance ConvAI judge blocker: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/141
 
 Current final evidence verdict:
   PASS for same-SHA App Hosting / Cloud Run relay deploy, post-deploy text/voice

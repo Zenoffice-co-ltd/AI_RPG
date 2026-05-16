@@ -877,6 +877,11 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   full run passes in a stable vendor window or the customer/operator explicitly
   approves this legacy ConvAI vendor judge failure as outside the vFinal
   submission DoD.
+- Remaining vFinal customer-submission human decisions are tracked as:
+  #138 submitted hosted.app URL vs dedicated `mendan.biz` mapping, #139 legacy
+  shared App Hosting `XAI_API_KEY` scope/de-scope, #140 pre-vFinal latency
+  baseline approval/collection, and #141 legacy `verify:acceptance` ConvAI
+  judge blocker approval or clean rerun. Umbrella tracking remains #128.
 
 ### 2026-05-16 — vFinal security foundation PR status
 
