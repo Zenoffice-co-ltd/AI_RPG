@@ -68,6 +68,20 @@ Manager payloads or mutate IAM, run:
 corepack pnpm grok:vfinal-legacy-xai-scope -- --expect=blocked
 ```
 
+For a live read-only #139 Secret Manager IAM boundary precheck that does not
+read secret payloads or mutate IAM, run:
+
+```bash
+corepack pnpm grok:vfinal-secret-iam-boundary -- --expect=blocked
+```
+
+This confirms whether the dedicated submitted vFinal service account still has
+no `XAI_API_KEY` access, whether the Cloud Run relay has the required
+relay-side secret access, and whether the legacy shared App Hosting service
+account still has `XAI_API_KEY` access. In the current state, expected
+`blocked` means the boundary is as documented but the legacy shared backend
+scope decision is still unresolved.
+
 For a no-secret #141 current-shell input inventory before attempting
 `verify:acceptance`, run:
 
@@ -118,6 +132,22 @@ The final comparison helper also requires artifact identity markers: baseline
 input must be identifiable as pre-vFinal/baseline evidence, and current input
 must be identifiable as current vFinal evidence.
 
+For a read-only #140 Cloud Logging inventory, run:
+
+```bash
+corepack pnpm grok:vfinal-cloud-log-latency-inventory -- --expect=blocked \
+  --project=adecco-mendan \
+  --freshness=7d \
+  --limit=1000
+```
+
+This inventory prints aggregate metadata only and does not persist raw Cloud
+Logging JSON. It can show whether Cloud Logging contains useful vFinal latency
+metadata, but it is not a replacement for the strict pre-vFinal baseline
+comparison because the current `grokFirstVFinal` turn logs do not include
+`sessionApiMs` and are current-service metadata rather than explicit
+pre-vFinal baseline artifacts.
+
 ## Current Codex Stop Conditions
 
 Codex must not change the final verdict to PASS until the checks above are
@@ -127,7 +157,8 @@ done. The current environment still has these blockers:
   approved and no dedicated `mendan.biz` mapping is active in this environment.
 - #139: the dedicated submitted vFinal runtime is no-key, but legacy shared App
   Hosting still has `XAI_API_KEY` access and needs scope approval or migration.
-- #140: cross-worktree search found no valid pre-vFinal baseline artifact.
+- #140: cross-worktree and read-only Cloud Logging inventory found no valid
+  comparison-ready pre-vFinal baseline artifact.
 - #141: current shell lacks required process-local inputs and Secret Manager
   access for a fresh clean rerun; earlier full run failed legacy ConvAI judge
   paths beyond the no-coaching-only exception.

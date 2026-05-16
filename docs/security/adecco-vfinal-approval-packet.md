@@ -86,6 +86,9 @@ Current state:
 - Cloud Run relay service account has `XAI_API_KEY` access, as expected.
 - Legacy shared App Hosting service account still has `XAI_API_KEY` access for
   non-submitted legacy/direct/internal comparison routes.
+- Latest read-only helper:
+  `corepack pnpm grok:vfinal-secret-iam-boundary -- --expect=blocked` confirms
+  the same boundary without reading secret payloads or mutating IAM.
 - The legacy shared runtime dependency inventory is tracked in
   `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`.
 
@@ -120,6 +123,12 @@ Current state:
 - No existing artifact was found that satisfies the strict same-environment,
   same-scenario, >=20-session pre-vFinal baseline requirement with the required
   metrics.
+- Latest read-only helpers:
+  - `corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked --root out\grok_first_vfinal_latency`
+  - `corepack pnpm grok:vfinal-cloud-log-latency-inventory -- --expect=blocked --project=adecco-mendan --freshness=7d --limit=1000`
+  The Cloud Logging inventory found current-service vFinal turn metadata only;
+  it does not include `sessionApiMs` and found 0 comparison-ready explicit
+  pre-vFinal baseline candidates.
 - Local artifact candidates are assessed in
   `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`.
 
