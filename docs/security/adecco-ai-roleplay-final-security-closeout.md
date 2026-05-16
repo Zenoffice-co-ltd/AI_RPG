@@ -79,6 +79,25 @@ passed only for expected BLOCKED: `corepack pnpm grok:vfinal-security-invariants
 and `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
 --check-github-issues --workbook=... --workbook=...`.
 
+2026-05-17 post-PR #216 continuation recheck: PR #216 merged to `origin/main`
+at `44fa647084c663f891ea98dfb1e970985e04e53d`, adding
+`corepack pnpm grok:vfinal-secret-iam-boundary` for read-only Secret Manager
+IAM boundary inventory. The helper reads IAM policies only and does not read,
+print, or persist secret payloads. Post-merge execution passed for the expected
+BLOCKED state: the dedicated submitted vFinal service account
+`firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` has no
+`XAI_API_KEY` access in `adecco-mendan` or `zapier-transfer`; the Cloud Run
+relay service account has required relay-side secret access; and the legacy
+shared App Hosting service account
+`firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` still has
+`XAI_API_KEY` access. #139 therefore remains blocked pending explicit submitted
+scope approval or migration/de-scope plus IAM removal and regression evidence.
+Additional post-PR #216 helper rechecks also passed only for expected BLOCKED:
+submitted URL candidates still have no active dedicated `mendan.biz` custom
+domain, current-shell acceptance inputs remain unavailable without Secret
+Manager/process-local injection, and both source questionnaire workbooks remain
+overall BLOCKED.
+
 ## Target
 
 - Submitted vFinal no-key URL:
@@ -101,6 +120,8 @@ and `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
 Checked on 2026-05-16 before starting the vFinal submission unblock work.
 Cloud Logging read/query docs were rechecked on 2026-05-17 before the
 post-PR #214 read-only latency inventory.
+Secret Manager IAM and Firebase App Hosting config docs were rechecked on
+2026-05-17 before the post-PR #216 read-only IAM boundary inventory.
 
 | Area | Official doc | Adoption decision |
 |---|---|---|
