@@ -120,6 +120,10 @@ its output:
 corepack pnpm grok:first-vfinal:latency-compare -- --baseline <pre-vFinal-summary.json> --current out/grok_first_vfinal_latency/2026-05-16T14-32-01-504Z/summary.json --baseline-close-code1006 <count> --current-close-code1006 <count> --baseline-relay-error <count> --current-relay-error <count> --out <comparison-summary.json>
 ```
 
+The guard fails if the baseline/current summary paths are identical, if either
+side has fewer than 20 runs, if any run failed, or if the required operational
+counters are missing.
+
 or
 
 ```text

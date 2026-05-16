@@ -79,4 +79,6 @@ corepack pnpm grok:first-vfinal:latency-compare -- \
 
 The comparison output is the evidence to cite before promoting this assessment
 to `PASS`. If the summary JSONs later include `closeCode1006Count` and
-`relayErrorCount`, the explicit count flags may be omitted.
+`relayErrorCount`, the explicit count flags may be omitted. Missing counter
+evidence, fewer than 20 runs, any failed run, or passing the same summary as
+both baseline and current returns `FAIL` and must keep #140 blocked.

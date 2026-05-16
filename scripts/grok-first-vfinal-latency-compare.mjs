@@ -139,6 +139,11 @@ function compareSummaries({ baseline, current, baselinePath, currentPath, minRun
       required: "current <= baseline",
     }
   );
+  pushCheck(checks, "baseline/current artifact identity", baselinePath !== currentPath, {
+    baselinePath,
+    currentPath,
+    required: "different summary artifacts",
+  });
 
   return {
     status: checks.every((check) => check.pass) ? "PASS" : "FAIL",
@@ -265,6 +270,22 @@ async function runSelfTest() {
     minRuns: 20,
     counts: {},
   });
+  const weakDenominator = compareSummaries({
+    baseline: { ...baseline, runCount: 19, sessionApiMs: { count: 19, p95: 300 } },
+    current: passingCurrent,
+    baselinePath: "baseline.json",
+    currentPath: "current.json",
+    minRuns: 20,
+    counts: {},
+  });
+  const sameArtifact = compareSummaries({
+    baseline,
+    current: passingCurrent,
+    baselinePath: "same.json",
+    currentPath: "same.json",
+    minRuns: 20,
+    counts: {},
+  });
 
   const failures = [];
   if (pass.status !== "PASS") failures.push("expected passing comparison to PASS");
@@ -272,8 +293,13 @@ async function runSelfTest() {
   if (missingOperationalCounts.status !== "FAIL") {
     failures.push("expected missing closeCode1006/relay.error counts to FAIL");
   }
+  if (weakDenominator.status !== "FAIL") failures.push("expected weak denominator to FAIL");
+  if (sameArtifact.status !== "FAIL") failures.push("expected same artifact to FAIL");
   if (failures.length > 0) {
-    await writeFile(join(dir, "debug.json"), JSON.stringify({ pass, fail, missingOperationalCounts }, null, 2));
+    await writeFile(
+      join(dir, "debug.json"),
+      JSON.stringify({ pass, fail, missingOperationalCounts, weakDenominator, sameArtifact }, null, 2)
+    );
     throw new Error(`vFinal latency comparison self-test failed: ${failures.join("; ")}`);
   }
   console.log("vFinal latency comparison self-test PASS");
