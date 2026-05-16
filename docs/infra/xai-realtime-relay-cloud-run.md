@@ -44,6 +44,11 @@ gcloud run deploy xai-realtime-relay \
 - Deploy the Web App and Cloud Run relay from the same Git SHA for
   `adecco-roleplay-vFinal`.
 - The relay is the only runtime that may hold `XAI_API_KEY` for vFinal.
+- The submitted vFinal Web/App Hosting environment must use the dedicated
+  `apps/web/apphosting.vfinal.yaml` contract or an equivalent backend/env that
+  omits `XAI_API_KEY`.
+- In production, invite signing and participant hash secrets are mandatory
+  separate secrets; do not reuse `XAI_RELAY_TICKET_SECRET` for invite/hash.
 - The relay must validate `Origin`, `Host`, ticket `aud`, ticket `path`, and
   `transport` before connecting to xAI.
 - vFinal relay tickets include `participantIdHash` and a nonce. The relay

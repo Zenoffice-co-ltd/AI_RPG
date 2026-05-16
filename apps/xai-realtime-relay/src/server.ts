@@ -405,8 +405,11 @@ function isAllowedVFinalClientMessage(message: unknown): boolean {
   if (record["type"] === "input_audio_buffer.append") {
     return typeof record["audio"] === "string";
   }
-  if (record["type"] === "response.create" || record["type"] === "response.cancel") {
-    return true;
+  if (record["type"] === "response.cancel") {
+    return Object.keys(record).length === 1;
+  }
+  if (record["type"] === "response.create") {
+    return Object.keys(record).length === 1;
   }
   if (record["type"] !== "conversation.item.create") return false;
   const item = record["item"];

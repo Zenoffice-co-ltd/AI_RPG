@@ -115,6 +115,11 @@ Required:
   `XAI_RELAY_TICKET_SECRET`.
 - vFinal Web/App Hosting runtime must not have `XAI_API_KEY`.
 - Web/App Hosting vFinal runtime holds only invite/hash/ticket issuance secrets.
+- Submitted vFinal App Hosting config is `apps/web/apphosting.vfinal.yaml`,
+  which intentionally omits `XAI_API_KEY`.
+- In production, `GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET` and
+  `GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET` are mandatory and must not fall
+  back to `XAI_RELAY_TICKET_SECRET`.
 
 If existing internal comparison routes still require `XAI_API_KEY`, deploy
 vFinal on a separate App Hosting backend/environment before customer
@@ -124,6 +129,7 @@ submission.
 Relay SA IAM:
 Web/App Hosting SA IAM:
 Runtime env proof:
+apps/web/apphosting.vfinal.yaml scan:
 Secret scan result:
 ```
 
