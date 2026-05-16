@@ -559,6 +559,7 @@ export function useGrokFirstRoleplayConversation(
             break;
           }
           appendUserTranscript({ text, channel: "voice", status: "final" });
+          micRef.current?.setEnabled(false);
           realtimeRef.current?.createResponse();
           void postEvent({
             kind: "stt.completed",
@@ -675,11 +676,13 @@ export function useGrokFirstRoleplayConversation(
             guardReasons: decision.reasons,
           });
           resetTurn();
-          setStatus(isMuted ? "muted" : "listening");
+          micRef.current?.setEnabled(!mutedRef.current);
+          setStatus(mutedRef.current ? "muted" : "listening");
           break;
         }
         case "conversation.item.input_audio_transcription.failed": {
           if (fixedGuardActiveRef.current) break;
+          micRef.current?.setEnabled(!mutedRef.current);
           void postEvent({
             kind: "stt.failed",
             sessionId: activeSession.sessionId,
@@ -695,7 +698,6 @@ export function useGrokFirstRoleplayConversation(
       ensureInterimAgentTranscript,
       handleFixedGuardDecision,
       isFixedGuardDraining,
-      isMuted,
       postEvent,
       releaseChunks,
       resetTurn,

@@ -802,6 +802,29 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   `7 PERMISSION_DENIED: Permission 'secretmanager.versions.access' denied on
   resource (or it may not exist)`.
 
+### 2026-05-16 — v50.8 verification productivity guardrails
+
+- Added repo SoT guidance for long-running E2E/DoD preflight: map the requested
+  denominator to an executable runner, confirm required secrets and aliases
+  without printing values, check package scripts, check stale local Next/Turbo
+  processes, and distinguish scoped harness evidence from final DoD.
+- Added focused skill
+  `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md` for v50
+  fixed guard smoke, spreadsheet guard plans, and v50.8 assistant-only drain
+  evidence. Cursor/Claude/Codex mirrors now restate the operational safety and
+  Secret Manager alias rules.
+- v50.8 browser harness hardening: start Next from `apps/web`, use Windows
+  process-tree cleanup for the child server, wait for the message input before
+  first send, try `DEMO_ACCESS_TOKEN` and `demo-access-token`, and support
+  PowerShell fallback when Node cannot resolve `gcloud.ps1`.
+- Latest scoped browser evidence for the 5-case back-to-back fixed_external
+  harness passed 3 consecutive clean runs:
+  `out/grok_first_v50_8_fixed_guard_e2e/20260516T063916Z/`,
+  `out/grok_first_v50_8_fixed_guard_e2e/20260516T064047Z/`, and
+  `out/grok_first_v50_8_fixed_guard_e2e/20260516T064223Z/`.
+- This is not a claim that the spreadsheet-defined `13/13 x3`, `69 P0 guards`,
+  or `93-turn full` DoD has passed; those require an exact case-set runner.
+
 ### 2026-05-16 — v50.8 fixed guard drain stabilization
 
 - Implemented `/demo/adecco-roleplay-v50-8` and `/api/grok-first-v50-8/*` with

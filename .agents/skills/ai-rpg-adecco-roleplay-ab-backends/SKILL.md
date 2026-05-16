@@ -105,6 +105,12 @@ events and must allow new user speech, STT completion/failure, and mic chunks.
 Its guard evidence is
 `guardrailVersion=grok-first-v50.8-guard-2026-05-16`, while
 `promptVersion` remains `grok-first-v50.6-2026-05-15`.
+For v50 fixed guard verification, prefer the focused repo skill
+`.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md`. Before
+claiming v50.8 final DoD, map the requested denominator to an actual runner:
+the 5-case back-to-back fixed_external browser harness is scoped evidence and
+does not replace the Excel-defined `13/13 x3`, `69 P0 guards`, or `93-turn full`
+case sets unless those exact cases were executed.
 v50-family routes should nevertheless use the same Cloud Run enterprise relay
 transport as v25 while they are being matured internally:
 `realtimeTransport=mendan_cloud_run_relay_wss`,

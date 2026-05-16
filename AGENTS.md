@@ -19,6 +19,8 @@
   1. Process env (`process.env["<NAME>"]`) if already set in the current shell.
   2. `apps/web/.env.local` (gitignored, local-only — never commit).
   3. Secret Manager via `gcloud secrets versions access latest --secret=<NAME> --project=<PROJECT>`. Project order: `SECRET_SOURCE_PROJECT_ID` env var → `zapier-transfer` (default) → `adecco-mendan` (per-tenant fallback for `XAI_API_KEY`, `ELEVENLABS_API_KEY`, etc.).
+- Secret names may differ from env names. For Adecco demo browser E2E, `DEMO_ACCESS_TOKEN` may come from Secret Manager secret `demo-access-token`, and v25/v50 relay flows also require `XAI_RELAY_TICKET_SECRET`. Resolve these aliases explicitly before declaring an E2E blocked.
+- On Windows, Node `spawn("gcloud", ...)` may fail to resolve the installed `gcloud.ps1`. E2E scripts must prefer existing process env first and either support PowerShell/gcloud.ps1 fallback or print a clear `BLOCKED: <NAME> not available` message with the attempted secret names/projects. Operators may inject secrets into the current shell only; never write them to tracked files.
 - **Canonical retrieval command** for ad-hoc local use:
   `gcloud secrets versions access latest --secret=<NAME> --project=<PROJECT>`
   Pull into the current shell only. Do not write the value into `apps/web/.env.local`, any tracked file, or any tool config.
@@ -38,6 +40,12 @@
 - For publish, release, or acceptance work, treat `pnpm verify:acceptance` as the canonical final gate.
 - If `verify:acceptance` is blocked, capture the blocker explicitly and verify the underlying substeps you touched.
 - When an acceptance blocker appears in a legacy path while working on a new scenario, isolate causality before closing: run the targeted scenario, compare relevant generated scenario/assets and test definitions, and record any non-task blocker in `docs/OPERATIONS.md`.
+- Before any long-running browser E2E, voice E2E, spreadsheet-driven test plan, or final DoD run, perform a short preflight and report blockers before spending runtime:
+  - Confirm the exact runner exists for the requested case set. If the plan is in Excel/Sheets, map each required sheet/case set to an executable command first; a narrower harness is scoped evidence, not final DoD.
+  - Confirm required secrets by name and alias without printing values.
+  - Confirm the package script still exists, or run the underlying script directly and note why.
+  - Confirm local dev-server ports and stale Next/Turbo processes before starting; reuse an existing server only after a one-turn event-capture check passes.
+  - State the DoD denominator up front, for example `5-case back-to-back harness`, `13/13 guard smoke`, `69 P0 guards`, or `93-turn full`.
 
 ## Always Before Merge
 

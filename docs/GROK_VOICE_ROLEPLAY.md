@@ -119,6 +119,16 @@ therefore includes user speech and STT time. v50.8 also records
 `fixedAudioBytes` so fixed artifact playback latency can be separated from STT
 latency.
 
+Verification note: before claiming v50.8 final DoD, map the requested case-set
+denominator to an executable runner. The dedicated
+`pnpm grok:first-v50-8:guard-e2e` harness covers the 5-case back-to-back
+fixed_external race and captures `/api/grok-first-v50-8/event` directly; it is
+scoped evidence, not a substitute for spreadsheet-defined `13/13 x3`,
+`69 P0 guards`, or `93-turn full` runs unless those exact cases are executed.
+For local browser E2E, resolve `DEMO_ACCESS_TOKEN` (Secret Manager alias
+`demo-access-token`) and `XAI_RELAY_TICKET_SECRET` without printing values, and
+start Next from `apps/web` so workspace package links resolve.
+
 Contract:
 
 - Grok Voice Think Fast generates every business answer in realtime.
