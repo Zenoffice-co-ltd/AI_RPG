@@ -910,9 +910,16 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   drain evidence. Later on 2026-05-16, this same skill was promoted to the
   broader v50 voice E2E naturalness SoT described above. Cursor/Claude/Codex
   mirrors now restate the operational safety and Secret Manager alias rules.
-- This entry documents process guardrails only. It is not a claim that
-  spreadsheet-defined `13/13 x3`, `69 P0 guards`, or `93-turn full` DoD has
-  passed; those require an exact case-set runner and fresh evidence.
+- The fixed guard browser harness now supports
+  `pnpm grok:first-v50-8:guard-e2e -- --case-set guard-smoke --repeat 3`,
+  which loads spreadsheet `04_Turn_Cases` / `E2E-02` and runs the 13 fixed guard
+  smoke cases three consecutive times. Latest scoped text-input browser
+  evidence passed `39/39` with `guard.detected=39`, playback started/completed
+  `39/39`, and `turn.completed=39`:
+  `out/grok_first_v50_8_fixed_guard_e2e/20260516T075432Z/`.
+- This entry is not a claim that `69 P0 guards`, Voice/STT guard smoke, normal
+  sales naturalness gates, or `93-turn full` DoD has passed; those require exact
+  case-set runners/evidence.
 
 ### 2026-05-14 — roleplay.mendan.biz custom domain cutover BLOCKED_DNS
 

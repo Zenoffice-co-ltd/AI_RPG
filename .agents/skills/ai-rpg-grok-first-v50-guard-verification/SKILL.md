@@ -355,6 +355,12 @@ Before any long-running run:
    For spreadsheet or case-set voice E2E:
    `pnpm grok:first-v50:voice-e2e` or the existing
    `pnpm grok-first:v50:xlsx-voice-e2e`.
+   For v50.8 fixed guard browser evidence:
+   `pnpm grok:first-v50-8:guard-e2e`. For spreadsheet `13/13 x3` fixed
+   guard smoke, use:
+   `pnpm grok:first-v50-8:guard-e2e -- --case-set guard-smoke --repeat 3`.
+   Use `--list-cases` first when mapping the denominator without starting a
+   browser run.
 4. Confirm secrets without printing values:
    - `DEMO_ACCESS_TOKEN` env or Secret Manager `demo-access-token`
    - `XAI_RELAY_TICKET_SECRET` for relay-ticket v50/v25 routes
@@ -440,7 +446,8 @@ Always distinguish:
 - backchannel evidence, e.g. `50/50`
 - transition evidence, e.g. `11/12 scenarios, 95% turns`
 - scoped fixed harness evidence, e.g. `5/5 x3 back-to-back fixed_external`
-- Excel guard smoke evidence, e.g. `13/13 x3`
+- Excel guard smoke evidence, e.g. `13/13 x3`; name whether it is text-input
+  browser evidence or Voice/STT evidence
 - P0 guard evidence, e.g. `69/69`
 - full E2E evidence, e.g. `93 turns`
 
