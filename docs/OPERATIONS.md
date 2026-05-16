@@ -1107,6 +1107,13 @@ from the expected GitHub account.
   This remains documentation/tooling evidence only; no production, IAM, DNS,
   App Hosting, Cloud Run, Cloud Armor, Cloud Logging, workbook, or runtime
   change was made.
+- 2026-05-17 03:26 JST #138 recheck: `Resolve-DnsName
+  roleplay-vfinal.mendan.biz` and `Resolve-DnsName adecco-roleplay.mendan.biz`
+  returned no result in this environment. `curl -I` against
+  `https://roleplay-vfinal.mendan.biz/demo/adecco-roleplay-vFinal` failed with
+  host resolution error, while the dedicated hosted.app URL returned HTTP 200.
+  #138 remains BLOCKED pending explicit hosted.app approval or active dedicated
+  custom-domain mapping/certificate evidence.
 
 ### 2026-05-17 — vFinal workbook human-confirmation issue
 

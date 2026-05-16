@@ -22,6 +22,8 @@ Read-only evidence:
   `api.x.ai` count 0, and forbidden session keys absent.
 - 2026-05-17 02:09 JST HEAD request returned HTTP 200 for the hosted.app
   candidate page.
+- 2026-05-17 03:26 JST HEAD request returned HTTP 200 for the hosted.app
+  candidate page.
 - DNS resolution in this environment returned A/AAAA records for
   `adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app`.
 
@@ -35,8 +37,15 @@ adecco-roleplay.mendan.biz
 ```
 
 Latest read-only checks in this environment still returned no DNS resolver
-result for both candidates. That means there is no verified active dedicated
-custom-domain mapping/certificate evidence for the submitted vFinal backend.
+result for both candidates. 2026-05-17 03:26 JST recheck:
+
+- `Resolve-DnsName roleplay-vfinal.mendan.biz` returned no result.
+- `Resolve-DnsName adecco-roleplay.mendan.biz` returned no result.
+- `curl -I https://roleplay-vfinal.mendan.biz/demo/adecco-roleplay-vFinal`
+  failed with host resolution error.
+
+That means there is no verified active dedicated custom-domain
+mapping/certificate evidence for the submitted vFinal backend.
 
 ## Legacy Shared URL
 

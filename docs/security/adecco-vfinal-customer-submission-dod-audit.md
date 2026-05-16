@@ -37,6 +37,14 @@ tracked items:
   DNS result in this environment. The dedicated hosted.app URL returned HTTP
   200. This supports hosted.app availability but does not replace #138
   approval.
+- 2026-05-17 03:26 JST submitted URL recheck:
+  `Resolve-DnsName roleplay-vfinal.mendan.biz` and
+  `Resolve-DnsName adecco-roleplay.mendan.biz` returned no result in this
+  environment. `curl -I` against
+  `https://roleplay-vfinal.mendan.biz/demo/adecco-roleplay-vFinal` failed with
+  host resolution error. `curl -I` against the dedicated hosted.app URL returned
+  HTTP 200. #138 therefore remains blocked pending hosted.app approval or
+  active custom-domain mapping/certificate evidence.
 - 2026-05-17 #138 submitted URL decision inventory:
   `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` records
   that the dedicated hosted.app URL is live and separated, but not formally
