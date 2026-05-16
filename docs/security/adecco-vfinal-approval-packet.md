@@ -60,6 +60,11 @@ Submitted-URL smoke passed with session 200, relay WSS only, direct api.x.ai cou
 and forbidden session keys absent.
 ```
 
+The custom-domain approval path must name a dedicated vFinal domain mapped to
+`adecco-roleplay-vfinal`. The legacy shared comparison domain
+`roleplay.mendan.biz` is not a valid submitted vFinal URL for this approval
+path.
+
 or
 
 ```text
@@ -223,12 +228,14 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
   --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
 
+PASS mode requires both source questionnaire workbooks above; running the final
+guard without them is not valid submission evidence.
+
 If any of #138, #139, #140, #141, or #171 remain OPEN and are resolved by approval
 comment rather than closure, `--approval-author=<approver-github-login>` or
 `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required. The guard rejects
 approval-based PASS for OPEN blockers unless the expected GitHub approver login
-list is supplied.
-before running the final PASS guard.
+list is supplied before running the final PASS guard.
 Approval comments must replace every `<placeholder>` in this packet with a
 concrete value. The guard rejects approval comments that still contain unfilled
 angle-bracket placeholders.
