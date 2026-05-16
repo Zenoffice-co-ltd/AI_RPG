@@ -85,6 +85,49 @@ Latest read-only IAM recheck, 2026-05-17 04:20 JST:
   Voice roleplay is enabled. That means IAM removal remains a migration /
   de-scope decision, not a safe read-only cleanup.
 
+2026-05-17 05:13 JST read-only IAM/config recheck:
+
+- Official docs were rechecked immediately before the IAM review:
+  Secret Manager `roles/secretmanager.secretAccessor` grants secret payload
+  access through `secretmanager.versions.access`; `roles/secretmanager.viewer`
+  is metadata-only. Firebase App Hosting supports `apphosting.yaml` secret
+  references backed by Cloud Secret Manager and loads secret values during
+  rollout.
+- `gcloud secrets get-iam-policy XAI_API_KEY --project=adecco-mendan
+  --format=json` again showed the legacy shared App Hosting compute service
+  account and Cloud Run relay service account under
+  `roles/secretmanager.secretAccessor`, and the legacy shared App Hosting
+  compute service account under `roles/secretmanager.viewer`. The dedicated
+  submitted vFinal service account was still absent from this policy.
+- `gcloud secrets get-iam-policy XAI_API_KEY --project=zapier-transfer
+  --format=json` showed only the legacy shared App Hosting compute service
+  account under `roles/secretmanager.secretAccessor`; the dedicated submitted
+  vFinal service account was absent from this policy too.
+- `gcloud secrets get-iam-policy XAI_RELAY_TICKET_SECRET --project=adecco-mendan
+  --format=json` showed the shared App Hosting compute service account, the
+  dedicated submitted vFinal service account, and the Cloud Run relay service
+  account under `roles/secretmanager.secretAccessor`. This matches the relay
+  ticket boundary: submitted vFinal web runtime signs relay tickets, while the
+  relay validates them. `XAI_RELAY_TICKET_SECRET` was not found in
+  `zapier-transfer`.
+- `gcloud secrets get-iam-policy GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET
+  --project=adecco-mendan --format=json` and
+  `gcloud secrets get-iam-policy GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET
+  --project=adecco-mendan --format=json` showed both shared and dedicated
+  vFinal App Hosting service accounts under `roles/secretmanager.secretAccessor`.
+- `gcloud secrets get-iam-policy demo-access-token --project=adecco-mendan
+  --format=json` showed only the legacy shared App Hosting compute service
+  account under `roles/secretmanager.secretAccessor`. `DEMO_ACCESS_TOKEN` was
+  not found because it is the environment variable name; the actual secret
+  alias is `demo-access-token`, as documented in `apps/web/apphosting.yaml`.
+- `apps/web/apphosting.vfinal.yaml` still omits `XAI_API_KEY` and binds only
+  `XAI_RELAY_TICKET_SECRET`,
+  `GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET`, and
+  `GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET`. The shared
+  `apps/web/apphosting.yaml` still binds `XAI_API_KEY`,
+  `XAI_RELAY_TICKET_SECRET`, the two vFinal invite/hash secrets, and
+  `DEMO_ACCESS_TOKEN` via `demo-access-token`.
+
 Code/config evidence:
 
 - `apps/web/apphosting.yaml` still binds `XAI_API_KEY`.
