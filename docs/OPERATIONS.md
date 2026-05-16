@@ -812,6 +812,20 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal CI guard self-test coverage
+
+- Updated `.github/workflows/vfinal-security-verify.yml` so changes to the
+  newer vFinal helper scripts trigger the vFinal verify workflow.
+- Added CI self-tests for `grok:vfinal-legacy-xai-scope`,
+  `grok:vfinal-submitted-url-candidates`,
+  `grok:vfinal-workbook-human-confirmations`, and
+  `grok:first-vfinal:latency-artifact-inventory`.
+- These are offline self-tests only. They do not read Secret Manager payloads,
+  mutate IAM/DNS/App Hosting, call production URLs, or modify the source
+  workbooks. Customer submission DoD remains BLOCKED until #138, #139, #140,
+  #141, and #171 are resolved or formally approved and the final PASS guard
+  succeeds.
+
 ### 2026-05-17 — vFinal final PASS evidence marker guard
 
 - Tightened `corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass`
