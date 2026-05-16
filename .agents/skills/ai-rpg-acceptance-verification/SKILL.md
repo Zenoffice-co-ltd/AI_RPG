@@ -121,6 +121,8 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass --check-github-
 
 Both source questionnaire workbooks are required in PASS mode; the final guard
 rejects a PASS run that omits them.
+`--check-github-issues` is also required in PASS mode so #138, #139, #140,
+#141, and #171 are verified closed or approved.
 
 If approved open blockers are being relied on, `--approval-author=<approver-github-login>`
 or `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required; the guard rejects
