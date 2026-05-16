@@ -16,6 +16,7 @@ on:
       - "scripts/check-vfinal-submission-dod-status.mjs"
       - "scripts/deploy-adecco-roleplay-gcloud.mjs"
       - "scripts/grok-first-vfinal-browser-e2e.mjs"
+      - "scripts/grok-first-vfinal-latency-compare.mjs"
       - "docs/security/adecco-ai-roleplay-final-security-closeout.md"
       - "docs/security/adecco-vfinal-approval-packet.md"
       - "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md"
@@ -50,6 +51,8 @@ jobs:
         run: pnpm grok:vfinal-submission-dod-status
       - name: vFinal customer submission DoD status guard self-test
         run: pnpm grok:vfinal-submission-dod-status:self-test
+      - name: vFinal latency comparison self-test
+        run: pnpm grok:first-vfinal:latency-compare -- --self-test
       - name: vFinal targeted unit tests
         run: |
           pnpm --filter @top-performer/web test -- tests/unit/grok-first-vfinal.test.ts

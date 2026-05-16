@@ -145,7 +145,12 @@ Rules:
 - #140 cannot be closed by a current-vFinal-only sample or a missing-baseline
   waiver. It needs a same-environment, same-scenario, >=20-session pre-vFinal
   baseline, p95 comparison within thresholds, WSS close-code 1006 comparison,
-  relay.error comparison, and `Comparison result: PASS`.
+  relay.error comparison, and `Comparison result: PASS`. Once baseline evidence
+  exists, run `corepack pnpm grok:first-vfinal:latency-compare -- --baseline
+  <pre-vFinal-summary.json> --current <current-vFinal-summary.json>
+  --baseline-close-code1006 <count> --current-close-code1006 <count>
+  --baseline-relay-error <count> --current-relay-error <count>` and cite its
+  output.
 - #171 keeps the questionnaire drafts non-final until the mapped workbook cells
   are human-confirmed or rewritten and the issue is closed or approved.
 - If `verify:acceptance` is blocked by Secret Manager IAM or current-shell
