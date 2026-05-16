@@ -812,6 +812,21 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
 
 ## Latest execution log
 
+### 2026-05-17 — vFinal IAM and acceptance preflight read-only recheck
+
+- Rechecked #139 `XAI_API_KEY` IAM policy without reading secret values:
+  legacy shared App Hosting compute SA and Cloud Run relay SA still have
+  `roles/secretmanager.secretAccessor`; legacy shared App Hosting compute SA
+  still has `roles/secretmanager.viewer`; dedicated vFinal App Hosting SA is
+  not present on the `XAI_API_KEY` IAM policy.
+- Rechecked #141 with `corepack pnpm verify:acceptance -- --preflight`; the
+  current shell still fails before product checks with Secret Manager
+  `secretmanager.versions.access` permission denied. Secret values were not
+  printed or persisted.
+- #139 and #141 remain BLOCKED pending explicit scope/acceptance approval,
+  migration/de-scope, adequate Secret Manager execution identity, or a clean
+  full acceptance rerun as applicable.
+
 ### 2026-05-17 — vFinal submitted URL read-only recheck
 
 - Rechecked #138 submitted URL candidates without DNS, App Hosting, or
