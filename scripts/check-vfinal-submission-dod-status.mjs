@@ -11,7 +11,41 @@ const workbookPaths = [
 ];
 const shouldCheckGithubIssues =
   boolArg("check-github-issues") || process.env.VFINAL_SUBMISSION_DOD_CHECK_GITHUB_ISSUES === "1";
+const allowOpenApprovedIssues =
+  boolArg("allow-open-approved-issues") ||
+  process.env.VFINAL_SUBMISSION_DOD_ALLOW_OPEN_APPROVED_ISSUES === "1";
 const requiredIssues = [138, 139, 140, 141];
+const issueApprovalNeedles = new Map([
+  [
+    138,
+    [
+      "Approved: the dedicated hosted.app URL is acceptable as the vFinal customer",
+      "submitted URL.",
+    ],
+  ],
+  [
+    139,
+    [
+      "Approved: the vFinal customer-submitted runtime scope is limited to the",
+      "dedicated no-key App Hosting backend adecco-roleplay-vfinal and its submitted",
+      "customer submission.",
+    ],
+  ],
+  [
+    140,
+    [
+      "Approved: accept the current-vFinal 20-session latency sample as scoped evidence",
+      "waive the missing strict pre-vFinal baseline for this submission.",
+    ],
+  ],
+  [
+    141,
+    [
+      "Approved: the current verify:acceptance blocker is a legacy ConvAI vendor judge",
+      "outside the customer submission DoD.",
+    ],
+  ],
+]);
 const allowedExpected = new Set(["auto", "blocked", "pass"]);
 if (!allowedExpected.has(expected)) {
   console.error(`Invalid --expect value: ${expected}. Use auto, blocked, or pass.`);
@@ -123,23 +157,36 @@ console.log(
 function checkGithubIssues(expectedStatus) {
   const results = [];
   for (const number of requiredIssues) {
-    const issue = readGithubIssue(number);
+    const issue = readGithubIssue(number, {
+      includeComments: expectedStatus === "pass" && allowOpenApprovedIssues,
+    });
     results.push(issue);
     if (!issue.ok) continue;
     if (expectedStatus === "blocked" && issue.state !== "OPEN") {
       failures.push(`#${number} should stay OPEN while customer submission DoD is blocked; got ${issue.state}`);
     }
     if (expectedStatus === "pass" && issue.state !== "CLOSED") {
-      failures.push(`#${number} must be CLOSED before customer submission DoD PASS; got ${issue.state}`);
+      if (allowOpenApprovedIssues && issueHasApproval(issue)) {
+        issue.approvalAccepted = true;
+      } else {
+        failures.push(
+          `#${number} must be CLOSED before customer submission DoD PASS` +
+            (allowOpenApprovedIssues ? " or contain the required approval comment" : "") +
+            `; got ${issue.state}`
+        );
+      }
     }
   }
   return results;
 }
 
-function readGithubIssue(number) {
+function readGithubIssue(number, options = {}) {
+  const fields = options.includeComments
+    ? "number,state,title,updatedAt,comments"
+    : "number,state,title,updatedAt";
   const result = spawnSync(
     "gh",
-    ["issue", "view", String(number), "--json", "number,state,title,updatedAt"],
+    ["issue", "view", String(number), "--json", fields],
     { cwd: root, encoding: "utf8", windowsHide: true }
   );
   if (result.status !== 0) {
@@ -152,6 +199,36 @@ function readGithubIssue(number) {
     failures.push(`#${number} GitHub issue JSON parse failed: ${error.message}`);
     return { number, ok: false };
   }
+}
+
+function issueHasApproval(issue) {
+  const needles = issueApprovalNeedles.get(issue.number) ?? [];
+  const comments = Array.isArray(issue.comments) ? issue.comments : [];
+  return comments.some((comment) => {
+    const body = normalizeApprovalText(approvalCandidateText(comment?.body ?? ""));
+    if (!body.startsWith("Approved:")) return false;
+    return needles.every((needle) => body.includes(normalizeApprovalText(needle)));
+  });
+}
+
+function approvalCandidateText(markdown) {
+  const lines = String(markdown).split(/\r?\n/);
+  const kept = [];
+  let inFence = false;
+  for (const line of lines) {
+    if (/^\s*```/.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+    if (/^\s*>/.test(line)) continue;
+    kept.push(line);
+  }
+  return kept.join("\n");
+}
+
+function normalizeApprovalText(value) {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function checkWorkbook(path, expectedStatus) {
