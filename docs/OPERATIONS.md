@@ -909,6 +909,29 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   `C:\Users\yukih\Downloads\vfinal_dod_excel_backups\`. The TPISA `.xlsm`
   workbook was saved with its VBA project present.
 
+### 2026-05-17 — vFinal post-PR149 blocker recheck
+
+- Checked #138, #139, #140, and #141 after PR #149 merged. All four issues
+  remain OPEN and no approval comments were present.
+- Submitted URL recheck: the dedicated hosted.app vFinal URL returned HTTP
+  200. `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still had
+  no DNS resolver result in this environment.
+- Read-only IAM recheck:
+  `gcloud secrets get-iam-policy XAI_API_KEY --project=adecco-mendan
+  --format=json` still shows `roles/secretmanager.secretAccessor` for
+  `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` and
+  `xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com`, plus
+  `roles/secretmanager.viewer` for the legacy shared App Hosting compute
+  service account. The dedicated vFinal service account
+  `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` was not
+  present on the `XAI_API_KEY` policy.
+- Current-shell acceptance preflight:
+  `corepack pnpm verify:acceptance -- --preflight` still fails before product
+  checks with Secret Manager `secretmanager.versions.access` permission denied
+  when process-local vendor env values and `apps/web/.env.local` are absent.
+- No production changes were made. Customer submission DoD remains BLOCKED
+  pending #138, #139, #140, and #141 resolution or explicit approval.
+
 ### 2026-05-16 — vFinal submission unblock PR-A
 
 - PR-A scope is limited to vFinal auth unblock and raw invite query removal.
