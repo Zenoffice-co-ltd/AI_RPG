@@ -1044,6 +1044,22 @@ from the expected GitHub account.
   remains BLOCKED pending #138 approval or custom-domain mapping/certificate
   evidence.
 
+### 2026-05-17 — vFinal acceptance blocker inventory
+
+- Added `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` for
+  #141.
+- Latest current-shell `corepack pnpm verify:acceptance -- --preflight` still
+  failed before product checks with Secret Manager `secretmanager.versions.access`
+  permission denied. No secret values were printed or persisted.
+- The inventory keeps the earlier executable full-run evidence separate from
+  the current-shell Secret Manager blocker: latest full run failed legacy
+  `staffing_order_hearing_busy_manager_medium` judge paths including
+  `no-coaching`, `role-adherence`, and `no-hidden-fact-leak`, so Codex is not
+  applying the no-coaching-only exception autonomously.
+- This is documentation only. Customer submission DoD remains BLOCKED pending a
+  clean `verify:acceptance` PASS, explicit legacy blocker approval, or legacy
+  judge path fix/re-scope.
+
 - CI guard update: `.github/workflows/vfinal-security-verify.yml` now also runs
   `corepack pnpm grok:vfinal-submission-dod-status` for checked-in closeout,
   DoD audit, questionnaire map, approval packet, and operations changes.

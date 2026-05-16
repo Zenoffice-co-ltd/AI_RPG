@@ -57,6 +57,7 @@ These statements are currently supported by code/infrastructure evidence in
 | ZAP baseline/passive scan | Supported. | ZAP baseline/passive exitCode 0, FAIL=0, WARN=8 documented; no active scan was run. |
 | Current-vFinal latency sample | Supported only as current-vFinal scoped evidence, not formal comparison PASS. | 20/20 current-vFinal voice sample passed; pre-vFinal baseline missing. |
 | Pre-vFinal latency baseline | Not supported yet. | Candidate assessment: `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`; no approved strict >=20-session pre-vFinal baseline found. |
+| Acceptance closure | Not supported yet. | Inventory: `docs/security/adecco-vfinal-acceptance-blocker-inventory.md`; latest full run failed legacy ConvAI judge paths and current-shell preflight lacks Secret Manager access. |
 
 ## Draft Answers Requiring Human Confirmation
 

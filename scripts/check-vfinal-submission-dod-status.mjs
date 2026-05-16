@@ -83,6 +83,12 @@ const files = {
     "security",
     "adecco-vfinal-latency-baseline-candidate-assessment.md"
   ),
+  acceptanceBlockerInventory: join(
+    root,
+    "docs",
+    "security",
+    "adecco-vfinal-acceptance-blocker-inventory.md"
+  ),
 };
 
 const failures = [];
@@ -118,6 +124,7 @@ const questionnaireMapStatus = matchOne(
 const submittedUrlDecisionInventoryStatus = matchSubmittedUrlDecisionInventoryStatus();
 const legacyXaiScopeInventoryStatus = matchLegacyXaiScopeInventoryStatus();
 const latencyBaselineAssessmentStatus = matchLatencyBaselineAssessmentStatus();
+const acceptanceBlockerInventoryStatus = matchAcceptanceBlockerInventoryStatus();
 
 const normalizedExpected =
   expected === "auto" ? closeoutVerdict?.toLowerCase() : expected;
@@ -130,6 +137,7 @@ if (normalizedExpected === "blocked") {
   requireEqual(submittedUrlDecisionInventoryStatus, "BLOCKED", "submitted URL decision inventory status");
   requireEqual(legacyXaiScopeInventoryStatus, "BLOCKED", "legacy XAI scope inventory status");
   requireEqual(latencyBaselineAssessmentStatus, "BLOCKED", "latency baseline assessment status");
+  requireEqual(acceptanceBlockerInventoryStatus, "BLOCKED", "acceptance blocker inventory status");
   requireIncludes(
     source.submittedUrlDecisionInventory,
     "submitted URL approval or custom domain mapping still required",
@@ -206,6 +214,31 @@ if (normalizedExpected === "blocked") {
     "approval packet #140 latency assessment link"
   );
   requireIncludes(
+    source.acceptanceBlockerInventory,
+    "acceptance PASS or explicit legacy blocker approval still required",
+    "acceptance blocker inventory blocked status"
+  );
+  requireIncludes(
+    source.closeout,
+    "docs/security/adecco-vfinal-acceptance-blocker-inventory.md",
+    "closeout #141 acceptance blocker inventory link"
+  );
+  requireIncludes(
+    source.audit,
+    "docs/security/adecco-vfinal-acceptance-blocker-inventory.md",
+    "audit #141 acceptance blocker inventory link"
+  );
+  requireIncludes(
+    source.questionnaireMap,
+    "docs/security/adecco-vfinal-acceptance-blocker-inventory.md",
+    "questionnaire map #141 acceptance blocker inventory link"
+  );
+  requireIncludes(
+    source.approvalPacket,
+    "docs/security/adecco-vfinal-acceptance-blocker-inventory.md",
+    "approval packet #141 acceptance blocker inventory link"
+  );
+  requireIncludes(
     source.questionnaireMap,
     "security-checksheet submission DoD",
     "questionnaire map security-checksheet blocked status"
@@ -235,6 +268,7 @@ if (normalizedExpected === "pass") {
   requireEqual(submittedUrlDecisionInventoryStatus, "PASS", "submitted URL decision inventory status");
   requireEqual(legacyXaiScopeInventoryStatus, "PASS", "legacy XAI scope inventory status");
   requireEqual(latencyBaselineAssessmentStatus, "PASS", "latency baseline assessment status");
+  requireEqual(acceptanceBlockerInventoryStatus, "PASS", "acceptance blocker inventory status");
   rejectIncludes(source.closeout, "Remaining blockers:", "closeout should not list blockers after PASS");
   rejectIncludes(source.audit, "Customer submission remains blocked", "audit should not say blocked after PASS");
   rejectIncludes(
@@ -266,6 +300,16 @@ if (normalizedExpected === "pass") {
     source.latencyBaselineAssessment,
     "Issue #140 remains blocked",
     "latency baseline assessment should not say #140 remains blocked after PASS"
+  );
+  rejectIncludes(
+    source.acceptanceBlockerInventory,
+    "acceptance PASS or explicit legacy blocker approval still required",
+    "acceptance blocker inventory should not say acceptance approval required after PASS"
+  );
+  rejectIncludes(
+    source.acceptanceBlockerInventory,
+    "Issue #141 remains blocked",
+    "acceptance blocker inventory should not say #141 remains blocked after PASS"
   );
   rejectIncludes(
     source.audit,
@@ -316,6 +360,7 @@ console.log(
       submittedUrlDecisionInventoryStatus,
       legacyXaiScopeInventoryStatus,
       latencyBaselineAssessmentStatus,
+      acceptanceBlockerInventoryStatus,
       blockers: normalizedExpected === "blocked" ? ["#138", "#139", "#140", "#141"] : [],
       workbooks: workbookResults,
       githubIssues,
@@ -360,6 +405,19 @@ function matchLatencyBaselineAssessmentStatus() {
   }
   failures.push(
     "latency baseline assessment status must be PASS or no approved strict pre-vFinal baseline found"
+  );
+  return null;
+}
+
+function matchAcceptanceBlockerInventoryStatus() {
+  const text = source.acceptanceBlockerInventory;
+  if (typeof text !== "string") return null;
+  if (/^Status as of .*?: \*\*PASS\b.*?\*\*\./m.test(text)) return "PASS";
+  if (/^Status as of .*?: \*\*acceptance PASS or explicit legacy blocker approval still required\*\*\./m.test(text)) {
+    return "BLOCKED";
+  }
+  failures.push(
+    "acceptance blocker inventory status must be PASS or acceptance PASS or explicit legacy blocker approval still required"
   );
   return null;
 }

@@ -72,6 +72,13 @@ tracked items:
   `QUEUE_SHARED_SECRET` and no `apps/web/.env.local`. This does not replace the
   earlier full-run legacy ConvAI judge evidence; it means a fresh clean rerun
   currently needs process-local secrets or a stronger execution identity.
+- 2026-05-17 #141 acceptance blocker inventory:
+  `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` records the
+  latest executable full rerun state and the current-shell preflight blocker.
+  The latest full rerun failed legacy ConvAI judge paths beyond the
+  no-coaching-only exception, while a fresh current-shell preflight still stops
+  before product checks on Secret Manager access. This narrows the #141
+  decision but does not replace a clean PASS or explicit approval.
 - 2026-05-17 00:44 JST acceptance full rerun:
   process-local secrets were resolved from Secret Manager without printing or
   persisting values, preflight was ready, and the full gate again failed at the
@@ -149,7 +156,7 @@ tracked items:
 | 18 | WSS close code 1006 increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded closeCode1006=0. Formal comparison remains tied to #140. |
 | 19 | `relay.error` increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded relay.error=0. Formal comparison remains tied to #140. |
 | 20 | ZAP baseline/passive scan PASS | PASS | ZAP baseline/passive exitCode 0, FAIL=0, WARN=8 documented; no active scan was run. |
-| 21 | `verify:acceptance` PASS or Secret Manager IAM blocker formally issue-tracked and approved outside customer submission | BLOCKED by #141 | Latest 2026-05-17 00:44 JST full rerun had process-local secrets, reached the legacy publish scenario, and failed `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` across retries. This is not a vFinal runtime regression, but it is not PASS and is not eligible for the no-coaching-only exception without customer/operator approval. |
+| 21 | `verify:acceptance` PASS or Secret Manager IAM blocker formally issue-tracked and approved outside customer submission | BLOCKED by #141 | Latest 2026-05-17 00:44 JST full rerun had process-local secrets, reached the legacy publish scenario, and failed `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` across retries. This is not a vFinal runtime regression, but it is not PASS and is not eligible for the no-coaching-only exception without customer/operator approval. The acceptance blocker inventory is recorded in `docs/security/adecco-vfinal-acceptance-blocker-inventory.md`. |
 | 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED | Closeout still intentionally lists #138, #139, #140, and #141 as unresolved. The submitted URL decision inventory is recorded in `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`. |
 | 23 | Closeout records official docs checked, backend/rollout/revision/traffic, relay image/revision/traffic, same Git SHA deploy, service account/IAM proof, log retention proof, WAF proof, session contract, browser WS capture, direct `api.x.ai` 0, relay phases, sensitive scan, live E2E, latency, ZAP, and acceptance | PASS for recorded evidence; blockers remain explicit | The closeout contains the required evidence sections. Latency and acceptance sections are recorded as BLOCKED rather than PASS. |
 | 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs are merged through the latest blocker-recheck updates, but no final PASS PR can be honestly created until #138-#141 are resolved or approved. |

@@ -30,6 +30,8 @@ The #139 legacy shared XAI scope inventory is tracked in
 `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`.
 The #140 latency baseline candidate assessment is tracked in
 `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`.
+The #141 acceptance blocker inventory is tracked in
+`docs/security/adecco-vfinal-acceptance-blocker-inventory.md`.
 
 ## Target
 
@@ -846,6 +848,13 @@ Remaining blockers:
     verify:acceptance -- --preflight` still stopped before product checks with
     Secret Manager `secretmanager.versions.access` permission denied in the
     current shell. No production changes were made.
+  - 2026-05-17 #141 acceptance blocker inventory:
+    `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` records that
+    the latest executable full rerun failed on legacy ConvAI judge paths beyond
+    the no-coaching-only exception, and that a fresh current-shell preflight
+    still stops on Secret Manager `secretmanager.versions.access`. This keeps
+    #141 blocked pending clean `verify:acceptance` PASS, explicit legacy
+    blocker approval, or legacy judge path fix/re-scope.
   - 2026-05-17 #140 baseline candidate assessment:
     `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`
     records that local artifact candidates either are current-vFinal samples,

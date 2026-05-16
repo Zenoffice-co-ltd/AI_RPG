@@ -124,6 +124,8 @@ Current state:
 - Latest rerun failed `no-coaching` on retry 1, `role-adherence` plus
   `no-coaching` on retry 2, and `no-hidden-fact-leak` plus `no-coaching` on
   retry 3. Codex is not applying the no-coaching-only exception autonomously.
+- The acceptance blocker inventory is tracked in
+  `docs/security/adecco-vfinal-acceptance-blocker-inventory.md`.
 
 Approve one:
 
