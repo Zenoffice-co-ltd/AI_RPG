@@ -22,7 +22,9 @@ const approvalAuthors = [
   ...listArgs("approval-author"),
   ...envList("VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS"),
 ];
-const requiredIssues = [138, 139, 140, 141, 171];
+const umbrellaIssue = 128;
+const blockerIssues = [138, 139, 140, 141, 171];
+const requiredIssues = [umbrellaIssue, ...blockerIssues];
 const issueApprovalNeedles = new Map([
   [
     138,
@@ -65,6 +67,8 @@ const issueApprovalNeedles = new Map([
       "firstAudibleAudioMs p95",
       "closeCode1006 increase:",
       "relay.error increase:",
+      "Comparison guard: corepack pnpm grok:first-vfinal:latency-compare PASS",
+      "Comparison summary:",
       "Comparison result: PASS",
     ],
   ],
@@ -536,7 +540,7 @@ console.log(
       latencyBaselineAssessmentStatus,
       acceptanceBlockerInventoryStatus,
       blockerInventoryIndexStatus,
-      blockers: normalizedExpected === "blocked" ? ["#138", "#139", "#140", "#141", "#171"] : [],
+      blockers: normalizedExpected === "blocked" ? ["#128", "#138", "#139", "#140", "#141", "#171"] : [],
       workbooks: workbookResults,
       githubIssues,
     },
@@ -635,6 +639,11 @@ function checkGithubIssues(expectedStatus) {
       failures.push(`#${number} should stay OPEN while customer submission DoD is blocked; got ${issue.state}`);
     }
     if (expectedStatus === "pass" && issue.state !== "CLOSED") {
+      const canUseApproval = issueCanUseApproval(issue.number);
+      if (!canUseApproval) {
+        failures.push(`#${number} must be CLOSED before customer submission DoD PASS; got ${issue.state}`);
+        continue;
+      }
       if (allowOpenApprovedIssues && approvalAuthors.length === 0) {
         failures.push(
           `#${number} is OPEN and approval-based PASS requires --approval-author or ` +
@@ -653,6 +662,11 @@ function checkGithubIssues(expectedStatus) {
     }
   }
   return results;
+}
+
+function issueCanUseApproval(number) {
+  const needles = issueApprovalNeedles.get(number) ?? [];
+  return needles.length > 0;
 }
 
 function readGithubIssue(number, options = {}) {
@@ -681,6 +695,9 @@ function issueHasApproval(issue) {
     return false;
   }
   const needles = issueApprovalNeedles.get(issue.number) ?? [];
+  if (needles.length === 0) {
+    return false;
+  }
   const needleSets = Array.isArray(needles[0]) ? needles : [needles];
   const comments = Array.isArray(issue.comments) ? issue.comments : [];
   return comments.some((comment) => {
@@ -1202,6 +1219,8 @@ function runSelfTest() {
               "firstAudibleAudioMs p95: baseline <ms>, current <ms>, threshold baseline+100ms, result PASS.",
               "closeCode1006 increase: none.",
               "relay.error increase: none.",
+              "Comparison guard: corepack pnpm grok:first-vfinal:latency-compare PASS.",
+              "Comparison summary: out/grok_first_vfinal_latency_compare/2026-05-17T00-00-00-000Z/summary.json.",
               "Comparison result: PASS.",
             ].join("\n"),
           },
@@ -1228,6 +1247,8 @@ function runSelfTest() {
               "firstAudibleAudioMs p95: baseline 5660ms, current 5743ms.",
               "closeCode1006 increase: none.",
               "relay.error increase: none.",
+              "Comparison guard: corepack pnpm grok:first-vfinal:latency-compare PASS.",
+              "Comparison summary: out/grok_first_vfinal_latency_compare/2026-05-17T00-00-00-000Z/summary.json.",
               "Comparison result: PASS.",
             ].join("\n"),
           },
@@ -1254,6 +1275,30 @@ function runSelfTest() {
       expected: false,
     },
     {
+      name: "latency approval without comparison guard artifact is rejected",
+      issue: {
+        number: 140,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: use the following pre-vFinal latency baseline for the vFinal customer submission comparison.",
+              "Baseline source: approved pre-vFinal same-environment sample 2026-05-17.",
+              "pre-vFinal sessions >=20.",
+              "sessionApiMs p95: baseline 260ms, current 301ms, threshold baseline+50ms, result PASS.",
+              "firstAudioDeltaMs p95: baseline 5450ms, current 5529ms, threshold baseline+100ms, result PASS.",
+              "firstAudibleAudioMs p95: baseline 5660ms, current 5743ms, threshold baseline+100ms, result PASS.",
+              "closeCode1006 increase: none.",
+              "relay.error increase: none.",
+              "Comparison result: PASS.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
+      expected: false,
+    },
+    {
       name: "latency approval without operational counters is rejected",
       issue: {
         number: 140,
@@ -1267,6 +1312,8 @@ function runSelfTest() {
               "sessionApiMs p95: baseline 260ms, current 301ms, threshold baseline+50ms, result PASS.",
               "firstAudioDeltaMs p95: baseline 5450ms, current 5529ms, threshold baseline+100ms, result PASS.",
               "firstAudibleAudioMs p95: baseline 5660ms, current 5743ms, threshold baseline+100ms, result PASS.",
+              "Comparison guard: corepack pnpm grok:first-vfinal:latency-compare PASS.",
+              "Comparison summary: out/grok_first_vfinal_latency_compare/2026-05-17T00-00-00-000Z/summary.json.",
               "Comparison result: PASS.",
             ].join("\n"),
           },
@@ -1441,6 +1488,23 @@ function runSelfTest() {
         ],
       },
       authors: [],
+      expected: false,
+    },
+    {
+      name: "umbrella issue approval text is not accepted",
+      issue: {
+        number: 128,
+        comments: [
+          {
+            author: { login: "approver" },
+            body: [
+              "Approved: all vFinal customer submission blockers are resolved.",
+              "Customer submission DoD: PASS.",
+            ].join("\n"),
+          },
+        ],
+      },
+      authors: ["approver"],
       expected: false,
     },
   ];
