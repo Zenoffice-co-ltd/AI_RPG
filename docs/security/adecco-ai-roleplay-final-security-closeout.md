@@ -1,13 +1,17 @@
 # Adecco AI Roleplay vFinal Security Closeout
 
-Status as of 2026-05-16 17:30 JST: code-level P0 and PR merge DoD are complete,
-and App Hosting / Cloud Run relay were redeployed from the same merged Git SHA.
-Customer submission DoD is still blocked by production environment evidence and
-runtime issues listed in this document.
+Status as of 2026-05-16 18:40 JST: code-level P0, PR-A production auth
+unblock, and PR-B no-key App Hosting backend separation evidence are complete.
+Customer submission DoD is still blocked by log retention, WAF, browser/voice
+E2E, latency, ZAP, acceptance, and final same-SHA production closeout evidence
+listed in this document.
 
 ## Target
 
-- URL: `https://roleplay.mendan.biz/demo/adecco-roleplay-vFinal`
+- Submitted vFinal no-key URL:
+  `https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-vFinal`
+- Legacy shared URL retained for internal comparison continuity:
+  `https://roleplay.mendan.biz/demo/adecco-roleplay-vFinal`
 - Session API: `/api/grok-first-vFinal/session`
 - Event API: `/api/grok-first-vFinal/event`
 - Relay: `wss://voice.mendan.biz/api/v3/realtime-relay`
@@ -30,6 +34,9 @@ Checked on 2026-05-16 before starting the vFinal submission unblock work.
 | Cloud Armor security policy / preview mode / rate limiting | https://cloud.google.com/armor/docs/configure-security-policies and https://docs.cloud.google.com/armor/docs/rate-limiting-overview | Later infra phase must apply Cloud Armor to the relay backend in preview/log mode first. Application-level rate limits remain in vFinal `/access`, `/invite/consume`, `/session`, and `/event`. |
 | External Application Load Balancer / WebSocket support | https://cloud.google.com/load-balancing/docs/https | Google Cloud HTTP(S)-based load balancers support WebSocket upgrade without extra proxy configuration. WAF changes must not inspect streaming audio frames or break upgrade. |
 | Secret Manager IAM / secretAccessor scope | https://cloud.google.com/secret-manager/docs/access-control and https://docs.cloud.google.com/secret-manager/docs/best-practices | Later no-key runtime phase must enforce least privilege: relay keeps `XAI_API_KEY`; vFinal Web runtime must not have `XAI_API_KEY` access. |
+| Firebase App Hosting backend REST create | https://firebase.google.com/docs/reference/apphosting/rest/v1beta/projects.locations.backends/create | PR-B creates a separate `adecco-roleplay-vfinal` backend and assigns a user-managed vFinal service account instead of the shared App Hosting compute service account. |
+| Firebase App Hosting custom domain | https://firebase.google.com/docs/app-hosting/custom-domain | A custom `mendan.biz` submission domain requires DNS records and certificate/domain verification. Current PR-B evidence uses the dedicated `hosted.app` backend URL until DNS/domain mapping is approved. |
+| Cloud Run service identity | https://docs.cloud.google.com/run/docs/securing/service-identity | Runtime evidence must verify the managed Cloud Run service uses the vFinal user-managed service account and not the shared App Hosting compute service account. |
 
 ## Session Contract Evidence
 
@@ -74,13 +81,27 @@ Safe negative checks from the 200 response:
   transcript=false
   audioBase64=false
   tools=false
+
+PR-B no-key backend smoke:
+  PASS 2026-05-16: dedicated backend
+  https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app
+  returned POST /api/grok-first-vFinal/invite/consume -> 307 and
+  POST /api/grok-first-vFinal/session -> 200 after deploying with
+  apps/web/apphosting.vfinal.yaml. The response identity remained
+  demoSlug=adecco-roleplay-vFinal, backend=grok-first-vFinal,
+  realtimeTransport=mendan_cloud_run_relay_wss, and
+  wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay. Forbidden keys were
+  absent in the deploy-script contract check.
 ```
 
 ## Browser Connection Evidence
 
 Allowed browser network destinations:
 
-- `roleplay.mendan.biz`
+- `adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app` for PR-B
+  no-key backend evidence
+- `roleplay.mendan.biz` for legacy shared internal comparison routes until a
+  custom vFinal `mendan.biz` domain is approved and mapped
 - `voice.mendan.biz`
 
 Forbidden:
@@ -89,9 +110,9 @@ Forbidden:
 
 ```text
 Browser WebSocket capture:
-  BLOCKED by vFinal invite/session auth returning 403/401.
+  BLOCKED pending browser E2E against the dedicated no-key backend.
 Direct api.x.ai connection count:
-  BLOCKED until browser session can start.
+  BLOCKED pending browser E2E against the dedicated no-key backend.
 ```
 
 ## Relay Evidence
@@ -210,16 +231,41 @@ Relay SA IAM:
   XAI_RELAY_TICKET_SECRET: secretAccessor includes
     serviceAccount:xai-realtime-relay@adecco-mendan.iam.gserviceaccount.com
 Web/App Hosting SA IAM:
-  BLOCKED: firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com
-  still has secretAccessor on XAI_API_KEY in the existing shared App Hosting
-  backend.
+  PASS for submitted vFinal backend:
+    backend=adecco-roleplay-vfinal
+    serviceAccount=firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com
+    XAI_API_KEY secretAccessor=false
+    XAI_API_KEY viewer=false
+    allowed secrets:
+      XAI_RELAY_TICKET_SECRET
+      GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET
+      GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET
+  NOTE: the legacy shared backend service account
+  firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com still has
+  XAI_API_KEY access for non-submitted legacy/direct comparison routes. The
+  submitted vFinal URL is therefore the dedicated hosted.app backend above, not
+  the shared roleplay.mendan.biz backend.
 Runtime env proof:
-  BLOCKED for strict vFinal no-key DoD: the deployed shared adecco-roleplay
-  backend still binds XAI_API_KEY for existing comparison routes.
+  PASS for adecco-roleplay-vfinal Cloud Run managed service:
+    service=adecco-roleplay-vfinal
+    revision=adecco-roleplay-vfinal-build-2026-05-16-001
+    serviceAccountName=firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com
+    env secrets:
+      XAI_RELAY_TICKET_SECRET
+      GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET
+      GROK_FIRST_VFINAL_PARTICIPANT_HASH_SECRET
+    forbidden env/secret absent:
+      XAI_API_KEY
+      ANTHROPIC_API_KEY
+      OPENAI_API_KEY
+      FISH_API_KEY
+      ELEVENLABS_API_KEY
 apps/web/apphosting.vfinal.yaml scan:
   PASS: vFinal code contract omits XAI_API_KEY.
 Secret scan result:
-  BLOCKED until CI/artifact secret scan evidence is collected.
+  PASS scoped PR-B evidence: dedicated vFinal App Hosting runtime env contains
+  no XAI_API_KEY binding. Full repo/log/artifact secret scan remains required
+  for final customer submission.
 ```
 
 ## WAF / Rate Limit Evidence
@@ -280,6 +326,10 @@ Latency vFinal:
 ZAP baseline/passive:
 Local code gates:
   PASS corepack pnpm grok:vfinal-security-invariants
+  PASS node --check scripts/deploy-adecco-roleplay-gcloud.mjs
+  PASS corepack pnpm --filter @top-performer/web test -- tests/unit/grok-first-vfinal.test.ts
+    (Vitest selected the web suite: 101 files / 874 tests passed)
+  PASS corepack pnpm --filter @top-performer/web typecheck
   PASS corepack pnpm exec vitest run --config vitest.config.ts apps/web/tests/unit/grok-first-vfinal.test.ts apps/xai-realtime-relay/src/server.test.ts packages/grok-realtime-relay-auth/src/ticket.test.ts
   PASS corepack pnpm --filter @top-performer/web typecheck
   PASS corepack pnpm --filter @top-performer/xai-realtime-relay typecheck
@@ -315,6 +365,60 @@ Cloud Run relay:
   image=gcr.io/adecco-mendan/xai-realtime-relay:ac32140
   revision=xai-realtime-relay-00012-gdb
   traffic=100
+
+PR-B vFinal no-key App Hosting backend evidence:
+  backend=adecco-roleplay-vfinal
+  backend_uri=adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app
+  service_account=firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com
+  rollout=build-2026-05-16-001
+  rollout_state=SUCCEEDED
+  revision=adecco-roleplay-vfinal-build-2026-05-16-001
+  traffic=100
+  apphosting_config=apps/web/apphosting.vfinal.yaml
+  deploy_script=pnpm deploy:adecco-roleplay-vfinal:gcloud
+  deploy_evidence=out/adecco_roleplay_gcloud_deploy/2026-05-16T09-31-59-357Z/summary.json
+
+Existing comparison route non-regression:
+  PASS 2026-05-16: shared backend session API smoke returned 200 for:
+    /api/grok-first-v50/session
+    /api/grok-first-v50-1/session
+    /api/grok-first-v50-4/session
+    /api/grok-first-v50-5/session
+    /api/grok-first-v50-6/session
+    /api/grok-first-v50-7/session
+  All retained realtimeTransport=mendan_cloud_run_relay_wss,
+  wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay, and
+  realtimeAuth.mode=mendan_relay_subprotocol.
+```
+
+## Remaining Blockers
+
+```text
+Customer submission DoD:
+  BLOCKED
+
+Remaining blockers:
+  - custom vFinal mendan.biz domain/DNS is not mapped; PR-B evidence uses the
+    dedicated hosted.app backend URL.
+  - project-wide XAI_API_KEY secretAccessor still includes the legacy shared App
+    Hosting service account for non-submitted direct comparison routes. Removing
+    it would risk breaking existing v3/direct xAI routes unless those routes are
+    migrated or formally de-scoped.
+  - metadata-only Cloud Logging bucket/sink with retention >=180 days is not yet configured.
+  - final sensitive log scan is not complete.
+  - Cloud Armor/WAF preview/log mode is not yet applied to relay LB.
+  - browser WS capture, direct api.x.ai=0 evidence, live text E2E, and live
+    voice E2E are not complete.
+  - latency baseline comparison is not complete.
+  - ZAP baseline/passive scan is not complete.
+  - verify:acceptance is still blocked by Secret Manager IAM:
+    [vendor_failure] 7 PERMISSION_DENIED: Permission
+    'secretmanager.versions.access' denied on resource (or it may not exist).
+
+Final PR-B verdict:
+  PASS for vFinal dedicated no-key App Hosting backend/environment separation.
+  FAIL/BLOCKED for overall customer submission DoD until the remaining blockers
+  above are resolved or formally approved as out of scope.
 ```
 
 ## Rollback

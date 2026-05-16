@@ -5,6 +5,7 @@ on:
     paths:
       - "apps/web/app/api/grok-first-vFinal/**"
       - "apps/web/app/demo/adecco-roleplay-vFinal/**"
+      - "apps/web/apphosting.vfinal.yaml"
       - "apps/web/lib/grok-first-roleplay/**"
       - "apps/web/components/roleplay/GrokFirstV50RoleplayPage.tsx"
       - "apps/web/components/roleplay/GrokFirstV50RoleplayShell.tsx"
@@ -12,6 +13,9 @@ on:
       - "packages/grok-first-roleplay-config/**"
       - "packages/grok-realtime-relay-auth/**"
       - "scripts/check-vfinal-security-invariants.mjs"
+      - "scripts/deploy-adecco-roleplay-gcloud.mjs"
+      - "docs/security/adecco-ai-roleplay-final-security-closeout.md"
+      - "package.json"
 
 jobs:
   verify:

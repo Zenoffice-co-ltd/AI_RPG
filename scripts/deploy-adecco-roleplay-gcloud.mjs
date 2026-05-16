@@ -6,6 +6,15 @@
 //   2. upload it with `gcloud storage cp`
 //   3. create an App Hosting build + rollout through the public API
 //   4. warm the Grok locked-response cache and verify the production session
+//
+// Defaults deploy the shared Adecco roleplay backend. Use the vFinal flags for
+// the submitted no-key App Hosting backend:
+//   node scripts/deploy-adecco-roleplay-gcloud.mjs \
+//     --backend adecco-roleplay-vfinal \
+//     --url https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app \
+//     --config apps/web/apphosting.vfinal.yaml \
+//     --verify vfinal \
+//     --skip-tts-warm
 
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -20,15 +29,46 @@ const { createSourceDeployArchive } = require("firebase-tools/lib/deploy/apphost
 const PROJECT = "adecco-mendan";
 const PROJECT_NUMBER = "787365421680";
 const LOCATION = "asia-east1";
-const BACKEND = "adecco-roleplay";
 const API_VERSION = "v1beta";
-const APPHOSTING_BASE_URL =
-  "https://roleplay.mendan.biz";
 const BUCKET = `firebaseapphosting-sources-${PROJECT_NUMBER}-${LOCATION}`;
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_ROOT = path.join(REPO_ROOT, "out", "adecco_roleplay_gcloud_deploy");
 const TSX_CLI_PATH = path.join(REPO_ROOT, "node_modules", "tsx", "dist", "cli.mjs");
+
+const args = parseArgs(process.argv.slice(2));
+const BACKEND = getArg("backend", "adecco-roleplay");
+const APPHOSTING_BASE_URL = getArg("url", "https://roleplay.mendan.biz").replace(/\/$/, "");
+const APPHOSTING_CONFIG_SOURCE = args.get("config") ?? "";
+const VERIFY_MODE = getArg("verify", "grok-v3");
+const SKIP_TTS_WARM = args.has("skip-tts-warm");
+
+function parseArgs(argv) {
+  const parsed = new Map();
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (!arg.startsWith("--")) {
+      throw new Error(`Unexpected positional argument: ${arg}`);
+    }
+    const name = arg.slice(2);
+    if (!name) {
+      throw new Error("Empty flag name");
+    }
+    const next = argv[index + 1];
+    if (!next || next.startsWith("--")) {
+      parsed.set(name, "true");
+      continue;
+    }
+    parsed.set(name, next);
+    index += 1;
+  }
+  return parsed;
+}
+
+function getArg(name, fallback) {
+  const value = args.get(name);
+  return value && value !== "true" ? value : fallback;
+}
 
 function utcStamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
@@ -164,6 +204,7 @@ async function createArchive() {
     fs.readFileSync(path.join(REPO_ROOT, "firebase.json"), "utf8")
   );
   const apphosting = firebaseJson.apphosting;
+  const rootDir = apphosting.rootDir ?? "apps/web";
   const ignore = [
     ...(apphosting.ignore ?? []),
     "out",
@@ -177,10 +218,28 @@ async function createArchive() {
   ];
   const config = {
     backendId: BACKEND,
-    rootDir: apphosting.rootDir ?? "apps/web",
+    rootDir,
     ignore,
   };
-  const tmpZip = await createSourceDeployArchive(config, REPO_ROOT);
+  const apphostingYamlPath = path.join(REPO_ROOT, rootDir, "apphosting.yaml");
+  let originalApphostingYaml = null;
+  if (APPHOSTING_CONFIG_SOURCE) {
+    const configSourcePath = path.resolve(REPO_ROOT, APPHOSTING_CONFIG_SOURCE);
+    if (!fs.existsSync(configSourcePath)) {
+      throw new Error(`App Hosting config override not found: ${configSourcePath}`);
+    }
+    originalApphostingYaml = fs.readFileSync(apphostingYamlPath, "utf8");
+    fs.copyFileSync(configSourcePath, apphostingYamlPath);
+    log(`Using App Hosting config override ${path.relative(REPO_ROOT, configSourcePath)}`);
+  }
+  let tmpZip;
+  try {
+    tmpZip = await createSourceDeployArchive(config, REPO_ROOT);
+  } finally {
+    if (originalApphostingYaml !== null) {
+      fs.writeFileSync(apphostingYamlPath, originalApphostingYaml);
+    }
+  }
   const archivePath = path.join(artifactDir, `${BACKEND}-${runId}.zip`);
   fs.copyFileSync(tmpZip, archivePath);
   const stats = fs.statSync(archivePath);
@@ -331,14 +390,126 @@ function warmTtsCache() {
   });
 }
 
+function accessSecret(secretName) {
+  return run("gcloud", [
+    "secrets",
+    "versions",
+    "access",
+    "latest",
+    `--secret=${secretName}`,
+    `--project=${PROJECT}`,
+  ], { redactStdout: true }).trim();
+}
+
+function signVFinalInvite(input) {
+  const secret = input.signingSecret.trim();
+  if (secret.length < 32) {
+    throw new Error("vFinal invite signing secret is unavailable or too short");
+  }
+  const payload = {
+    participantId: input.participantId,
+    tenant: "adecco",
+    purpose: "ai_roleplay",
+    exp: input.exp,
+  };
+  const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  const signature = crypto.createHmac("sha256", secret).update(encoded).digest("base64url");
+  return `mvi1.${encoded}.${signature}`;
+}
+
+function cookieHeaderFromSetCookie(headers) {
+  const setCookies =
+    typeof headers.getSetCookie === "function"
+      ? headers.getSetCookie()
+      : String(headers.get("set-cookie") ?? "").split(/,(?=\s*[^;,]+=)/);
+  const cookies = [];
+  for (const line of setCookies) {
+    const first = String(line).split(";")[0]?.trim();
+    if (first) cookies.push(first);
+  }
+  return cookies.join("; ");
+}
+
+async function fetchVFinalSession() {
+  const signingSecret = accessSecret("GROK_FIRST_VFINAL_INVITE_SIGNING_SECRET");
+  const participantId = `codex-vfinal-${runId}`;
+  const exp = Math.floor(Date.now() / 1000) + 20 * 60;
+  const invite = signVFinalInvite({ participantId, exp, signingSecret });
+  const consumeResponse = await fetch(
+    `${APPHOSTING_BASE_URL}/api/grok-first-vFinal/invite/consume`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: APPHOSTING_BASE_URL,
+      },
+      body: JSON.stringify({ invite }),
+      redirect: "manual",
+    }
+  );
+  const cookie = cookieHeaderFromSetCookie(consumeResponse.headers);
+  if (consumeResponse.status !== 307 || !cookie.includes("roleplay_vfinal_api_access=")) {
+    throw new Error(
+      `vFinal invite consume failed: status=${consumeResponse.status} apiCookie=${cookie.includes("roleplay_vfinal_api_access=")}`
+    );
+  }
+  const sessionResponse = await fetch(
+    `${APPHOSTING_BASE_URL}/api/grok-first-vFinal/session`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: APPHOSTING_BASE_URL,
+        referer: `${APPHOSTING_BASE_URL}/demo/adecco-roleplay-vFinal`,
+        cookie,
+      },
+      body: "{}",
+    }
+  );
+  const text = await sessionResponse.text();
+  if (!sessionResponse.ok) {
+    throw new Error(`vFinal /session failed: ${sessionResponse.status} ${text}`);
+  }
+  const body = JSON.parse(text);
+  const serialized = JSON.stringify(body);
+  const forbidden = [
+    "instructions",
+    "firstMessage",
+    "hiddenAssistantHistory",
+    "ephemeralToken",
+    "XAI_API_KEY",
+    "transcript",
+    "audioBase64",
+    "tools",
+  ].filter((needle) => serialized.includes(needle));
+  if (forbidden.length > 0) {
+    throw new Error(`vFinal session response includes forbidden keys: ${forbidden.join(", ")}`);
+  }
+  if (body.demoSlug !== "adecco-roleplay-vFinal" || body.backend !== "grok-first-vFinal") {
+    throw new Error(
+      `vFinal session identity mismatch: demoSlug=${body.demoSlug} backend=${body.backend}`
+    );
+  }
+  if (body.wsUrl !== "wss://voice.mendan.biz/api/v3/realtime-relay") {
+    throw new Error(`vFinal wsUrl mismatch: ${body.wsUrl}`);
+  }
+  log(
+    `vFinal smoke consumeStatus=${consumeResponse.status} sessionStatus=${sessionResponse.status} demoSlug=${body.demoSlug} backend=${body.backend} wsUrl=${body.wsUrl}`
+  );
+  return body;
+}
+
 async function main() {
-  log(`target_project=${PROJECT} backend=${BACKEND} url=${APPHOSTING_BASE_URL}`);
+  log(
+    `target_project=${PROJECT} backend=${BACKEND} url=${APPHOSTING_BASE_URL} verify=${VERIFY_MODE} skipTtsWarm=${SKIP_TTS_WARM}`
+  );
   const baselineRollouts = await listAll(
     `projects/${PROJECT}/locations/${LOCATION}/backends/${BACKEND}/rollouts`,
     "rollouts"
   );
   baselineRollouts.sort((a, b) => String(b.createTime).localeCompare(String(a.createTime)));
-  const baselineSession = await fetchProdSession().catch((error) => ({
+  const fetchSession = VERIFY_MODE === "vfinal" ? fetchVFinalSession : fetchProdSession;
+  const baselineSession = await fetchSession().catch((error) => ({
     error: error instanceof Error ? error.message : String(error),
   }));
   log(
@@ -349,13 +520,23 @@ async function main() {
   const userStorageUri = uploadArchive(archivePath);
   const deployment = await createBuildAndRollout(userStorageUri, rootDirectory);
 
-  log("Warming Grok registered-speech/TTS cache");
-  warmTtsCache();
+  if (SKIP_TTS_WARM) {
+    log("Skipping Grok registered-speech/TTS cache warm");
+  } else {
+    log("Warming Grok registered-speech/TTS cache");
+    warmTtsCache();
+  }
 
-  const prodSession = await fetchProdSession();
-  log(
-    `post-deploy guardrailVersion=${prodSession.guardrailVersion} promptVersion=${prodSession.promptVersion} strictSanitizedPlayback=${prodSession.strictSanitizedPlayback}`
-  );
+  const prodSession = await fetchSession();
+  if (VERIFY_MODE === "vfinal") {
+    log(
+      `post-deploy vFinal promptVersion=${prodSession.promptVersion} guardrailVersion=${prodSession.guardrailVersion} realtimeTransport=${prodSession.realtimeTransport}`
+    );
+  } else {
+    log(
+      `post-deploy guardrailVersion=${prodSession.guardrailVersion} promptVersion=${prodSession.promptVersion} strictSanitizedPlayback=${prodSession.strictSanitizedPlayback}`
+    );
+  }
 
   const summary = {
     status: "completed",
@@ -371,9 +552,12 @@ async function main() {
     summaryPath,
     prodSession: {
       demoSlug: prodSession.demoSlug,
+      backend: prodSession.backend,
       routerVariant: prodSession.routerVariant,
       guardrailVersion: prodSession.guardrailVersion,
       promptVersion: prodSession.promptVersion,
+      realtimeTransport: prodSession.realtimeTransport,
+      wsUrl: prodSession.wsUrl,
       strictSanitizedPlayback: prodSession.strictSanitizedPlayback,
     },
     elapsedSeconds: Number(((Date.now() - startedAt) / 1000).toFixed(1)),
