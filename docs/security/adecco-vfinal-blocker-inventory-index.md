@@ -49,6 +49,12 @@ being closed or formally approved.
   custom-domain candidates still had no HTTP success in the submitted URL
   helper, so #138 remains blocked pending explicit hosted.app approval or
   dedicated custom-domain mapping.
+- A refreshed #141 current-shell input inventory and `verify:acceptance
+  -- --preflight` attempt still showed missing process/env-local inputs and
+  Secret Manager `secretmanager.versions.access` permission denial before
+  product checks. This does not supersede the earlier executable full-run
+  legacy ConvAI judge evidence, and #141 remains blocked pending clean PASS or
+  explicit approval.
 - `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
   --check-github-issues --allow-open-approved-issues
   --approval-author=iwase-cpu --workbook=<data-protection workbook>

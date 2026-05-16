@@ -830,6 +830,25 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   submitted URL and does not create a dedicated `mendan.biz` mapping, so #138
   remains BLOCKED.
 
+### 2026-05-17 — vFinal #141 current-shell acceptance preflight recheck
+
+- Re-ran `corepack pnpm grok:vfinal-acceptance-input-inventory --
+  --expect=blocked`.
+- Result: PASS for expected BLOCKED. `apps/web/.env.local` was absent; active
+  gcloud account was `iwase@zenoffice.co.jp`; active gcloud project was
+  `zapier-transfer`.
+- Missing direct inputs without Secret Manager were `FIREBASE_PROJECT_ID`,
+  `SECRET_SOURCE_PROJECT_ID`, and `QUEUE_SHARED_SECRET`.
+- Missing process/env-local overrides for Secret Manager fallback keys were
+  `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `LIVEAVATAR_API_KEY`,
+  `DEMO_ACCESS_TOKEN`, `XAI_API_KEY`, and `XAI_RELAY_TICKET_SECRET`.
+- Re-ran `corepack pnpm verify:acceptance -- --preflight`.
+- Result: still failed before product checks with Secret Manager
+  `secretmanager.versions.access` permission denied.
+- No secret values were read, printed, persisted, or committed. This does not
+  replace the earlier full-run legacy ConvAI judge blocker evidence; #141
+  remains BLOCKED pending clean full PASS or explicit legacy blocker approval.
+
 ### 2026-05-17 — vFinal #141 issue-state correction
 
 - During post-merge verification after PR #210, the final DoD guard failed
