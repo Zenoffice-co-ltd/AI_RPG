@@ -56,6 +56,8 @@ jobs:
         run: pnpm grok:vfinal-security-invariants
       - name: vFinal customer submission DoD status guard
         run: |
+          # Source workbook originals live outside the repo; only run this final
+          # PASS guard in CI when the workbook inputs are explicitly supplied.
           if [ -n "${VFINAL_SUBMISSION_DOD_WORKBOOKS:-}" ]; then
             pnpm grok:vfinal-submission-dod-status
           else

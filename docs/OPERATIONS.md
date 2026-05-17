@@ -85,6 +85,17 @@ Do not copy raw workbook answer values into docs, PR text, issue comments, or
 commit messages. The TPISA `.xlsm` must retain its VBA project. Keep `out/`
 uncommitted; reference output paths only as evidence pointers.
 
+CI does not prove the source-workbook-dependent final PASS guard unless the
+source workbooks are explicitly supplied, for example through
+`VFINAL_SUBMISSION_DOD_WORKBOOKS`. Without those artifacts, CI should run the
+fast self-tests/invariants and skip the source-artifact guard; final closeout
+evidence must still include the local workbook guard PASS and overall DoD guard
+PASS with GitHub issue-state checking enabled.
+
+After merging a final closeout PR, verify the squash on `origin/main` with
+`git show origin/main:<path>` against unique final-status lines before posting
+post-merge evidence or closing the remaining tracker issues.
+
 ## Adecco Manufacturer Staffing Reference Runbook
 
 Adecco の住宅設備メーカー向け初回派遣オーダーヒアリングは、legacy staffing family の単一 reference scenario として運用する。
