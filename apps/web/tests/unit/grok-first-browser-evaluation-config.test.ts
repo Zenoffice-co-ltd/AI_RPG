@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { resolveBrowserEvaluationConfig } from "../../components/roleplay/GrokFirstV50RoleplayShell";
+import {
+  resolveBrowserEvaluationConfig,
+  toEvaluationTranscript,
+  validateEvaluationTranscript,
+} from "../../components/roleplay/GrokFirstV50RoleplayShell";
+import type { TranscriptMessage } from "../../lib/roleplay/conversation-types";
 
 describe("grok-first browser evaluation config", () => {
   it("uses session browserEvaluation as the source of truth", () => {
@@ -36,4 +41,52 @@ describe("grok-first browser evaluation config", () => {
       runtimeVersion: "v50-7",
     });
   });
+
+  it("fails browser evaluation when sales-side transcript is missing", () => {
+    const transcript = toEvaluationTranscript([
+      transcriptMessage("agent", "初回のご相談ですね。", "final"),
+      transcriptMessage("system", "debug marker", "final"),
+    ]);
+
+    expect(transcript).toEqual([
+      expect.objectContaining({ role: "agent", text: "初回のご相談ですね。" }),
+    ]);
+    expect(validateEvaluationTranscript(transcript)).toMatchObject({
+      ok: false,
+      reason: "missing_sales_transcript",
+      userTurns: 0,
+      agentTurns: 1,
+    });
+  });
+
+  it("accepts browser evaluation only when sales and client turns are present", () => {
+    const transcript = toEvaluationTranscript([
+      transcriptMessage("user", "募集背景を教えてください", "final"),
+      transcriptMessage("agent", "増員です。", "final"),
+      transcriptMessage("user", "入力中", "interim"),
+    ]);
+
+    expect(validateEvaluationTranscript(transcript)).toMatchObject({
+      ok: true,
+      userTurns: 1,
+      agentTurns: 1,
+      turnCount: 2,
+    });
+  });
 });
+
+function transcriptMessage(
+  role: TranscriptMessage["role"],
+  text: string,
+  status: TranscriptMessage["status"]
+): TranscriptMessage {
+  return {
+    id: `${role}-${text}`,
+    role,
+    channel: role === "system" ? "system" : "voice",
+    text,
+    status,
+    source: role === "system" ? "system" : "local",
+    createdAt: 0,
+  };
+}

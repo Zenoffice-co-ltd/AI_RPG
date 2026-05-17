@@ -775,6 +775,7 @@ export function useGrokFirstRoleplayConversation(
               details: {
                 turnIndex: turnIndexRef.current,
                 textLen: text.length,
+                sttTextPreview: text.slice(0, 200),
                 guardAction: guard.action,
               },
             });
@@ -798,6 +799,7 @@ export function useGrokFirstRoleplayConversation(
               details: {
                 turnIndex: turnIndexRef.current,
                 textLen: text.length,
+                sttTextPreview: text.slice(0, 200),
                 guardAction: normalRoute.action,
                 guardReasons: normalRoute.reasons,
               },
@@ -849,6 +851,7 @@ export function useGrokFirstRoleplayConversation(
               details: {
                 turnIndex: turnIndexRef.current,
                 textLen: text.length,
+                sttTextPreview: text.slice(0, 200),
                 guardAction: "normal_realtime_rewrite",
                 guardReasons: normalRoute.reasons,
               },
@@ -862,7 +865,11 @@ export function useGrokFirstRoleplayConversation(
           void postEvent({
             kind: "stt.completed",
             sessionId: activeSession.sessionId,
-            details: { turnIndex: turnIndexRef.current, textLen: text.length },
+            details: {
+              turnIndex: turnIndexRef.current,
+              textLen: text.length,
+              sttTextPreview: text.slice(0, 200),
+            },
           });
           break;
         }
@@ -1325,14 +1332,4 @@ function isAssistantResponseEvent(type: string): boolean {
     type === "response.output_audio.delta" ||
     type === "response.done"
   );
-}
-
-function passNegativeGuardDecision(): NegativeGuardDecision {
-  return {
-    action: "pass",
-    reasons: [],
-    stripTail: false,
-    dropSentencePatterns: [],
-    hardStop: false,
-  };
 }

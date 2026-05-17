@@ -102,6 +102,9 @@
 - Browser scorecard envelopes should keep API-compatible `evaluationFormat=adecco_order_hearing_browser_v1` while carrying `evaluationProfile` and `runtimeVersion` so Firestore/result pages can distinguish v50-7 from v51 and future profiles.
 - Browser result APIs must never expose raw Claude output, API secrets, relay tickets, prompt instructions, raw audio, or hidden system prompts.
 - Cloud Tasks payload may include only the normalized evaluation transcript required for scoring.
+- The browser-held roleplay transcript is the scoring Source of Truth. Cloud Logging reconstruction is diagnostic evidence only and must not be used as the scoring transcript when sales-side STT text is absent.
+- Browser evaluation must fail closed unless the normalized transcript includes at least one non-empty sales-side (`user`/`sales`) turn and at least one non-empty client-side (`agent`/`client`) turn. A missing sales-side transcript is evaluation-incomplete, not a valid zero-score report.
+- Reusable browser-evaluation transcript E2E evidence should use `pnpm eval:adecco-browser-transcript:e2e`, which runs the 2-case denominator: `missing_sales_transcript_blocks_evaluation` and `sales_stt_transcript_is_sent_to_evaluation_start`.
 - Browser evaluation result pages must have a safe mock route for browser-use / Playwright confirmation that does not call Claude, Gmail, ElevenLabs, or production webhook. Current safe routes: `/demo/adecco-roleplay-v50-7/result/mock-session?mock=1` and `/demo/adecco-roleplay-v51/result/mock-session?mock=1`.
 - Browser evaluation DoD requires: session contract, rollback flag, result page render, data exposure check, targeted unit tests, web typecheck/test/build, changed-file lint, no table-based email layout, no raw output exposure, and a 1440x900 browser screenshot.
 - Production Gmail smoke is not required for browser evaluation DoD and must be explicitly avoided unless the task is the legacy email pipeline.

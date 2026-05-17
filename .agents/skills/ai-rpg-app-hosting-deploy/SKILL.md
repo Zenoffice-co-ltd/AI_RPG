@@ -20,6 +20,12 @@ Any change to the deploy contract must update **all six** files in the same chan
 
 2. **Confirm what is being deployed.** Normal customer-facing deploys must be from the intended merged `origin/main` commit. Run `git fetch origin`, `git status --short`, `git rev-parse HEAD`, and `git rev-parse origin/main`. If an unmerged local commit was deployed for emergency validation, treat production as drifted until the diff is PR'd, merged, verified with `git show origin/main:<path>`, and redeployed from `origin/main`. For registered-speech deploys, read the promoted `buildId` and `voiceId` so you can later verify the live `/api/v3/session` returns the same values.
 
+   Browser-evaluation fixes are not exempt from this rule: App Hosting uploads
+   the local source archive. If a browser-eval transcript fix is shipped from an
+   unmerged dirty worktree, immediately PR and merge the exact shipped diff,
+   verify `origin/main` contains a unique signature line, then redeploy from
+   `origin/main` to clear production drift.
+
 3. **Confirm the active gcloud account is project owner.**
    ```bash
    gcloud auth list                                                    # iwase@zenoffice.co.jp ACTIVE

@@ -362,6 +362,25 @@ call Claude, Gmail, ElevenLabs webhook, or Cloud Run production smoke.
 Live browser evaluation flow:
 roleplay end → `/api/grok-first-v50-7/evaluation/start` → Cloud Tasks →
 `/api/internal/adecco-browser-eval` → Firestore artifacts → result polling.
+The browser transcript captured in the roleplay UI is the scoring source of
+truth. Evaluation start fails closed unless the payload contains at least one
+non-empty sales-side (`user`/`sales`) turn and at least one non-empty
+client-side (`agent`/`client`) turn; Cloud Logging reconstruction is diagnostic
+evidence only and is not sufficient for scoring when sales STT text is absent.
+When transcript preview logging is explicitly enabled, `stt.completed` may carry
+a sanitized `sttTextPreview` for troubleshooting, but production-default logs
+keep transcript text redacted.
+
+Reusable local E2E for this contract:
+
+```bash
+pnpm eval:adecco-browser-transcript:e2e
+```
+
+This runs the 2-case denominator:
+`missing_sales_transcript_blocks_evaluation` and
+`sales_stt_transcript_is_sent_to_evaluation_start`, with evidence written under
+`out/adecco_browser_eval_transcript_e2e/<timestamp>/`.
 
 Legacy email flow remains:
 ElevenLabs post-call webhook → `/api/vendor/eleven/postcall` → Cloud Tasks →
