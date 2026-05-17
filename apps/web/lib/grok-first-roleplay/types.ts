@@ -115,7 +115,7 @@ export type GrokFirstV50Session = {
   turnDetection: {
     type: "server_vad";
     threshold: 0.65;
-    silence_duration_ms: 650;
+    silence_duration_ms: 350 | 650;
     prefix_padding_ms: 333;
     create_response?: false;
   };
@@ -126,6 +126,9 @@ export type GrokFirstV50Session = {
   lockedResponseAudioBundleIncluded: false;
   runtimeTtsEnabled: false;
   replacementTtsEnabled: false;
+  latencyMode?: "fastest_streaming" | "default" | undefined;
+  streamAudioBeforeDone?: boolean | undefined;
+  audioHoldMs?: number | undefined;
   fullTurnBufferEnabled: false;
   runtimeGuardrailsEnabled: boolean;
   inputGuardEnabled?: boolean | undefined;
@@ -203,6 +206,11 @@ export type GrokFirstV50Metric = {
   responseCancelCount?: number | undefined;
   responseCancelReasons?: string[] | undefined;
   turnDetectionCreateResponse?: boolean | undefined;
+  latencyMode?: "fastest_streaming" | "default" | undefined;
+  streamAudioBeforeDone?: boolean | undefined;
+  audioHoldMs?: number | undefined;
+  turnDetectionSilenceMs?: number | undefined;
+  firstDeltaToFirstAudibleMs?: number | null | undefined;
   rawAssistantTranscript?: string | undefined;
   visibleAssistantTranscript?: string | undefined;
   audibleTranscript?: string | undefined;

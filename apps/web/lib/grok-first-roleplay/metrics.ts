@@ -15,6 +15,7 @@ export type GrokFirstV50EventKind =
   | "guard.detected"
   | "guard.drain.ignored"
   | "guard.rewrite_empty_done_ignored"
+  | "guard.rewrite_response_retry"
   | "fixed_guard.playback.started"
   | "fixed_guard.playback.completed"
   | "tail_guard.released"

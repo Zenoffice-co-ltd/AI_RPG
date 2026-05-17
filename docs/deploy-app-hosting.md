@@ -37,6 +37,13 @@ Firebase Console and in the App Hosting GitHub check. If the check is absent,
 skipped, or disabled, do not assume the merge is live; use the manual wrapper
 fallback below and record the gap.
 
+All manual App Hosting deploy commands in this repository must run from
+`C:\dev\AI_RPG\_worktrees\deploy_clean`, not from the root
+`C:\dev\AI_RPG`, unless the operator explicitly overrides this for a one-off
+emergency. If implementation happened in another worktree, sync the diff into
+`deploy_clean` and use that worktree for the upload so production deploys have a
+single predictable source.
+
 Reference: Firebase App Hosting supports automatic rollouts on every push to
 the live GitHub branch and lets operators change the live branch / automatic
 rollout setting from the backend's Settings > Deployment view:
@@ -93,6 +100,7 @@ Customer-facing closeout deploys must come from the intended merged
 `origin/main` commit. Before deploy, confirm:
 
 ```bash
+cd /c/dev/AI_RPG/_worktrees/deploy_clean
 git fetch origin
 git status --short
 git rev-parse HEAD

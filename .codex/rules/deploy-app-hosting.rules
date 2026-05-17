@@ -22,6 +22,11 @@
 # For v50-family behavior changes, pass --variant v50-7 or --variant v50-8 so
 # post-check validates /api/grok-first-v50*/session, not only /api/v3/session.
 #
+# Deploy worktree invariant: manual App Hosting deploy commands for this repo
+# must run from C:\dev\AI_RPG\_worktrees\deploy_clean, not the repository root
+# C:\dev\AI_RPG, unless the operator explicitly overrides this for a one-off
+# emergency. Sync/PR implementation diffs into deploy_clean before uploading.
+#
 # Required env block (every deploy session, per AGENTS.md `## Deploy (App
 # Hosting)`):
 #   export GOOGLE_APPLICATION_CREDENTIALS="<gcloud-config-dir>/legacy_credentials/<owner-account>/adc.json"
@@ -70,7 +75,7 @@
 prefix_rule(
     pattern = ["pnpm", "deploy:adecco-roleplay"],
     decision = "prompt",
-    justification = "Manual fallback production rollout to the Adecco App Hosting backend (adecco-roleplay@adecco-mendan, asia-east1; customer URL https://roleplay.mendan.biz). Native App Hosting automatic rollout from main is the default; use this wrapper only when the App Hosting GitHub check is absent, skipped, stuck, disabled, or the operator explicitly requests manual rollout. Confirm: (1) intended merged origin/main commit is checked out for customer-facing closeout, or any local emergency deploy is explicitly tracked as production drift, (2) GOOGLE_APPLICATION_CREDENTIALS points at the owner-level legacy_credentials ADC (NOT the default ADC, which fails with a misleading 'Failed to create backend' error), (3) GROK_VOICE_VOICE_ID and GOOGLE_CLOUD_PROJECT envs are set per AGENTS.md `## Deploy (App Hosting)`, (4) any registered-speech artifact rebuild has been promoted (data/generated/registered-speech/v1/manifest.json reflects intent), and (5) operator can run post-deploy /api/v3/session verification + browser/Cloud Logging evidence. Deploy success is not human-test approval.",
+    justification = "Manual fallback production rollout to the Adecco App Hosting backend (adecco-roleplay@adecco-mendan, asia-east1; customer URL https://roleplay.mendan.biz). Native App Hosting automatic rollout from main is the default; use this wrapper only when the App Hosting GitHub check is absent, skipped, stuck, disabled, or the operator explicitly requests manual rollout. Confirm: (1) command is running from C:\\dev\\AI_RPG\\_worktrees\\deploy_clean unless the operator explicitly overrides it, (2) intended merged origin/main commit is checked out for customer-facing closeout, or any local emergency deploy is explicitly tracked as production drift, (3) GOOGLE_APPLICATION_CREDENTIALS points at the owner-level legacy_credentials ADC (NOT the default ADC, which fails with a misleading 'Failed to create backend' error), (4) GROK_VOICE_VOICE_ID and GOOGLE_CLOUD_PROJECT envs are set per AGENTS.md `## Deploy (App Hosting)`, (5) any registered-speech artifact rebuild has been promoted (data/generated/registered-speech/v1/manifest.json reflects intent), and (6) operator can run post-deploy /api/v3/session verification + browser/Cloud Logging evidence. Deploy success is not human-test approval.",
     match = [
         "pnpm deploy:adecco-roleplay",
         "pnpm deploy:adecco-roleplay -- --skip-warm",

@@ -68,8 +68,31 @@ const VARIANT_SESSION_TARGETS = {
     apiPath: "/api/grok-first-v50-7/session",
     expectedBackend: "grok-first-v50-7",
     expectedPromptVersion: "grok-first-v50.6-2026-05-15",
-    expectedGuardrailVersion: "grok-first-v50.7-guard-2026-05-15",
+    expectedGuardrailVersion: "grok-first-v50.7-speed-hotfix-2026-05-17",
+    expectedRuntimeGuardrailsEnabled: true,
+    expectedLatencyMode: "fastest_streaming",
+    expectedStreamAudioBeforeDone: true,
+    expectedTurnDetectionSilenceMs: 350,
+    expectedNormalInputRouterEnabled: false,
+    expectedBoundedRewriteEnabled: false,
+  },
+  "v50-7-prompt-only": {
+    route: "/demo/adecco-roleplay-v50-7-prompt-only",
+    apiPath: "/api/grok-first-v50-7-prompt-only/session",
+    expectedBackend: "grok-first-v50-7-prompt-only",
+    expectedPromptVersion: "grok-first-v50.6-2026-05-15",
+    expectedGuardrailVersion: "prompt-only-no-runtime-guard-speed-hotfix-2026-05-17",
     expectedRuntimeGuardrailsEnabled: false,
+    expectedInputGuardEnabled: false,
+    expectedNegativeGuardEnabled: false,
+    expectedTailGuardEnabled: false,
+    expectedFixedGuardAudioEnabled: false,
+    expectedNoiseIgnoredEnabled: false,
+    expectedLatencyMode: "fastest_streaming",
+    expectedStreamAudioBeforeDone: true,
+    expectedTurnDetectionSilenceMs: 350,
+    expectedNormalInputRouterEnabled: false,
+    expectedBoundedRewriteEnabled: false,
   },
   "v50-8": {
     route: "/demo/adecco-roleplay-v50-8",
@@ -546,6 +569,60 @@ async function fetchProdSession(variant = VARIANT) {
   ) {
     throw new Error(
       `prod ${target.apiPath} runtimeGuardrailsEnabled mismatch: expected ${target.expectedRuntimeGuardrailsEnabled}, got ${payload.runtimeGuardrailsEnabled}`
+    );
+  }
+  for (const [field, expectedValue] of [
+    ["inputGuardEnabled", target.expectedInputGuardEnabled],
+    ["negativeGuardEnabled", target.expectedNegativeGuardEnabled],
+    ["tailGuardEnabled", target.expectedTailGuardEnabled],
+    ["fixedGuardAudioEnabled", target.expectedFixedGuardAudioEnabled],
+    ["noiseIgnoredEnabled", target.expectedNoiseIgnoredEnabled],
+  ]) {
+    if (typeof expectedValue === "boolean" && payload[field] !== expectedValue) {
+      throw new Error(
+        `prod ${target.apiPath} ${field} mismatch: expected ${expectedValue}, got ${payload[field]}`
+      );
+    }
+  }
+  if (
+    target.expectedLatencyMode &&
+    payload.latencyMode !== target.expectedLatencyMode
+  ) {
+    throw new Error(
+      `prod ${target.apiPath} latencyMode mismatch: expected ${target.expectedLatencyMode}, got ${payload.latencyMode}`
+    );
+  }
+  if (
+    typeof target.expectedStreamAudioBeforeDone === "boolean" &&
+    payload.streamAudioBeforeDone !== target.expectedStreamAudioBeforeDone
+  ) {
+    throw new Error(
+      `prod ${target.apiPath} streamAudioBeforeDone mismatch: expected ${target.expectedStreamAudioBeforeDone}, got ${payload.streamAudioBeforeDone}`
+    );
+  }
+  if (
+    typeof target.expectedTurnDetectionSilenceMs === "number" &&
+    payload.turnDetection?.silence_duration_ms !==
+      target.expectedTurnDetectionSilenceMs
+  ) {
+    throw new Error(
+      `prod ${target.apiPath} turnDetection.silence_duration_ms mismatch: expected ${target.expectedTurnDetectionSilenceMs}, got ${payload.turnDetection?.silence_duration_ms}`
+    );
+  }
+  if (
+    typeof target.expectedNormalInputRouterEnabled === "boolean" &&
+    payload.normalInputRouterEnabled !== target.expectedNormalInputRouterEnabled
+  ) {
+    throw new Error(
+      `prod ${target.apiPath} normalInputRouterEnabled mismatch: expected ${target.expectedNormalInputRouterEnabled}, got ${payload.normalInputRouterEnabled}`
+    );
+  }
+  if (
+    typeof target.expectedBoundedRewriteEnabled === "boolean" &&
+    payload.boundedRewriteEnabled !== target.expectedBoundedRewriteEnabled
+  ) {
+    throw new Error(
+      `prod ${target.apiPath} boundedRewriteEnabled mismatch: expected ${target.expectedBoundedRewriteEnabled}, got ${payload.boundedRewriteEnabled}`
     );
   }
   return { ...payload, postCheckVariant: variant, postCheckApiPath: target.apiPath };

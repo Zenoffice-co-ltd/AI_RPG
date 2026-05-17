@@ -7,7 +7,7 @@ import {
 import { ensureEnvLoaded } from "@/server/loadEnv";
 import {
   buildGrokFirstV50Prompt,
-  GROK_FIRST_V50_7_GUARDRAIL_VERSION,
+  GROK_FIRST_V50_7_SPEED_HOTFIX_GUARDRAIL_VERSION,
   GROK_FIRST_V50_7_PROMPT_ONLY_GUARDRAIL_VERSION,
   GROK_FIRST_V50_8_GUARDRAIL_VERSION,
   GROK_FIRST_V51_GUARDRAIL_VERSION,
@@ -67,6 +67,8 @@ export async function createGrokFirstV50Session(input?: {
   const promptVariant = input?.promptVariant ?? input?.variant ?? "v50";
   const runtimeVariant = input?.runtimeVariant ?? input?.variant ?? promptVariant;
   const isPromptOnly = runtimeVariant === "v50.7-prompt-only";
+  const isV507SpeedHotfix = runtimeVariant === "v50.7";
+  const isLatencySpeedHotfix = isV507SpeedHotfix || isPromptOnly;
   const prompt = buildGrokFirstV50Prompt(isPromptOnly ? "v50.6" : promptVariant);
   const voiceId = env.GROK_FIRST_V50_VOICE_ID ?? GROK_FIRST_V50_VOICE_ID;
   const sessionId = `gfv50_${randomUUID()}`;
@@ -142,7 +144,7 @@ export async function createGrokFirstV50Session(input?: {
         : runtimeVariant === "v50.8"
         ? GROK_FIRST_V50_8_GUARDRAIL_VERSION
         : runtimeVariant === "v50.7"
-        ? GROK_FIRST_V50_7_GUARDRAIL_VERSION
+        ? GROK_FIRST_V50_7_SPEED_HOTFIX_GUARDRAIL_VERSION
         : isPromptOnly
         ? GROK_FIRST_V50_7_PROMPT_ONLY_GUARDRAIL_VERSION
         : prompt.guardrailVersion,
@@ -164,7 +166,7 @@ export async function createGrokFirstV50Session(input?: {
     turnDetection: {
       type: "server_vad",
       threshold: 0.65,
-      silence_duration_ms: 650,
+      silence_duration_ms: isLatencySpeedHotfix ? 350 : 650,
       prefix_padding_ms: 333,
       ...(runtimeVariant === "v50.7" || isPromptOnly
         ? { create_response: false as const }
@@ -177,24 +179,27 @@ export async function createGrokFirstV50Session(input?: {
     lockedResponseAudioBundleIncluded: false,
     runtimeTtsEnabled: false,
     replacementTtsEnabled: false,
+    latencyMode: isLatencySpeedHotfix ? "fastest_streaming" : undefined,
+    streamAudioBeforeDone: isLatencySpeedHotfix,
+    audioHoldMs: isLatencySpeedHotfix ? 0 : undefined,
     fullTurnBufferEnabled: false,
     runtimeGuardrailsEnabled,
     inputGuardEnabled: runtimeGuardrailsEnabled,
-    normalInputRouterEnabled: runtimeGuardrailsEnabled,
+    normalInputRouterEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
     negativeGuardEnabled: runtimeGuardrailsEnabled,
-    tailGuardEnabled: runtimeGuardrailsEnabled,
+    tailGuardEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
     fixedGuardAudioEnabled: runtimeGuardrailsEnabled,
-    boundedRewriteEnabled: runtimeGuardrailsEnabled,
+    boundedRewriteEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
     noiseIgnoredEnabled: runtimeGuardrailsEnabled,
     runtimeControl: {
       mode: isPromptOnly ? "prompt_only" : "default",
       runtimeGuardrailsEnabled,
       inputGuardEnabled: runtimeGuardrailsEnabled,
-      normalInputRouterEnabled: runtimeGuardrailsEnabled,
+      normalInputRouterEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
       negativeGuardEnabled: runtimeGuardrailsEnabled,
-      tailGuardEnabled: runtimeGuardrailsEnabled,
+      tailGuardEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
       fixedGuardAudioEnabled: runtimeGuardrailsEnabled,
-      boundedRewriteEnabled: runtimeGuardrailsEnabled,
+      boundedRewriteEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
       noiseIgnoredEnabled: runtimeGuardrailsEnabled,
     },
     debugTranscriptPreviewEnabled:

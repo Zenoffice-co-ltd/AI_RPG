@@ -14,6 +14,8 @@ const args = parseArgs(process.argv.slice(2));
 const variant = stringArg(args.variant, "v50-7");
 const mode = stringArg(args.mode, "start");
 const origin = stringArg(args.origin, "https://roleplay.mendan.biz");
+const caseSet = stringArg(args["case-set"], mode);
+const runs = numberArg(args.runs, 1);
 const project = stringArg(args.project, "adecco-mendan");
 const demoSlug = variant.startsWith("adecco-roleplay-")
   ? variant
@@ -28,11 +30,11 @@ const expectedGuardrailVersion = stringArg(
   args["expected-guardrail-version"],
   variant === "v50-8"
     ? "grok-first-v50.8-guard-2026-05-16"
-    : "grok-first-v50.7-guard-2026-05-15"
+    : "grok-first-v50.7-speed-hotfix-2026-05-17"
 );
 const expectedRuntimeGuardrailsEnabled = booleanArg(
   args["expected-runtime-guardrails-enabled"],
-  variant !== "v50-7"
+  true
 );
 const fixture = path.resolve(
   stringArg(
@@ -48,6 +50,8 @@ mkdirSync(outDir, { recursive: true });
 
 const evidence = {
   mode,
+  caseSet,
+  runs,
   url,
   demoSlug,
   apiBase,
@@ -66,9 +70,41 @@ const evidence = {
   screenshots: {},
 };
 
+const SPEED_SMOKE_CASES = [
+  {
+    id: "speed-01-background",
+    userText: "今回の募集背景を教えてください。",
+    fixture: "test/fixtures/audio/grok-voice-v21/voice_case1_shallow_background.wav",
+  },
+  {
+    id: "speed-02-background-detail",
+    userText: "背景をもう少し詳しく教えてください。",
+    fixture: "test/fixtures/audio/grok-voice-v21/voice_case1_shallow_background.wav",
+  },
+  {
+    id: "speed-03-job-summary",
+    userText: "業務内容の大枠を教えてください。",
+    fixture: "test/fixtures/audio/grok-voice-v21/voice_case3_headcount.wav",
+  },
+  {
+    id: "speed-04-requirement-priority",
+    userText:
+      "候補者要件で、メーカー経験と対外調整経験ならどちらを優先しますか。",
+    fixture: "test/fixtures/audio/grok-voice-v21/voice_case4_rate.wav",
+  },
+  {
+    id: "speed-05-skill-card",
+    userText:
+      "候補者が出たらスキルカードで確認いただく流れでよろしいでしょうか。",
+    fixture: "test/fixtures/audio/grok-voice-v21/voice_case5_order_entry_requirement.wav",
+  },
+];
+
 const accessToken = resolveAccessToken(project);
 
-if (mode === "session") {
+if (caseSet === "speed-smoke" && mode === "voice-turn") {
+  await runSpeedSmoke();
+} else if (mode === "session") {
   await runSessionContractSmoke();
 } else {
   await runBrowserSmoke();
@@ -76,6 +112,152 @@ if (mode === "session") {
 
 console.log(JSON.stringify(evidence, null, 2));
 process.exitCode = evidence.pass ? 0 : 1;
+
+async function runSpeedSmoke() {
+  evidence.speedCases = SPEED_SMOKE_CASES.map((item) => ({
+    id: item.id,
+    userText: item.userText,
+    fixture: path.resolve(item.fixture),
+  }));
+  evidence.attempts = [];
+  for (let runIndex = 1; runIndex <= runs; runIndex += 1) {
+    for (const testCase of SPEED_SMOKE_CASES) {
+      evidence.attempts.push(await runSpeedSmokeAttempt({ runIndex, testCase }));
+    }
+  }
+  evidence.completedAt = new Date().toISOString();
+  evidence.results = summarizeSpeedSmoke(evidence.attempts);
+  evidence.pass = evidence.results.finalConclusion === "SPEED_PASS";
+  writeFileSync(path.join(outDir, "results.json"), JSON.stringify(evidence, null, 2));
+  writeFileSync(path.join(outDir, "evidence.json"), JSON.stringify(evidence, null, 2));
+  writeFileSync(
+    path.join(outDir, "events.jsonl"),
+    evidence.attempts
+      .flatMap((attempt) => attempt.events)
+      .map((event) => JSON.stringify(event))
+      .join("\n") + "\n"
+  );
+  writeFileSync(path.join(outDir, "report.md"), renderSpeedReport(evidence));
+}
+
+async function runSpeedSmokeAttempt({ runIndex, testCase }) {
+  const attemptFixture = path.resolve(testCase.fixture);
+  const browser = await (await import("playwright")).chromium.launch({
+    headless: true,
+    args: [
+      "--use-fake-ui-for-media-stream",
+      "--use-fake-device-for-media-stream",
+      `--use-file-for-fake-audio-capture=${attemptFixture}`,
+      "--autoplay-policy=no-user-gesture-required",
+    ],
+  });
+  const context = await browser.newContext({
+    baseURL: origin,
+    permissions: ["microphone"],
+  });
+  await context.grantPermissions(["microphone"], { origin });
+  const page = await context.newPage();
+  const attempt = {
+    runIndex,
+    caseId: testCase.id,
+    userText: testCase.userText,
+    fixture: attemptFixture,
+    sessionResponse: null,
+    sessionPayload: null,
+    events: [],
+    eventKinds: [],
+    websocketUrls: [],
+    metrics: [],
+    console: [],
+    pageErrors: [],
+    errorTextVisible: false,
+  };
+
+  await page.addInitScript((apiBaseArg) => {
+    window.__gfv50Events = [];
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (...fetchArgs) => {
+      try {
+        const [input, init] = fetchArgs;
+        const requestUrl =
+          typeof input === "string"
+            ? input
+            : input instanceof Request
+              ? input.url
+              : String(input);
+        if (requestUrl.includes(`${apiBaseArg}/event`) && typeof init?.body === "string") {
+          window.__gfv50Events.push(JSON.parse(init.body));
+        }
+      } catch {
+        // Evidence capture must not affect the route under test.
+      }
+      return originalFetch(...fetchArgs);
+    };
+  }, apiBase);
+
+  page.on("console", (message) =>
+    attempt.console.push({ type: message.type(), text: message.text() })
+  );
+  page.on("pageerror", (error) => attempt.pageErrors.push(error.message));
+  page.on("websocket", (ws) => attempt.websocketUrls.push(ws.url()));
+  page.on("request", (request) => {
+    if (!request.url().includes(`${apiBase}/event`)) return;
+    const raw = request.postData();
+    if (!raw) return;
+    try {
+      const body = JSON.parse(raw);
+      attempt.events.push(body);
+      if (body?.kind) attempt.eventKinds.push(body.kind);
+      if (body?.kind === "turn.completed") attempt.metrics.push(body.details);
+    } catch {
+      attempt.eventKinds.push("event.parse_failed");
+    }
+  });
+  page.on("response", async (response) => {
+    if (!response.url().includes(`${apiBase}/session`)) return;
+    attempt.sessionResponse = { status: response.status(), ok: response.ok() };
+    try {
+      const json = await response.json();
+      attempt.sessionPayload = summarizeSessionPayload(json);
+    } catch (error) {
+      attempt.sessionPayload = { parseError: error.message };
+    }
+  });
+
+  try {
+    await page.goto(url, { waitUntil: "networkidle" });
+    const accessInput = page.getByLabel("アクセスコード");
+    if (await accessInput.isVisible().catch(() => false)) {
+      await accessInput.fill(accessToken);
+      await Promise.all([
+        page.waitForURL(new RegExp(`/demo/${demoSlug}`), { timeout: 30000 }),
+        page.getByRole("button", { name: "開始" }).click(),
+      ]);
+    }
+    await page.waitForSelector('[data-testid="roleplay-header"]', { timeout: 30000 });
+    await page.getByRole("button", { name: "通話を開始" }).click();
+    await page.waitForFunction(
+      () => {
+        const events = window.__gfv50Events ?? [];
+        return (
+          document.body.innerText.includes("セッションの開始に失敗しました") ||
+          events.some((event) => event.kind === "turn.completed")
+        );
+      },
+      null,
+      { timeout: 120000 }
+    ).catch(() => undefined);
+    await page.waitForTimeout(1000);
+    attempt.errorTextVisible = await page
+      .getByText("セッションの開始に失敗しました。時間をおいて再試行してください。")
+      .isVisible()
+      .catch(() => false);
+  } finally {
+    await context.close();
+    await browser.close();
+  }
+  return attempt;
+}
 
 async function runBrowserSmoke() {
   const { chromium } = await import("playwright");
@@ -280,24 +462,38 @@ function summarizeSessionPayload(json) {
     wsUrl: json.wsUrl,
     authMode: json.realtimeAuth?.mode,
     runtimeGuardrailsEnabled: json.runtimeGuardrailsEnabled,
+    normalInputRouterEnabled: json.normalInputRouterEnabled,
+    boundedRewriteEnabled: json.boundedRewriteEnabled,
     runtimeTtsEnabled: json.runtimeTtsEnabled,
     replacementTtsEnabled: json.replacementTtsEnabled,
+    latencyMode: json.latencyMode,
+    streamAudioBeforeDone: json.streamAudioBeforeDone,
+    audioHoldMs: json.audioHoldMs,
     fullTurnBufferEnabled: json.fullTurnBufferEnabled,
     turnDetectionCreateResponse: json.turnDetection?.create_response,
+    turnDetectionSilenceMs: json.turnDetection?.silence_duration_ms,
     registeredSpeechPayloadIncluded: json.registeredSpeechPayloadIncluded,
     lockedResponseAudioBundleIncluded: json.lockedResponseAudioBundleIncluded,
     ephemeralTokenIncluded: Object.hasOwn(json, "ephemeralToken"),
   };
 }
 
-function isSessionContractOk(payload) {
+function isSessionContractOk(payload, status = evidence.sessionResponse?.status) {
   return (
-    evidence.sessionResponse?.status === 200 &&
+    status === 200 &&
     payload?.demoSlug === demoSlug &&
     payload?.backend === `grok-first-${variant}` &&
     payload?.promptVersion === expectedPromptVersion &&
     payload?.guardrailVersion === expectedGuardrailVersion &&
     payload?.runtimeGuardrailsEnabled === expectedRuntimeGuardrailsEnabled &&
+    (variant !== "v50-7" ||
+      (payload?.latencyMode === "fastest_streaming" &&
+        payload?.streamAudioBeforeDone === true &&
+        payload?.audioHoldMs === 0 &&
+        payload?.normalInputRouterEnabled === false &&
+        payload?.boundedRewriteEnabled === false &&
+        payload?.turnDetectionSilenceMs === 350 &&
+        payload?.turnDetectionCreateResponse === false)) &&
     payload?.wsUrl === "wss://voice.mendan.biz/api/v3/realtime-relay" &&
     payload?.authMode === "mendan_relay_subprotocol" &&
     payload?.registeredSpeechPayloadIncluded === false &&
@@ -315,8 +511,203 @@ function isVoiceTurnMetricOk(metric) {
     Array.isArray(metric.guardReasons) &&
     metric.guardReasons.length === 0 &&
     metric.fullTurnBufferCount === 0 &&
+    metric.tailGuardHoldMs === 0 &&
     metric.tailAudioDroppedBytes === 0
   );
+}
+
+function isSpeedVoiceTurnMetricOk(metric) {
+  return (
+    metric &&
+    metric.audioBytes > 0 &&
+    metric.error === null &&
+    metric.fullTurnBufferCount === 0 &&
+    metric.tailGuardHoldMs === 0 &&
+    metric.tailAudioDroppedBytes === 0 &&
+    metric.latencyMode === "fastest_streaming" &&
+    metric.streamAudioBeforeDone === true &&
+    metric.turnDetectionSilenceMs === 350 &&
+    typeof metric.firstAudioDeltaMs === "number" &&
+    typeof metric.firstAudibleAudioMs === "number" &&
+    typeof metric.firstDeltaToFirstAudibleMs === "number"
+  );
+}
+
+function summarizeSpeedSmoke(attempts) {
+  const failures = [];
+  const metrics = attempts.flatMap((attempt) => attempt.metrics ?? []);
+  const add = (attempt, message) =>
+    failures.push(`${attempt.caseId} run ${attempt.runIndex}: ${message}`);
+  for (const attempt of attempts) {
+    const payload = attempt.sessionPayload ?? {};
+    if (attempt.sessionResponse?.status !== 200) {
+      add(attempt, `session status=${attempt.sessionResponse?.status ?? "<missing>"}`);
+    }
+    if (!isSessionContractOk(payload, attempt.sessionResponse?.status)) {
+      add(attempt, "session identity mismatch");
+    }
+    if (!attempt.websocketUrls.includes("wss://voice.mendan.biz/api/v3/realtime-relay")) {
+      add(attempt, "relay websocket missing");
+    }
+    for (const kind of ["ws.connected", "session.ready", "stt.completed", "turn.completed"]) {
+      if (!attempt.eventKinds.includes(kind)) add(attempt, `missing ${kind}`);
+    }
+    if (attempt.errorTextVisible) add(attempt, "session error visible");
+    if (attempt.metrics.length === 0) add(attempt, "turn.completed metrics missing");
+    for (const metric of attempt.metrics) {
+      if (!isSpeedVoiceTurnMetricOk(metric)) add(attempt, "voice metric failed");
+      if (metric?.latencyMode !== "fastest_streaming") add(attempt, `latencyMode=${metric?.latencyMode}`);
+      if (metric?.streamAudioBeforeDone !== true) add(attempt, `streamAudioBeforeDone=${metric?.streamAudioBeforeDone}`);
+      if (metric?.turnDetectionSilenceMs !== 350) add(attempt, `turnDetectionSilenceMs=${metric?.turnDetectionSilenceMs}`);
+      if (metric?.firstDeltaToFirstAudibleMs === null || metric?.firstDeltaToFirstAudibleMs === undefined) {
+        add(attempt, "firstDeltaToFirstAudibleMs missing");
+      }
+    }
+  }
+  const firstAudioDeltaMs = percentileSummary(
+    metrics.map((metric) => metric.firstAudioDeltaMs).filter(isFiniteNumber)
+  );
+  const firstAudibleAudioMs = percentileSummary(
+    metrics.map((metric) => metric.firstAudibleAudioMs).filter(isFiniteNumber)
+  );
+  const firstDeltaToFirstAudibleMs = percentileSummary(
+    metrics.map((metric) => metric.firstDeltaToFirstAudibleMs).filter(isFiniteNumber)
+  );
+  const doneMs = percentileSummary(
+    metrics.map((metric) => metric.doneMs).filter(isFiniteNumber)
+  );
+  const maxFullTurnBufferCount = Math.max(
+    0,
+    ...metrics.map((metric) => Number(metric.fullTurnBufferCount ?? 0))
+  );
+  const maxTailGuardHoldMs = Math.max(
+    0,
+    ...metrics.map((metric) => Number(metric.tailGuardHoldMs ?? 0))
+  );
+  const maxTailAudioDroppedBytes = Math.max(
+    0,
+    ...metrics.map((metric) => Number(metric.tailAudioDroppedBytes ?? 0))
+  );
+  const expectedAttempts = SPEED_SMOKE_CASES.length * runs;
+  if (attempts.length !== expectedAttempts) {
+    failures.push(`expected ${expectedAttempts} attempts, got ${attempts.length}`);
+  }
+  if (metrics.length !== expectedAttempts) {
+    failures.push(`expected ${expectedAttempts} turn.completed metrics, got ${metrics.length}`);
+  }
+  if ((firstAudioDeltaMs.p50 ?? Infinity) > 3000) failures.push(`firstAudioDeltaMs p50=${firstAudioDeltaMs.p50}`);
+  if ((firstAudibleAudioMs.p50 ?? Infinity) > 3200) failures.push(`firstAudibleAudioMs p50=${firstAudibleAudioMs.p50}`);
+  if ((firstAudibleAudioMs.p95 ?? Infinity) > 6000) failures.push(`firstAudibleAudioMs p95=${firstAudibleAudioMs.p95}`);
+  if ((firstDeltaToFirstAudibleMs.p95 ?? Infinity) > 200) {
+    failures.push(`firstDeltaToFirstAudibleMs p95=${firstDeltaToFirstAudibleMs.p95}`);
+  }
+  if (maxFullTurnBufferCount > 0) failures.push(`fullTurnBufferCount max=${maxFullTurnBufferCount}`);
+  if (maxTailGuardHoldMs > 0) failures.push(`tailGuardHoldMs max=${maxTailGuardHoldMs}`);
+  if (maxTailAudioDroppedBytes > 0) failures.push(`tailAudioDroppedBytes max=${maxTailAudioDroppedBytes}`);
+  const blocked = attempts.some(
+    (attempt) =>
+      attempt.sessionResponse?.status !== 200 ||
+      attempt.errorTextVisible ||
+      !attempt.eventKinds.includes("ws.connected") ||
+      !attempt.eventKinds.includes("session.ready")
+  );
+  return {
+    finalConclusion:
+      failures.length === 0 ? "SPEED_PASS" : blocked ? "SPEED_BLOCKED" : "SPEED_FAIL",
+    humanTestAllowed:
+      failures.length === 0 ? "manual speed check only" : "no",
+    qualityStatus: "NOT EVALUATED",
+    attemptCount: attempts.length,
+    turnCompletedCount: metrics.length,
+    firstAudioDeltaMs,
+    firstAudibleAudioMs,
+    firstDeltaToFirstAudibleMs,
+    doneMs,
+    maxFullTurnBufferCount,
+    maxTailGuardHoldMs,
+    maxTailAudioDroppedBytes,
+    audioBytes: percentileSummary(
+      metrics.map((metric) => metric.audioBytes).filter(isFiniteNumber)
+    ),
+    failures,
+  };
+}
+
+function renderSpeedReport(data) {
+  const results = data.results;
+  const payload = data.attempts.find((attempt) => attempt.sessionPayload)?.sessionPayload ?? {};
+  return [
+    "# v50.7 In-place Speed Hotfix Report",
+    "",
+    `Final conclusion: ${results.finalConclusion}`,
+    `Human test allowed: ${results.humanTestAllowed}`,
+    "Quality status: NOT EVALUATED",
+    "Known risk: audio may be heard before final transcript guard.",
+    "",
+    `Route: ${url}`,
+    `API base: ${apiBase}`,
+    `Prompt version: ${payload.promptVersion ?? "not observed"}`,
+    `Guardrail version: ${payload.guardrailVersion ?? "not observed"}`,
+    `Latency mode: ${payload.latencyMode ?? "not observed"}`,
+    `streamAudioBeforeDone: ${payload.streamAudioBeforeDone ?? "not observed"}`,
+    `normalInputRouterEnabled: ${payload.normalInputRouterEnabled ?? "not observed"}`,
+    `boundedRewriteEnabled: ${payload.boundedRewriteEnabled ?? "not observed"}`,
+    `turnDetection.silence_duration_ms: ${payload.turnDetectionSilenceMs ?? "not observed"}`,
+    `turnDetection.create_response: ${String(payload.turnDetectionCreateResponse)}`,
+    "",
+    "## Commands",
+    "",
+    `node scripts/grok-first-v50-prod-smoke.mjs --variant ${variant} --mode ${mode} --case-set ${caseSet} --runs ${runs} --out ${outDir}`,
+    "",
+    "## Latency",
+    "",
+    `firstAudioDelta p50/p95: ${results.firstAudioDeltaMs.p50 ?? "n/a"} / ${results.firstAudioDeltaMs.p95 ?? "n/a"}`,
+    `firstAudible p50/p95: ${results.firstAudibleAudioMs.p50 ?? "n/a"} / ${results.firstAudibleAudioMs.p95 ?? "n/a"}`,
+    `firstDeltaToFirstAudible p50/p95: ${results.firstDeltaToFirstAudibleMs.p50 ?? "n/a"} / ${results.firstDeltaToFirstAudibleMs.p95 ?? "n/a"}`,
+    `doneMs p50/p95: ${results.doneMs.p50 ?? "n/a"} / ${results.doneMs.p95 ?? "n/a"}`,
+    `audioBytes p50/p95: ${results.audioBytes.p50 ?? "n/a"} / ${results.audioBytes.p95 ?? "n/a"}`,
+    `fullTurnBufferCount max: ${results.maxFullTurnBufferCount}`,
+    `tailGuardHoldMs max: ${results.maxTailGuardHoldMs}`,
+    `tailAudioDroppedBytes max: ${results.maxTailAudioDroppedBytes}`,
+    `turn.completed count: ${results.turnCompletedCount}`,
+    "",
+    "## Known Quality Risks",
+    "",
+    "- This is an in-place v50.7 speed hotfix.",
+    "- It invalidates direct latency comparison with prior v50.7 quality evidence after this deployment.",
+    "- Audio may be heard before final transcript guard.",
+    "- Quality status is NOT EVALUATED.",
+    "",
+    "## Failures",
+    "",
+    results.failures.length === 0
+      ? "- none"
+      : results.failures.map((failure) => `- ${failure}`).join("\n"),
+    "",
+    "## Recommendation",
+    "",
+    results.finalConclusion === "SPEED_PASS"
+      ? "- Allow manual speed check only, then move to quality-speed balance phase."
+      : "- Treat as speed hotfix failure/blocker and inspect events/results before manual check.",
+    "",
+  ].join("\n");
+}
+
+function percentileSummary(values) {
+  const sorted = values.filter(isFiniteNumber).sort((a, b) => a - b);
+  if (sorted.length === 0) return { n: 0, p50: null, p95: null, min: null, max: null };
+  const at = (p) => sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))];
+  return {
+    n: sorted.length,
+    p50: at(0.5),
+    p95: at(0.95),
+    min: sorted[0],
+    max: sorted[sorted.length - 1],
+  };
+}
+
+function isFiniteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 function demoAccessCookie(token) {
@@ -354,6 +745,11 @@ function booleanArg(value, fallback) {
   if (value === "true") return true;
   if (value === "false") return false;
   return fallback;
+}
+
+function numberArg(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function resolveAccessToken(project) {

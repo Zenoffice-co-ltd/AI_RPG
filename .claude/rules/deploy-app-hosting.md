@@ -37,6 +37,12 @@ For v50 remediation, do not use production deploy as the normal test loop.
 Convert production failures into deterministic local fixtures / hook tests,
 patch in batches, and use targeted `--case-ids` reruns before broad DoD.
 
+Manual App Hosting deploys for this repo must run from
+`C:\dev\AI_RPG\_worktrees\deploy_clean`, not from the root `C:\dev\AI_RPG`,
+unless the operator explicitly overrides this for a one-off emergency. If the
+implementation happened in another worktree, sync/PR the diff before uploading
+from `deploy_clean`.
+
 ## Manual fallback command
 
 ```bash

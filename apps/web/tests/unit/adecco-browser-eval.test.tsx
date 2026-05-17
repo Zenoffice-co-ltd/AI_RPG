@@ -156,7 +156,9 @@ describe("v50.7 browser evaluation APIs", () => {
     expect(body.demoSlug).toBe("adecco-roleplay-v50-7");
     expect(body.backend).toBe("grok-first-v50-7");
     expect(body.promptVersion).toBe("grok-first-v50.6-2026-05-15");
-    expect(body.guardrailVersion).toBe("grok-first-v50.7-guard-2026-05-15");
+    expect(body.guardrailVersion).toBe(
+      "grok-first-v50.7-speed-hotfix-2026-05-17"
+    );
     expect(body.browserEvaluationEnabled).toBe(true);
   });
 
