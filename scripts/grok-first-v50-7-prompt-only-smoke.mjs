@@ -349,7 +349,8 @@ function renderManualResultTemplate() {
   return [
     "# Prompt-Only Manual Review Result",
     "",
-    "Final conclusion: PROMPT_ONLY_BLOCKED",
+    "Current status: MANUAL_REVIEW_REQUIRED",
+    "Final conclusion: fill after review with PROMPT_ONLY_USABLE / PROMPT_ONLY_NOT_USABLE / PROMPT_ONLY_BLOCKED",
     "Product human test allowed: no",
     "",
     "Key prompt-only failures:",
