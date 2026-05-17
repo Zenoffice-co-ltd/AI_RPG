@@ -887,7 +887,9 @@ export function useGrokFirstRoleplayConversation(
             window.setTimeout(() => {
               if (sessionRef.current?.sessionId !== rewriteSessionId) return;
               if (turnIndexRef.current !== rewriteTurnIndex) return;
-              if (turnStartAtRef.current !== null) return;
+              if (accumulatedTextRef.current) return;
+              if (hardSuppressedRef.current) return;
+              if (fixedGuardActiveRef.current) return;
               createRealtimeResponse();
               void postEvent({
                 kind: "guard.rewrite_response_retry",
