@@ -75,6 +75,7 @@ function buildStubAudioQueue() {
       }) as unknown as AudioContext,
   });
   vi.spyOn(queue, "enqueueBase64AndWait").mockResolvedValue(undefined);
+  vi.spyOn(queue, "enqueueBase64");
   vi.spyOn(queue, "clearAllScheduledAudioForLock");
   return queue;
 }
@@ -184,7 +185,7 @@ describe("grok-first v50.7 client input guard", () => {
       fake.emit({ type: "input_audio_buffer.speech_started" });
       fake.emit({
         type: "conversation.item.input_audio_transcription.completed",
-        transcript: "業務内容を教えてください",
+        transcript: "候補者要件は何を重視しますか",
       });
       fake.emit({ type: "response.created" });
     });
@@ -192,7 +193,7 @@ describe("grok-first v50.7 client input guard", () => {
     expect(fake.createResponse).toHaveBeenCalledTimes(1);
     expect(result.current.messages.map((m) => m.text)).toEqual([
       "お電話ありがとうございます。",
-      "業務内容を教えてください",
+      "候補者要件は何を重視しますか",
     ]);
 
     act(() => {
@@ -206,10 +207,156 @@ describe("grok-first v50.7 client input guard", () => {
     await waitFor(() => {
       expect(result.current.messages.map((m) => m.text)).toEqual([
         "お電話ありがとうございます。",
-        "業務内容を教えてください",
+        "候補者要件は何を重視しますか",
         "受注入力が中心です。",
       ]);
     });
+  });
+
+  it("buffers realtime audio until the final transcript is safe", async () => {
+    const { result, fake, queue } = renderConversation();
+    const audio = Buffer.from(new Uint8Array(48)).toString("base64");
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "業務内容を教えてください",
+      });
+      fake.emit({ type: "response.created" });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+    });
+
+    expect(queue.enqueueBase64).not.toHaveBeenCalled();
+
+    act(() => {
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "受注入力が中心です。",
+      });
+      fake.emit({ type: "response.done" });
+    });
+
+    await waitFor(() => {
+      expect(queue.enqueueBase64).toHaveBeenCalledTimes(1);
+      expect(result.current.metricsLog.at(-1)).toMatchObject({
+        routePath: "grok_first_realtime",
+        fullTurnBufferCount: 1,
+      });
+    });
+  });
+
+  it("waits for rewritten realtime response after ignoring the canceled empty done", async () => {
+    const { result, fake, queue, postEvent } = renderConversation();
+    const audio = Buffer.from(new Uint8Array(48)).toString("base64");
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "今回の募集背景を教えてください",
+      });
+      fake.emit({ type: "response.created" });
+      fake.emit({ type: "response.done" });
+      fake.emit({ type: "response.created" });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "受注処理が増えていて、社員側の確認負荷が高くなっています。",
+      });
+      fake.emit({ type: "response.done" });
+    });
+
+    expect(fake.cancelResponse).toHaveBeenCalledTimes(1);
+    expect(fake.sendUserText).toHaveBeenCalledTimes(1);
+    expect(fake.sendUserText.mock.calls[0]?.[0]).toContain("募集背景だけ");
+    expect(
+      postEvent.mock.calls.some(
+        ([event]) => event.kind === "guard.rewrite_empty_done_ignored"
+      )
+    ).toBe(true);
+    await waitFor(() => {
+      expect(queue.enqueueBase64).toHaveBeenCalledTimes(1);
+      expect(result.current.metricsLog.at(-1)).toMatchObject({
+        routePath: "grok_first_realtime",
+        guardAction: "pass",
+      });
+    });
+  });
+
+  it("does not attach stale assistant deltas to a low-information barge-in turn", async () => {
+    const { result, fake } = renderConversation();
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "受注処理が増えています。",
+      });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "うん。",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.metricsLog.at(-1)).toMatchObject({
+        routePath: "noise_ignored",
+        agentTextLen: 0,
+      });
+    });
+  });
+
+  it("drops buffered realtime audio when transcript guard cancels the turn", async () => {
+    const { result, fake, queue, postEvent } = renderConversation();
+    const audio = Buffer.from(new Uint8Array(96)).toString("base64");
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "要件を教えてください",
+      });
+      fake.emit({ type: "response.created" });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "そこは現場課長にも確認が必要です。",
+      });
+      fake.emit({ type: "response.done" });
+    });
+
+    expect(fake.cancelResponse).toHaveBeenCalledTimes(1);
+    expect(queue.enqueueBase64).not.toHaveBeenCalled();
+    expect(queue.clearAllScheduledAudioForLock).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(result.current.metricsLog.at(-1)).toMatchObject({
+        routePath: "suppressed",
+        guardAction: "cancel",
+        fullTurnBufferCount: 1,
+      });
+      expect(result.current.metricsLog.at(-1)?.tailAudioDroppedBytes).toBeGreaterThan(0);
+    });
+    const guardEvent = postEvent.mock.calls
+      .map(([event]) => event)
+      .find((event) => event.kind === "guard.detected");
+    expect(guardEvent?.details?.tailAudioDroppedBytes).toBeGreaterThan(0);
   });
 
   it("cancels and suppresses xAI output after guarded voice STT completion", async () => {

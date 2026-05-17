@@ -42,6 +42,7 @@ const EXIT_PATTERNS: RegExp[] = [
 
 const EXTERNAL_PATTERNS: RegExp[] = [
   /フィードバック/u,
+  /スピードバック/u,
   /採点/u,
   /さいてん/u,
   /サイテン/u,

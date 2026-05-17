@@ -103,6 +103,7 @@ export type GrokFirstV50Session = {
     threshold: 0.65;
     silence_duration_ms: 650;
     prefix_padding_ms: 333;
+    create_response?: false;
   };
   tools?: [];
   instructions?: string;
@@ -147,7 +148,7 @@ export type GrokFirstV50Metric = {
   tailAudioDroppedBytes: number;
   toolCallCount: 0;
   runtimeTtsCount: 0;
-  fullTurnBufferCount: 0;
+  fullTurnBufferCount: number;
   regenerationRate: 0;
   businessRegisteredSpeechHitCount: 0;
   businessPr60LockHitCount: 0;
@@ -193,7 +194,8 @@ export type NegativeGuardReason =
   | "premature_sensitive_reveal"
   | "unnatural_ai_phrase"
   | "customer_coaching"
-  | "customer_led_sales_flow";
+  | "customer_led_sales_flow"
+  | "low_information_input_new_topic";
 
 export type NegativeGuardDecision = {
   action: GuardAction;

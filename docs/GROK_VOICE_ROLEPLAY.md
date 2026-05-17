@@ -98,6 +98,158 @@ shows/plays only the app-side fixed response. The guarantee is that xAI-generate
 assistant text/audio is not displayed or heard; live mic audio may already have
 been streamed to the relay before STT completion.
 
+For v50.7 Option A naturalness verification, the v50.6 System Prompt remains
+fixed. Normal sales naturalness is controlled in runtime code: opening-only
+greetings and low-information backchannels are routed to `routePath=noise_ignored`
+with no assistant audio, while bounded background/detail/business-flow questions
+may be rewritten before Realtime generation so the customer does not lead the
+salesperson into a next topic. Normal Realtime assistant audio is held until the
+final transcript guard has passed; if a P0 customer-led or generic-closing phrase
+is detected, held audio is dropped before playback, so `fullTurnBufferCount` may
+be `1` for safe normal turns. This is runtime/output-guard behavior, not a prompt
+change.
+
+The v50.7 Option A runner is
+`pnpm grok:first-v50-7:natural-voice-e2e` (wrapping
+`scripts/grok-first-v50-7-natural-voice-e2e.mjs`). It records production
+route/API preflight, actual session identity, raw/visible/audible transcript
+streams, `turn.completed`, false-pass audit, and an unconditional API-cost stop.
+The cost guard defaults to a conservative `$0.25` estimate per runtime voice
+case and must BLOCK before the next runtime case if the projected total would
+exceed `$50`.
+Operators may lower `--max-api-cost-usd` for a stricter stop, but the runtime
+case estimate is clamped to at least the default conservative `$0.25`; it cannot
+be reduced to bypass the `$50` stop.
+Use `--refresh-report-only` to recompute report/projection fields from existing
+evidence without making production or provider calls. If the required remaining
+Option A production voice suites are projected above `$50`, report `BLOCKED` and
+`human test allowed = no`; do not substitute text-only, fixed-guard-only, or
+local evidence for the missing production voice suites. Non-PASS conclusions
+return a non-zero process exit; for Option A, exit code `2` means the runner
+produced a `BLOCKED` evaluation result rather than a shell failure.
+
+Example report-only refresh from existing evidence:
+
+```bash
+pnpm grok:first-v50-7:natural-voice-e2e -- \
+  --base-url https://roleplay.mendan.biz \
+  --route /demo/adecco-roleplay-v50-7 \
+  --api-base /api/grok-first-v50-7 \
+  --refresh-report-only \
+  --out out/grok_first_v50_7_natural_voice_e2e/barge_in_img_full
+```
+
+### v50.7 Option A Budgeted Residual DoD
+
+When the operator explicitly sets a `$15` total projected API budget, do not
+claim the original full Option A denominator passed. The budgeted residual gate
+uses the same runner with `--case-set budgeted-residual-dod`, reuses existing
+preflight/session/evaluator/IMG evidence, and runs exactly 45 high-risk
+production voice sentinel cases:
+
+```bash
+pnpm grok:first-v50-7:natural-voice-e2e -- \
+  --base-url https://roleplay.mendan.biz \
+  --route /demo/adecco-roleplay-v50-7 \
+  --api-base /api/grok-first-v50-7 \
+  --case-set budgeted-residual-dod \
+  --reuse-existing-evidence out/grok_first_v50_7_natural_voice_e2e/barge_in_img_full \
+  --existing-estimated-spent-usd 3.75 \
+  --max-api-cost-usd 15 \
+  --runs 1 \
+  --out out/grok_first_v50_7_natural_voice_e2e/budgeted_residual_15
+```
+
+The final conclusion for this scoped gate is exactly one of `BUDGETED_PASS`,
+`FAIL`, or `BLOCKED`. `BUDGETED_PASS` means only that reused PASS evidence plus
+the 45-case high-risk residual sentinel suite passed within `$15`; it is not
+Full Option A PASS. The report must state `Full Option A DoD: NOT COMPLETE under
+full denominator` while the original missing required suites remain unexecuted.
+Human testing is `limited_internal_only` on `BUDGETED_PASS` and `no` on `FAIL`
+or `BLOCKED`.
+
+### v50.7 Budgeted Remediation Workflow
+
+When a budgeted residual or full Option A run fails, do not widen testing first.
+Use the failed evidence to make the next run smaller and more productive:
+
+1. Read `results.json`, `events.jsonl`, `report.md`, and
+   `false_pass_audit.md`; the report summary alone is not enough for root cause.
+2. Build a targeted rerun from the exact FAIL/BLOCKED/suspected false-pass ids
+   with `--case-ids`.
+3. Patch router/guard/evaluator behavior as one batch, run local deterministic
+   checks, then deploy once for the batch.
+4. Rerun only the targeted subset with a strict `--max-api-cost-usd`.
+5. Rerun the 45-case `budgeted-residual-dod` suite only after the targeted
+   subset is clean.
+
+Example targeted remediation command:
+
+```bash
+pnpm grok:first-v50-7:natural-voice-e2e -- \
+  --base-url https://roleplay.mendan.biz \
+  --route /demo/adecco-roleplay-v50-7 \
+  --api-base /api/grok-first-v50-7 \
+  --case-set budgeted-residual-dod \
+  --case-ids NAT-BUD-06,NAT-BUD-08,BACK-BUD-14,REV-BUD-08,TRANS-BUD-A-T4,TRANS-BUD-B-T4 \
+  --runs 1 \
+  --max-api-cost-usd 3 \
+  --out out/grok_first_v50_7_natural_voice_e2e/remediate_remaining_6
+```
+
+Current recurring STT confusions are treated as runtime-router fixtures, not
+prompt changes: `炭火レンジ` means `単価レンジ`, `求人状況` / `会社状況` means
+`他社状況`, and `スピードバック` means `フィードバック`. High-risk bounded
+rewrites should prefer exact one-sentence safe answers over long negative
+instructions, because leaked harness instructions are raw/visible/audible P0
+failures and must be covered by output-guard tests.
+
+### v50.7 Option A DoD
+
+The final conclusion is exactly one of `PASS`, `FAIL`, or `BLOCKED`.
+`human test allowed = yes` only when the final conclusion is `PASS`; otherwise
+`human test allowed = no`.
+
+`PASS` requires all of the following production voice evidence:
+
+1. `/demo/adecco-roleplay-v50-7` is not 404, `/api/grok-first-v50-7/session`
+   works, and `/api/grok-first-v50-7/event` works.
+2. Actual session identity records `demoSlug=adecco-roleplay-v50-7`,
+   `backend=grok-first-v50-7`, `promptVersion=grok-first-v50.6-2026-05-15`,
+   `guardrailVersion=grok-first-v50.7-guard-2026-05-15`, plus `model`,
+   `voiceId`, `realtimeTransport`, and `promptHash`.
+3. Production voice path observes mic audio chunks, STT completed, assistant
+   transcript delta, assistant audio delta, `response.done`, and
+   `turn.completed`.
+4. Evaluator calibration has Golden Bad false pass `0` and Golden Good false
+   fail rate `<=5%`.
+5. `IMG-REGRESSION-001` is `5 turns x 3 runs = 15/15 PASS`, with the listed
+   customer-led image phrases at `0`.
+6. Natural Smoke is `30 cases x 3 runs = 90/90 PASS`.
+7. Backchannel is `50 cases x 3 runs = 150/150 PASS`, with new-topic starts
+   after low-information inputs at `0`.
+8. Reveal Depth is `30 cases x 3 runs = 90/90 PASS`, with background-only
+   over-disclosure at `0`.
+9. Natural Transition completes 12 scenarios on the production voice path with
+   turn pass `>=95%` and P0 hard fail `0`.
+10. Mixed Recovery proves normal sales -> fixed guard -> normal sales recovery
+    as `3/3 PASS`.
+11. Fixed Guard Smoke is `13 cases x 3 runs = 39/39 PASS` with `<missing>=0`.
+12. Leak counts are all `0`: customer-led phrase, generic closing question,
+    backchannel new topic, over-disclosure, audio leak, forbidden raw/visible/
+    audible transcript phrase, and false-pass audit.
+
+`FAIL` applies only after production route/API and voice path are established.
+Any customer-led normal sales turn, listed forbidden phrase, backchannel new
+topic, background-only over-disclosure, raw/visible/audible forbidden phrase,
+audible leak, or unnatural normal sales false pass is a `FAIL`.
+
+`BLOCKED` applies when evaluation evidence is unavailable, including route 404,
+session/event API 404 or 500, authentication or secret failure, deploy failure,
+voice fixture or fake mic failure, Realtime connection failure, missing required
+voice events, missing actual prompt/guardrail version, inability to run Natural
+Transition on voice, or the unconditional `$50` API-cost stop.
+
 ### v50-7 Browser Evaluation Result Page
 
 Safe mock route:
@@ -393,6 +545,19 @@ auth is blocked or the operator asks to use gcloud, use
 archive with `gcloud storage cp`, creates the build/rollout via the App Hosting
 API using `gcloud auth print-access-token`, warms the Grok cache, and writes
 evidence to `out/adecco_roleplay_gcloud_deploy/<timestamp>/`.
+
+For v50-family behavior changes, pass the variant so the post-check verifies the
+matching v50 session contract instead of only `/api/v3/session`:
+
+```bash
+corepack pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
+```
+
+Use fewer deploys by batching router/guard/runtime fixes and deploying once per
+targeted remediation batch. Runner-only, docs-only, and unit-test-only changes
+do not need App Hosting deploy; changes under
+`apps/web/lib/grok-first-roleplay/**`, route/session APIs, or client runtime
+behavior do need deploy before production voice evidence is claimed.
 
 ## API 調査 (実装日 2026-05-04)
 

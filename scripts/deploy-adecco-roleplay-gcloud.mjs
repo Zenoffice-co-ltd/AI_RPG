@@ -5,7 +5,7 @@
 //   1. build the same source zip shape Firebase Tools uses
 //   2. upload it with `gcloud storage cp`
 //   3. create an App Hosting build + rollout through the public API
-//   4. warm the Grok locked-response cache and verify the production session
+//   4. optionally warm the Grok locked-response cache and verify the production session
 
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -29,6 +29,37 @@ const BUCKET = `firebaseapphosting-sources-${PROJECT_NUMBER}-${LOCATION}`;
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_ROOT = path.join(REPO_ROOT, "out", "adecco_roleplay_gcloud_deploy");
 const TSX_CLI_PATH = path.join(REPO_ROOT, "node_modules", "tsx", "dist", "cli.mjs");
+const SKIP_TTS_WARM =
+  process.argv.includes("--skip-tts-warm") || process.argv.includes("--skip-warm");
+const VARIANT = readArg("--variant") ?? "v3";
+
+const VARIANT_SESSION_TARGETS = {
+  v3: {
+    route: "/demo/adecco-roleplay-v3",
+    apiPath: "/api/v3/session",
+    expectedBackend: "grok-first-v3",
+  },
+  "v50-7": {
+    route: "/demo/adecco-roleplay-v50-7",
+    apiPath: "/api/grok-first-v50-7/session",
+    expectedBackend: "grok-first-v50-7",
+    expectedPromptVersion: "grok-first-v50.6-2026-05-15",
+    expectedGuardrailVersion: "grok-first-v50.7-guard-2026-05-15",
+  },
+  "v50-8": {
+    route: "/demo/adecco-roleplay-v50-8",
+    apiPath: "/api/grok-first-v50-8/session",
+    expectedBackend: "grok-first-v50-8",
+    expectedPromptVersion: "grok-first-v50.6-2026-05-15",
+    expectedGuardrailVersion: "grok-first-v50.8-guard-2026-05-16",
+  },
+};
+
+function readArg(name) {
+  const index = process.argv.indexOf(name);
+  if (index < 0) return null;
+  return process.argv[index + 1] ?? null;
+}
 
 function utcStamp() {
   return new Date().toISOString().replace(/[:.]/g, "-");
@@ -288,23 +319,51 @@ function demoAccessCookie() {
   return `roleplay_api_access=${sig}`;
 }
 
-async function fetchProdSession() {
+async function fetchProdSession(variant = VARIANT) {
+  const target = VARIANT_SESSION_TARGETS[variant];
+  if (!target) {
+    throw new Error(
+      `Unsupported --variant ${variant}; expected one of ${Object.keys(VARIANT_SESSION_TARGETS).join(", ")}`
+    );
+  }
   const cookie = demoAccessCookie();
-  const response = await fetch(`${APPHOSTING_BASE_URL}/api/v3/session`, {
+  const response = await fetch(`${APPHOSTING_BASE_URL}${target.apiPath}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       origin: APPHOSTING_BASE_URL,
-      referer: `${APPHOSTING_BASE_URL}/demo/adecco-roleplay-v3`,
+      referer: `${APPHOSTING_BASE_URL}${target.route}`,
       cookie,
     },
     body: "{}",
   });
   const text = await response.text();
   if (!response.ok) {
-    throw new Error(`prod /api/v3/session failed: ${response.status} ${text}`);
+    throw new Error(`prod ${target.apiPath} failed: ${response.status} ${text}`);
   }
-  return JSON.parse(text);
+  const payload = JSON.parse(text);
+  if (target.expectedBackend && payload.backend && payload.backend !== target.expectedBackend) {
+    throw new Error(
+      `prod ${target.apiPath} backend mismatch: expected ${target.expectedBackend}, got ${payload.backend}`
+    );
+  }
+  if (
+    target.expectedPromptVersion &&
+    payload.promptVersion !== target.expectedPromptVersion
+  ) {
+    throw new Error(
+      `prod ${target.apiPath} promptVersion mismatch: expected ${target.expectedPromptVersion}, got ${payload.promptVersion}`
+    );
+  }
+  if (
+    target.expectedGuardrailVersion &&
+    payload.guardrailVersion !== target.expectedGuardrailVersion
+  ) {
+    throw new Error(
+      `prod ${target.apiPath} guardrailVersion mismatch: expected ${target.expectedGuardrailVersion}, got ${payload.guardrailVersion}`
+    );
+  }
+  return { ...payload, postCheckVariant: variant, postCheckApiPath: target.apiPath };
 }
 
 function warmTtsCache() {
@@ -332,7 +391,9 @@ function warmTtsCache() {
 }
 
 async function main() {
-  log(`target_project=${PROJECT} backend=${BACKEND} url=${APPHOSTING_BASE_URL}`);
+  log(
+    `target_project=${PROJECT} backend=${BACKEND} url=${APPHOSTING_BASE_URL} post_check_variant=${VARIANT}`
+  );
   const baselineRollouts = await listAll(
     `projects/${PROJECT}/locations/${LOCATION}/backends/${BACKEND}/rollouts`,
     "rollouts"
@@ -349,12 +410,16 @@ async function main() {
   const userStorageUri = uploadArchive(archivePath);
   const deployment = await createBuildAndRollout(userStorageUri, rootDirectory);
 
-  log("Warming Grok registered-speech/TTS cache");
-  warmTtsCache();
+  if (SKIP_TTS_WARM) {
+    log("Skipping Grok registered-speech/TTS cache warm because --skip-tts-warm was provided");
+  } else {
+    log("Warming Grok registered-speech/TTS cache");
+    warmTtsCache();
+  }
 
   const prodSession = await fetchProdSession();
   log(
-    `post-deploy guardrailVersion=${prodSession.guardrailVersion} promptVersion=${prodSession.promptVersion} strictSanitizedPlayback=${prodSession.strictSanitizedPlayback}`
+    `post-deploy variant=${prodSession.postCheckVariant} apiPath=${prodSession.postCheckApiPath} backend=${prodSession.backend ?? "(unavailable)"} guardrailVersion=${prodSession.guardrailVersion} promptVersion=${prodSession.promptVersion} strictSanitizedPlayback=${prodSession.strictSanitizedPlayback}`
   );
 
   const summary = {
@@ -371,11 +436,15 @@ async function main() {
     summaryPath,
     prodSession: {
       demoSlug: prodSession.demoSlug,
+      backend: prodSession.backend,
       routerVariant: prodSession.routerVariant,
+      postCheckVariant: prodSession.postCheckVariant,
+      postCheckApiPath: prodSession.postCheckApiPath,
       guardrailVersion: prodSession.guardrailVersion,
       promptVersion: prodSession.promptVersion,
       strictSanitizedPlayback: prodSession.strictSanitizedPlayback,
     },
+    ttsWarmSkipped: SKIP_TTS_WARM,
     elapsedSeconds: Number(((Date.now() - startedAt) / 1000).toFixed(1)),
   };
   fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));

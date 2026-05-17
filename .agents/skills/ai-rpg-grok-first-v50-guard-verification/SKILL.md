@@ -10,6 +10,10 @@ changed the priority from fixed-guard-first verification to
 normal-sales-conversation naturalness first. Fixed guard evidence is still
 required, but it can no longer stand in for normal sales Realtime quality.
 
+Do not use this skill for browser evaluation result pages, scorecard UI, or
+Claude scoring / Gmail delivery separation. Use
+`.agents/skills/ai-rpg-v50-browser-evaluation/SKILL.md` for those.
+
 ## Canonical Sources
 
 - `AGENTS.md` `## Voice E2E Natural Conversation SoT`
@@ -33,6 +37,85 @@ unless an exact runner/evidence set exists:
 - human-test readiness
 
 Scoped `5/5 x3` fixed_external evidence is valuable, but it is not final DoD.
+
+For v50.7 Option A evidence, use
+`scripts/grok-first-v50-7-natural-voice-e2e.mjs`. It is the runner that captures
+route/API preflight, actual session identity, production voice-path events,
+raw/visible/audible transcripts, false-pass audit, and the API-cost stop rule.
+The runner's `$50` cost stop is unconditional: if the next runtime voice case or
+the remaining required Option A production voice suites are projected to exceed
+`$50`, stop and report `BLOCKED` with `human test allowed = no`. Do not continue
+spending API budget to chase PASS, and do not replace missing production voice
+suites with text-only, local-only, or fixed-guard-only evidence. The runner may
+use a lower `--max-api-cost-usd` limit for stricter stops, but runtime case cost
+estimates are clamped to at least the default conservative `$0.25`; do not lower
+the estimate to bypass the `$50` stop.
+
+The v50.7 Option A DoD is intentionally narrow and is documented in
+`docs/GROK_VOICE_ROLEPLAY.md#v507-option-a-dod`. Final conclusion must be
+exactly one of `PASS`, `FAIL`, or `BLOCKED`. PASS requires all 12 checklist
+items: production route/API, actual identity, production voice events,
+Evaluator calibration, IMG `15/15`, Natural Smoke `90/90`, Backchannel `150/150`,
+Reveal Depth `90/90`, Natural Transition 12 voice scenarios with turn pass
+`>=95%` and P0 `0`, Mixed Recovery `3/3`, Fixed Guard Smoke `39/39` with
+`<missing>=0`, and all leak/false-pass counts `0`. Any non-PASS result means
+`human test allowed = no`.
+
+For the explicitly budgeted v50.7 residual gate, use the same runner with
+`--case-set budgeted-residual-dod --reuse-existing-evidence <dir>
+--existing-estimated-spent-usd 3.75 --max-api-cost-usd 15`. This gate reuses
+existing preflight/session/evaluator/IMG evidence and runs exactly 45 high-risk
+production voice sentinel cases. Its final conclusion is `BUDGETED_PASS`,
+`FAIL`, or `BLOCKED`, never `PASS`. `BUDGETED_PASS` means only that the 15 USD
+high-risk residual gate passed; Full Option A remains `NOT COMPLETE under full
+denominator`, and human testing is limited to `limited_internal_only`.
+
+### v50.7 Budgeted Remediation Ladder
+
+When a budgeted residual or full Option A voice run fails, do not immediately
+rerun the full denominator. Use this order:
+
+1. Read `results.json`, `events.jsonl`, `report.md`, and
+   `false_pass_audit.md`; do not diagnose from the report alone.
+2. Build a `--case-ids` subset from the exact FAIL/BLOCKED/suspected false-pass
+   cases. Name evidence directories `remediate_remaining_<n>` for known
+   residual failures and `remediate_after_full_<n>` for new failures discovered
+   by a full run.
+3. Patch in one batch, then run local deterministic gates before deploy:
+   `git diff --check`, `node --check scripts/grok-first-v50-7-natural-voice-e2e.mjs`,
+   `corepack pnpm --filter @top-performer/web test -- grok-first-v50`, and
+   `corepack pnpm --filter @top-performer/web typecheck`.
+4. Deploy once for the batch, then run only the targeted production subset with
+   a strict `--max-api-cost-usd`.
+5. Only after the targeted subset is clean, rerun the 45-case
+   `budgeted-residual-dod` suite. If that full run reveals new failures, repeat
+   from step 1 with only the new case ids.
+
+For v50.7 normal input routing, treat recurring STT confusion as runtime-router
+data, not prompt work. Current known production confusions include
+`炭火レンジ -> 単価レンジ`, `求人状況` / `会社状況 -> 他社状況`, and
+`スピードバック -> フィードバック`. High-risk rewrites should prefer
+`「...」とだけ一文で答えてください` fixed-safe wording over long negative
+instruction lists; if a negative instruction leaks into raw/visible/audible
+transcript, make it a guard pattern and a unit fixture.
+
+### Deploy Productivity
+
+App Hosting rollout time is minutes, so optimize for fewer deploys:
+
+- Batch router/guard phrase fixes before deploying; do not deploy after each
+  single phrase.
+- Runner, docs, and unit-test-only edits do not need App Hosting deploy.
+- Changes under `apps/web/lib/grok-first-roleplay/**`, route/session APIs, or
+  client runtime behavior do need deploy before production voice evidence.
+- Use the gcloud deploy wrapper with the relevant v50 post-check:
+
+```bash
+corepack pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
+```
+
+The v50 post-check must inspect `/api/grok-first-v50-7/session`; a v3
+`/api/v3/session` check is not sufficient evidence for v50-family changes.
 
 ## Gate Order
 
@@ -173,6 +256,18 @@ Expected behavior: no response, `routePath=noise_ignored`, or one short
 acknowledgement. The assistant must not start a new topic, steer into duties or
 conditions, ask the salesperson for the next question, request more questions,
 or reveal deeper hidden facts.
+
+For v50.7 Option A, the preferred runtime behavior for opening-only greetings
+and low-information backchannels is `routePath=noise_ignored` with no assistant
+audio. This is an input-router/runtime guard, not a v50.6 prompt change. A
+customer-led or generic-closing phrase detected during
+`response.output_audio_transcript.delta` must cancel the response and clear held
+audio; deleting only the final visible transcript is not sufficient evidence.
+Normal background/detail/business-flow inputs may be rewritten by the runtime
+input router before Realtime generation to keep the customer answer bounded and
+non-leading. Safe normal Realtime turns may report `fullTurnBufferCount=1`
+because audio is held until the final transcript guard passes; held audio must be
+dropped rather than played if a P0 phrase is detected.
 
 Fail when:
 

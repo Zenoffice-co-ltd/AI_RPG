@@ -16,7 +16,6 @@ import {
 import { GrokVoiceMicRecorder } from "@/lib/roleplay/grok-voice-mic-recorder";
 import {
   TailOnlyAudioGuard,
-  selectTailHoldMs,
 } from "./audio-tail-guard";
 import { fetchGrokFirstV50Session, postGrokFirstV50Event } from "./client";
 import {
@@ -28,9 +27,12 @@ import {
   type InputGuardDecision,
 } from "./guard/input-guard";
 import {
+  classifyNormalInputRoute,
+  type NormalInputRouteDecision,
+} from "./guard/normal-input-router";
+import {
   applyNegativeGuardDeletionOnly,
   evaluateNegativeGuard,
-  isRiskyTailTurn,
 } from "./negative-guard";
 import { GrokFirstRealtime } from "./realtime";
 import type {
@@ -110,6 +112,11 @@ export function useGrokFirstRoleplayConversation(
   const fixedPlaybackCompletedAtRef = useRef<number | null>(null);
   const accumulatedTextRef = useRef("");
   const accumulatedAudioBytesRef = useRef(0);
+  const bufferedAudioChunksRef = useRef<{ base64: string; bytes: number }[]>(
+    []
+  );
+  const bufferedAudioDroppedBytesRef = useRef(0);
+  const bufferedAudioObservedRef = useRef(false);
   const currentUserTextRef = useRef("");
   const inputModeRef = useRef<"voice" | "text">("voice");
   const interimAgentClientIdRef = useRef<string | null>(null);
@@ -118,6 +125,8 @@ export function useGrokFirstRoleplayConversation(
   const hardSuppressedRef = useRef(false);
   const fixedGuardActiveRef = useRef(false);
   const fixedGuardDrainUntilRef = useRef(0);
+  const ignoreNextEmptyResponseDoneRef = useRef(false);
+  const userSpeechInProgressRef = useRef(false);
 
   const isFixedGuardDraining = useCallback(
     () => Date.now() < fixedGuardDrainUntilRef.current,
@@ -151,11 +160,16 @@ export function useGrokFirstRoleplayConversation(
     fixedPlaybackCompletedAtRef.current = null;
     accumulatedTextRef.current = "";
     accumulatedAudioBytesRef.current = 0;
+    bufferedAudioChunksRef.current = [];
+    bufferedAudioDroppedBytesRef.current = 0;
+    bufferedAudioObservedRef.current = false;
     currentUserTextRef.current = "";
     interimAgentClientIdRef.current = null;
     interimAgentMessageAppendedRef.current = false;
     hardSuppressedRef.current = false;
     fixedGuardActiveRef.current = false;
+    ignoreNextEmptyResponseDoneRef.current = false;
+    userSpeechInProgressRef.current = false;
     agentSpeakingRef.current = false;
   }, []);
 
@@ -166,6 +180,7 @@ export function useGrokFirstRoleplayConversation(
       guardReasons?: string[];
       agentTextOverride?: string;
       error?: string | null;
+      fullTurnBuffered?: boolean;
     }) => {
       const activeSession = sessionRef.current;
       if (!activeSession) return;
@@ -225,10 +240,12 @@ export function useGrokFirstRoleplayConversation(
         fixedPlaybackDurationMs,
         fixedAudioBytes: isFixedGuard ? accumulatedAudioBytesRef.current : null,
         tailGuardHoldMs: tailGuardRef.current.getMaxObservedHoldMs(),
-        tailAudioDroppedBytes: tailGuardRef.current.getDroppedBytes(),
+        tailAudioDroppedBytes:
+          tailGuardRef.current.getDroppedBytes() +
+          bufferedAudioDroppedBytesRef.current,
         toolCallCount: 0,
         runtimeTtsCount: 0,
-        fullTurnBufferCount: 0,
+        fullTurnBufferCount: input.fullTurnBuffered ? 1 : 0,
         regenerationRate: 0,
         businessRegisteredSpeechHitCount: 0,
         businessPr60LockHitCount: 0,
@@ -282,6 +299,16 @@ export function useGrokFirstRoleplayConversation(
       ensureAudioQueue().enqueueBase64(chunk.base64);
     }
   }, [ensureAudioQueue]);
+
+  const clearBufferedAudio = useCallback(() => {
+    const droppedBytes = bufferedAudioChunksRef.current.reduce(
+      (sum, chunk) => sum + chunk.bytes,
+      0
+    );
+    bufferedAudioDroppedBytesRef.current += droppedBytes;
+    bufferedAudioChunksRef.current = [];
+    return droppedBytes;
+  }, []);
 
   const appendUserTranscript = useCallback(
     (input: { text: string; channel: "voice" | "chat"; status: "final" | "sent" }) => {
@@ -395,6 +422,7 @@ export function useGrokFirstRoleplayConversation(
       micRef.current?.setEnabled(false);
       realtimeRef.current?.cancelResponse();
       const dropped = tailGuardRef.current.clear();
+      const bufferedDroppedBytes = clearBufferedAudio();
       audioQueueRef.current?.clearAllScheduledAudioForLock();
 
       appendUserTranscript({
@@ -412,7 +440,7 @@ export function useGrokFirstRoleplayConversation(
           action: input.guard.action,
           reasons: input.guard.reasons,
           matchedPattern: input.guard.matchedPattern,
-          tailAudioDroppedBytes: dropped.droppedBytes,
+          tailAudioDroppedBytes: dropped.droppedBytes + bufferedDroppedBytes,
         },
       });
 
@@ -487,8 +515,68 @@ export function useGrokFirstRoleplayConversation(
     [
       appendFixedAssistantTranscript,
       appendUserTranscript,
+      clearBufferedAudio,
       emitMetric,
       ensureAudioQueue,
+      postEvent,
+      resetTurn,
+    ]
+  );
+
+  const handleNormalInputRouteDecision = useCallback(
+    (input: {
+      text: string;
+      decision: NormalInputRouteDecision;
+      channel: "voice" | "chat";
+    }) => {
+      const activeSession = sessionRef.current;
+      if (!activeSession || input.decision.action === "pass") return;
+
+      guardDetectedAtRef.current = Date.now();
+      hardSuppressedRef.current = true;
+      realtimeRef.current?.cancelResponse();
+      const dropped = tailGuardRef.current.clear();
+      const bufferedDroppedBytes = clearBufferedAudio();
+      audioQueueRef.current?.clearAllScheduledAudioForLock();
+
+      appendUserTranscript({
+        text: input.text,
+        channel: input.channel,
+        status: input.channel === "voice" ? "final" : "sent",
+      });
+      if (input.decision.shouldSpeak && input.decision.fixedText) {
+        appendFixedAssistantTranscript(input.decision.fixedText);
+      }
+
+      void postEvent({
+        kind: "guard.detected",
+        sessionId: activeSession.sessionId,
+        details: {
+          turnIndex: turnIndexRef.current,
+          action: input.decision.action,
+          reasons: input.decision.reasons,
+          shouldSendToRealtime: input.decision.shouldSendToRealtime,
+          shouldSpeak: input.decision.shouldSpeak,
+          tailAudioDroppedBytes: dropped.droppedBytes + bufferedDroppedBytes,
+        },
+      });
+
+      emitMetric({
+        routePath: "noise_ignored",
+        guardAction: "suppress",
+        guardReasons: input.decision.reasons,
+        agentTextOverride: input.decision.fixedText ?? "",
+        error: null,
+      });
+      resetTurn();
+      micRef.current?.setEnabled(!mutedRef.current);
+      setStatus(mutedRef.current ? "muted" : "listening");
+    },
+    [
+      appendFixedAssistantTranscript,
+      appendUserTranscript,
+      clearBufferedAudio,
+      emitMetric,
       postEvent,
       resetTurn,
     ]
@@ -517,6 +605,7 @@ export function useGrokFirstRoleplayConversation(
           if (fixedGuardActiveRef.current) break;
           turnIndexRef.current += 1;
           resetTurn();
+          userSpeechInProgressRef.current = true;
           turnStartAtRef.current = Date.now();
           inputModeRef.current = "voice";
           setStatus("listening");
@@ -533,6 +622,7 @@ export function useGrokFirstRoleplayConversation(
           sttCompletedAtRef.current = Date.now();
           currentUserTextRef.current = text;
           if (!text) {
+            userSpeechInProgressRef.current = false;
             void postEvent({
               kind: "stt.skipped",
               sessionId: activeSession.sessionId,
@@ -542,6 +632,7 @@ export function useGrokFirstRoleplayConversation(
           }
           const guard = classifyInputGuard(text);
           if (isFixedInputGuardDecision(guard)) {
+            userSpeechInProgressRef.current = false;
             void handleFixedGuardDecision({
               text,
               guard,
@@ -558,7 +649,63 @@ export function useGrokFirstRoleplayConversation(
             });
             break;
           }
+          const normalRoute = classifyNormalInputRoute(text);
+          if (normalRoute.action !== "pass") {
+            userSpeechInProgressRef.current = false;
+            handleNormalInputRouteDecision({
+              text,
+              decision: normalRoute,
+              channel: "voice",
+            });
+            void postEvent({
+              kind: "stt.completed",
+              sessionId: activeSession.sessionId,
+              details: {
+                turnIndex: turnIndexRef.current,
+                textLen: text.length,
+                guardAction: normalRoute.action,
+                guardReasons: normalRoute.reasons,
+              },
+            });
+            break;
+          }
+          if (normalRoute.rewrittenText) {
+            userSpeechInProgressRef.current = false;
+            realtimeRef.current?.cancelResponse();
+            ignoreNextEmptyResponseDoneRef.current = true;
+            const dropped = tailGuardRef.current.clear();
+            const bufferedDroppedBytes = clearBufferedAudio();
+            audioQueueRef.current?.clearAllScheduledAudioForLock();
+            appendUserTranscript({ text, channel: "voice", status: "final" });
+            micRef.current?.setEnabled(false);
+            setStatus("thinking");
+            void postEvent({
+              kind: "guard.detected",
+              sessionId: activeSession.sessionId,
+              details: {
+                turnIndex: turnIndexRef.current,
+                action: "normal_realtime_rewrite",
+                reasons: normalRoute.reasons,
+                originalTextLen: text.length,
+                rewrittenTextLen: normalRoute.rewrittenText.length,
+                tailAudioDroppedBytes: dropped.droppedBytes + bufferedDroppedBytes,
+              },
+            });
+            realtimeRef.current?.sendUserText(normalRoute.rewrittenText);
+            void postEvent({
+              kind: "stt.completed",
+              sessionId: activeSession.sessionId,
+              details: {
+                turnIndex: turnIndexRef.current,
+                textLen: text.length,
+                guardAction: "normal_realtime_rewrite",
+                guardReasons: normalRoute.reasons,
+              },
+            });
+            break;
+          }
           appendUserTranscript({ text, channel: "voice", status: "final" });
+          userSpeechInProgressRef.current = false;
           micRef.current?.setEnabled(false);
           realtimeRef.current?.createResponse();
           void postEvent({
@@ -570,6 +717,7 @@ export function useGrokFirstRoleplayConversation(
         }
         case "response.created": {
           if (fixedGuardActiveRef.current) break;
+          if (userSpeechInProgressRef.current) break;
           if (turnStartAtRef.current === null) {
             turnIndexRef.current += 1;
             turnStartAtRef.current = Date.now();
@@ -583,6 +731,7 @@ export function useGrokFirstRoleplayConversation(
         case "response.audio_transcript.delta":
         case "response.output_audio_transcript.delta": {
           if (fixedGuardActiveRef.current) break;
+          if (userSpeechInProgressRef.current) break;
           const delta = event.delta ?? "";
           if (!delta) break;
           accumulatedTextRef.current += delta;
@@ -595,6 +744,8 @@ export function useGrokFirstRoleplayConversation(
             hardSuppressedRef.current = true;
             realtimeRef.current?.cancelResponse();
             const dropped = tailGuardRef.current.clear();
+            const bufferedDroppedBytes = clearBufferedAudio();
+            audioQueueRef.current?.clearAllScheduledAudioForLock();
             void postEvent({
               kind: "guard.detected",
               sessionId: activeSession.sessionId,
@@ -602,7 +753,8 @@ export function useGrokFirstRoleplayConversation(
                 turnIndex: turnIndexRef.current,
                 action: streamDecision.action,
                 reasons: streamDecision.reasons,
-                tailAudioDroppedBytes: dropped.droppedBytes,
+                tailAudioDroppedBytes:
+                  dropped.droppedBytes + bufferedDroppedBytes,
               },
             });
           }
@@ -615,6 +767,7 @@ export function useGrokFirstRoleplayConversation(
         }
         case "response.output_audio.delta": {
           if (fixedGuardActiveRef.current) break;
+          if (userSpeechInProgressRef.current) break;
           if (hardSuppressedRef.current) break;
           const base64 = event.delta ?? "";
           if (!base64) break;
@@ -624,35 +777,45 @@ export function useGrokFirstRoleplayConversation(
           }
           const bytes = Math.floor((base64.length * 3) / 4);
           accumulatedAudioBytesRef.current += bytes;
-          agentSpeakingRef.current = true;
-          setStatus("speaking");
-          const holdMs = selectTailHoldMs({
-            risky: isRiskyTailTurn(currentUserTextRef.current),
-          });
-          const release = tailGuardRef.current.push(base64, holdMs);
-          if (release.chunks.length > 0) {
-            void postEvent({
-              kind: "tail_guard.released",
-              sessionId: activeSession.sessionId,
-              details: {
-                turnIndex: turnIndexRef.current,
-                chunks: release.chunks.length,
-                holdMs,
-              },
-            });
-            releaseChunks(release.chunks);
-          }
+          bufferedAudioObservedRef.current = true;
+          bufferedAudioChunksRef.current.push({ base64, bytes });
           break;
         }
         case "response.done": {
           if (fixedGuardActiveRef.current) break;
+          if (userSpeechInProgressRef.current) break;
+          if (
+            ignoreNextEmptyResponseDoneRef.current &&
+            !accumulatedTextRef.current.trim() &&
+            accumulatedAudioBytesRef.current === 0
+          ) {
+            ignoreNextEmptyResponseDoneRef.current = false;
+            void postEvent({
+              kind: "guard.rewrite_empty_done_ignored",
+              sessionId: activeSession.sessionId,
+              details: { turnIndex: turnIndexRef.current },
+            });
+            break;
+          }
+          const wasHardSuppressed = hardSuppressedRef.current;
           const decision = evaluateNegativeGuard({
             text: accumulatedTextRef.current,
             userText: currentUserTextRef.current,
             phase: "final",
           });
           const release = tailGuardRef.current.finalize(decision);
-          if (release.droppedBytes > 0) {
+          const shouldDropBufferedAudio =
+            wasHardSuppressed ||
+            decision.action === "cancel" ||
+            decision.action === "suppress" ||
+            decision.action === "drop_sentence" ||
+            decision.action === "strip_tail";
+          const hadBufferedAudio = bufferedAudioObservedRef.current;
+          let bufferedDroppedBytes = 0;
+          if (shouldDropBufferedAudio) {
+            bufferedDroppedBytes = clearBufferedAudio();
+          }
+          if (release.droppedBytes > 0 || bufferedDroppedBytes > 0) {
             void postEvent({
               kind: "tail_guard.dropped",
               sessionId: activeSession.sessionId,
@@ -660,20 +823,30 @@ export function useGrokFirstRoleplayConversation(
                 turnIndex: turnIndexRef.current,
                 action: decision.action,
                 reasons: decision.reasons,
-                droppedBytes: release.droppedBytes,
+                droppedBytes: release.droppedBytes + bufferedDroppedBytes,
               },
             });
           }
-          releaseChunks(release.chunks);
+          const bufferedChunks = bufferedAudioChunksRef.current;
+          bufferedAudioChunksRef.current = [];
+          if (!shouldDropBufferedAudio) {
+            setStatus("speaking");
+            releaseChunks([...release.chunks, ...bufferedChunks]);
+          }
           const finalText = applyNegativeGuardDeletionOnly(
             accumulatedTextRef.current,
             decision
           );
           ensureInterimAgentTranscript(activeSession, finalText, "final");
           emitMetric({
-            routePath: decision.action === "suppress" ? "suppressed" : "grok_first_realtime",
-            guardAction: decision.action,
+            routePath:
+              wasHardSuppressed || decision.action === "suppress"
+                ? "suppressed"
+                : "grok_first_realtime",
+            guardAction: wasHardSuppressed ? "cancel" : decision.action,
             guardReasons: decision.reasons,
+            ...(wasHardSuppressed ? { agentTextOverride: finalText } : {}),
+            fullTurnBuffered: hadBufferedAudio,
           });
           resetTurn();
           micRef.current?.setEnabled(!mutedRef.current);
@@ -694,9 +867,11 @@ export function useGrokFirstRoleplayConversation(
     },
     [
       appendUserTranscript,
+      clearBufferedAudio,
       emitMetric,
       ensureInterimAgentTranscript,
       handleFixedGuardDecision,
+      handleNormalInputRouteDecision,
       isFixedGuardDraining,
       postEvent,
       releaseChunks,
@@ -862,11 +1037,41 @@ export function useGrokFirstRoleplayConversation(
         });
         return;
       }
+      const normalRoute = classifyNormalInputRoute(trimmed);
+      if (normalRoute.action !== "pass") {
+        handleNormalInputRouteDecision({
+          text: trimmed,
+          decision: normalRoute,
+          channel: "chat",
+        });
+        return;
+      }
+      if (normalRoute.rewrittenText) {
+        void postEvent({
+          kind: "guard.detected",
+          sessionId: activeSession.sessionId,
+          details: {
+            turnIndex: turnIndexRef.current,
+            action: "normal_realtime_rewrite",
+            reasons: normalRoute.reasons,
+            originalTextLen: trimmed.length,
+            rewrittenTextLen: normalRoute.rewrittenText.length,
+            tailAudioDroppedBytes: 0,
+          },
+        });
+      }
       appendUserTranscript({ text: trimmed, channel: "chat", status: "sent" });
       setStatus("thinking");
-      realtimeRef.current.sendUserText(trimmed);
+      realtimeRef.current.sendUserText(normalRoute.rewrittenText ?? trimmed);
     },
-    [appendUserTranscript, handleFixedGuardDecision, resetTurn, startConversation]
+    [
+      appendUserTranscript,
+      handleFixedGuardDecision,
+      handleNormalInputRouteDecision,
+      postEvent,
+      resetTurn,
+      startConversation,
+    ]
   );
 
   const toggleMute = useCallback(() => {

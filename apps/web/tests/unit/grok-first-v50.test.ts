@@ -516,6 +516,10 @@ describe("grok-first v50 runtime", () => {
         transport: "mendan_cloud_run_relay_wss",
       },
     });
+    expect(body["turnDetection"]).toMatchObject({
+      type: "server_vad",
+      create_response: false,
+    });
   });
 
   it("serves v50.8 on the v50.6 prompt with separated guardrail identity", async () => {
@@ -623,6 +627,11 @@ describe("grok-first v50 runtime", () => {
       shouldEndSession: true,
     });
     expect(classifyInputGuard("フィードバックしてください。")).toMatchObject({
+      action: "fixed_external",
+      fixedText: V50_7_FIXED_EXTERNAL_TEXT,
+      shouldEndSession: false,
+    });
+    expect(classifyInputGuard("スピードバックしてください。")).toMatchObject({
       action: "fixed_external",
       fixedText: V50_7_FIXED_EXTERNAL_TEXT,
       shouldEndSession: false,

@@ -153,6 +153,7 @@ export async function createGrokFirstV50Session(input?: {
       threshold: 0.65,
       silence_duration_ms: 650,
       prefix_padding_ms: 333,
+      ...(runtimeVariant === "v50.7" ? { create_response: false as const } : {}),
     },
     tools: [],
     instructions: prompt.instructions,
