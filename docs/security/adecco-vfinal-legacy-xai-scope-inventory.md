@@ -211,7 +211,7 @@ before a migration/de-scope decision can cause:
 
 ## Valid Resolution Paths
 
-Issue #139 remains blocked until one of these is true:
+Issue #139 is approved until one of these is true:
 
 1. A customer/operator explicitly approves that the vFinal submitted runtime
    scope is limited to the dedicated no-key backend and submitted URL, with

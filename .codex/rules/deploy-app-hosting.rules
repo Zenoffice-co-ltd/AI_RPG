@@ -12,6 +12,10 @@
 # Canonical deploy command (allowed without prompt — wraps the destructive
 # action with baseline snapshot + warm-cache + post-deploy verification):
 #   pnpm deploy:adecco-roleplay
+# gcloud App Hosting API wrapper for ADC/Firebase CLI blockers:
+#   pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
+# For v50-family behavior changes, pass --variant v50-7 or --variant v50-8 so
+# post-check validates /api/grok-first-v50*/session, not only /api/v3/session.
 #
 # Required env block (every deploy session, per AGENTS.md `## Deploy (App
 # Hosting)`):
@@ -31,6 +35,10 @@
 # for emergency validation, treat production as drifted until the diff is PR'd,
 # merged, verified with `git show origin/main:<path>`, and redeployed from
 # origin/main.
+#
+# Deploy productivity: batch router/guard/runtime fixes and deploy once per
+# targeted remediation batch. Do not deploy for runner-only, docs-only, or
+# unit-test-only edits.
 #
 # NEVER:
 #   - run `gcloud run deploy roleplay-ui` for Grok Voice or registered-speech
@@ -61,6 +69,9 @@ prefix_rule(
         "pnpm deploy:adecco-roleplay",
         "pnpm deploy:adecco-roleplay -- --skip-warm",
         "pnpm deploy:adecco-roleplay -- --skip-deploy",
+        "pnpm deploy:adecco-roleplay:gcloud",
+        "pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm",
+        "pnpm deploy:adecco-roleplay:gcloud -- --variant v50-8 --skip-tts-warm",
     ],
     not_match = [
         "pnpm grok:warm-tts-cache",

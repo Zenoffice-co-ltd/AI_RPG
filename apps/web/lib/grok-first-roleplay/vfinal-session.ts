@@ -63,6 +63,7 @@ export async function createGrokFirstVFinalSession(input: {
     runtimeTtsEnabled: false,
     replacementTtsEnabled: false,
     fullTurnBufferEnabled: false,
+    runtimeGuardrailsEnabled: true,
     debugTranscriptPreviewEnabled: false,
   };
 }

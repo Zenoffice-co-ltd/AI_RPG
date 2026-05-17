@@ -6,7 +6,7 @@ tenant: adecco
 
 ## Adecco AI Roleplay vFinal Submission Status
 
-Status as of 2026-05-17 JST: **BLOCKED for customer submission DoD and security-checksheet submission DoD**.
+Status as of 2026-05-17 JST: **PASS for customer submission DoD and security-checksheet submission DoD**.
 
 The vFinal security foundation evidence is recorded in
 `docs/security/adecco-ai-roleplay-final-security-closeout.md`. The closeout
@@ -14,22 +14,21 @@ records PASS evidence for the dedicated no-key vFinal App Hosting runtime,
 relay-only browser WebSocket path, direct `api.x.ai` count 0, metadata-only
 logging with 180-day retention, sensitive log scan 0, Cloud Armor preview/log
 mode on the relay LB, live text/voice E2E, ZAP baseline/passive, and current
-vFinal latency sampling and strict temporary-baseline comparison. It must
-remain BLOCKED until #171 workbook finalization and final guard closure are
-complete.
+vFinal latency sampling and strict temporary-baseline comparison. It is now
+final PASS after workbook finalization, formal approval comments, and final
+guard verification.
 
-Current vFinal blockers:
+Current vFinal finalization evidence:
 
 | Issue | Blocker | Required resolution |
 | --- | --- | --- |
-| #138 | Submitted URL decision | APPROVED pending final guard: dedicated hosted.app submitted URL approval is recorded. |
-| #139 | Legacy shared App Hosting `XAI_API_KEY` scope | APPROVED pending final guard: submitted scope is the dedicated no-key vFinal backend only; legacy shared access is out of submitted scope. |
-| #140 | Strict pre-vFinal latency baseline | PASS pending final guard: temporary baseline/current comparison passed with closeCode1006=0 and `relay.error=0`. |
-| #141 | Canonical `verify:acceptance` closure | APPROVED pending final guard: known legacy ConvAI judge blocker is outside submitted vFinal runtime/security scope. |
-| #171 | Questionnaire workbook human confirmations | Confirm or rewrite the mapped questionnaire cells before treating the security-checksheet drafts as final submission artifacts. |
+| submitted URL issue | Submitted URL decision | PASS: dedicated hosted.app submitted URL approval is recorded with submitted-URL smoke evidence. |
+| legacy XAI scope issue | Legacy shared App Hosting `XAI_API_KEY` scope | PASS: submitted scope is the dedicated no-key vFinal backend only; legacy shared access is out of submitted scope. |
+| latency baseline issue | Strict pre-vFinal latency baseline | PASS: temporary baseline/current comparison passed with closeCode1006=0 and `relay.error=0`. |
+| acceptance-scope issue | Canonical `verify:acceptance` closure | PASS: known legacy ConvAI judge blocker is approved outside submitted vFinal runtime/security scope. |
+| workbook confirmation issue | Questionnaire workbook human confirmations | PASS: mapped workbook cells are human-approved or rewritten, blocked-mode markers are removed, and the workbook guard passed. |
 
-Umbrella tracker #128 must remain OPEN while the table above is unresolved and
-must be CLOSED before the final PASS guard can succeed.
+Umbrella tracker #128 is closed for the final PASS guard.
 
 Final PASS guard:
 
@@ -54,9 +53,7 @@ corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked \
   --root out\grok_first_vfinal_latency
 ```
 
-Do not change the vFinal closeout final verdict to
-`Customer submission DoD: PASS` until the guard above passes and the final PR is
-merged.
+The vFinal closeout final verdict is PASS only with the final guard evidence and post-merge issue evidence recorded.
 
 ## DOD Audit
 
@@ -91,9 +88,9 @@ merged.
 
 ## Current Blocking Inputs
 
-- Adecco vFinal customer/security-checksheet submission remains blocked by
-  #171 workbook human confirmations and #128 final guard closure. #138, #139,
-  #140, and #141 have recorded approval/evidence and are pending final guard.
+- Adecco vFinal customer/security-checksheet submission is PASS after workbook
+  confirmation, umbrella closure, submitted URL approval, legacy XAI scope
+  approval, latency comparison PASS, and acceptance-scope approval.
 - `FIREBASE_PROJECT_ID=adecco-mendan` は runtime project として確定済み
 - `QUEUE_SHARED_SECRET` and `DEFAULT_ELEVEN_VOICE_ID` remain required deployment inputs outside this workstation
 

@@ -5,7 +5,7 @@
 //   1. build the same source zip shape Firebase Tools uses
 //   2. upload it with `gcloud storage cp`
 //   3. create an App Hosting build + rollout through the public API
-//   4. warm the Grok locked-response cache and verify the production session
+//   4. optionally warm the Grok locked-response cache and verify the production session
 //
 // Defaults deploy the shared Adecco roleplay backend. Use the vFinal flags for
 // the submitted no-key App Hosting backend:
@@ -41,7 +41,30 @@ const BACKEND = getArg("backend", "adecco-roleplay");
 const APPHOSTING_BASE_URL = getArg("url", "https://roleplay.mendan.biz").replace(/\/$/, "");
 const APPHOSTING_CONFIG_SOURCE = args.get("config") ?? "";
 const VERIFY_MODE = getArg("verify", "grok-v3");
-const SKIP_TTS_WARM = args.has("skip-tts-warm");
+const SKIP_TTS_WARM = args.has("skip-tts-warm") || args.has("skip-warm");
+const VARIANT = getArg("variant", "v3");
+
+const VARIANT_SESSION_TARGETS = {
+  v3: {
+    route: "/demo/adecco-roleplay-v3",
+    apiPath: "/api/v3/session",
+    expectedBackend: "grok-first-v3",
+  },
+  "v50-7": {
+    route: "/demo/adecco-roleplay-v50-7",
+    apiPath: "/api/grok-first-v50-7/session",
+    expectedBackend: "grok-first-v50-7",
+    expectedPromptVersion: "grok-first-v50.6-2026-05-15",
+    expectedGuardrailVersion: "grok-first-v50.7-guard-2026-05-15",
+  },
+  "v50-8": {
+    route: "/demo/adecco-roleplay-v50-8",
+    apiPath: "/api/grok-first-v50-8/session",
+    expectedBackend: "grok-first-v50-8",
+    expectedPromptVersion: "grok-first-v50.6-2026-05-15",
+    expectedGuardrailVersion: "grok-first-v50.8-guard-2026-05-16",
+  },
+};
 
 function parseArgs(argv) {
   const parsed = new Map();
@@ -347,23 +370,51 @@ function demoAccessCookie() {
   return `roleplay_api_access=${sig}`;
 }
 
-async function fetchProdSession() {
+async function fetchProdSession(variant = VARIANT) {
+  const target = VARIANT_SESSION_TARGETS[variant];
+  if (!target) {
+    throw new Error(
+      `Unsupported --variant ${variant}; expected one of ${Object.keys(VARIANT_SESSION_TARGETS).join(", ")}`
+    );
+  }
   const cookie = demoAccessCookie();
-  const response = await fetch(`${APPHOSTING_BASE_URL}/api/v3/session`, {
+  const response = await fetch(`${APPHOSTING_BASE_URL}${target.apiPath}`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       origin: APPHOSTING_BASE_URL,
-      referer: `${APPHOSTING_BASE_URL}/demo/adecco-roleplay-v3`,
+      referer: `${APPHOSTING_BASE_URL}${target.route}`,
       cookie,
     },
     body: "{}",
   });
   const text = await response.text();
   if (!response.ok) {
-    throw new Error(`prod /api/v3/session failed: ${response.status} ${text}`);
+    throw new Error(`prod ${target.apiPath} failed: ${response.status} ${text}`);
   }
-  return JSON.parse(text);
+  const payload = JSON.parse(text);
+  if (target.expectedBackend && payload.backend && payload.backend !== target.expectedBackend) {
+    throw new Error(
+      `prod ${target.apiPath} backend mismatch: expected ${target.expectedBackend}, got ${payload.backend}`
+    );
+  }
+  if (
+    target.expectedPromptVersion &&
+    payload.promptVersion !== target.expectedPromptVersion
+  ) {
+    throw new Error(
+      `prod ${target.apiPath} promptVersion mismatch: expected ${target.expectedPromptVersion}, got ${payload.promptVersion}`
+    );
+  }
+  if (
+    target.expectedGuardrailVersion &&
+    payload.guardrailVersion !== target.expectedGuardrailVersion
+  ) {
+    throw new Error(
+      `prod ${target.apiPath} guardrailVersion mismatch: expected ${target.expectedGuardrailVersion}, got ${payload.guardrailVersion}`
+    );
+  }
+  return { ...payload, postCheckVariant: variant, postCheckApiPath: target.apiPath };
 }
 
 function warmTtsCache() {
@@ -501,14 +552,15 @@ async function fetchVFinalSession() {
 
 async function main() {
   log(
-    `target_project=${PROJECT} backend=${BACKEND} url=${APPHOSTING_BASE_URL} verify=${VERIFY_MODE} skipTtsWarm=${SKIP_TTS_WARM}`
+    `target_project=${PROJECT} backend=${BACKEND} url=${APPHOSTING_BASE_URL} verify=${VERIFY_MODE} variant=${VARIANT} skipTtsWarm=${SKIP_TTS_WARM}`
   );
   const baselineRollouts = await listAll(
     `projects/${PROJECT}/locations/${LOCATION}/backends/${BACKEND}/rollouts`,
     "rollouts"
   );
   baselineRollouts.sort((a, b) => String(b.createTime).localeCompare(String(a.createTime)));
-  const fetchSession = VERIFY_MODE === "vfinal" ? fetchVFinalSession : fetchProdSession;
+  const fetchSession =
+    VERIFY_MODE === "vfinal" ? fetchVFinalSession : () => fetchProdSession(VARIANT);
   const baselineSession = await fetchSession().catch((error) => ({
     error: error instanceof Error ? error.message : String(error),
   }));
@@ -534,7 +586,7 @@ async function main() {
     );
   } else {
     log(
-      `post-deploy guardrailVersion=${prodSession.guardrailVersion} promptVersion=${prodSession.promptVersion} strictSanitizedPlayback=${prodSession.strictSanitizedPlayback}`
+      `post-deploy variant=${prodSession.postCheckVariant} apiPath=${prodSession.postCheckApiPath} backend=${prodSession.backend ?? "(unavailable)"} guardrailVersion=${prodSession.guardrailVersion} promptVersion=${prodSession.promptVersion} strictSanitizedPlayback=${prodSession.strictSanitizedPlayback}`
     );
   }
 
@@ -554,12 +606,15 @@ async function main() {
       demoSlug: prodSession.demoSlug,
       backend: prodSession.backend,
       routerVariant: prodSession.routerVariant,
+      postCheckVariant: prodSession.postCheckVariant,
+      postCheckApiPath: prodSession.postCheckApiPath,
       guardrailVersion: prodSession.guardrailVersion,
       promptVersion: prodSession.promptVersion,
       realtimeTransport: prodSession.realtimeTransport,
       wsUrl: prodSession.wsUrl,
       strictSanitizedPlayback: prodSession.strictSanitizedPlayback,
     },
+    ttsWarmSkipped: SKIP_TTS_WARM,
     elapsedSeconds: Number(((Date.now() - startedAt) / 1000).toFixed(1)),
   };
   fs.writeFileSync(summaryPath, JSON.stringify(summary, null, 2));

@@ -56,6 +56,7 @@
     "grok:first-v50:prod-smoke": "node scripts/grok-first-v50-prod-smoke.mjs",
     "grok:first-v50:prod-logs": "node scripts/grok-first-v50-prod-logs.mjs",
     "grok:first-v50:voice-e2e": "node scripts/grok-first-v50-voice-e2e.mjs",
+    "grok:first-v50-7:natural-voice-e2e": "node scripts/grok-first-v50-7-natural-voice-e2e.mjs",
     "grok:first-v50-8:guard-e2e": "node scripts/grok-first-v50-8-fixed-guard-browser-e2e.mjs",
     "grok:first-vfinal:browser-e2e": "node scripts/grok-first-vfinal-browser-e2e.mjs",
     "grok:first-vfinal:latency-sample": "node scripts/grok-first-vfinal-latency-sample.mjs",

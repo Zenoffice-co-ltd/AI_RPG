@@ -1,25 +1,25 @@
 # Adecco vFinal Blocker Inventory Index
 
-Status as of 2026-05-17 JST: **BLOCKED pending #171 workbook finalization and final guard**.
+Status as of 2026-05-17 JST: **PASS**.
 
 This index is the human-facing table of the approval/evidence-sensitive items
-that still block customer submission DoD and security-checksheet submission
-DoD. It does not replace the individual inventory files or the GitHub issues;
+that support the final customer submission DoD and security-checksheet
+submission DoD. It does not replace the individual inventory files or the GitHub issues;
 it makes the finalization checklist easier to audit.
 The shortest operator-facing action checklist is
 `docs/security/adecco-vfinal-human-unblock-checklist.md`.
 
-Umbrella tracker: #128 remains OPEN while any row below is unresolved. The
-final PASS guard requires #128 to be CLOSED in addition to the blocker rows
-being closed or formally approved.
+Umbrella tracker: #128 is closed for the final PASS guard. Open blocker issues
+are accepted only when they contain the required formal approval comments from
+the authorized approver.
 
 | Issue | Blocker | Inventory / assessment | Current index verdict |
 |---|---|---|---|
-| #138 | Submitted URL approval or dedicated custom-domain mapping | `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` | APPROVED PENDING FINAL GUARD: hosted.app submitted URL approval comment is recorded with submitted-URL smoke evidence. |
-| #139 | Legacy shared App Hosting `XAI_API_KEY` scope | `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md` | APPROVED PENDING FINAL GUARD: submitted scope is approved as the dedicated no-key vFinal backend only; legacy shared backend is out of submitted scope. |
-| #140 | Strict pre-vFinal latency baseline comparison | `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md` | EVIDENCE PASS PENDING FINAL GUARD: temporary baseline 20/20, fresh current 20/20, closeCode1006=0, `relay.error=0`, and `grok:first-vfinal:latency-compare` PASS. |
-| #141 | Canonical `verify:acceptance` closure | `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` | APPROVED PENDING FINAL GUARD: legacy ConvAI judge blocker is approved out of vFinal submitted runtime/security scope. |
-| #171 | Workbook human confirmations | `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` | BLOCKED: final questionnaire cells still require human/legal/operator confirmation or explicit unresolved/not-applicable wording. |
+| #138 | Submitted URL approval or dedicated custom-domain mapping | `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` | PASS: hosted.app submitted URL approval comment is recorded with submitted-URL smoke evidence. |
+| #139 | Legacy shared App Hosting `XAI_API_KEY` scope | `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md` | PASS: submitted scope is approved as the dedicated no-key vFinal backend only; legacy shared backend is out of submitted scope. |
+| #140 | Strict pre-vFinal latency baseline comparison | `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md` | PASS: temporary baseline 20/20, fresh current 20/20, closeCode1006=0, `relay.error=0`, and `grok:first-vfinal:latency-compare` PASS. |
+| #141 | Canonical `verify:acceptance` closure | `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` | PASS: legacy ConvAI judge blocker is approved out of vFinal submitted runtime/security scope. |
+| #171 | Workbook human confirmations | `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` | PASS: workbook owner approval is recorded, blocked-mode markers are removed, both source workbooks pass the workbook guard, and final questionnaire artifacts are accepted. |
 
 ## Latest Continuation Recheck
 
@@ -44,8 +44,7 @@ being closed or formally approved.
   `closeCode1006=0` and `relay.error=0` for both baseline and current.
 - `corepack pnpm grok:first-vfinal:latency-compare` returned PASS and wrote
   `out/grok_first_vfinal_latency_compare/2026-05-17T00-20-00-baseline-build004-vs-current/comparison-summary.json`.
-- Overall customer submission DoD remains BLOCKED because #171 workbook
-  finalization and #128 final closure are not complete.
+- Overall customer submission DoD is PASS after workbook finalization, exact approval comments, and final guard verification.
 
 2026-05-17 JST recheck after PR #209:
 

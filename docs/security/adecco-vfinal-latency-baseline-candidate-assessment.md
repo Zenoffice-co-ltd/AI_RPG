@@ -1,6 +1,6 @@
 # Adecco vFinal Latency Baseline Candidate Assessment
 
-Status as of 2026-05-17 JST: **PASS pending final guard**.
+Status as of 2026-05-17 JST: **PASS**.
 
 This note supports issue #140. It does not change the customer submission DoD
 verdict by itself. A strict temporary-baseline comparison has been collected
@@ -231,3 +231,7 @@ This closes the latency-evidence gap for #140, subject to issue comment
 recording and final DoD guard verification. It does not make the overall
 customer submission DoD PASS while #171 workbook finalization and #128 final
 closure remain incomplete.
+
+
+Comparison summary: out/grok_first_vfinal_latency_compare/2026-05-17T00-20-00-baseline-build004-vs-current/comparison-summary.json.
+Comparison result: PASS.

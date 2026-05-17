@@ -67,6 +67,9 @@ export class GrokFirstRealtime {
   }
 
   sendSessionUpdate(session: GrokFirstV50Session): void {
+    if (session.backend === "grok-first-vFinal") {
+      return;
+    }
     this.send(
       {
         type: "session.update",
@@ -114,10 +117,14 @@ export class GrokFirstRealtime {
     this.flush();
   }
 
-  markServerSideSetupReady(): void {
+  markReadyAfterRelaySetup(): void {
     this.state = "ready";
     this.opts.onReady?.();
     this.flush();
+  }
+
+  markServerSideSetupReady(): void {
+    this.markReadyAfterRelaySetup();
   }
 
   sendUserText(text: string): void {
@@ -132,6 +139,10 @@ export class GrokFirstRealtime {
       },
       { gate: "ready" }
     );
+    this.send({ type: "response.create" }, { gate: "ready" });
+  }
+
+  createResponse(): void {
     this.send({ type: "response.create" }, { gate: "ready" });
   }
 
@@ -213,5 +224,8 @@ export class GrokFirstRealtime {
 }
 
 export function buildProtocols(auth: GrokFirstV50RealtimeAuth): string[] {
+  if (auth.mode === "xai_ephemeral_subprotocol") {
+    return [`xai-client-secret.${auth.token}`];
+  }
   return [auth.protocol, `mendan-relay-ticket.${auth.ticket}`];
 }

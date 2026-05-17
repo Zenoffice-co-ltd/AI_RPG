@@ -63,12 +63,18 @@ export type GrokFirstBrowserEvaluationConfig = {
 
 export type GrokFirstV50RealtimeTransport = "mendan_cloud_run_relay_wss";
 
-export type GrokFirstV50RealtimeAuth = {
-  mode: "mendan_relay_subprotocol";
-  protocol: "mendan-relay-v1";
-  ticket: string;
-  expiresAt: string;
-};
+export type GrokFirstV50RealtimeAuth =
+  | {
+      mode: "mendan_relay_subprotocol";
+      protocol: "mendan-relay-v1";
+      ticket: string;
+      expiresAt: string;
+    }
+  | {
+      mode: "xai_ephemeral_subprotocol";
+      token: string;
+      expiresAt: string;
+    };
 
 export type GrokFirstV50Session = {
   sessionId: string;
@@ -93,6 +99,7 @@ export type GrokFirstV50Session = {
     threshold: 0.65;
     silence_duration_ms: 650;
     prefix_padding_ms: 333;
+    create_response?: false;
   };
   tools: [];
   instructions: string;
@@ -102,6 +109,7 @@ export type GrokFirstV50Session = {
   runtimeTtsEnabled: false;
   replacementTtsEnabled: false;
   fullTurnBufferEnabled: false;
+  runtimeGuardrailsEnabled: boolean;
   debugTranscriptPreviewEnabled: boolean;
   browserEvaluationEnabled?: boolean;
   browserEvaluation?: GrokFirstBrowserEvaluationConfig | undefined;
@@ -121,18 +129,23 @@ export type GrokFirstV50Metric = {
   sessionId: string;
   turnIndex: number;
   inputMode: "voice" | "text";
-  routePath: "grok_first_realtime" | "suppressed" | "noise_ignored";
+  routePath: "grok_first_realtime" | "suppressed" | "noise_ignored" | "fixed_guard";
   userTextLen: number;
   agentTextLen: number;
   firstAudioDeltaMs: number | null;
   firstAudibleAudioMs: number | null;
   doneMs: number | null;
   audioBytes: number;
+  audioSource: "xai_realtime_stream" | "static_guard_pcm_base64";
+  sttCompletedToGuardDetectedMs: number | null;
+  guardDetectedToPlaybackStartedMs: number | null;
+  fixedPlaybackDurationMs: number | null;
+  fixedAudioBytes: number | null;
   tailGuardHoldMs: number;
   tailAudioDroppedBytes: number;
   toolCallCount: 0;
   runtimeTtsCount: 0;
-  fullTurnBufferCount: 0;
+  fullTurnBufferCount: number;
   regenerationRate: 0;
   businessRegisteredSpeechHitCount: 0;
   businessPr60LockHitCount: 0;
@@ -155,6 +168,7 @@ export type GrokFirstV50Metric = {
   guardrailVersion: string;
   model: string;
   voiceId: string;
+  error: string | null;
 };
 
 export type GuardAction =
@@ -163,7 +177,10 @@ export type GuardAction =
   | "drop_sentence"
   | "cancel"
   | "suppress"
-  | "metric";
+  | "metric"
+  | "fixed_exit"
+  | "fixed_external"
+  | "normal_realtime_rewrite";
 
 export type NegativeGuardReason =
   | "forbidden_suffix"
@@ -175,7 +192,8 @@ export type NegativeGuardReason =
   | "premature_sensitive_reveal"
   | "unnatural_ai_phrase"
   | "customer_coaching"
-  | "customer_led_sales_flow";
+  | "customer_led_sales_flow"
+  | "low_information_input_new_topic";
 
 export type NegativeGuardDecision = {
   action: GuardAction;

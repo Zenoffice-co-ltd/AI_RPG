@@ -61,6 +61,7 @@ export async function createGrokFirstV50Session(input?: {
   const prompt = buildGrokFirstV50Prompt(promptVariant);
   const voiceId = env.GROK_FIRST_V50_VOICE_ID ?? GROK_FIRST_V50_VOICE_ID;
   const sessionId = `gfv50_${randomUUID()}`;
+  const runtimeGuardrailsEnabled = runtimeVariant !== "v50.7";
   const identity =
     runtimeVariant === "v51"
       ? {
@@ -149,6 +150,7 @@ export async function createGrokFirstV50Session(input?: {
       threshold: 0.65,
       silence_duration_ms: 650,
       prefix_padding_ms: 333,
+      ...(runtimeVariant === "v50.7" ? { create_response: false as const } : {}),
     },
     tools: [],
     instructions: prompt.instructions,
@@ -158,6 +160,7 @@ export async function createGrokFirstV50Session(input?: {
     runtimeTtsEnabled: false,
     replacementTtsEnabled: false,
     fullTurnBufferEnabled: false,
+    runtimeGuardrailsEnabled,
     debugTranscriptPreviewEnabled:
       env.GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED === "true",
     browserEvaluationEnabled:

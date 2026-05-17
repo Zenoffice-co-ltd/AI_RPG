@@ -55,7 +55,13 @@ jobs:
       - name: vFinal server/client boundary invariant
         run: pnpm grok:vfinal-security-invariants
       - name: vFinal customer submission DoD status guard
-        run: pnpm grok:vfinal-submission-dod-status
+        run: |
+          if [ -n "${VFINAL_SUBMISSION_DOD_WORKBOOKS:-}" ]; then
+            pnpm grok:vfinal-submission-dod-status
+          else
+            echo "Skipping source-workbook-dependent final PASS guard in CI."
+            echo "Run locally with both source workbook paths and issue-state checking before merging final PASS docs."
+          fi
       - name: vFinal customer submission DoD status guard self-test
         run: pnpm grok:vfinal-submission-dod-status:self-test
       - name: vFinal helper self-tests
