@@ -23,6 +23,14 @@ voice E2E work.
 
 - Browser evaluation must call scoring core only.
 - Browser evaluation must not call Gmail.
+- Browser evaluation must fail closed when the normalized transcript does not
+  include at least one non-empty sales-side (`user`/`sales`) turn and at least
+  one non-empty client-side (`agent`/`client`) turn.
+- Missing sales-side transcript is evaluation-incomplete. Do not produce or
+  accept a valid zero-score report from an agent-only transcript.
+- The browser-held roleplay transcript is the scoring Source of Truth. Cloud
+  Logging reconstruction is useful diagnostics, but not a substitute when
+  sales STT text is absent.
 - Legacy ElevenLabs post-call webhook Gmail flow must remain compatible unless
   explicitly changing that workflow.
 - Adecco order-hearing scoring now defaults to the shared customer-criteria v2
@@ -72,6 +80,12 @@ must-capture data, modality limitations, and sales compliance flags.
 
 ## Required Verification
 
+- Transcript capture E2E:
+  `pnpm eval:adecco-browser-transcript:e2e`
+  This is the 2-case minimum denominator for transcript capture changes:
+  `missing_sales_transcript_blocks_evaluation` and
+  `sales_stt_transcript_is_sent_to_evaluation_start`. It writes evidence under
+  `out/adecco_browser_eval_transcript_e2e/<timestamp>/`.
 - web typecheck
 - web test
 - web build

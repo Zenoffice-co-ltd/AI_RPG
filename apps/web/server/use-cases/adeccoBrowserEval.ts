@@ -36,10 +36,40 @@ const browserTranscriptTurnSchema = z.object({
   timestamp_sec: z.number().finite().nonnegative().optional(),
 });
 
+const browserTranscriptSchema = z
+  .array(browserTranscriptTurnSchema)
+  .superRefine((turns, ctx) => {
+    const hasSalesTurn = turns.some(
+      (turn) => turn.role === "user" && turn.text.trim().length > 0
+    );
+    const hasClientTurn = turns.some(
+      (turn) => turn.role === "agent" && turn.text.trim().length > 0
+    );
+    const nonEmptyTurns = turns.filter((turn) => turn.text.trim().length > 0);
+    if (nonEmptyTurns.length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "transcript must contain at least two non-empty turns",
+      });
+    }
+    if (!hasSalesTurn) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "transcript must contain at least one sales turn",
+      });
+    }
+    if (!hasClientTurn) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "transcript must contain at least one client turn",
+      });
+    }
+  });
+
 export const adeccoBrowserEvalStartSchema = z.object({
   sessionId: adeccoBrowserEvalSessionIdSchema,
   conversationId: z.string().min(1).max(128).nullable().optional(),
-  transcript: z.array(browserTranscriptTurnSchema),
+  transcript: browserTranscriptSchema,
   startedAt: z.string().min(1).optional(),
   endedAt: z.string().min(1).optional(),
   source: z.enum(BROWSER_EVAL_SOURCES).optional(),
@@ -52,10 +82,34 @@ const normalizedTurnSchema = z.object({
   timestamp_sec: z.number().finite().nonnegative(),
 });
 
+const normalizedTranscriptSchema = z
+  .array(normalizedTurnSchema)
+  .min(2)
+  .superRefine((turns, ctx) => {
+    const hasSalesTurn = turns.some(
+      (turn) => turn.speaker === "sales" && turn.text.trim().length > 0
+    );
+    const hasClientTurn = turns.some(
+      (turn) => turn.speaker === "client" && turn.text.trim().length > 0
+    );
+    if (!hasSalesTurn) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "transcript must contain at least one sales turn",
+      });
+    }
+    if (!hasClientTurn) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "transcript must contain at least one client turn",
+      });
+    }
+  });
+
 export const adeccoBrowserEvalTaskSchema = z.object({
   sessionId: adeccoBrowserEvalSessionIdSchema,
   conversationId: z.string().min(1).nullable(),
-  transcript: z.array(normalizedTurnSchema).min(2),
+  transcript: normalizedTranscriptSchema,
   startedAt: z.string().min(1),
   endedAt: z.string().min(1),
   source: z.enum(BROWSER_EVAL_SOURCES),
@@ -79,12 +133,44 @@ export function normalizeBrowserEvalTranscript(
     .filter((turn) => turn.text.length > 0);
 }
 
+export function validateNormalizedBrowserEvalTranscript(
+  transcript: NormalizedTurn[]
+) {
+  const salesTurns = transcript.filter(
+    (turn) => turn.speaker === "sales" && turn.text.trim().length > 0
+  ).length;
+  const clientTurns = transcript.filter(
+    (turn) => turn.speaker === "client" && turn.text.trim().length > 0
+  ).length;
+  if (transcript.length < 2) {
+    return { ok: false as const, reason: "too_short", salesTurns, clientTurns };
+  }
+  if (salesTurns === 0) {
+    return {
+      ok: false as const,
+      reason: "missing_sales_transcript",
+      salesTurns,
+      clientTurns,
+    };
+  }
+  if (clientTurns === 0) {
+    return {
+      ok: false as const,
+      reason: "missing_client_transcript",
+      salesTurns,
+      clientTurns,
+    };
+  }
+  return { ok: true as const, salesTurns, clientTurns };
+}
+
 export async function startAdeccoBrowserEvaluation(
   input: AdeccoBrowserEvalStartInput
 ) {
   const transcript = normalizeBrowserEvalTranscript(input.transcript);
-  if (transcript.length < 2) {
-    throw new Error("transcript must contain at least two non-empty turns");
+  const transcriptValidation = validateNormalizedBrowserEvalTranscript(transcript);
+  if (!transcriptValidation.ok) {
+    throw new Error(`evaluation transcript invalid: ${transcriptValidation.reason}`);
   }
 
   const now = new Date().toISOString();
