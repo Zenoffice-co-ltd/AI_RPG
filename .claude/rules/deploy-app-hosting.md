@@ -34,6 +34,18 @@ Wraps:
 
 Bare `firebase deploy` is acceptable for Cloud Build debugging only. **App Hosting is NOT auto-deployed on main push** — `pnpm deploy:adecco-roleplay` is the only path that makes new code live.
 
+For Firebase CLI auth blockers or explicit gcloud requests, use:
+
+```bash
+pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
+```
+
+For v50-family behavior changes, pass `--variant v50-7` or `--variant v50-8`
+so the post-check verifies `/api/grok-first-v50*/session` identity rather than
+only `/api/v3/session`. Batch router/guard/runtime fixes and deploy once per
+targeted remediation batch; runner-only, docs-only, and unit-test-only edits do
+not need App Hosting deploy.
+
 ## Production source of truth
 
 Customer-facing closeout deploys must come from the intended merged

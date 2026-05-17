@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
         toolCallCount: 0,
         runtimeTtsCount: 0,
         fullTurnBufferCount: 0,
+        runtimeGuardrailsEnabled: session.runtimeGuardrailsEnabled,
         regenerationRate: 0,
       },
     });

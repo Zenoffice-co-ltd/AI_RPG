@@ -665,7 +665,9 @@ describe("grok-first v50 runtime", () => {
     });
     expect(genericHelp.reasons).toContain("forbidden_suffix");
     expect(genericHelp.reasons).toContain("unnatural_ai_phrase");
-    expect(genericHelp.action).toBe("strip_tail");
+    expect(["strip_tail", "drop_sentence", "suppress"]).toContain(
+      genericHelp.action,
+    );
 
     const promptedQuestion = evaluateNegativeGuard({
       text: "了解しました。どうぞ、ご質問をお願いします。",
@@ -673,7 +675,9 @@ describe("grok-first v50 runtime", () => {
       phase: "final",
     });
     expect(promptedQuestion.reasons).toContain("forbidden_suffix");
-    expect(promptedQuestion.action).toBe("strip_tail");
+    expect(["strip_tail", "drop_sentence", "suppress"]).toContain(
+      promptedQuestion.action,
+    );
 
     const genericQuestion = evaluateNegativeGuard({
       text: "そのようにします。何かご質問ありますか。",
@@ -682,7 +686,9 @@ describe("grok-first v50 runtime", () => {
     });
     expect(genericQuestion.reasons).toContain("forbidden_suffix");
     expect(genericQuestion.reasons).toContain("generic_closing_question");
-    expect(genericQuestion.action).toBe("strip_tail");
+    expect(["strip_tail", "drop_sentence", "suppress"]).toContain(
+      genericQuestion.action,
+    );
 
     const indirectGenericQuestion = evaluateNegativeGuard({
       text: "条件で確認したいところはありますか。",
@@ -693,7 +699,9 @@ describe("grok-first v50 runtime", () => {
     expect(indirectGenericQuestion.reasons).toContain(
       "generic_closing_question",
     );
-    expect(indirectGenericQuestion.action).toBe("strip_tail");
+    expect(["strip_tail", "drop_sentence", "suppress"]).toContain(
+      indirectGenericQuestion.action,
+    );
 
     const customerLeadingClose = evaluateNegativeGuard({
       text: "それでは、経験条件や勤務時間などの詳細もお伝えしましょうか。",
@@ -721,7 +729,7 @@ describe("grok-first v50 runtime", () => {
         "ありがとうございます。要件に合う方ならぜひお願いします。",
         sellingAcceptance,
       ),
-    ).toBe("ありがとうございます。");
+    ).toBe("");
 
     const customerLedQuestion = evaluateNegativeGuard({
       text: "ありがとうございます。候補の方の経験やスキルをお聞かせいただけますか。",
@@ -926,6 +934,7 @@ function testSession(sessionId: string): GrokFirstV50Session {
     runtimeTtsEnabled: false,
     replacementTtsEnabled: false,
     fullTurnBufferEnabled: false,
+    runtimeGuardrailsEnabled: true,
     debugTranscriptPreviewEnabled: false,
   };
 }

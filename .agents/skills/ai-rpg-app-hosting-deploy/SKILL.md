@@ -51,6 +51,26 @@ Expected total time: **~6–7 minutes**. **~9–10 minutes** if `pnpm-lock.yaml`
 
 The "guardrailVersion did not change" note at the end is **only a real flag when the deploy was supposed to bump guardrail**. Registered-speech artifact rebuilds (most Haruto-era PRs) leave it unchanged and the note is informational.
 
+### gcloud wrapper and v50 variants
+
+When Firebase CLI auth is blocked or the operator asks for the gcloud path, use:
+
+```bash
+pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
+```
+
+For v50-family behavior changes, pass `--variant v50-7` or `--variant v50-8`
+so the post-check verifies `/api/grok-first-v50*/session` identity
+(`backend`, `promptVersion`, `guardrailVersion`) instead of only
+`/api/v3/session`. Use `--skip-tts-warm` only when the change does not affect
+registered-speech/TTS artifacts.
+
+To shorten deploy cycles, batch router/guard/runtime fixes and deploy once per
+targeted remediation batch. Do not deploy for runner-only, docs-only, or
+unit-test-only edits; do deploy before claiming production voice evidence for
+changes under `apps/web/lib/grok-first-roleplay/**`, v50 route/session APIs, or
+client runtime behavior.
+
 ## Post-deploy verification (REQUIRED)
 
 The wrapper only checks `guardrailVersion`. For every deploy, also confirm the live bundle:

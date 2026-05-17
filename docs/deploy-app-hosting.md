@@ -181,6 +181,28 @@ pnpm deploy:adecco-roleplay -- --skip-verify   # rollout + warm only
 
 Default = all three steps.
 
+### gcloud wrapper for v50-family post-checks
+
+When Firebase CLI auth is blocked or the operator requests the gcloud path,
+use the App Hosting API wrapper:
+
+```bash
+pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
+```
+
+For v50-family behavior changes, always pass `--variant v50-7` or
+`--variant v50-8` so the post-check verifies the matching
+`/api/grok-first-v50*/session` contract (`backend`, `promptVersion`,
+`guardrailVersion`) rather than only `/api/v3/session`. Use
+`--skip-tts-warm` only when the change does not affect registered-speech/TTS
+artifacts.
+
+To reduce deploy time, batch router/guard/runtime fixes and deploy once per
+targeted remediation batch. Runner-only, docs-only, and unit-test-only changes
+do not need App Hosting deploy; runtime changes under
+`apps/web/lib/grok-first-roleplay/**`, route/session APIs, or client behavior
+must be deployed before production voice evidence is claimed.
+
 ## Step 3 — Verify the live bundle
 
 The wrapper's verification step only checks `guardrailVersion`. For
