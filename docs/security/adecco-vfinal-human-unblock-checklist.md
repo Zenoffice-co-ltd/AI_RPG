@@ -1,6 +1,6 @@
 # Adecco vFinal Human Unblock Checklist
 
-Status as of 2026-05-17 JST: **human/operator action required**.
+Status as of 2026-05-17 JST: **workbook owner action required before final PASS**.
 
 This checklist is the shortest safe path from the current BLOCKED state to a
 final customer/security-checksheet submission decision. It does not replace the
@@ -10,33 +10,40 @@ or approval needed next.
 Authoritative detail:
 
 - Approval wording: `docs/security/adecco-vfinal-approval-packet.md`
+- #171 workbook-owner signoff:
+  `docs/security/adecco-vfinal-workbook-owner-signoff-2026-05-17.md`
 - Blocker inventory: `docs/security/adecco-vfinal-blocker-inventory-index.md`
 - Requirement audit:
   `docs/security/adecco-vfinal-customer-submission-dod-audit.md`
 - Final closeout:
   `docs/security/adecco-ai-roleplay-final-security-closeout.md`
 
-## Current Blockers
+## Final Guard Items
 
 | Issue | Who must act | Required action | Evidence that unblocks |
 |---|---|---|---|
-| #138 | Customer/operator | Approve hosted.app as the submitted URL, or map an active dedicated vFinal `mendan.biz` custom domain. | Approval comment with exact submitted URL and submitted-URL smoke evidence, or active DNS/certificate plus smoke for the dedicated custom domain. |
-| #139 | Customer/operator or infrastructure owner | Approve the dedicated no-key backend as the vFinal submitted scope, or migrate/de-scope shared `/api/v3` direct xAI paths and remove shared App Hosting `XAI_API_KEY` access. | Approval comment naming both service accounts, or IAM removal proof plus vFinal and retained v50/v3 non-regression evidence. |
-| #140 | Operator/release owner | Provide an approved same-environment, same-scenario, >=20-session pre-vFinal baseline or approve a baseline collection window. | `corepack pnpm grok:first-vfinal:latency-compare` PASS with baseline/current artifacts and closeCode1006 / relay.error counters. |
-| #141 | Operator/release owner | Provide required process-local inputs/Secret Manager access and obtain clean `verify:acceptance` PASS, or approve the legacy ConvAI blocker as outside vFinal submitted runtime/security scope. | Clean full command PASS, or approval text acknowledging `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` on `staffing_order_hearing_busy_manager_medium` and no vFinal runtime/security regression. |
+| #138 | Customer/operator | No further technical action expected for the shortest path. hosted.app submitted URL approval has been recorded and should be carried into the final PASS guard/closeout PR. | Final guard accepts the approval plus submitted-URL smoke evidence, or the issue is closed with the same evidence. |
+| #139 | Customer/operator or infrastructure owner | No further technical action expected for the shortest path. The submitted runtime scope has been approved as the dedicated no-key vFinal backend only; legacy shared backend `XAI_API_KEY` access is out of submitted scope. | Final guard accepts the approval plus Secret Manager/IAM boundary evidence, or the issue is closed with the same evidence. |
+| #140 | Operator/release owner | No further baseline collection expected for the shortest path. Strict temporary-baseline/current comparison evidence has passed. | Final guard accepts the comparison evidence: 20/20 baseline, 20/20 current, p95 thresholds, closeCode1006=0, `relay.error=0`, and `grok:first-vfinal:latency-compare` PASS. |
+| #141 | Operator/release owner | No further acceptance rerun expected for the shortest path. The legacy ConvAI judge blocker has been approved outside vFinal submitted runtime/security scope. | Final guard accepts the approval naming the legacy scenario/failures and stating no vFinal session, relay, WAF, logging, no-key runtime, or browser direct `api.x.ai` regression. |
 | #171 | Human/legal/operator | Confirm or rewrite the mapped questionnaire cells. | Both source workbooks changed to `vFinal提出DOD照合` overall PASS, blocked-mode markers removed, and approval/closure for the mapped cells. |
+
+Only #171 still requires new human/operator content before the final PASS
+attempt. #128 remains open as the umbrella and should close only after the final
+PASS guard succeeds.
 
 ## Safe Order
 
-1. Decide #138 and #139 first so the submitted runtime and URL scope are fixed.
-2. Resolve #140 with a real baseline comparison. Do not promote current-vFinal
-   latency alone to PASS.
-3. Resolve #141 with either a clean full acceptance run or explicit legacy
-   blocker approval.
-4. Resolve #171 after the final security-checksheet wording is aligned with the
-   approved scope decisions.
+1. Resolve #171 by having the workbook owner confirm or rewrite every mapped
+   human-confirmation cell listed in
+   `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
+2. Promote both source workbooks out of blocked mode only after those cell
+   decisions are made.
+3. Run the workbook PASS guard with both source workbooks.
+4. Carry the recorded #138, #139, #140, and #141 approvals/evidence into the
+   final closeout update.
 5. Close or formally approve #138, #139, #140, #141, and #171, then close #128.
-6. Run the final PASS guard with both source workbooks:
+6. Run the final PASS guard with issue-state checking and both source workbooks:
 
 ```bash
 corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
@@ -78,9 +85,9 @@ corepack pnpm grok:vfinal-secret-iam-boundary -- --expect=blocked
 This confirms whether the dedicated submitted vFinal service account still has
 no `XAI_API_KEY` access, whether the Cloud Run relay has the required
 relay-side secret access, and whether the legacy shared App Hosting service
-account still has `XAI_API_KEY` access. In the current state, expected
-`blocked` means the boundary is as documented but the legacy shared backend
-scope decision is still unresolved.
+account still has `XAI_API_KEY` access. The shortest path now relies on the
+recorded approval that legacy shared backend access is outside the submitted
+vFinal scope, not on removing that legacy access.
 
 For a no-secret #141 current-shell input inventory before attempting
 `verify:acceptance`, run:
@@ -118,8 +125,7 @@ human-confirmation cells to be non-empty, mapped blocker references to be
 removed, blocked-mode workbook markers to be removed, and `.xlsm` VBA content
 to remain intact.
 
-For a scoped #140 artifact precheck before choosing or approving a baseline,
-run:
+For historical #140 artifact inventory or troubleshooting, run:
 
 ```bash
 corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked \
@@ -128,9 +134,8 @@ corepack pnpm grok:first-vfinal:latency-artifact-inventory -- --expect=blocked \
 
 This inventory guard treats closeCode1006 and `relay.error` counters as part of
 comparison readiness. A p95-only artifact is not enough for final #140 PASS.
-The final comparison helper also requires artifact identity markers: baseline
-input must be identifiable as pre-vFinal/baseline evidence, and current input
-must be identifiable as current vFinal evidence.
+The current shortest path already has a strict comparison PASS recorded in the
+closeout, blocker index, and latency baseline assessment.
 
 For a read-only #140 Cloud Logging inventory, run:
 
@@ -142,28 +147,19 @@ corepack pnpm grok:vfinal-cloud-log-latency-inventory -- --expect=blocked \
 ```
 
 This inventory prints aggregate metadata only and does not persist raw Cloud
-Logging JSON. It can show whether Cloud Logging contains useful vFinal latency
-metadata, but it is not a replacement for the strict pre-vFinal baseline
-comparison because the current `grokFirstVFinal` turn logs do not include
-`sessionApiMs` and are current-service metadata rather than explicit
-pre-vFinal baseline artifacts.
+Logging JSON. It is no longer the primary #140 unblock path because the strict
+baseline/current comparison has already passed.
 
 ## Current Codex Stop Conditions
 
 Codex must not change the final verdict to PASS until the checks above are
 done. The current environment still has these blockers:
 
-- #138: hosted.app evidence exists, but the submitted URL is not formally
-  approved and no dedicated `mendan.biz` mapping is active in this environment.
-- #139: the dedicated submitted vFinal runtime is no-key, but legacy shared App
-  Hosting still has `XAI_API_KEY` access and needs scope approval or migration.
-- #140: cross-worktree and read-only Cloud Logging inventory found no valid
-  comparison-ready pre-vFinal baseline artifact.
-- #141: current shell lacks required process-local inputs and Secret Manager
-  access for a fresh clean rerun; earlier full run failed legacy ConvAI judge
-  paths beyond the no-coaching-only exception.
+- #128: umbrella closure must wait until final PASS guard succeeds.
 - #171: workbook mapped cells still require human confirmation or explicit
   unresolved/not-applicable wording.
 
-Until those are resolved or approved, customer submission DoD and
-security-checksheet submission DoD remain BLOCKED.
+#138, #139, #140, and #141 have recorded approval/evidence and are pending the
+final guard/closeout flow. Until #171 is resolved and the final PASS guard
+succeeds, customer submission DoD and security-checksheet submission DoD remain
+BLOCKED.

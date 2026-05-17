@@ -210,11 +210,11 @@ if (normalizedExpected === "blocked") {
   requireEqual(auditStatus, "BLOCKED", "audit status");
   requireEqual(questionnaireMapStatus, "BLOCKED", "questionnaire map status");
   requireEqual(workbookHumanConfirmationMapStatus, "BLOCKED", "workbook human confirmation map status");
-  requireEqual(submittedUrlDecisionInventoryStatus, "BLOCKED", "submitted URL decision inventory status");
-  requireEqual(legacyXaiScopeInventoryStatus, "BLOCKED", "legacy XAI scope inventory status");
-  requireEqual(latencyBaselineAssessmentStatus, "BLOCKED", "latency baseline assessment status");
-  requireEqual(acceptanceBlockerInventoryStatus, "BLOCKED", "acceptance blocker inventory status");
   requireEqual(blockerInventoryIndexStatus, "BLOCKED", "blocker inventory index status");
+  requireKnownInventoryStatus(submittedUrlDecisionInventoryStatus, "submitted URL decision inventory status");
+  requireKnownInventoryStatus(legacyXaiScopeInventoryStatus, "legacy XAI scope inventory status");
+  requireKnownInventoryStatus(latencyBaselineAssessmentStatus, "latency baseline assessment status");
+  requireKnownInventoryStatus(acceptanceBlockerInventoryStatus, "acceptance blocker inventory status");
   requireIncludes(
     source.workbookHumanConfirmationMap,
     "human confirmation still required before final questionnaire submission",
@@ -246,11 +246,7 @@ if (normalizedExpected === "blocked") {
       `${surfaceName} workbook human confirmation map link`
     );
   }
-  requireIncludes(
-    source.blockerInventoryIndex,
-    "all blocker inventories still require resolution or approval",
-    "blocker inventory index blocked status"
-  );
+  requireIncludes(source.blockerInventoryIndex, "#171", "blocker inventory index #171 marker");
   for (const linkedDoc of [
     "docs/security/adecco-vfinal-submitted-url-decision-inventory.md",
     "docs/security/adecco-vfinal-legacy-xai-scope-inventory.md",
@@ -272,11 +268,19 @@ if (normalizedExpected === "blocked") {
       `${surfaceName} blocker inventory index link`
     );
   }
-  requireIncludes(
-    source.submittedUrlDecisionInventory,
-    "submitted URL approval or custom domain mapping still required",
-    "submitted URL decision inventory blocked status"
-  );
+  if (submittedUrlDecisionInventoryStatus === "BLOCKED") {
+    requireIncludes(
+      source.submittedUrlDecisionInventory,
+      "submitted URL approval or custom domain mapping still required",
+      "submitted URL decision inventory blocked status"
+    );
+  } else {
+    requireIncludes(
+      source.submittedUrlDecisionInventory,
+      "hosted.app",
+      "submitted URL decision inventory approved hosted.app evidence"
+    );
+  }
   requireIncludes(
     source.closeout,
     "docs/security/adecco-vfinal-submitted-url-decision-inventory.md",
@@ -297,11 +301,19 @@ if (normalizedExpected === "blocked") {
     "docs/security/adecco-vfinal-submitted-url-decision-inventory.md",
     "approval packet #138 submitted URL decision inventory link"
   );
-  requireIncludes(
-    source.legacyXaiScopeInventory,
-    "legacy shared XAI_API_KEY scope decision still required",
-    "legacy XAI scope inventory blocked status"
-  );
+  if (legacyXaiScopeInventoryStatus === "BLOCKED") {
+    requireIncludes(
+      source.legacyXaiScopeInventory,
+      "legacy shared XAI_API_KEY scope decision still required",
+      "legacy XAI scope inventory blocked status"
+    );
+  } else {
+    requireIncludes(
+      source.legacyXaiScopeInventory,
+      "out of submitted scope",
+      "legacy XAI scope inventory approved scope evidence"
+    );
+  }
   requireIncludes(
     source.closeout,
     "docs/security/adecco-vfinal-legacy-xai-scope-inventory.md",
@@ -322,11 +334,19 @@ if (normalizedExpected === "blocked") {
     "docs/security/adecco-vfinal-legacy-xai-scope-inventory.md",
     "approval packet #139 legacy XAI scope inventory link"
   );
-  requireIncludes(
-    source.latencyBaselineAssessment,
-    "no approved strict pre-vFinal baseline found",
-    "latency baseline assessment blocked status"
-  );
+  if (latencyBaselineAssessmentStatus === "BLOCKED") {
+    requireIncludes(
+      source.latencyBaselineAssessment,
+      "no approved strict pre-vFinal baseline found",
+      "latency baseline assessment blocked status"
+    );
+  } else {
+    requireIncludes(
+      source.latencyBaselineAssessment,
+      "Comparison result: **PASS**",
+      "latency baseline assessment PASS comparison"
+    );
+  }
   requireIncludes(
     source.closeout,
     "docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md",
@@ -347,11 +367,19 @@ if (normalizedExpected === "blocked") {
     "docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md",
     "approval packet #140 latency assessment link"
   );
-  requireIncludes(
-    source.acceptanceBlockerInventory,
-    "acceptance PASS or explicit legacy blocker approval still required",
-    "acceptance blocker inventory blocked status"
-  );
+  if (acceptanceBlockerInventoryStatus === "BLOCKED") {
+    requireIncludes(
+      source.acceptanceBlockerInventory,
+      "acceptance PASS or explicit legacy blocker approval still required",
+      "acceptance blocker inventory blocked status"
+    );
+  } else {
+    requireIncludes(
+      source.acceptanceBlockerInventory,
+      "outside vFinal submitted runtime/security scope",
+      "acceptance blocker inventory approved scope-out evidence"
+    );
+  }
   requireIncludes(
     source.closeout,
     "docs/security/adecco-vfinal-acceptance-blocker-inventory.md",
@@ -609,6 +637,17 @@ const workbookResults = workbookPaths.map((path) =>
 const githubIssues = shouldCheckGithubIssues
   ? checkGithubIssues(normalizedExpected)
   : [];
+const blockedIssueMarkers =
+  normalizedExpected === "blocked"
+    ? [
+        "#128",
+        ...(submittedUrlDecisionInventoryStatus === "BLOCKED" ? ["#138"] : []),
+        ...(legacyXaiScopeInventoryStatus === "BLOCKED" ? ["#139"] : []),
+        ...(latencyBaselineAssessmentStatus === "BLOCKED" ? ["#140"] : []),
+        ...(acceptanceBlockerInventoryStatus === "BLOCKED" ? ["#141"] : []),
+        "#171",
+      ]
+    : [];
 
 if (failures.length > 0) {
   console.error("vFinal customer submission DoD status check FAILED");
@@ -634,7 +673,7 @@ console.log(
       latencyBaselineAssessmentStatus,
       acceptanceBlockerInventoryStatus,
       blockerInventoryIndexStatus,
-      blockers: normalizedExpected === "blocked" ? ["#128", "#138", "#139", "#140", "#141", "#171"] : [],
+      blockers: blockedIssueMarkers,
       workbooks: workbookResults,
       githubIssues,
     },
@@ -647,6 +686,7 @@ function matchSubmittedUrlDecisionInventoryStatus() {
   const text = source.submittedUrlDecisionInventory;
   if (typeof text !== "string") return null;
   if (/^Status as of .*?: \*\*PASS\b.*?\*\*\./m.test(text)) return "PASS";
+  if (/^Status as of .*?: \*\*APPROVED\b.*?\*\*\./m.test(text)) return "PASS";
   if (/^Status as of .*?: \*\*submitted URL approval or custom domain mapping still required\*\*\./m.test(text)) {
     return "BLOCKED";
   }
@@ -673,6 +713,7 @@ function matchLegacyXaiScopeInventoryStatus() {
   const text = source.legacyXaiScopeInventory;
   if (typeof text !== "string") return null;
   if (/^Status as of .*?: \*\*PASS\b.*?\*\*\./m.test(text)) return "PASS";
+  if (/^Status as of .*?: \*\*APPROVED\b.*?\*\*\./m.test(text)) return "PASS";
   if (/^Status as of .*?: \*\*legacy shared XAI_API_KEY scope decision still required\*\*\./m.test(text)) {
     return "BLOCKED";
   }
@@ -699,6 +740,7 @@ function matchAcceptanceBlockerInventoryStatus() {
   const text = source.acceptanceBlockerInventory;
   if (typeof text !== "string") return null;
   if (/^Status as of .*?: \*\*PASS\b.*?\*\*\./m.test(text)) return "PASS";
+  if (/^Status as of .*?: \*\*APPROVED\b.*?\*\*\./m.test(text)) return "PASS";
   if (/^Status as of .*?: \*\*acceptance PASS or explicit legacy blocker approval still required\*\*\./m.test(text)) {
     return "BLOCKED";
   }
@@ -712,6 +754,7 @@ function matchBlockerInventoryIndexStatus() {
   const text = source.blockerInventoryIndex;
   if (typeof text !== "string") return null;
   if (/^Status as of .*?: \*\*PASS\b.*?\*\*\./m.test(text)) return "PASS";
+  if (/^Status as of .*?: \*\*BLOCKED\b.*?\*\*\./m.test(text)) return "BLOCKED";
   if (/^Status as of .*?: \*\*all blocker inventories still require resolution or approval\*\*\./m.test(text)) {
     return "BLOCKED";
   }
@@ -869,16 +912,21 @@ function checkWorkbook(path, expectedStatus) {
   const dodCells = worksheetCells(entries, dodSheet.target, workbook.sharedStrings, path);
   const overallStatus = dodCells.get("B2");
   result.overallStatus = overallStatus ?? null;
+  const blockerStatuses = ["B3", "B4", "B5", "B6", "B7"].map((cell) => ({
+    cell,
+    status: dodCells.get(cell) ?? null,
+  }));
+  result.blockerStatuses = blockerStatuses;
   if (expectedStatus === "blocked") {
     requireEqual(overallStatus, "BLOCKED", `workbook ${path} overall DoD status`);
-    for (const cell of ["B3", "B4", "B5", "B6", "B7"]) {
-      requireEqual(dodCells.get(cell), "BLOCKED", `workbook ${path} ${cell}`);
+    if (!blockerStatuses.some(({ status }) => status === "BLOCKED")) {
+      failures.push(`workbook ${path} has no BLOCKED blocker rows while overall status is BLOCKED`);
     }
   }
   if (expectedStatus === "pass") {
     requireEqual(overallStatus, "PASS", `workbook ${path} overall DoD status`);
-    for (const cell of ["B3", "B4", "B5", "B6", "B7"]) {
-      if (dodCells.get(cell) === "BLOCKED") {
+    for (const { cell, status } of blockerStatuses) {
+      if (status === "BLOCKED") {
         failures.push(`workbook ${path} still has BLOCKED in ${cell}`);
       }
     }
@@ -898,16 +946,11 @@ function checkWorkbook(path, expectedStatus) {
       failures.push(`workbook still contains stale submitted URL wording (${staleUrlClaim}): ${path}`);
     }
   }
-  if (expectedStatus === "blocked" && !allText.includes("vFinal提出URLは#138未確定")) {
-    failures.push(`workbook missing #138 submitted URL uncertainty wording: ${path}`);
-  }
   if (expectedStatus === "blocked") {
     for (const required of [
       "#171",
       "Excel人間確認 (#171)",
       "docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md",
-      "pre-vFinal >=20セッションbaselineとの正式比較が必要",
-      "baseline不足の免除ではPASS不可",
     ]) {
       if (!allText.includes(required)) {
         failures.push(`workbook missing required blocked-mode wording (${required}): ${path}`);
@@ -1116,6 +1159,12 @@ function matchOne(text, regex, label) {
 function requireEqual(actual, expectedValue, label) {
   if (actual !== expectedValue) {
     failures.push(`${label}: expected ${expectedValue}, got ${actual ?? "missing"}`);
+  }
+}
+
+function requireKnownInventoryStatus(actual, label) {
+  if (actual !== "BLOCKED" && actual !== "PASS") {
+    failures.push(`${label}: expected BLOCKED or PASS, got ${actual ?? "missing"}`);
   }
 }
 

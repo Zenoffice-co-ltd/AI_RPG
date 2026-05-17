@@ -1,12 +1,15 @@
 # Adecco vFinal Acceptance Blocker Inventory
 
-Status as of 2026-05-17 JST: **acceptance PASS or explicit legacy blocker approval still required**.
+Status as of 2026-05-17 JST: **APPROVED pending final guard**.
 
 This note supports issue #141. It does not change the customer submission DoD
-verdict. Current evidence shows vFinal runtime/security controls passed their
-targeted gates, but the canonical full `verify:acceptance` gate is not clean
-PASS and cannot be treated as complete without either a clean rerun or explicit
-approval of the legacy ConvAI judge blocker.
+verdict by itself. Current evidence shows vFinal runtime/security controls
+passed their targeted gates, and the known legacy ConvAI judge blocker has been
+approved outside vFinal submitted runtime/security scope for this submission.
+
+Approval evidence:
+
+- https://github.com/Zenoffice-co-ltd/AI_RPG/issues/141#issuecomment-4468507727
 
 ## Current Gate State
 

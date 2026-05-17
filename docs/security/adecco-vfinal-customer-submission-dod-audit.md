@@ -16,24 +16,32 @@ The shortest human/operator unblock checklist is
 
 ## Blocking Summary
 
-Customer submission and security-checksheet submission remain blocked by five
-tracked items:
+Customer submission and security-checksheet submission remain blocked by #171
+and final umbrella closure:
 
-- #138: submitted URL decision. Approve the dedicated hosted.app URL or map an
-  active dedicated vFinal `mendan.biz` custom domain.
-- #139: submitted runtime scope decision. Approve legacy shared App Hosting
-  `XAI_API_KEY` access as outside vFinal submission scope, or migrate/de-scope
-  the legacy dependency and remove that access.
-- #140: formal latency comparison. Approve or collect a same-environment,
-  same-scenario, >=20-session pre-vFinal baseline.
-- #141: canonical acceptance. Obtain clean `verify:acceptance` PASS or approve
-  the legacy ConvAI judge blocker as outside vFinal submission scope.
-- #171: questionnaire workbook human confirmations. Confirm or rewrite the
-  mapped cells before treating the security-checksheet drafts as final
-  submission artifacts.
+- #138: submitted URL approval is recorded for the dedicated hosted.app
+  submitted URL and is pending final guard/closeout.
+- #139: submitted runtime scope approval is recorded. The customer-submitted
+  runtime is the dedicated no-key vFinal backend only; legacy shared
+  App Hosting `XAI_API_KEY` access is out of submitted scope.
+- #140: strict latency comparison evidence is recorded and passed.
+- #141: the legacy ConvAI judge blocker is approved outside vFinal submitted
+  runtime/security scope.
+- #171: questionnaire workbook human confirmations still require human/legal/
+  operator confirmation or explicit unresolved/not-applicable wording before
+  the workbook drafts can be treated as final submission artifacts.
 
 ## Latest Read-Only Rechecks
 
+- 2026-05-17 later blocker alignment:
+  #138, #139, #140, and #141 now have recorded approval/evidence and are
+  pending final guard/closeout, not new technical work. #171 remains the
+  substantive human-confirmation blocker. The two source workbook first-sheet
+  rows now show #138 `APPROVED`, #139 `APPROVED`, #140 `PASS`,
+  #141 `APPROVED`, and #171 `BLOCKED`, while overall workbook status remains
+  `BLOCKED`. The expected-BLOCKED workbook and final DoD guards passed with
+  both source workbook paths, and no workbook answer values were copied into
+  this audit.
 - 2026-05-17 04:50 JST legacy XAI scope recheck:
   Secret Manager IAM and Firebase App Hosting configuration docs were
   rechecked before the #139 read-only IAM/config review. The dedicated
@@ -290,7 +298,7 @@ tracked items:
 |---|---|---|---|
 | 1 | vFinal dedicated Web/App Hosting runtime is separated | PASS | Dedicated App Hosting backend `adecco-roleplay-vfinal` and dedicated service account are recorded in the closeout. |
 | 2 | vFinal Web/App Hosting runtime / service account cannot access `XAI_API_KEY` | PASS for submitted runtime | Closeout IAM proof and 2026-05-17 read-only IAM recheck show `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com` has no `XAI_API_KEY` access. |
-| 3 | Only Cloud Run relay service account can access `XAI_API_KEY` | BLOCKED by #139 | True for the dedicated submitted vFinal runtime, but project-wide `XAI_API_KEY` still includes legacy shared App Hosting access for non-submitted comparison/direct routes. 2026-05-17 read-only IAM recheck confirmed `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` still has secretAccessor/viewer access. The legacy XAI scope inventory is recorded in `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`. |
+| 3 | Only Cloud Run relay service account can access `XAI_API_KEY` | APPROVED for submitted scope | True for the dedicated submitted vFinal runtime. Project-wide `XAI_API_KEY` still includes legacy shared App Hosting access for non-submitted comparison/direct routes, and that legacy access is approved out of submitted scope for this vFinal customer submission. The legacy XAI scope inventory is recorded in `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md`. |
 | 4 | Metadata-only Cloud Logging bucket or sink retention is >=180 days | PASS | Closeout records metadata bucket `adecco-vfinal-metadata`, metadata sink, and 180-day retention. |
 | 5 | Sensitive log scan is 0 for raw invite token, raw cookie, raw participantId, relay ticket, Authorization/Bearer, `XAI_API_KEY`, transcript body, prompt/instructions, and base64 audio | PASS scoped to collected evidence | Post same-SHA text/voice E2E sensitive metadata bucket scan recorded 0 hits for the required sensitive markers. |
 | 6 | Cloud Armor / WAF is applied to relay LB in preview/log mode | PASS | Closeout records `xai-realtime-relay-preview-policy` attached to `xai-realtime-relay-backend` with preview rules. |
@@ -304,15 +312,15 @@ tracked items:
 | 14 | Cloud Logging relay phases are present: `client.connected`, `ticket.accepted`, `upstream.connected`, `first.upstream.audio.delta` | PASS | Closeout records all required relay phases after dedicated vFinal browser text/voice E2E. |
 | 15 | Live text E2E PASS | PASS | `corepack pnpm grok:first-vfinal:browser-e2e -- --mode text` is recorded as PASS after same-SHA deploy. |
 | 16 | Live voice E2E PASS | PASS | `corepack pnpm grok:first-vfinal:browser-e2e -- --mode voice` is recorded as PASS after same-SHA deploy. |
-| 17 | Latency baseline comparison PASS: session API p95 <= baseline + 50ms, firstAudioDeltaMs p95 <= baseline + 100ms, firstAudibleAudioMs p95 <= baseline + 100ms | BLOCKED by #140 | Current-vFinal 20-session sample exists and passed, and `corepack pnpm grok:first-vfinal:latency-compare` is available for the future strict comparison. No approved same-environment, same-scenario, >=20-session pre-vFinal baseline exists yet, and the latest inventory found 0 comparison-ready explicit pre-vFinal candidates. |
-| 18 | WSS close code 1006 increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded closeCode1006=0. Formal comparison remains tied to #140, and the latest inventory found 0 artifacts with embedded operational counters. |
-| 19 | `relay.error` increase absent | PASS for current-vFinal sample; blocked for formal comparison | Current-vFinal sample window recorded relay.error=0. Formal comparison remains tied to #140, and p95-only artifacts cannot satisfy final comparison readiness without `relay.error` counter evidence. |
+| 17 | Latency baseline comparison PASS: session API p95 <= baseline + 50ms, firstAudioDeltaMs p95 <= baseline + 100ms, firstAudibleAudioMs p95 <= baseline + 100ms | PASS | Temporary baseline 20/20 and fresh current-vFinal 20/20 samples passed; `corepack pnpm grok:first-vfinal:latency-compare` returned PASS within the required thresholds. |
+| 18 | WSS close code 1006 increase absent | PASS | Baseline/current comparison windows both recorded closeCode1006=0. |
+| 19 | `relay.error` increase absent | PASS | Baseline/current comparison windows both recorded `relay.error=0`. |
 | 20 | ZAP baseline/passive scan PASS | PASS | ZAP baseline/passive exitCode 0, FAIL=0, WARN=8 documented; no active scan was run. |
-| 21 | `verify:acceptance` PASS or explicit legacy blocker approval | BLOCKED by #141 | Latest 2026-05-17 00:44 JST full rerun had process-local secrets, reached the legacy publish scenario, and failed `no-coaching`, `role-adherence`, and `no-hidden-fact-leak` across retries. This is not a vFinal runtime regression, but it is not PASS and is not eligible for the no-coaching-only exception without customer/operator approval. The acceptance blocker inventory is recorded in `docs/security/adecco-vfinal-acceptance-blocker-inventory.md`. |
-| 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED | Closeout still intentionally lists #138, #139, #140, #141, and #171 as unresolved. The submitted URL decision inventory is recorded in `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`. |
-| 23 | Closeout records official docs checked, backend/rollout/revision/traffic, relay image/revision/traffic, same Git SHA deploy, service account/IAM proof, log retention proof, WAF proof, session contract, browser WS capture, direct `api.x.ai` 0, relay phases, sensitive scan, live E2E, latency, ZAP, and acceptance | PASS for recorded evidence; blockers remain explicit | The closeout contains the required evidence sections. Latency and acceptance sections are recorded as BLOCKED rather than PASS. |
-| 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs are merged through the latest blocker-recheck updates, but no final PASS PR can be honestly created until #138, #139, #141, and #171 are resolved or approved and #140 has a passing pre-vFinal baseline comparison. |
-| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED | Closeout final verdicts remain BLOCKED and must stay that way until #138, #139, #141, and #171 are closed or formally approved out of scope and #140 has a passing pre-vFinal baseline comparison. |
+| 21 | `verify:acceptance` PASS or explicit legacy blocker approval | APPROVED for submitted scope | Latest full rerun failed legacy ConvAI judge paths, but the blocker is approved outside vFinal submitted runtime/security scope. The acceptance blocker inventory is recorded in `docs/security/adecco-vfinal-acceptance-blocker-inventory.md`. |
+| 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED by #171/#128 | #138, #139, #140, and #141 have approval/evidence recorded. #171 workbook finalization and #128 final closure remain. The submitted URL decision inventory is recorded in `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`. |
+| 23 | Closeout records official docs checked, backend/rollout/revision/traffic, relay image/revision/traffic, same Git SHA deploy, service account/IAM proof, log retention proof, WAF proof, session contract, browser WS capture, direct `api.x.ai` 0, relay phases, sensitive scan, live E2E, latency, ZAP, and acceptance | PASS for recorded evidence; #171 remains explicit | The closeout contains the required evidence sections. Latency comparison is recorded as PASS; acceptance is recorded as approved out of vFinal submitted runtime/security scope. |
+| 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs are merged through the latest blocker-recheck updates, but no final PASS PR can be honestly created until #171 is resolved and the final PASS guard succeeds. |
+| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED | Closeout final verdicts remain BLOCKED and must stay that way until #171 is resolved, both source workbooks pass PASS-mode guard, and the final DoD guard succeeds. |
 
 Workbook human-confirmation cells are tracked separately in
 `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` and must
@@ -321,15 +329,12 @@ final submission artifacts. GitHub issue #171 tracks this blocker.
 
 ## Minimal Restart Path
 
-1. Resolve or formally approve #138.
-2. Resolve or formally approve #139.
-3. Resolve #140 with an approved pre-vFinal baseline and a
-   `corepack pnpm grok:first-vfinal:latency-compare` result that meets the
-   documented thresholds.
-4. Resolve #141 with a clean full `verify:acceptance` run or explicit approval
-   of the legacy ConvAI judge blocker as outside vFinal submission scope.
-5. Resolve #171 by confirming or rewriting the mapped workbook cells.
-6. Re-run the lightweight integrity checks:
+1. Resolve #171 by confirming or rewriting the mapped workbook cells.
+2. Promote both source workbooks to PASS only after the mapped cell decisions
+   are complete and blocked-mode markers are removed.
+3. Carry the recorded #138, #139, #140, and #141 approvals/evidence into the
+   final closeout update.
+4. Re-run the lightweight integrity checks:
    `git diff --check`, `corepack pnpm grok:vfinal-security-invariants`, and
    `corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass
    --check-github-issues --allow-open-approved-issues` with the two source
@@ -337,5 +342,5 @@ final submission artifacts. GitHub issue #171 tracks this blocker.
    issue is accepted by approval comment instead of issue closure,
    `--approval-author=<approver-github-login>` or
    `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required.
-7. Update the closeout final verdict only after all blocking issues are closed
-   or approved, with #140 backed by a passing baseline comparison.
+5. Update the closeout final verdict only after the workbook PASS guard and
+   final DoD guard both succeed.

@@ -18,7 +18,7 @@ const mappedCellsByWorkbook = [
       ["Sheet1", "E12"],
       ["Sheet1", "E14"],
       ["Sheet1", "E15"],
-      ["Sheet1", "E24"],
+      ["Sheet1", "E24", "Final data-flow attachment and processing locations, including xAI and cloud regions."],
       ["Sheet1", "E25"],
       ["Sheet1", "E27"],
       ["Sheet1", "E28"],
@@ -164,15 +164,17 @@ function inspectWorkbook(path) {
     return result;
   }
 
-  const expanded = mapping.mapped.flatMap(([sheetName, ref]) =>
-    expandA1Range(ref).map((cell) => [sheetName, cell])
+  const expanded = mapping.mapped.flatMap(([sheetName, ref, confirmationNeeded]) =>
+    expandA1Range(ref).map((cell) => [sheetName, cell, confirmationNeeded ?? null])
   );
   let nonEmpty = 0;
   let markerCells = 0;
   const markerTypeCounts = Object.fromEntries(markerPatterns.map(([name]) => [name, 0]));
+  const markerRefs = [];
+  const blockingMarkerRefs = [];
   const bySheet = new Map();
 
-  for (const [sheetName, cell] of expanded) {
+  for (const [sheetName, cell, confirmationNeeded] of expanded) {
     const sheet = workbook.sheets.find((candidate) => candidate.name === sheetName);
     if (!sheet) {
       failures.push(`workbook ${path} missing mapped sheet ${sheetName}`);
@@ -186,6 +188,18 @@ function inspectWorkbook(path) {
       .map(([name]) => name);
     if (matchedTypes.length > 0) {
       markerCells += 1;
+      const markerRef = {
+        sheet: sheetName,
+        cell,
+        markerTypes: matchedTypes,
+      };
+      if (confirmationNeeded) {
+        markerRef.confirmationNeeded = confirmationNeeded;
+      }
+      markerRefs.push(markerRef);
+      if (matchedTypes.includes("blockerRef")) {
+        blockingMarkerRefs.push(markerRef);
+      }
       for (const type of matchedTypes) {
         markerTypeCounts[type] += 1;
       }
@@ -203,6 +217,8 @@ function inspectWorkbook(path) {
     nonEmpty,
     markerCells,
     blockingMarkerCells: markerTypeCounts.blockerRef,
+    markerRefs,
+    blockingMarkerRefs,
     cleanCells: expanded.length - markerCells,
     markerTypeCounts,
     bySheet: Object.fromEntries([...bySheet.entries()]),
@@ -460,6 +476,14 @@ function runSelfTest() {
   const total = mappedCellsByWorkbook[1].mapped.flatMap(([, ref]) => expandA1Range(ref)).length;
   if (total !== 34) {
     throw new Error(`TPISA expanded cell count changed: ${total}`);
+  }
+  const sampleMarkerRef = { sheet: "Sheet1", cell: "E5", markerTypes: ["blockerRef"] };
+  if (Object.keys(sampleMarkerRef).join(",") !== "sheet,cell,markerTypes") {
+    throw new Error("marker ref shape changed");
+  }
+  const dataFlowCell = mappedCellsByWorkbook[0].mapped.find(([, ref]) => ref === "E24");
+  if (!dataFlowCell?.[2]?.includes("processing locations")) {
+    throw new Error("E24 confirmation category missing");
   }
   console.log("vFinal workbook human-confirmation self-test PASS");
 }

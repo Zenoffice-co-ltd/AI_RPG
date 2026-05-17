@@ -7,20 +7,22 @@ complete. Browser text/voice E2E now passes on the dedicated vFinal backend.
 App Hosting and Cloud Run relay have both been redeployed from the current
 `origin/main` worktree SHA `f1024e559709c2cf62ac12d97516a6a4c9db56cd` using
 the dedicated vFinal backend and relay image tag. Customer submission DoD is
-still blocked by latency baseline comparison, a full acceptance legacy ConvAI
-judge failure, and custom-domain/customer-scope decisions listed in this
-document.
+still blocked by workbook human confirmations and final umbrella closure. The
+submitted URL, legacy shared backend scope, acceptance legacy ConvAI blocker
+treatment, and strict latency comparison now have approval/evidence recorded,
+but the final PASS guard has not succeeded while the source workbooks remain
+BLOCKED.
 The earlier ZAP and Secret Manager IAM blockers have been reduced: ZAP
 baseline/passive executed with FAIL=0, and `verify:acceptance --preflight`
 became ready after resolving required secrets into process-local env from
 Secret Manager without printing or persisting values. Current vFinal
-20-session voice latency sampling is complete, but the required 20-session
-pre-vFinal baseline comparison is still missing.
+20-session voice latency sampling and the required strict 20-session
+pre-current vFinal baseline comparison are complete.
 The questionnaire draft alignment review is tracked in
 `docs/security/adecco-vfinal-questionnaire-submission-map.md`; the workbook
-drafts must stay marked as blocked/conditional until #138, #139, #141, and
-#171 are resolved or formally approved out of scope, and #140 has an approved
-pre-vFinal baseline comparison that meets the documented thresholds.
+drafts must stay marked as blocked/conditional until #138, #139, #140, #141,
+and #171 satisfy the final guard rules and #171 source workbook human
+confirmations are complete.
 The requirement-by-requirement customer submission audit is tracked in
 `docs/security/adecco-vfinal-customer-submission-dod-audit.md`.
 The human decision packet for the remaining approval-sensitive blockers is
@@ -632,15 +634,33 @@ Post same-SHA deploy E2E:
     audioBytes=360960
     websocketReconnectCount=0
 Latency baseline:
-  BLOCKED: >=20-session pre-vFinal baseline comparison is not complete.
-  Evidence check 2026-05-16 23:24 JST:
-    Cloud Logging bucket=adecco-vfinal-metadata, view=_AllLogs,
-    since=2026-05-16T00:00:00Z contains only 7 vFinal turn.completed entries
-    before the new 20-session sample below. That is insufficient for the
-    required 20-session p95 baseline. Reconstructing the formal baseline would
-    require an approved rollback or separate same-environment deployment of the
-    latest approved pre-vFinal App Hosting/relay runtime, which Codex should not
-    do without operator approval.
+  PASS strict comparison 2026-05-17 JST:
+    baseline_backend=adecco-vfinal-baseline
+    baseline_origin=https://adecco-vfinal-baseline--adecco-mendan.asia-east1.hosted.app
+    baseline_rollout=projects/adecco-mendan/locations/asia-east1/backends/adecco-vfinal-baseline/rollouts/build-2026-05-16-004
+    baseline_source=vFinal App Hosting build-004 archive
+    baseline_smoke=out/grok_first_vfinal_baseline_smoke/2026-05-17T00-10-00-baseline-build004-start/evidence.json
+    baseline_summary=out/grok_first_vfinal_latency/2026-05-17T00-12-00-baseline-build004-voice20/summary.json
+    current_summary=out/grok_first_vfinal_latency/2026-05-17T00-15-00-current-vfinal-voice20/summary.json
+    comparison=out/grok_first_vfinal_latency_compare/2026-05-17T00-20-00-baseline-build004-vs-current/comparison-summary.json
+    baseline_runCount=20
+    baseline_passCount=20
+    current_runCount=20
+    current_passCount=20
+    baseline_sessionApiMs_p95=153
+    current_sessionApiMs_p95=187
+    sessionApiMs_threshold=203
+    baseline_firstAudioDeltaMs_p95=4633
+    current_firstAudioDeltaMs_p95=4702
+    firstAudioDeltaMs_threshold=4733
+    baseline_firstAudibleAudioMs_p95=4868
+    current_firstAudibleAudioMs_p95=4923
+    firstAudibleAudioMs_threshold=4968
+    baseline_closeCode1006=0
+    current_closeCode1006=0
+    baseline_relay.error=0
+    current_relay.error=0
+    Comparison result: PASS
 Latency vFinal:
   PASS scoped current-vFinal 20-session sample:
     command=corepack pnpm grok:first-vfinal:latency-sample -- --mode voice --runs 20
@@ -663,9 +683,10 @@ Latency vFinal:
     first.upstream.audio.delta=20
     closeCode1006=0
     relayError=0
-  NOTE: one non-p95 outlier was observed in the current-vFinal sample
-  (firstAudibleAudioMs max=10989ms). The formal DoD is still blocked because
-  the corresponding 20-session pre-vFinal baseline is unavailable.
+  NOTE: one non-p95 outlier was observed in the older 2026-05-16 current-vFinal
+  sample (firstAudibleAudioMs max=10989ms). A fresh 2026-05-17 current-vFinal
+  20-session sample was collected in the same measurement window as the
+  temporary baseline and passed the formal comparison.
 ZAP baseline/passive:
   PASS 2026-05-16 23:06 JST:
     command=docker run --rm -t -v <outDir>:/zap/wrk:rw ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-vFinal -J zap-report.json -r zap-report.html -w zap-report.md -I
@@ -876,117 +897,32 @@ Security-checksheet submission DoD:
   BLOCKED
 
 Remaining blockers:
-  - Issue #138: custom vFinal mendan.biz domain/DNS is not mapped; PR-B
-    evidence uses the dedicated hosted.app backend URL. Resolve by either
-    approving hosted.app as the submitted URL or mapping a dedicated vFinal
-    mendan.biz custom domain to the dedicated backend.
-    2026-05-17 03:26 JST recheck: hosted.app returned HTTP 200;
-    `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` returned no
-    DNS resolver result in this environment; `curl -I` against
-    `https://roleplay-vfinal.mendan.biz/demo/adecco-roleplay-vFinal` failed
-    with host resolution error.
-    2026-05-17 post-PR149 recheck: hosted.app returned HTTP 200;
-    `roleplay-vfinal.mendan.biz` and `adecco-roleplay.mendan.biz` still had no
-    DNS resolver result in this environment.
-    2026-05-17 submitted URL decision inventory:
-    `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` records
-    that hosted.app is live but not formally approved, while the dedicated
-    `mendan.biz` candidates still lack verified DNS mapping in this
-    environment. This keeps #138 blocked pending explicit hosted.app approval
-    or custom-domain mapping/certificate evidence.
-    2026-05-17 04:29 JST browser start smoke against the dedicated hosted.app
-    submitted URL candidate passed: session 200, `wsUrl`
-    `wss://voice.mendan.biz/api/v3/realtime-relay`, only relay WSS observed,
-    direct `api.x.ai` count 0, and forbidden session keys absent. The same
-    recheck still found no DNS result for `roleplay-vfinal.mendan.biz` or
-    `adecco-roleplay.mendan.biz`; `curl -I` to both dedicated custom-domain
-    candidates failed with host resolution error. This is fresh evidence for
-    #138 but does not replace the required approval or custom-domain mapping.
-  - Issue #139: project-wide XAI_API_KEY secretAccessor still includes the
-    legacy shared App Hosting service account for non-submitted direct
-    comparison routes. Removing it would risk breaking existing v3/direct xAI
-    routes unless those routes are migrated or formally de-scoped.
-    2026-05-17 post-PR149 recheck: the dedicated vFinal service account was not
-    present on the `XAI_API_KEY` policy; the legacy shared App Hosting compute
-    service account still had `secretAccessor` and `viewer`, and the relay
-    service account still had `secretAccessor` as expected.
-    2026-05-17 legacy XAI scope inventory:
-    `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md` records that
-    submitted vFinal uses only relay tickets in the dedicated no-key backend,
-    while the shared `/api/v3/*` Grok Voice session/TTS paths still have code
-    paths that depend on `XAI_API_KEY`. This keeps #139 blocked pending explicit
-    scope approval or migration/de-scope.
-  - Issue #140: latency baseline comparison is not complete. Current-vFinal
-    20-session voice sampling is complete and passed, but the required
-    20-session pre-vFinal baseline is unavailable without approved rollback or a
-    separate same-environment baseline deployment.
-    2026-05-17 artifact scan found current-vFinal samples and unrelated
-    v50/Grok Voice artifacts, but no same-environment, same-scenario,
-    >=20-session pre-vFinal baseline with the required metrics.
-  - Issue #141: verify:acceptance full reruns are blocked by the known legacy
-    `staffing_order_hearing_busy_manager_medium` ElevenLabs ConvAI judge path.
-    Latest rerun evidence includes `no-coaching`, `role-adherence`, and
-    `no-hidden-fact-leak` failures across retries, so the no-coaching-only
-    exception is not applicable. This is no longer a Secret Manager IAM blocker,
-    but applying the legacy vendor judge blocker to vFinal as out of scope
-    requires customer/operator approval or a clean rerun during a stable vendor
-    window.
-    2026-05-17 post-PR149 current-shell preflight still fails before product
-    checks with Secret Manager `secretmanager.versions.access` permission denied
-    when process-local vendor env values and `apps/web/.env.local` are absent.
-  - 2026-05-17 01:50 JST continuation recheck: `corepack pnpm
-    grok:vfinal-submission-dod-status -- --expect=blocked
-    --check-github-issues --allow-open-approved-issues
-    --approval-author=iwase-cpu --workbook=... --workbook=...` PASS confirmed
-    closeout, audit, questionnaire map, both source workbooks, and issue state
-    are still intentionally BLOCKED. Issues #138, #139, #140, and #141 were
-    still OPEN with no accepted approval comments. Visible `Approved:` text on
-    those issues is only in fenced-code or blockquote approval templates and is
-    ignored by the guard. `corepack pnpm
-    grok:vfinal-security-invariants` PASS. Submitted hosted.app still returned
-    HTTP 200; dedicated `mendan.biz` candidates still had no DNS result. The
-    `XAI_API_KEY` IAM policy still excluded the dedicated vFinal service
-    account and included the legacy shared App Hosting compute service account.
-    Local artifacts still did not contain an approved strict pre-vFinal
-    >=20-session baseline with the required metrics. Fresh `corepack pnpm
-    verify:acceptance -- --preflight` still stopped before product checks with
-    Secret Manager `secretmanager.versions.access` permission denied in the
-    current shell. No production changes were made.
-  - 2026-05-17 post-PR169 continuation recheck: #138, #139, #140, and #141
-    remained OPEN; hosted.app returned HTTP 200; `roleplay-vfinal.mendan.biz`
-    and `adecco-roleplay.mendan.biz` still did not resolve in this environment;
-    and `corepack pnpm verify:acceptance -- --preflight` still failed before
-    product checks with Secret Manager `secretmanager.versions.access`
-    permission denied. No secret values were printed or persisted, and no
-    production changes were made.
+  - Issue #138: submitted URL approval is recorded for the dedicated hosted.app
+    URL and is pending final guard/closeout.
+    Approval: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/138#issuecomment-4468507715
+  - Issue #139: submitted runtime scope approval is recorded. The submitted
+    customer runtime is the dedicated no-key vFinal backend only; legacy shared
+    App Hosting `XAI_API_KEY` access is out of submitted scope for this
+    submission.
+    Approval: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/139#issuecomment-4468507721
+  - Issue #140: latency baseline comparison has passing evidence.
+    Temporary baseline backend `adecco-vfinal-baseline` collected a 20/20
+    voice baseline, fresh current-vFinal collected 20/20 voice evidence,
+    Cloud Logging aggregate counters were closeCode1006=0 and relay.error=0
+    for both windows, and `corepack pnpm grok:first-vfinal:latency-compare`
+    returned PASS.
+    Evidence: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/140#issuecomment-4468623153
+  - Issue #141: the known legacy `staffing_order_hearing_busy_manager_medium`
+    ConvAI judge blocker is approved outside vFinal submitted runtime/security
+    scope and is pending final guard/closeout.
+    Approval: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/141#issuecomment-4468507727
   - Issue #171: source questionnaire workbook cells still require human/legal/
     operator confirmation before the questionnaire drafts can be treated as
     final submission artifacts. The cell-level map is tracked in
     `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
-  - 2026-05-17 #141 acceptance blocker inventory:
-    `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` records that
-    the latest executable full rerun failed on legacy ConvAI judge paths beyond
-    the no-coaching-only exception, and that a fresh current-shell preflight
-    still stops on Secret Manager `secretmanager.versions.access`. This keeps
-    #141 blocked pending clean `verify:acceptance` PASS, explicit legacy
-    blocker approval, or legacy judge path fix/re-scope.
-  - 2026-05-17 #140 baseline candidate assessment:
-    `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md`
-    records that local artifact candidates either are current-vFinal samples,
-    lack `sessionApiMs`, use local/different route families, fail quality gates,
-    or lack a comparable >=20-session denominator. The strict pre-vFinal
-    baseline comparison remains blocked.
-  - 2026-05-17 post-PR177 #140 comparator: `corepack pnpm
-    grok:first-vfinal:latency-compare` is merged on `origin/main` at
-    `14beffe111fd6820523e70fd0d7486f35713e108`. It self-tests in CI and fails
-    weak denominator, failed-run, missing closeCode1006 / relay.error counter,
-    threshold, and same-summary baseline/current cases. This gives a
-    reproducible command for the future #140 comparison, but does not create or
-    approve the missing pre-vFinal baseline.
-  - local DNS/Google API resolution remains unreliable for gcloud CLI
-    post-verify commands. REST calls with explicit Google API IP resolution were
-    used for Cloud Run/App Hosting/Logging/Secret Manager evidence; this is an
-    operator-environment issue, not a product runtime failure.
+    Evidence: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/171#issuecomment-4468653013
+  - Issue #128: umbrella issue remains open until #171 is resolved, the source
+    workbooks pass PASS-mode guard, and the final DoD guard succeeds.
 
 Questionnaire alignment:
   - Reviewed workbook drafts:
@@ -1002,15 +938,18 @@ Questionnaire alignment:
     The `回答前提・要確認` opening note no longer says the security foundation
     plan is complete for submission. Pre-edit backups are under
     C:\Users\yukih\Downloads\vfinal_dod_excel_backups\.
+  - 2026-05-17 later source workbook status update: the first-sheet blocker
+    rows now match the evidence-backed state while the overall status remains
+    BLOCKED: #138 APPROVED, #139 APPROVED, #140 PASS, #141 APPROVED, and
+    #171 BLOCKED. The workbook and overall DoD guards pass in expected BLOCKED
+    mode with both source workbook paths, and the TPISA workbook retained VBA.
   - Issue #171 tracks workbook cell-level human confirmations that cannot be
     proven from repository or infrastructure evidence alone.
   - The questionnaire drafts can cite completed vFinal no-key runtime, relay,
     metadata logging, WAF preview/log, ZAP, text/voice E2E, sensitive scan, and
-    current-vFinal 20-session evidence, but must not claim submitted URL
-    approval, legacy shared backend de-scope, formal latency comparison PASS,
-    or full acceptance closure until #138, #139, #141, and #171 are resolved or
-    explicitly approved out of scope and #140 has a passing pre-vFinal baseline
-    comparison.
+    current-vFinal/temporary-baseline latency comparison evidence. They still
+    must not claim final customer submission PASS until #171 is resolved and
+    the final PASS guard succeeds.
 
 Human-decision tracking:
   - Umbrella blocker issue: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/128
@@ -1034,10 +973,10 @@ Current final evidence verdict:
   relay.error=0, and sensitive metadata bucket scan=0 for raw secret/token/
   prompt/transcript/audio markers. PASS for ZAP baseline/passive execution with
   FAIL=0 and documented WARN classes. PASS for current-vFinal 20-session voice
-  latency sample, with closeCode1006=0 and relay.error=0 in the sample window.
-  FAIL/BLOCKED for overall customer submission DoD until the remaining blockers
-  above are resolved, with #140 requiring a passing pre-vFinal baseline
-  comparison rather than a waiver of the missing baseline.
+  latency sample and strict temporary-baseline comparison, with closeCode1006=0
+  and relay.error=0 in both comparison windows. FAIL/BLOCKED for overall
+  customer submission DoD until the remaining blockers above are resolved,
+  especially #171 workbook finalization and #128 final closure.
 ```
 
 ## Rollback

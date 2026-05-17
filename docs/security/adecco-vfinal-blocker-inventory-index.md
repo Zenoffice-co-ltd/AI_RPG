@@ -1,6 +1,6 @@
 # Adecco vFinal Blocker Inventory Index
 
-Status as of 2026-05-17 JST: **all blocker inventories still require resolution or approval**.
+Status as of 2026-05-17 JST: **BLOCKED pending #171 workbook finalization and final guard**.
 
 This index is the human-facing table of the approval/evidence-sensitive items
 that still block customer submission DoD and security-checksheet submission
@@ -15,13 +15,37 @@ being closed or formally approved.
 
 | Issue | Blocker | Inventory / assessment | Current index verdict |
 |---|---|---|---|
-| #138 | Submitted URL approval or dedicated custom-domain mapping | `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` | BLOCKED: hosted.app is live but not formally approved; dedicated `mendan.biz` candidates lack verified DNS mapping. |
-| #139 | Legacy shared App Hosting `XAI_API_KEY` scope | `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md` | BLOCKED: submitted vFinal runtime is no-key, but legacy shared `/api/v3` session/TTS paths still require explicit scope approval or migration/de-scope. |
-| #140 | Strict pre-vFinal latency baseline comparison | `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md` | BLOCKED: current-vFinal 20-session sample exists, but no approved strict pre-vFinal >=20-session baseline is available. |
-| #141 | Canonical `verify:acceptance` closure | `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` | BLOCKED: latest executable full run failed legacy ConvAI judge paths beyond the no-coaching-only exception; current-shell preflight lacks Secret Manager access. |
+| #138 | Submitted URL approval or dedicated custom-domain mapping | `docs/security/adecco-vfinal-submitted-url-decision-inventory.md` | APPROVED PENDING FINAL GUARD: hosted.app submitted URL approval comment is recorded with submitted-URL smoke evidence. |
+| #139 | Legacy shared App Hosting `XAI_API_KEY` scope | `docs/security/adecco-vfinal-legacy-xai-scope-inventory.md` | APPROVED PENDING FINAL GUARD: submitted scope is approved as the dedicated no-key vFinal backend only; legacy shared backend is out of submitted scope. |
+| #140 | Strict pre-vFinal latency baseline comparison | `docs/security/adecco-vfinal-latency-baseline-candidate-assessment.md` | EVIDENCE PASS PENDING FINAL GUARD: temporary baseline 20/20, fresh current 20/20, closeCode1006=0, `relay.error=0`, and `grok:first-vfinal:latency-compare` PASS. |
+| #141 | Canonical `verify:acceptance` closure | `docs/security/adecco-vfinal-acceptance-blocker-inventory.md` | APPROVED PENDING FINAL GUARD: legacy ConvAI judge blocker is approved out of vFinal submitted runtime/security scope. |
 | #171 | Workbook human confirmations | `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` | BLOCKED: final questionnaire cells still require human/legal/operator confirmation or explicit unresolved/not-applicable wording. |
 
 ## Latest Continuation Recheck
+
+2026-05-17 JST #140 strict latency comparison:
+
+- Created and used temporary baseline App Hosting backend
+  `adecco-vfinal-baseline` at
+  `https://adecco-vfinal-baseline--adecco-mendan.asia-east1.hosted.app`.
+- Baseline source was the prior vFinal App Hosting build-004 archive; the
+  submitted customer URL was not changed.
+- Baseline start smoke passed:
+  `out/grok_first_vfinal_baseline_smoke/2026-05-17T00-10-00-baseline-build004-start/evidence.json`.
+- Baseline voice sample:
+  `out/grok_first_vfinal_latency/2026-05-17T00-12-00-baseline-build004-voice20/summary.json`,
+  20/20 pass, `sessionApiMs p95=153`, `firstAudioDeltaMs p95=4633`,
+  `firstAudibleAudioMs p95=4868`.
+- Fresh current-vFinal voice sample:
+  `out/grok_first_vfinal_latency/2026-05-17T00-15-00-current-vfinal-voice20/summary.json`,
+  20/20 pass, `sessionApiMs p95=187`, `firstAudioDeltaMs p95=4702`,
+  `firstAudibleAudioMs p95=4923`.
+- Cloud Logging aggregate counters for the matching windows were
+  `closeCode1006=0` and `relay.error=0` for both baseline and current.
+- `corepack pnpm grok:first-vfinal:latency-compare` returned PASS and wrote
+  `out/grok_first_vfinal_latency_compare/2026-05-17T00-20-00-baseline-build004-vs-current/comparison-summary.json`.
+- Overall customer submission DoD remains BLOCKED because #171 workbook
+  finalization and #128 final closure are not complete.
 
 2026-05-17 JST recheck after PR #209:
 

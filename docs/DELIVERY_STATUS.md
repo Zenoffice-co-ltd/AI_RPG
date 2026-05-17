@@ -14,17 +14,18 @@ records PASS evidence for the dedicated no-key vFinal App Hosting runtime,
 relay-only browser WebSocket path, direct `api.x.ai` count 0, metadata-only
 logging with 180-day retention, sensitive log scan 0, Cloud Armor preview/log
 mode on the relay LB, live text/voice E2E, ZAP baseline/passive, and current
-vFinal latency sampling. It must remain BLOCKED until the final blocker set
-below is resolved or formally approved out of scope.
+vFinal latency sampling and strict temporary-baseline comparison. It must
+remain BLOCKED until #171 workbook finalization and final guard closure are
+complete.
 
 Current vFinal blockers:
 
 | Issue | Blocker | Required resolution |
 | --- | --- | --- |
-| #138 | Submitted URL decision | Approve the dedicated hosted.app URL for customer submission, or map an active dedicated vFinal `mendan.biz` custom domain to the dedicated backend. |
-| #139 | Legacy shared App Hosting `XAI_API_KEY` scope | Approve legacy shared direct/comparison routes as outside submitted vFinal scope, or migrate/de-scope them and remove shared App Hosting `XAI_API_KEY` access. |
-| #140 | Strict pre-vFinal latency baseline | Approve or collect a same-environment, same-scenario, >=20-session pre-vFinal baseline, compare it with the current-vFinal sample using `corepack pnpm grok:first-vfinal:latency-compare`, and record PASS against the documented p95 thresholds plus closeCode1006 / `relay.error` counter comparison. |
-| #141 | Canonical `verify:acceptance` closure | Obtain clean `verify:acceptance` PASS, or formally approve the known legacy ConvAI judge blocker as outside submitted vFinal scope. |
+| #138 | Submitted URL decision | APPROVED pending final guard: dedicated hosted.app submitted URL approval is recorded. |
+| #139 | Legacy shared App Hosting `XAI_API_KEY` scope | APPROVED pending final guard: submitted scope is the dedicated no-key vFinal backend only; legacy shared access is out of submitted scope. |
+| #140 | Strict pre-vFinal latency baseline | PASS pending final guard: temporary baseline/current comparison passed with closeCode1006=0 and `relay.error=0`. |
+| #141 | Canonical `verify:acceptance` closure | APPROVED pending final guard: known legacy ConvAI judge blocker is outside submitted vFinal runtime/security scope. |
 | #171 | Questionnaire workbook human confirmations | Confirm or rewrite the mapped questionnaire cells before treating the security-checksheet drafts as final submission artifacts. |
 
 Umbrella tracker #128 must remain OPEN while the table above is unresolved and
@@ -91,7 +92,8 @@ merged.
 ## Current Blocking Inputs
 
 - Adecco vFinal customer/security-checksheet submission remains blocked by
-  #138, #139, #140, #141, and #171 as listed above.
+  #171 workbook human confirmations and #128 final guard closure. #138, #139,
+  #140, and #141 have recorded approval/evidence and are pending final guard.
 - `FIREBASE_PROJECT_ID=adecco-mendan` は runtime project として確定済み
 - `QUEUE_SHARED_SECRET` and `DEFAULT_ELEVEN_VOICE_ID` remain required deployment inputs outside this workstation
 

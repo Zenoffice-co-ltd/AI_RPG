@@ -830,6 +830,72 @@ Rollback: `ENABLE_GROK_VOICE_ROLEPLAY=false` を再デプロイすれば
   submitted URL and does not create a dedicated `mendan.biz` mapping, so #138
   remains BLOCKED.
 
+### 2026-05-17 — vFinal #140 strict latency comparison PASS
+
+- Created temporary baseline App Hosting backend `adecco-vfinal-baseline` at
+  `https://adecco-vfinal-baseline--adecco-mendan.asia-east1.hosted.app` using
+  the dedicated vFinal service account. The submitted customer hosted.app URL
+  was not changed.
+- Added the temporary baseline hosted.app origin to the Cloud Run relay
+  `RELAY_ALLOWED_ORIGINS` while preserving existing origins. Relay revision
+  after the allowlist update: `xai-realtime-relay-00015-pwh`.
+- Deployed the baseline backend from the prior vFinal App Hosting build-004
+  source archive and confirmed rollout
+  `projects/adecco-mendan/locations/asia-east1/backends/adecco-vfinal-baseline/rollouts/build-2026-05-16-004`
+  reached `SUCCEEDED`.
+- Baseline start smoke passed:
+  `corepack pnpm grok:first-vfinal:browser-e2e -- --mode start --origin
+  https://adecco-vfinal-baseline--adecco-mendan.asia-east1.hosted.app --out
+  out/grok_first_vfinal_baseline_smoke/2026-05-17T00-10-00-baseline-build004-start`.
+- Baseline voice sample passed 20/20:
+  `out/grok_first_vfinal_latency/2026-05-17T00-12-00-baseline-build004-voice20/summary.json`.
+  p95 values: `sessionApiMs=153`, `firstAudioDeltaMs=4633`,
+  `firstAudibleAudioMs=4868`.
+- Fresh current-vFinal voice sample passed 20/20:
+  `out/grok_first_vfinal_latency/2026-05-17T00-15-00-current-vfinal-voice20/summary.json`.
+  p95 values: `sessionApiMs=187`, `firstAudioDeltaMs=4702`,
+  `firstAudibleAudioMs=4923`.
+- Cloud Logging aggregate counters for the matching windows were
+  `closeCode1006=0` and `relay.error=0` for both baseline and current. Raw log
+  JSON was not printed or persisted.
+- `corepack pnpm grok:first-vfinal:latency-compare` returned PASS and wrote
+  `out/grok_first_vfinal_latency_compare/2026-05-17T00-20-00-baseline-build004-vs-current/comparison-summary.json`.
+- #140 has passing latency evidence. Overall customer submission DoD remains
+  BLOCKED until #171 workbook finalization, final PASS guard, and #128 final
+  closure are complete.
+
+### 2026-05-17 — vFinal source workbook partial-progress alignment
+
+- Updated only the `vFinal提出DOD照合` status sheets in the two source
+  workbooks under `C:\Users\yukih\Downloads\`; questionnaire answer cells were
+  not copied into docs or issue comments.
+- The overall workbook status remains `BLOCKED`.
+- The first-sheet blocker rows now reflect current evidence: #138 `APPROVED`,
+  #139 `APPROVED`, #140 `PASS`, #141 `APPROVED`, and #171 `BLOCKED`.
+- `corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked
+  --workbook=... --workbook=...` passed after the update.
+- `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
+  --check-github-issues --allow-open-approved-issues --approval-author=iwase-cpu
+  --workbook=... --workbook=...` passed after the update.
+- `corepack pnpm grok:vfinal-submission-dod-status -- --self-test` passed after
+  the guard was relaxed to allow evidence-backed partial blocker rows while the
+  overall workbook status remains `BLOCKED`.
+- The TPISA `.xlsm` still retained `vbaProject.bin`.
+- Evidence comments:
+  https://github.com/Zenoffice-co-ltd/AI_RPG/issues/171#issuecomment-4468653013
+  and
+  https://github.com/Zenoffice-co-ltd/AI_RPG/issues/128#issuecomment-4468653444
+- Later blocker-status alignment comment:
+  https://github.com/Zenoffice-co-ltd/AI_RPG/issues/128#issuecomment-4468671488
+- Added #171 workbook-owner signoff packet:
+  `docs/security/adecco-vfinal-workbook-owner-signoff-2026-05-17.md`.
+- Tightened the #171 workbook helper so count-only output includes mapped
+  marker references as sheet/cell/type metadata without workbook answer values.
+  Current sanitized output points the workbook owner to `Sheet1!E24` in the
+  Data Protection workbook; TPISA has no mapped blocker-marker cells.
+- Customer submission DoD remains BLOCKED until #171 is resolved and final PASS
+  guard succeeds.
+
 ### 2026-05-17 — vFinal #141 current-shell acceptance preflight recheck
 
 - Re-ran `corepack pnpm grok:vfinal-acceptance-input-inventory --
