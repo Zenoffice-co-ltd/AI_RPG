@@ -242,7 +242,7 @@ When Firebase CLI auth is blocked or the operator requests the gcloud path,
 use the App Hosting API wrapper:
 
 ```bash
-pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
+pnpm deploy:adecco-roleplay:v50-7:gcloud
 ```
 
 For v50-family behavior changes, always pass `--variant v50-7` or
@@ -251,6 +251,17 @@ For v50-family behavior changes, always pass `--variant v50-7` or
 `guardrailVersion`) rather than only `/api/v3/session`. Use
 `--skip-tts-warm` only when the change does not affect registered-speech/TTS
 artifacts.
+
+The fixed v50 scripts avoid argument separator mistakes. The generic wrapper
+also accepts `--flag=value` and ignores a standalone `--`, so both direct Node
+and pnpm forms are safe. The wrapper uploads the local working tree, records an
+`archive-manifest.json`, warns on suspicious generated folders, and checks for
+in-flight App Hosting builds/rollouts before creating a new build. Add
+`--preflight-build` when a local production build is worth the extra time:
+
+```bash
+pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm --preflight-build
+```
 
 To reduce deploy time, batch router/guard/runtime fixes and deploy once per
 targeted remediation batch. Runner-only, docs-only, and unit-test-only changes

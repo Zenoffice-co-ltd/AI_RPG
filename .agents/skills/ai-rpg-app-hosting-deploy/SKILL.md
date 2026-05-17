@@ -84,7 +84,7 @@ The "guardrailVersion did not change" note at the end is **only a real flag when
 When Firebase CLI auth is blocked or the operator asks for the gcloud path, use:
 
 ```bash
-pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
+pnpm deploy:adecco-roleplay:v50-7:gcloud
 ```
 
 For v50-family behavior changes, pass `--variant v50-7` or `--variant v50-8`
@@ -92,6 +92,13 @@ so the post-check verifies `/api/grok-first-v50*/session` identity
 (`backend`, `promptVersion`, `guardrailVersion`) instead of only
 `/api/v3/session`. Use `--skip-tts-warm` only when the change does not affect
 registered-speech/TTS artifacts.
+
+The gcloud wrapper uploads the local working tree. It now writes an
+`archive-manifest.json`, warns on suspicious generated folders, and checks for
+in-flight App Hosting builds/rollouts before uploading. Use
+`pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
+--preflight-build` when you want a local production build before upload without
+making every deploy slower.
 
 To shorten deploy cycles, batch router/guard/runtime fixes and deploy once per
 targeted remediation batch. Do not deploy for runner-only, docs-only, or

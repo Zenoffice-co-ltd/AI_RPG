@@ -75,6 +75,8 @@
     "grok:forbid-modelless-ws": "tsx scripts/grok-voice-forbid-modelless-ws.ts",
     "deploy:adecco-roleplay": "tsx scripts/deploy-adecco-roleplay.ts",
     "deploy:adecco-roleplay:gcloud": "node scripts/deploy-adecco-roleplay-gcloud.mjs",
+    "deploy:adecco-roleplay:v50-7:gcloud": "node scripts/deploy-adecco-roleplay-gcloud.mjs --variant v50-7 --skip-tts-warm",
+    "deploy:adecco-roleplay:v50-8:gcloud": "node scripts/deploy-adecco-roleplay-gcloud.mjs --variant v50-8 --skip-tts-warm",
     "deploy:adecco-roleplay-vfinal:gcloud": "node scripts/deploy-adecco-roleplay-gcloud.mjs --backend adecco-roleplay-vfinal --url https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app --config apps/web/apphosting.vfinal.yaml --verify vfinal --skip-tts-warm",
     "review:summarize:ja": "tsx scripts/elevenlabs/summarize-ja-voice-review.ts",
     "smoke:eleven": "tsx scripts/smoke-eleven.ts",

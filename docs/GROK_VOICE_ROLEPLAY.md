@@ -335,10 +335,18 @@ For v50-family production smoke and log reconstruction, use the reusable
 scripts instead of one-off `.codex_tmp` harnesses:
 
 ```bash
+pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode session
 pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode start
 pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode voice-turn
-pnpm grok:first-v50:prod-logs -- --session <gfv50_...>
+pnpm grok:first-v50:prod-logs -- --from-smoke out/.../evidence.json
 ```
+
+For v50.7, `--mode session` must report `runtimeGuardrailsEnabled=false`.
+The voice-turn smoke additionally requires the guard-disabled runtime evidence:
+`routePath=grok_first_realtime`, `guardAction=pass`, empty `guardReasons`,
+`fullTurnBufferCount=0`, `tailAudioDroppedBytes=0`, and `audioBytes > 0`.
+Use `prod-logs --expect start` for start-only sessions and
+`prod-logs --expect voice-turn` for same-session turn evidence.
 
 The first command verifies route startup, session identity, WebSocket connection,
 and first-message display. The voice-turn mode additionally requires

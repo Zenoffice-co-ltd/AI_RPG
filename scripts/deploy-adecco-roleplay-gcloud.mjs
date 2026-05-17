@@ -35,6 +35,17 @@ const BUCKET = `firebaseapphosting-sources-${PROJECT_NUMBER}-${LOCATION}`;
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_ROOT = path.join(REPO_ROOT, "out", "adecco_roleplay_gcloud_deploy");
 const TSX_CLI_PATH = path.join(REPO_ROOT, "node_modules", "tsx", "dist", "cli.mjs");
+const KNOWN_FLAGS = new Set([
+  "backend",
+  "url",
+  "config",
+  "verify",
+  "skip-tts-warm",
+  "skip-warm",
+  "variant",
+  "preflight-build",
+  "strict-archive",
+]);
 
 const args = parseArgs(process.argv.slice(2));
 const BACKEND = getArg("backend", "adecco-roleplay");
@@ -43,6 +54,8 @@ const APPHOSTING_CONFIG_SOURCE = args.get("config") ?? "";
 const VERIFY_MODE = getArg("verify", "grok-v3");
 const SKIP_TTS_WARM = args.has("skip-tts-warm") || args.has("skip-warm");
 const VARIANT = getArg("variant", "v3");
+const PREFLIGHT_BUILD = args.has("preflight-build");
+const STRICT_ARCHIVE = args.has("strict-archive");
 
 const VARIANT_SESSION_TARGETS = {
   v3: {
@@ -56,6 +69,7 @@ const VARIANT_SESSION_TARGETS = {
     expectedBackend: "grok-first-v50-7",
     expectedPromptVersion: "grok-first-v50.6-2026-05-15",
     expectedGuardrailVersion: "grok-first-v50.7-guard-2026-05-15",
+    expectedRuntimeGuardrailsEnabled: false,
   },
   "v50-8": {
     route: "/demo/adecco-roleplay-v50-8",
@@ -63,6 +77,7 @@ const VARIANT_SESSION_TARGETS = {
     expectedBackend: "grok-first-v50-8",
     expectedPromptVersion: "grok-first-v50.6-2026-05-15",
     expectedGuardrailVersion: "grok-first-v50.8-guard-2026-05-16",
+    expectedRuntimeGuardrailsEnabled: true,
   },
 };
 
@@ -70,12 +85,28 @@ function parseArgs(argv) {
   const parsed = new Map();
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
+    if (arg === "--") {
+      continue;
+    }
     if (!arg.startsWith("--")) {
       throw new Error(`Unexpected positional argument: ${arg}`);
     }
-    const name = arg.slice(2);
+    const [rawName, inlineValue] = arg.slice(2).split(/=(.*)/s, 2);
+    const name = rawName;
     if (!name) {
       throw new Error("Empty flag name");
+    }
+    if (!KNOWN_FLAGS.has(name)) {
+      throw new Error(
+        `Unknown flag --${name}. Supported flags: ${[...KNOWN_FLAGS]
+          .sort()
+          .map((flag) => `--${flag}`)
+          .join(", ")}`
+      );
+    }
+    if (inlineValue !== undefined) {
+      parsed.set(name, inlineValue);
+      continue;
     }
     const next = argv[index + 1];
     if (!next || next.startsWith("--")) {
@@ -206,6 +237,27 @@ async function nextBuildId() {
   return `${prefix}${String(highest + 1).padStart(3, "0")}`;
 }
 
+async function findActiveDeployment() {
+  const base = `projects/${PROJECT}/locations/${LOCATION}/backends/${BACKEND}`;
+  const [builds, rollouts] = await Promise.all([
+    listAll(`${base}/builds`, "builds"),
+    listAll(`${base}/rollouts`, "rollouts"),
+  ]);
+  const activeBuild = builds
+    .filter((build) => ["BUILDING", "DEPLOYING"].includes(build.state))
+    .sort((a, b) => String(b.createTime).localeCompare(String(a.createTime)))[0];
+  const activeRollout = rollouts
+    .filter((rollout) => ["QUEUED", "PROGRESSING"].includes(rollout.state))
+    .sort((a, b) => String(b.createTime).localeCompare(String(a.createTime)))[0];
+  if (!activeBuild && !activeRollout) return null;
+  return {
+    buildId: activeBuild?.name?.split("/").pop() ?? "",
+    buildState: activeBuild?.state ?? "",
+    rolloutId: activeRollout?.name?.split("/").pop() ?? "",
+    rolloutState: activeRollout?.state ?? "",
+  };
+}
+
 async function pollOperation(operationName) {
   log(`Polling operation ${operationName}`);
   const deadline = Date.now() + 25 * 60 * 1000;
@@ -231,6 +283,9 @@ async function createArchive() {
   const ignore = [
     ...(apphosting.ignore ?? []),
     "out",
+    "outputs",
+    "artifacts",
+    ".codex_tmp",
     ".next",
     ".turbo",
     "coverage",
@@ -266,8 +321,68 @@ async function createArchive() {
   const archivePath = path.join(artifactDir, `${BACKEND}-${runId}.zip`);
   fs.copyFileSync(tmpZip, archivePath);
   const stats = fs.statSync(archivePath);
+  const manifest = buildArchiveManifest(archivePath);
+  const manifestPath = path.join(artifactDir, "archive-manifest.json");
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+  if (manifest.suspiciousEntries.length > 0) {
+    const message = `Archive contains suspicious entries: ${manifest.suspiciousEntries
+      .slice(0, 12)
+      .join(", ")}${manifest.suspiciousEntries.length > 12 ? " ..." : ""}`;
+    if (STRICT_ARCHIVE) {
+      throw new Error(`${message}; rerun without --strict-archive to warn only`);
+    }
+    log(`WARNING: ${message}`);
+  }
   log(`Created source archive ${archivePath} (${stats.size} bytes)`);
-  return { archivePath, rootDirectory: config.rootDir };
+  log(`Archive manifest ${manifestPath}`);
+  return { archivePath, rootDirectory: config.rootDir, manifestPath, manifest };
+}
+
+function buildArchiveManifest(archivePath) {
+  const entries = listArchiveEntries(archivePath);
+  const suspiciousPatterns = [
+    /^\.codex_tmp\//,
+    /^out\//,
+    /^outputs\//,
+    /^artifacts\//,
+    /^apps\/web\/\.next\//,
+    /^apps\/web\/\.turbo\//,
+  ];
+  const suspiciousEntries = entries.filter((entry) =>
+    suspiciousPatterns.some((pattern) => pattern.test(entry))
+  );
+  return {
+    archivePath,
+    entriesListed: entries.length,
+    suspiciousEntries,
+    topLevelEntries: [
+      ...new Set(entries.map((entry) => entry.split("/")[0]).filter(Boolean)),
+    ].sort(),
+  };
+}
+
+function listArchiveEntries(archivePath) {
+  const result = spawnSync("tar", ["-tf", archivePath], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    shell: process.platform === "win32",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (result.status !== 0) {
+    return [];
+  }
+  return result.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/\\/g, "/"))
+    .filter(Boolean);
+}
+
+function runPreflightBuild() {
+  if (!PREFLIGHT_BUILD) {
+    log("Skipping local preflight build (pass --preflight-build to run it)");
+    return;
+  }
+  run("corepack", ["pnpm", "--filter", "@top-performer/web", "build"]);
 }
 
 function uploadArchive(archivePath) {
@@ -321,13 +436,24 @@ async function createBuildAndRollout(userStorageUri, rootDirectory) {
     },
   };
   log(`Creating build ${buildId}`);
-  const buildOperation = await apphostingFetch(
-    `${base}/builds?buildId=${encodeURIComponent(buildId)}`,
-    {
-      method: "POST",
-      body: JSON.stringify(buildInput),
+  let buildOperation;
+  try {
+    buildOperation = await apphostingFetch(
+      `${base}/builds?buildId=${encodeURIComponent(buildId)}`,
+      {
+        method: "POST",
+        body: JSON.stringify(buildInput),
+      }
+    );
+  } catch (error) {
+    const active = await findActiveDeployment().catch(() => null);
+    if (active) {
+      log(
+        `Active App Hosting deployment detected after create-build failure: build=${active.buildId || "(none)"} state=${active.buildState || "(none)"} rollout=${active.rolloutId || "(none)"} state=${active.rolloutState || "(none)"}`
+      );
     }
-  );
+    throw error;
+  }
   const rolloutBody = {
     build: `${base}/builds/${buildId}`,
     labels: {
@@ -412,6 +538,14 @@ async function fetchProdSession(variant = VARIANT) {
   ) {
     throw new Error(
       `prod ${target.apiPath} guardrailVersion mismatch: expected ${target.expectedGuardrailVersion}, got ${payload.guardrailVersion}`
+    );
+  }
+  if (
+    typeof target.expectedRuntimeGuardrailsEnabled === "boolean" &&
+    payload.runtimeGuardrailsEnabled !== target.expectedRuntimeGuardrailsEnabled
+  ) {
+    throw new Error(
+      `prod ${target.apiPath} runtimeGuardrailsEnabled mismatch: expected ${target.expectedRuntimeGuardrailsEnabled}, got ${payload.runtimeGuardrailsEnabled}`
     );
   }
   return { ...payload, postCheckVariant: variant, postCheckApiPath: target.apiPath };
@@ -568,7 +702,15 @@ async function main() {
     `baseline rollout=${baselineRollouts[0]?.name?.split("/").pop() ?? "(none)"} guardrailVersion=${baselineSession.guardrailVersion ?? "(unavailable)"}`
   );
 
-  const { archivePath, rootDirectory } = await createArchive();
+  const active = await findActiveDeployment();
+  if (active) {
+    throw new Error(
+      `Another App Hosting deployment is already in flight: build=${active.buildId || "(none)"} state=${active.buildState || "(none)"} rollout=${active.rolloutId || "(none)"} state=${active.rolloutState || "(none)"}`
+    );
+  }
+
+  runPreflightBuild();
+  const { archivePath, rootDirectory, manifestPath, manifest } = await createArchive();
   const userStorageUri = uploadArchive(archivePath);
   const deployment = await createBuildAndRollout(userStorageUri, rootDirectory);
 
@@ -600,6 +742,8 @@ async function main() {
     rolloutName: deployment.rollout.name,
     userStorageUri,
     archivePath,
+    archiveManifestPath: manifestPath,
+    archiveSuspiciousEntryCount: manifest.suspiciousEntries.length,
     deploymentLogPath: logPath,
     summaryPath,
     prodSession: {
@@ -610,6 +754,7 @@ async function main() {
       postCheckApiPath: prodSession.postCheckApiPath,
       guardrailVersion: prodSession.guardrailVersion,
       promptVersion: prodSession.promptVersion,
+      runtimeGuardrailsEnabled: prodSession.runtimeGuardrailsEnabled,
       realtimeTransport: prodSession.realtimeTransport,
       wsUrl: prodSession.wsUrl,
       strictSanitizedPlayback: prodSession.strictSanitizedPlayback,

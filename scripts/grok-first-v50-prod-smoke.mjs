@@ -1,13 +1,14 @@
 // Production browser smoke for Grok-first v50-family routes.
 //
 // Usage:
+//   node scripts/grok-first-v50-prod-smoke.mjs --variant v50-7 --mode session
 //   node scripts/grok-first-v50-prod-smoke.mjs --variant v50-7 --mode start
 //   node scripts/grok-first-v50-prod-smoke.mjs --variant v50-7 --mode voice-turn
 
-import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { chromium } from "playwright";
+import { resolveSecretValue } from "./lib/secret-resolver.mjs";
 
 const args = parseArgs(process.argv.slice(2));
 const variant = stringArg(args.variant, "v50-7");
@@ -28,6 +29,10 @@ const expectedGuardrailVersion = stringArg(
   variant === "v50-8"
     ? "grok-first-v50.8-guard-2026-05-16"
     : "grok-first-v50.7-guard-2026-05-15"
+);
+const expectedRuntimeGuardrailsEnabled = booleanArg(
+  args["expected-runtime-guardrails-enabled"],
+  variant !== "v50-7"
 );
 const fixture = path.resolve(
   stringArg(
@@ -50,6 +55,8 @@ const evidence = {
   startedAt: new Date().toISOString(),
   sessionResponse: null,
   sessionPayload: null,
+  sessionId: null,
+  eventSessionIds: [],
   eventKinds: [],
   websocketUrls: [],
   console: [],
@@ -61,18 +68,29 @@ const evidence = {
 
 const accessToken = resolveAccessToken(project);
 
-const browser = await chromium.launch({
-  headless: true,
-  args: [
-    "--use-fake-ui-for-media-stream",
-    "--use-fake-device-for-media-stream",
-    ...(mode === "voice-turn" ? [`--use-file-for-fake-audio-capture=${fixture}`] : []),
-    "--autoplay-policy=no-user-gesture-required",
-  ],
-});
+if (mode === "session") {
+  await runSessionContractSmoke();
+} else {
+  await runBrowserSmoke();
+}
 
-try {
-  const context = await browser.newContext({
+console.log(JSON.stringify(evidence, null, 2));
+process.exitCode = evidence.pass ? 0 : 1;
+
+async function runBrowserSmoke() {
+  const { chromium } = await import("playwright");
+  const browser = await chromium.launch({
+    headless: true,
+    args: [
+      "--use-fake-ui-for-media-stream",
+      "--use-fake-device-for-media-stream",
+      ...(mode === "voice-turn" ? [`--use-file-for-fake-audio-capture=${fixture}`] : []),
+      "--autoplay-policy=no-user-gesture-required",
+    ],
+  });
+
+  try {
+    const context = await browser.newContext({
     baseURL: origin,
     permissions: ["microphone"],
   });
@@ -115,6 +133,9 @@ try {
     if (!raw) return;
     try {
       const body = JSON.parse(raw);
+      if (body?.sessionId && !evidence.eventSessionIds.includes(body.sessionId)) {
+        evidence.eventSessionIds.push(body.sessionId);
+      }
       if (body?.kind) evidence.eventKinds.push(body.kind);
       if (body?.kind === "turn.completed") evidence.metrics.push(body.details);
     } catch {
@@ -126,17 +147,8 @@ try {
     evidence.sessionResponse = { status: response.status(), ok: response.ok() };
     try {
       const json = await response.json();
-      evidence.sessionPayload = {
-        demoSlug: json.demoSlug,
-        backend: json.backend,
-        promptVersion: json.promptVersion,
-        guardrailVersion: json.guardrailVersion,
-        realtimeTransport: json.realtimeTransport,
-        wsUrl: json.wsUrl,
-        authMode: json.realtimeAuth?.mode,
-        registeredSpeechPayloadIncluded: json.registeredSpeechPayloadIncluded,
-        lockedResponseAudioBundleIncluded: json.lockedResponseAudioBundleIncluded,
-      };
+      evidence.sessionPayload = summarizeSessionPayload(json);
+      evidence.sessionId = json.sessionId ?? evidence.sessionId;
     } catch (error) {
       evidence.sessionPayload = { parseError: error.message };
     }
@@ -200,39 +212,129 @@ try {
     .catch(() => false);
   evidence.screenshots.after = path.join(outDir, "after.png");
   await page.screenshot({ path: evidence.screenshots.after, fullPage: true });
-} finally {
-  evidence.completedAt = new Date().toISOString();
-  const sessionOk =
-    evidence.sessionResponse?.status === 200 &&
-    evidence.sessionPayload?.demoSlug === demoSlug &&
-    evidence.sessionPayload?.backend === `grok-first-${variant}` &&
-    evidence.sessionPayload?.promptVersion === expectedPromptVersion &&
-    evidence.sessionPayload?.guardrailVersion === expectedGuardrailVersion &&
-    evidence.sessionPayload?.wsUrl === "wss://voice.mendan.biz/api/v3/realtime-relay" &&
-    evidence.sessionPayload?.authMode === "mendan_relay_subprotocol";
-  const startOk =
-    evidence.eventKinds.includes("ws.connected") &&
-    evidence.eventKinds.includes("session.ready") &&
-    evidence.texts.some((text) => text.includes("お電話ありがとうございます。"));
-  const voiceOk =
-    mode !== "voice-turn" ||
-    (evidence.eventKinds.includes("stt.completed") &&
-      evidence.eventKinds.includes("turn.completed") &&
-      evidence.metrics.some((metric) => metric?.audioBytes > 0 && metric?.error === null));
-  evidence.pass = sessionOk && startOk && voiceOk && evidence.errorTextVisible === false;
-  writeFileSync(path.join(outDir, "evidence.json"), JSON.stringify(evidence, null, 2));
-  await browser.close();
+  } finally {
+    evidence.completedAt = new Date().toISOString();
+    const sessionOk = isSessionContractOk(evidence.sessionPayload);
+    const startOk =
+      evidence.eventKinds.includes("ws.connected") &&
+      evidence.eventKinds.includes("session.ready") &&
+      evidence.texts.some((text) => text.includes("お電話ありがとうございます。"));
+    const voiceOk =
+      mode !== "voice-turn" ||
+      (evidence.eventKinds.includes("stt.completed") &&
+        evidence.eventKinds.includes("turn.completed") &&
+        evidence.metrics.some((metric) => isVoiceTurnMetricOk(metric)));
+    evidence.pass = sessionOk && startOk && voiceOk && evidence.errorTextVisible === false;
+    writeFileSync(path.join(outDir, "evidence.json"), JSON.stringify(evidence, null, 2));
+    await browser.close();
+  }
 }
 
-console.log(JSON.stringify(evidence, null, 2));
-process.exit(evidence.pass ? 0 : 1);
+async function runSessionContractSmoke() {
+  try {
+    const payload = await fetchSessionPayload();
+    evidence.completedAt = new Date().toISOString();
+    evidence.sessionResponse = { status: 200, ok: true };
+    evidence.sessionPayload = summarizeSessionPayload(payload);
+    evidence.sessionId = payload.sessionId ?? null;
+    evidence.pass = isSessionContractOk(evidence.sessionPayload);
+  } catch (error) {
+    evidence.completedAt = new Date().toISOString();
+    evidence.sessionPayload = {
+      error: error instanceof Error ? error.message : String(error),
+    };
+    evidence.pass = false;
+  }
+  writeFileSync(path.join(outDir, "evidence.json"), JSON.stringify(evidence, null, 2));
+}
+
+async function fetchSessionPayload() {
+  const response = await fetch(`${origin}${apiBase}/session`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      origin,
+      referer: `${origin}/demo/${demoSlug}`,
+      cookie: demoAccessCookie(accessToken),
+    },
+    body: "{}",
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`session API failed: ${response.status} ${text}`);
+  }
+  return JSON.parse(text);
+}
+
+function summarizeSessionPayload(json) {
+  return {
+    sessionId: json.sessionId,
+    demoSlug: json.demoSlug,
+    backend: json.backend,
+    promptVersion: json.promptVersion,
+    promptHash: json.promptHash,
+    guardrailVersion: json.guardrailVersion,
+    model: json.model,
+    voiceId: json.voiceId,
+    realtimeTransport: json.realtimeTransport,
+    wsUrl: json.wsUrl,
+    authMode: json.realtimeAuth?.mode,
+    runtimeGuardrailsEnabled: json.runtimeGuardrailsEnabled,
+    runtimeTtsEnabled: json.runtimeTtsEnabled,
+    replacementTtsEnabled: json.replacementTtsEnabled,
+    fullTurnBufferEnabled: json.fullTurnBufferEnabled,
+    turnDetectionCreateResponse: json.turnDetection?.create_response,
+    registeredSpeechPayloadIncluded: json.registeredSpeechPayloadIncluded,
+    lockedResponseAudioBundleIncluded: json.lockedResponseAudioBundleIncluded,
+    ephemeralTokenIncluded: Object.hasOwn(json, "ephemeralToken"),
+  };
+}
+
+function isSessionContractOk(payload) {
+  return (
+    evidence.sessionResponse?.status === 200 &&
+    payload?.demoSlug === demoSlug &&
+    payload?.backend === `grok-first-${variant}` &&
+    payload?.promptVersion === expectedPromptVersion &&
+    payload?.guardrailVersion === expectedGuardrailVersion &&
+    payload?.runtimeGuardrailsEnabled === expectedRuntimeGuardrailsEnabled &&
+    payload?.wsUrl === "wss://voice.mendan.biz/api/v3/realtime-relay" &&
+    payload?.authMode === "mendan_relay_subprotocol" &&
+    payload?.registeredSpeechPayloadIncluded === false &&
+    payload?.lockedResponseAudioBundleIncluded === false &&
+    payload?.ephemeralTokenIncluded === false
+  );
+}
+
+function isVoiceTurnMetricOk(metric) {
+  if (!metric || metric.audioBytes <= 0 || metric.error !== null) return false;
+  if (variant !== "v50-7") return true;
+  return (
+    metric.routePath === "grok_first_realtime" &&
+    metric.guardAction === "pass" &&
+    Array.isArray(metric.guardReasons) &&
+    metric.guardReasons.length === 0 &&
+    metric.fullTurnBufferCount === 0 &&
+    metric.tailAudioDroppedBytes === 0
+  );
+}
+
+function demoAccessCookie(token) {
+  const sig = crypto.createHmac("sha256", token).update(token).digest("hex");
+  return `roleplay_api_access=${sig}`;
+}
 
 function parseArgs(argv) {
   const out = {};
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
+    if (arg === "--") continue;
     if (!arg.startsWith("--")) continue;
-    const key = arg.slice(2);
+    const [key, inlineValue] = arg.slice(2).split(/=(.*)/s, 2);
+    if (inlineValue !== undefined) {
+      out[key] = inlineValue;
+      continue;
+    }
     const next = argv[i + 1];
     if (next && !next.startsWith("--")) {
       out[key] = next;
@@ -248,24 +350,22 @@ function stringArg(value, fallback) {
   return typeof value === "string" && value.length > 0 ? value : fallback;
 }
 
+function booleanArg(value, fallback) {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return fallback;
+}
+
 function resolveAccessToken(project) {
-  if (process.env.DEMO_ACCESS_TOKEN) return process.env.DEMO_ACCESS_TOKEN;
-  const command = process.platform === "win32" ? "gcloud.cmd" : "gcloud";
   try {
-    return execFileSync(
-      command,
-      [
-        "secrets",
-        "versions",
-        "access",
-        "latest",
-        "--secret=demo-access-token",
-        `--project=${project}`,
-      ],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
-    ).trim();
+    return resolveSecretValue({
+      envName: "DEMO_ACCESS_TOKEN",
+      secretNames: ["demo-access-token", "DEMO_ACCESS_TOKEN"],
+      projects: [project],
+      minLength: 8,
+      repoRoot: path.resolve("."),
+    }).value;
   } catch (error) {
-    console.error("BLOCKED: DEMO_ACCESS_TOKEN not available");
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(2);
   }
