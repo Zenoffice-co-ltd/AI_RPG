@@ -128,14 +128,78 @@ export function useGrokFirstRoleplayConversation(
   const fixedGuardDrainUntilRef = useRef(0);
   const ignoreNextEmptyResponseDoneRef = useRef(false);
   const userSpeechInProgressRef = useRef(false);
+  const responseCreateCountRef = useRef(0);
+  const responseCancelCountRef = useRef(0);
+  const responseCancelReasonsRef = useRef<string[]>([]);
 
   const isFixedGuardDraining = useCallback(
     () => Date.now() < fixedGuardDrainUntilRef.current,
     []
   );
 
+  const isPromptOnlySession = useCallback(() => {
+    const activeSession = sessionRef.current;
+    return (
+      activeSession?.runtimeControl?.mode === "prompt_only" ||
+      activeSession?.backend === "grok-first-v50-7-prompt-only"
+    );
+  }, []);
+
   const areRuntimeGuardrailsEnabled = useCallback(
-    () => sessionRef.current?.runtimeGuardrailsEnabled !== false,
+    () =>
+      Boolean(sessionRef.current?.runtimeGuardrailsEnabled) &&
+      !isPromptOnlySession(),
+    [isPromptOnlySession]
+  );
+
+  const createRealtimeResponse = useCallback(() => {
+    responseCreateCountRef.current += 1;
+    realtimeRef.current?.createResponse();
+  }, []);
+
+  const cancelRealtimeResponse = useCallback((reason: string) => {
+    responseCancelCountRef.current += 1;
+    responseCancelReasonsRef.current.push(reason);
+    realtimeRef.current?.cancelResponse();
+  }, []);
+
+  const sendRealtimeUserText = useCallback((text: string) => {
+    responseCreateCountRef.current += 1;
+    realtimeRef.current?.sendUserText(text);
+  }, []);
+
+  const runtimeFlagDetails = useCallback(
+    (activeSession: GrokFirstV50Session) => ({
+      runtimeControlMode: activeSession.runtimeControl?.mode ?? "default",
+      runtimeControl: activeSession.runtimeControl,
+      runtimeGuardrailsEnabled: activeSession.runtimeGuardrailsEnabled,
+      inputGuardEnabled:
+        activeSession.inputGuardEnabled ??
+        activeSession.runtimeGuardrailsEnabled,
+      normalInputRouterEnabled:
+        activeSession.normalInputRouterEnabled ??
+        activeSession.runtimeGuardrailsEnabled,
+      negativeGuardEnabled:
+        activeSession.negativeGuardEnabled ??
+        activeSession.runtimeGuardrailsEnabled,
+      tailGuardEnabled:
+        activeSession.tailGuardEnabled ??
+        activeSession.runtimeGuardrailsEnabled,
+      fixedGuardAudioEnabled:
+        activeSession.fixedGuardAudioEnabled ??
+        activeSession.runtimeGuardrailsEnabled,
+      boundedRewriteEnabled:
+        activeSession.boundedRewriteEnabled ??
+        activeSession.runtimeGuardrailsEnabled,
+      noiseIgnoredEnabled:
+        activeSession.noiseIgnoredEnabled ??
+        activeSession.runtimeGuardrailsEnabled,
+      responseCreateCount: responseCreateCountRef.current,
+      responseCancelCount: responseCancelCountRef.current,
+      responseCancelReasons: [...responseCancelReasonsRef.current],
+      turnDetectionCreateResponse:
+        activeSession.turnDetection.create_response !== false,
+    }),
     []
   );
 
@@ -197,6 +261,9 @@ export function useGrokFirstRoleplayConversation(
     ignoreNextEmptyResponseDoneRef.current = false;
     userSpeechInProgressRef.current = false;
     agentSpeakingRef.current = false;
+    responseCreateCountRef.current = 0;
+    responseCancelCountRef.current = 0;
+    responseCancelReasonsRef.current = [];
   }, []);
 
   const emitMetric = useCallback(
@@ -249,6 +316,7 @@ export function useGrokFirstRoleplayConversation(
             fixedPlaybackStartedAtRef.current
           : null;
       const isFixedGuard = input.routePath === "fixed_guard";
+      const runtimeDetails = runtimeFlagDetails(activeSession);
       const metric: GrokFirstV50Metric = {
         sessionId: activeSession.sessionId,
         turnIndex: turnIndexRef.current,
@@ -274,6 +342,11 @@ export function useGrokFirstRoleplayConversation(
         toolCallCount: 0,
         runtimeTtsCount: 0,
         fullTurnBufferCount: input.fullTurnBuffered ? 1 : 0,
+        ...runtimeDetails,
+        rawAssistantTranscript: accumulatedTextRef.current,
+        visibleAssistantTranscript: finalText,
+        audibleTranscript: finalText,
+        audibleTranscriptPreview: finalText.slice(0, 200),
         regenerationRate: 0,
         businessRegisteredSpeechHitCount: 0,
         businessPr60LockHitCount: 0,
@@ -316,7 +389,12 @@ export function useGrokFirstRoleplayConversation(
         },
       });
     },
-    [areRuntimeGuardrailsEnabled, evaluateActiveNegativeGuard, postEvent]
+    [
+      areRuntimeGuardrailsEnabled,
+      evaluateActiveNegativeGuard,
+      postEvent,
+      runtimeFlagDetails,
+    ]
   );
 
   const releaseChunks = useCallback((chunks: { base64: string; bytes: number }[]) => {
@@ -448,7 +526,7 @@ export function useGrokFirstRoleplayConversation(
       fixedGuardActiveRef.current = true;
       hardSuppressedRef.current = true;
       micRef.current?.setEnabled(false);
-      realtimeRef.current?.cancelResponse();
+      cancelRealtimeResponse("fixed_input_guard");
       const dropped = tailGuardRef.current.clear();
       const bufferedDroppedBytes = clearBufferedAudio();
       audioQueueRef.current?.clearAllScheduledAudioForLock();
@@ -543,6 +621,7 @@ export function useGrokFirstRoleplayConversation(
     [
       appendFixedAssistantTranscript,
       appendUserTranscript,
+      cancelRealtimeResponse,
       clearBufferedAudio,
       emitMetric,
       ensureAudioQueue,
@@ -562,7 +641,7 @@ export function useGrokFirstRoleplayConversation(
 
       guardDetectedAtRef.current = Date.now();
       hardSuppressedRef.current = true;
-      realtimeRef.current?.cancelResponse();
+      cancelRealtimeResponse("normal_input_suppression");
       const dropped = tailGuardRef.current.clear();
       const bufferedDroppedBytes = clearBufferedAudio();
       audioQueueRef.current?.clearAllScheduledAudioForLock();
@@ -603,6 +682,7 @@ export function useGrokFirstRoleplayConversation(
     [
       appendFixedAssistantTranscript,
       appendUserTranscript,
+      cancelRealtimeResponse,
       clearBufferedAudio,
       emitMetric,
       postEvent,
@@ -707,7 +787,7 @@ export function useGrokFirstRoleplayConversation(
           }
           if (normalRoute?.rewrittenText) {
             userSpeechInProgressRef.current = false;
-            realtimeRef.current?.cancelResponse();
+            cancelRealtimeResponse("normal_realtime_rewrite");
             ignoreNextEmptyResponseDoneRef.current = true;
             const dropped = tailGuardRef.current.clear();
             const bufferedDroppedBytes = clearBufferedAudio();
@@ -727,7 +807,7 @@ export function useGrokFirstRoleplayConversation(
                 tailAudioDroppedBytes: dropped.droppedBytes + bufferedDroppedBytes,
               },
             });
-            realtimeRef.current?.sendUserText(normalRoute.rewrittenText);
+            sendRealtimeUserText(normalRoute.rewrittenText);
             void postEvent({
               kind: "stt.completed",
               sessionId: activeSession.sessionId,
@@ -743,7 +823,7 @@ export function useGrokFirstRoleplayConversation(
           appendUserTranscript({ text, channel: "voice", status: "final" });
           userSpeechInProgressRef.current = false;
           micRef.current?.setEnabled(false);
-          realtimeRef.current?.createResponse();
+          createRealtimeResponse();
           void postEvent({
             kind: "stt.completed",
             sessionId: activeSession.sessionId,
@@ -778,7 +858,7 @@ export function useGrokFirstRoleplayConversation(
           });
           if (streamDecision.action === "cancel" || streamDecision.action === "suppress") {
             hardSuppressedRef.current = true;
-            realtimeRef.current?.cancelResponse();
+            cancelRealtimeResponse("negative_output_guard_stream");
             const dropped = tailGuardRef.current.clear();
             const bufferedDroppedBytes = clearBufferedAudio();
             audioQueueRef.current?.clearAllScheduledAudioForLock();
@@ -912,7 +992,9 @@ export function useGrokFirstRoleplayConversation(
     [
       appendUserTranscript,
       areRuntimeGuardrailsEnabled,
+      cancelRealtimeResponse,
       clearBufferedAudio,
+      createRealtimeResponse,
       emitMetric,
       evaluateActiveNegativeGuard,
       ensureInterimAgentTranscript,
@@ -922,6 +1004,7 @@ export function useGrokFirstRoleplayConversation(
       postEvent,
       releaseChunks,
       resetTurn,
+      sendRealtimeUserText,
     ]
   );
 
@@ -1111,7 +1194,7 @@ export function useGrokFirstRoleplayConversation(
       }
       appendUserTranscript({ text: trimmed, channel: "chat", status: "sent" });
       setStatus("thinking");
-      realtimeRef.current.sendUserText(normalRoute?.rewrittenText ?? trimmed);
+      sendRealtimeUserText(normalRoute?.rewrittenText ?? trimmed);
     },
     [
       appendUserTranscript,
@@ -1120,6 +1203,7 @@ export function useGrokFirstRoleplayConversation(
       handleNormalInputRouteDecision,
       postEvent,
       resetTurn,
+      sendRealtimeUserText,
       startConversation,
     ]
   );

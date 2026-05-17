@@ -38,6 +38,56 @@ unless an exact runner/evidence set exists:
 
 Scoped fixed_external evidence is valuable, but it is not final DoD.
 
+## v50.7 Prompt-Only Diagnostic Route
+
+Use `/demo/adecco-roleplay-v50-7-prompt-only` only when measuring the v50.6
+System Prompt without app-side runtime assistance. This route is diagnostic, not
+a human-test rollout approval path.
+
+Expected identity:
+
+- `demoSlug=adecco-roleplay-v50-7-prompt-only`
+- `backend=grok-first-v50-7-prompt-only`
+- `promptVersion=grok-first-v50.6-2026-05-15`
+- `guardrailVersion=prompt-only-no-runtime-guard-2026-05-17`
+- `runtimeControl.mode=prompt_only`
+- all runtime guard/router flags false:
+  `runtimeGuardrailsEnabled`, `inputGuardEnabled`, `normalInputRouterEnabled`,
+  `negativeGuardEnabled`, `tailGuardEnabled`, `fixedGuardAudioEnabled`,
+  `boundedRewriteEnabled`, `noiseIgnoredEnabled`, `fullTurnBufferEnabled`, and
+  `replacementTtsEnabled`
+
+The v50.6 System Prompt itself must not change. The prompt-only route uses manual
+response orchestration (`turnDetection.create_response=false` and one app-side
+`response.create` after non-empty STT), but must not use content-based
+`response.cancel`, fixed guard audio, input guard, normal input router, negative
+output guard, tail/audio guard, bounded rewrite, suppression, or `noise_ignored`.
+
+Before manual review, run:
+
+```bash
+pnpm grok:first-v50-7-prompt-only-smoke -- \
+  --base-url https://roleplay.mendan.biz \
+  --route /demo/adecco-roleplay-v50-7-prompt-only \
+  --api-base /api/grok-first-v50-7-prompt-only \
+  --case-set prompt-only-smoke \
+  --runs 1 \
+  --out out/grok_first_v50_7_prompt_only/smoke_<timestamp>
+```
+
+Smoke PASS only means the route/session/realtime/guard-off/voice path is ready
+for manual diagnostic review. It does not mean `PROMPT_ONLY_USABLE`.
+
+Prompt-only conclusion rules:
+
+- `PROMPT_ONLY_USABLE`: v50.6 prompt identity, runtime guard fully off, voice
+  path established, guard event `0`, fixed guard audio `0`, content cancel `0`,
+  manual review `P0=0`, and manual review `P1<=3`.
+- `PROMPT_ONLY_NOT_USABLE`: voice path works, but prompt-only has at least one
+  P0 naturalness, off-scope, sentence-count, or role-break failure.
+- `PROMPT_ONLY_BLOCKED`: route, session, realtime, guard-off proof, or voice
+  path fails.
+
 For v50.7 Option A evidence, use
 `scripts/grok-first-v50-7-natural-voice-e2e.mjs`. It is the runner that captures
 route/API preflight, actual session identity, production voice-path events,

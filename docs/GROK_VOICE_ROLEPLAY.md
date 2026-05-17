@@ -42,8 +42,9 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 - **Research v50.4 / v50.1 relay runtime with latest System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-4
 - **Research v50.5 / v50 runtime with fixed output-contract System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-5
 - **Research v50.6 / v50 runtime with one-sentence guarded System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-6
+- **Diagnostic v50.7 prompt-only / v50.6 System Prompt with runtime guards off**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7-prompt-only
 - **vFinal security foundation / invite-gated relay route**: https://roleplay.mendan.biz/demo/adecco-roleplay-vFinal
-- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1/v50.4/v50.5/v50.6/vFinal: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1,50-4,50-5,50-6,Final}`
+- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1/v50.4/v50.5/v50.6/v50.7-prompt-only/vFinal: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1,50-4,50-5,50-6,50-7-prompt-only,Final}`
 
 ## v50 Grok-first negative guard runtime
 
@@ -92,6 +93,33 @@ final transcript guard has passed; if a P0 customer-led or generic-closing phras
 is detected, held audio is dropped before playback, so `fullTurnBufferCount` may
 be `1` for safe normal turns. This is runtime/output-guard behavior, not a prompt
 change.
+
+`/demo/adecco-roleplay-v50-7-prompt-only` is a diagnostic-only route for
+measuring the v50.6 System Prompt without app-side runtime assistance. It keeps
+`promptVersion=grok-first-v50.6-2026-05-15` and returns
+`guardrailVersion=prompt-only-no-runtime-guard-2026-05-17`,
+`demoSlug=adecco-roleplay-v50-7-prompt-only`, and
+`backend=grok-first-v50-7-prompt-only`. Its session payload must show
+`runtimeControl.mode=prompt_only` and all runtime guard/router flags false:
+`runtimeGuardrailsEnabled`, `inputGuardEnabled`, `normalInputRouterEnabled`,
+`negativeGuardEnabled`, `tailGuardEnabled`, `fixedGuardAudioEnabled`,
+`boundedRewriteEnabled`, `noiseIgnoredEnabled`, `fullTurnBufferEnabled`, and
+`replacementTtsEnabled`. It uses manual response orchestration
+(`turnDetection.create_response=false` plus one app-side `response.create` after
+non-empty STT) but must not use content-based `response.cancel`, fixed guard
+audio, rewrite, suppression, `noise_ignored`, negative output deletion, or tail
+audio hold/drop. This route is not a human-test rollout approval path; it is a
+prompt-only diagnostic.
+
+Prompt-only conclusions are:
+
+- `PROMPT_ONLY_USABLE`: v50.6 prompt identity, runtime guard fully off, voice
+  path established, guard events `0`, fixed guard audio `0`, content cancel `0`,
+  manual review `P0=0`, and manual review `P1<=3`.
+- `PROMPT_ONLY_NOT_USABLE`: voice path works, but prompt-only produces at least
+  one P0 naturalness, off-scope, sentence-count, or role-break failure.
+- `PROMPT_ONLY_BLOCKED`: route, session, realtime, guard-off proof, or voice
+  path fails.
 
 The v50.7 Option A runner is
 `pnpm grok:first-v50-7:natural-voice-e2e` (wrapping
@@ -339,6 +367,13 @@ pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode session
 pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode start
 pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode voice-turn
 pnpm grok:first-v50:prod-logs -- --from-smoke out/.../evidence.json
+pnpm grok:first-v50-7-prompt-only-smoke -- \
+  --base-url https://roleplay.mendan.biz \
+  --route /demo/adecco-roleplay-v50-7-prompt-only \
+  --api-base /api/grok-first-v50-7-prompt-only \
+  --case-set prompt-only-smoke \
+  --runs 1 \
+  --out out/grok_first_v50_7_prompt_only/smoke_<timestamp>
 ```
 
 For v50.7, `--mode session` must report `runtimeGuardrailsEnabled=false`.
@@ -353,6 +388,12 @@ and first-message display. The voice-turn mode additionally requires
 `stt.completed`, `turn.completed`, `audioBytes > 0`, and `error=null`. The log
 collector queries `jsonPayload.scope="grokFirstV50"` and reports missing
 `turn.completed` separately from session-start failures.
+The prompt-only smoke is only a pre-human-review gate: it verifies route/API
+200, exact prompt-only identity, all runtime guard flags false, relay voice path,
+`guard.detected=0`, fixed guard playback `0`, tail guard events `0`,
+`routePath` only `grok_first_realtime`, `guardAction` only `pass`, and content
+`response.cancel=0`. It cannot by itself produce `PROMPT_ONLY_USABLE`; two-person
+manual review is still required.
 
 Contract:
 

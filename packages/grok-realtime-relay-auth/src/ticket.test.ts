@@ -95,6 +95,16 @@ describe("relay ticket auth", () => {
       }),
       now: NOW,
     });
+    const v507PromptOnlyTicket = createRelayTicket({
+      secret: SECRET,
+      payload: payload({
+        demoSlug: "adecco-roleplay-v50-7-prompt-only",
+        backend: "grok-first-v50-7-prompt-only",
+        routerVariant: undefined,
+        sessionId: "gfv507_prompt_only_sess_test",
+      }),
+      now: NOW,
+    });
     const vFinalTicket = createRelayTicket({
       secret: SECRET,
       payload: payload({
@@ -140,6 +150,13 @@ describe("relay ticket auth", () => {
       payload: {
         demoSlug: "adecco-roleplay-v50-6",
         backend: "grok-first-v50-6",
+      },
+    });
+    expect(verify(v507PromptOnlyTicket.value)).toMatchObject({
+      ok: true,
+      payload: {
+        demoSlug: "adecco-roleplay-v50-7-prompt-only",
+        backend: "grok-first-v50-7-prompt-only",
       },
     });
     expect(verify(vFinalTicket.value)).toMatchObject({
