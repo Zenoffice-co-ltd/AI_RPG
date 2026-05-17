@@ -258,7 +258,13 @@ async function main() {
       ? summarizeQualityGuardSuite(suite)
       : summarizeSuite(suite);
   writeOutputs();
-  process.exitCode = suite.caseSets[caseSet].summary?.exitCode ?? 0;
+  process.exitCode = isQualityGuardFocused
+    ? isPassingFinal(suite.overall.final)
+      ? 0
+      : suite.overall.final === "QUALITY_GUARD_BLOCKED"
+      ? 2
+      : 1
+    : suite.caseSets[caseSet].summary?.exitCode ?? 0;
 }
 
 async function runPreflightOnly() {
