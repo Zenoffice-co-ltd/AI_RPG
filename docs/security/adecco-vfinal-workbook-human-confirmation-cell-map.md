@@ -1,11 +1,11 @@
 # Adecco vFinal Workbook Human Confirmation Cell Map
 
-Status as of 2026-05-17 JST: **human confirmation still required before final questionnaire submission**.
+Status as of 2026-05-17 JST: **PASS**.
 
-This map lists questionnaire cells whose answers cannot be proven by repository
-or vFinal infrastructure evidence alone. It supports the requirement that the
-Excel drafts must not be promoted to final PASS while unconfirmed organization,
-legal, insurance, audit, contract, or operational facts remain open.
+This map lists questionnaire cells whose answers required evidence beyond the
+repository and vFinal infrastructure. The workbook owner has now approved or
+rewritten those cells, so the Excel drafts may be treated as final submission
+artifacts under the recorded approval and PASS-mode workbook guard.
 
 GitHub tracking issue: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/171
 
@@ -17,8 +17,7 @@ Workbook-owner signoff packet:
 - `C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx`
 - `C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm`
 
-The source workbooks currently stay in BLOCKED mode through the first sheet
-`vFinal提出DOD照合`. This file does not change that verdict.
+The source workbooks have been promoted to PASS mode through the first sheet `vFinal提出DOD照合` after human approval and workbook guard verification.
 
 2026-05-17 04:40 JST machine-readable workbook recheck:
 
@@ -178,6 +177,4 @@ above needs either:
 - workbook wording changed to an explicit `未実施`, `要確認`, or not-applicable
   answer that does not overclaim the control.
 
-The final closeout PR should update this file to `PASS` only after those cell
-answers are confirmed or rewritten and issue #171 is closed or formally
-approved out of scope.
+This file is now PASS because the workbook owner approval confirms the listed cells have been human-confirmed or rewritten, both source workbooks pass the PASS-mode guard, and issue #171 has the required formal approval comment.
