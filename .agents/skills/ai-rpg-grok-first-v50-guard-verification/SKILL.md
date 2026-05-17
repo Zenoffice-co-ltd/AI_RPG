@@ -101,12 +101,10 @@ Expected identity:
 - `demoSlug=adecco-roleplay-v50-7-prompt-only`
 - `backend=grok-first-v50-7-prompt-only`
 - `promptVersion=grok-first-v50.6-2026-05-15`
-- `guardrailVersion=prompt-only-no-runtime-guard-speed-hotfix-2026-05-17`
+- `guardrailVersion=prompt-only-no-runtime-guard-2026-05-17`
 - `runtimeControl.mode=prompt_only`
-- `latencyMode=fastest_streaming`
-- `streamAudioBeforeDone=true`
-- `audioHoldMs=0`
-- `turnDetection.silence_duration_ms=350`
+- no prompt-only speed-hotfix latency fields
+- `turnDetection.silence_duration_ms=650`
 - all runtime guard/router flags false:
   `runtimeGuardrailsEnabled`, `inputGuardEnabled`, `normalInputRouterEnabled`,
   `negativeGuardEnabled`, `tailGuardEnabled`, `fixedGuardAudioEnabled`,

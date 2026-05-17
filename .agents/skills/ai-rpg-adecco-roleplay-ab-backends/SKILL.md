@@ -390,14 +390,14 @@ For this speed hotfix, also expect `latencyMode=fastest_streaming`,
 `boundedRewriteEnabled=false`, and `turnDetection.silence_duration_ms=350`.
 Quality status is NOT EVALUATED.
 
-Expected prompt-only speed-hotfix identity:
+Expected prompt-only diagnostic identity:
 `demoSlug=adecco-roleplay-v50-7-prompt-only`,
 `backend=grok-first-v50-7-prompt-only`,
 `promptVersion=grok-first-v50.6-2026-05-15`,
-`guardrailVersion=prompt-only-no-runtime-guard-speed-hotfix-2026-05-17`,
+`guardrailVersion=prompt-only-no-runtime-guard-2026-05-17`,
 `runtimeControl.mode=prompt_only`, `runtimeGuardrailsEnabled=false`,
-`latencyMode=fastest_streaming`, `streamAudioBeforeDone=true`, and
-`turnDetection.silence_duration_ms=350`. All runtime guard/router flags remain
+no prompt-only speed-hotfix latency fields, and
+`turnDetection.silence_duration_ms=650`. All runtime guard/router flags remain
 false.
 
 Expected runtime evidence for a normal voice turn is `stt.completed`,

@@ -101,12 +101,11 @@ post-check expects `guardrailVersion=grok-first-v50.7-speed-hotfix-2026-05-17`,
 `streamAudioBeforeDone=true`, `normalInputRouterEnabled=false`,
 `boundedRewriteEnabled=false`, and `turnDetection.silence_duration_ms=350`.
 
-For the prompt-only speed hotfix, use `--variant v50-7-prompt-only`. The
-post-check expects
-`guardrailVersion=prompt-only-no-runtime-guard-speed-hotfix-2026-05-17`,
-`runtimeGuardrailsEnabled=false`, `latencyMode=fastest_streaming`,
-`streamAudioBeforeDone=true`, all runtime guard/router flags false, and
-`turnDetection.silence_duration_ms=350`.
+For prompt-only diagnostic deploys, use `--variant v50-7-prompt-only`. The
+post-check expects `guardrailVersion=prompt-only-no-runtime-guard-2026-05-17`,
+`runtimeGuardrailsEnabled=false`, all runtime guard/router flags false, no
+prompt-only speed-hotfix latency fields, and
+`turnDetection.silence_duration_ms=650`.
 
 The gcloud wrapper uploads the local working tree. It now writes an
 `archive-manifest.json`, warns on suspicious generated folders, and checks for

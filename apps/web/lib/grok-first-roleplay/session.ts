@@ -68,7 +68,7 @@ export async function createGrokFirstV50Session(input?: {
   const runtimeVariant = input?.runtimeVariant ?? input?.variant ?? promptVariant;
   const isPromptOnly = runtimeVariant === "v50.7-prompt-only";
   const isV507SpeedHotfix = runtimeVariant === "v50.7";
-  const isLatencySpeedHotfix = isV507SpeedHotfix || isPromptOnly;
+  const isLatencySpeedHotfix = isV507SpeedHotfix;
   const prompt = buildGrokFirstV50Prompt(isPromptOnly ? "v50.6" : promptVariant);
   const voiceId = env.GROK_FIRST_V50_VOICE_ID ?? GROK_FIRST_V50_VOICE_ID;
   const sessionId = `gfv50_${randomUUID()}`;
@@ -180,7 +180,7 @@ export async function createGrokFirstV50Session(input?: {
     runtimeTtsEnabled: false,
     replacementTtsEnabled: false,
     latencyMode: isLatencySpeedHotfix ? "fastest_streaming" : undefined,
-    streamAudioBeforeDone: isLatencySpeedHotfix,
+    streamAudioBeforeDone: isLatencySpeedHotfix ? true : undefined,
     audioHoldMs: isLatencySpeedHotfix ? 0 : undefined,
     fullTurnBufferEnabled: false,
     runtimeGuardrailsEnabled,
