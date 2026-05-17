@@ -72,6 +72,7 @@
   - Confirm local dev-server ports and stale Next/Turbo processes before starting; reuse an existing server only after a one-turn event-capture check passes.
   - State the DoD denominator up front, for example `5-case back-to-back harness`, `13/13 guard smoke`, `69 P0 guards`, or `93-turn full`.
   - For v50-family voice regressions, use the smallest executable denominator first: after a failed full or budgeted run, read `results.json`, `events.jsonl`, `report.md`, and `false_pass_audit.md`, then rerun only the FAIL/BLOCKED/suspected false-pass ids with `--case-ids` before spending on the full denominator again.
+- For final DoD guards that depend on local source artifacts, such as Adecco vFinal questionnaire workbooks, do not treat CI as a substitute unless those artifacts are explicitly supplied to CI. Run the explicit local PASS command with every required artifact path and issue-state checking enabled; CI may run self-tests/invariants or skip the source-artifact guard when `VFINAL_SUBMISSION_DOD_WORKBOOKS` is unset. Record local guard evidence without copying raw workbook answer values.
 - For production voice / relay regressions, use the shortest diagnostic ladder before redeploying or running broad E2E:
   1. Verify the route session API returns 200 and the expected identity fields (`demoSlug`, `backend`, `promptVersion`, `guardrailVersion`, `realtimeTransport`, `wsUrl`, auth mode, and payload-inclusion flags).
   2. If the session API fails, inspect App Hosting rollout/build status, Cloud Build logs, cookie/access state, and App Hosting env/secret bindings. Do not investigate the relay first.
@@ -121,6 +122,7 @@
 - Update `README.md` and the relevant `docs/` runbook when commands, behavior, operational flow, or acceptance evidence expectations change.
 - Update or add repo skills under `.agents/skills/` when a workflow becomes reusable or when canonical commands/guardrails for an existing workflow change.
 - Update `.codex/rules/` or `.codex/hooks/` when you introduce a new safety-sensitive command flow, destructive operation, or recurring prompt-routing need.
+- When a PR flips final DoD docs from BLOCKED to PASS, include the exact local final-guard command and required source artifacts in the evidence path. If CI cannot access those artifacts, document the CI/local boundary and keep fast self-tests or invariants in CI.
 - Keep tests, smoke checks, and acceptance scripts aligned with any changed runtime, compile, publish, scoring, or vendor contract.
 - When voice-profile mapping changes, update the profile JSON, `config/voice-profiles/scenario-map.json`, and publish-readiness evidence together.
 - Do not mark orb preview DoD as complete from generated snapshots or ConvAI tests alone. Human orb utterances must be captured in the relevant memo; otherwise leave the memo as a blocker with the preview URL.

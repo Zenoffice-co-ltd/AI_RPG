@@ -119,6 +119,12 @@ Final PASS guard:
 corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass --check-github-issues --allow-open-approved-issues --approval-author=<approver-github-login> --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
 ```
 
+Standalone source-workbook guard:
+
+```bash
+corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=pass --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
+```
+
 Both source questionnaire workbooks are required in PASS mode; the final guard
 rejects a PASS run that omits them.
 `--check-github-issues` is also required in PASS mode so #138, #139, #140,
@@ -128,7 +134,9 @@ closed.
 If approved open blockers are being relied on, `--approval-author=<approver-github-login>`
 or `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required; the guard rejects
 open-issue approvals without an expected approver list. Verify the approval
-text is plain issue/PR comment text, not only a fenced template or blockquote.
+text is plain issue/PR comment text, starts with `Approved:`, contains no
+placeholders, and is not only a fenced template or blockquote. Short summary
+approvals may be insufficient when the guard expects workbook/proof details.
 
 While the submission is blocked, use BLOCKED mode as the honest default:
 
@@ -138,14 +146,36 @@ corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked --check-gith
 
 Required blocker issues:
 
-- #128 umbrella tracker. Keep it open while the submission is BLOCKED; close it
-  only after the final PASS guard and final closeout PR are complete.
+- #128 umbrella tracker. Keep it open while the submission is BLOCKED. Close it
+  only after workbook guard PASS, exact blocker approvals/evidence, and final
+  PASS docs are ready; the overall PASS guard requires #128 closed before it can
+  pass. After the final PR merges, post post-merge evidence back to #128.
 - #138 submitted URL / custom-domain decision.
 - #139 legacy shared App Hosting `XAI_API_KEY` scope/de-scope decision.
 - #140 strict latency baseline comparison. This must be resolved with passing
   comparison evidence, not by waiving the missing baseline.
 - #141 clean `verify:acceptance` or approved legacy ConvAI blocker.
 - #171 questionnaire workbook human confirmations.
+
+Finalization order:
+
+1. Confirm #138, #139, #140, and #141 have exact approvals/evidence.
+2. Finalize both source workbooks; preserve TPISA `.xlsm` VBA and never copy
+   raw workbook answer values into docs, PR text, issue comments, or commits.
+3. Run the standalone source-workbook guard with both `--workbook` paths.
+4. If #171 remains open, post the exact human approval as a plain comment from
+   the expected approver, then rely on `--allow-open-approved-issues`.
+5. Close #128 only when the workbook guard, blocker approvals, and final PASS
+   docs are ready.
+6. Run the overall final PASS guard with both workbooks, issue-state checking,
+   and the expected approval author list.
+7. Create the final closeout PR only after the overall guard passes. Keep CI
+   fast: if source workbooks are not available in CI, CI may skip the
+   source-workbook-dependent guard while still running self-tests/invariants.
+8. After merge, verify `origin/main` with `git show origin/main:<path>` against
+   unique lines from the final docs, then post post-merge evidence to #128 and
+   #171 and close #171.
+9. Re-run the workbook guard and overall final PASS guard on `origin/main`.
 
 Rules:
 
