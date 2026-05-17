@@ -17,6 +17,7 @@ export type RelayTicketDemoSlug =
   | "adecco-roleplay-v50-5"
   | "adecco-roleplay-v50-6"
   | "adecco-roleplay-v50-7"
+  | "adecco-roleplay-v50-7-prompt-only"
   | "adecco-roleplay-v50-8"
   | "adecco-roleplay-v51"
   | "adecco-roleplay-vFinal";
@@ -30,6 +31,7 @@ export type RelayTicketBackend =
   | "grok-first-v50-5"
   | "grok-first-v50-6"
   | "grok-first-v50-7"
+  | "grok-first-v50-7-prompt-only"
   | "grok-first-v50-8"
   | "grok-first-v51"
   | "grok-first-vFinal";
@@ -210,6 +212,9 @@ function isValidRelayRouteIdentity(parsed: Partial<RelayTicketPayload>): boolean
   }
   if (parsed.demoSlug === "adecco-roleplay-v50-7") {
     return parsed.backend === "grok-first-v50-7";
+  }
+  if (parsed.demoSlug === "adecco-roleplay-v50-7-prompt-only") {
+    return parsed.backend === "grok-first-v50-7-prompt-only";
   }
   if (parsed.demoSlug === "adecco-roleplay-v50-8") {
     return parsed.backend === "grok-first-v50-8";
