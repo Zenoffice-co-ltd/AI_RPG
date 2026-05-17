@@ -397,7 +397,7 @@ describe("grok-first v50 runtime", () => {
     expect(body["ephemeralExpiresAt"]).toBeUndefined();
   });
 
-  it("serves v50.7 with v50.6 prompt and v50.7 runtime guard contract", async () => {
+  it("serves v50.7 with v50.6 prompt and the in-place speed hotfix contract", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
     const { POST } =
       await import("../../app/api/grok-first-v50-7/session/route");
@@ -408,7 +408,9 @@ describe("grok-first v50 runtime", () => {
     expect(body["demoSlug"]).toBe("adecco-roleplay-v50-7");
     expect(body["backend"]).toBe("grok-first-v50-7");
     expect(body["promptVersion"]).toBe("grok-first-v50.6-2026-05-15");
-    expect(String(body["guardrailVersion"])).toContain("v50.7");
+    expect(body["guardrailVersion"]).toBe(
+      "grok-first-v50.7-speed-hotfix-2026-05-17"
+    );
     expect(body["browserEvaluationEnabled"]).toBe(true);
     expect(body["model"]).toBe("grok-voice-think-fast-1.0");
     expect(body["voiceId"]).toBe("99c95cc8a177");
@@ -418,18 +420,31 @@ describe("grok-first v50 runtime", () => {
     expect(body["lockedResponseAudioBundleIncluded"]).toBe(false);
     expect(body["runtimeTtsEnabled"]).toBe(false);
     expect(body["replacementTtsEnabled"]).toBe(false);
+    expect(body["latencyMode"]).toBe("fastest_streaming");
+    expect(body["streamAudioBeforeDone"]).toBe(true);
+    expect(body["audioHoldMs"]).toBe(0);
     expect(body["fullTurnBufferEnabled"]).toBe(false);
     expect(body["runtimeGuardrailsEnabled"]).toBe(true);
     expect(body["inputGuardEnabled"]).toBe(true);
-    expect(body["normalInputRouterEnabled"]).toBe(true);
+    expect(body["normalInputRouterEnabled"]).toBe(false);
     expect(body["negativeGuardEnabled"]).toBe(true);
-    expect(body["tailGuardEnabled"]).toBe(true);
+    expect(body["tailGuardEnabled"]).toBe(false);
     expect(body["fixedGuardAudioEnabled"]).toBe(true);
-    expect(body["boundedRewriteEnabled"]).toBe(true);
+    expect(body["boundedRewriteEnabled"]).toBe(false);
     expect(body["noiseIgnoredEnabled"]).toBe(true);
+    expect(body["turnDetection"]).toEqual({
+      type: "server_vad",
+      threshold: 0.65,
+      silence_duration_ms: 350,
+      prefix_padding_ms: 333,
+      create_response: false,
+    });
     expect(body["runtimeControl"]).toMatchObject({
       mode: "default",
       runtimeGuardrailsEnabled: true,
+      normalInputRouterEnabled: false,
+      tailGuardEnabled: false,
+      boundedRewriteEnabled: false,
     });
     expect(body["ephemeralToken"]).toBeUndefined();
     expect(body["ephemeralExpiresAt"]).toBeUndefined();
@@ -479,8 +494,11 @@ describe("grok-first v50 runtime", () => {
     expect(body["backend"]).toBe("grok-first-v50-7-prompt-only");
     expect(body["promptVersion"]).toBe("grok-first-v50.6-2026-05-15");
     expect(body["guardrailVersion"]).toBe(
-      "prompt-only-no-runtime-guard-2026-05-17"
+      "prompt-only-no-runtime-guard-speed-hotfix-2026-05-17"
     );
+    expect(body["latencyMode"]).toBe("fastest_streaming");
+    expect(body["streamAudioBeforeDone"]).toBe(true);
+    expect(body["audioHoldMs"]).toBe(0);
     expect(body["runtimeGuardrailsEnabled"]).toBe(false);
     expect(body["inputGuardEnabled"]).toBe(false);
     expect(body["normalInputRouterEnabled"]).toBe(false);
@@ -491,7 +509,10 @@ describe("grok-first v50 runtime", () => {
     expect(body["noiseIgnoredEnabled"]).toBe(false);
     expect(body["fullTurnBufferEnabled"]).toBe(false);
     expect(body["replacementTtsEnabled"]).toBe(false);
-    expect(body["turnDetection"]).toMatchObject({ create_response: false });
+    expect(body["turnDetection"]).toMatchObject({
+      create_response: false,
+      silence_duration_ms: 350,
+    });
     expect(body["runtimeControl"]).toMatchObject({
       mode: "prompt_only",
       runtimeGuardrailsEnabled: false,

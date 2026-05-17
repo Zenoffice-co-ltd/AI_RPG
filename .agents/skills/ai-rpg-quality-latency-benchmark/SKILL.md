@@ -16,6 +16,17 @@ This benchmark suite extended from the Phase 4 TTS-only baseline to answer diffe
 | 6 Stage 1-2 | `pnpm benchmark:llm:latency` | Which LLM model returns the first natural Japanese sentence fastest, with reasoning controls (gpt-5 effort=minimal, Gemini thinkingBudget=0)? |
 | 6 Stage 3 | `pnpm benchmark:quality-latency` | Combining LLM speed, response quality (rule + blind judge + pairwise), and TTS E2E, what does the Pareto frontier look like? Includes the ElevenLabs ConvAI lane via temp agent. |
 
+## Harness Boundary
+
+Offline latency/Pareto numbers and production voice latency are different
+harnesses. For production Grok-first v50 routes, a speed-smoke PASS must be
+reported separately from naturalness or guard quality and must not be used as
+product human-test readiness. Production speed reports should include route/API,
+session identity, guard flags, `latencyMode`, `streamAudioBeforeDone`,
+`turnDetection.silence_duration_ms`, first-audio/first-audible/done percentiles,
+and `Quality status: NOT EVALUATED` unless the relevant quality denominator was
+also rerun.
+
 Newer benchmarks reuse Phase 4's TTS providers, percentile helpers, sentence segmenter, and CSV/HTML idioms. They do NOT modify Phase 4 code or production runtime.
 
 ## Canonical Sources

@@ -33,7 +33,7 @@ const expected = {
   demoSlug: "adecco-roleplay-v50-7-prompt-only",
   backend: "grok-first-v50-7-prompt-only",
   promptVersion: "grok-first-v50.6-2026-05-15",
-  guardrailVersion: "prompt-only-no-runtime-guard-2026-05-17",
+  guardrailVersion: "prompt-only-no-runtime-guard-speed-hotfix-2026-05-17",
   wsUrl: "wss://voice.mendan.biz/api/v3/realtime-relay",
   authMode: "mendan_relay_subprotocol",
 };
@@ -149,7 +149,11 @@ async function runOnce({ browser, runIndex }) {
       noiseIgnoredEnabled: json.noiseIgnoredEnabled,
       fullTurnBufferEnabled: json.fullTurnBufferEnabled,
       replacementTtsEnabled: json.replacementTtsEnabled,
+      latencyMode: json.latencyMode,
+      streamAudioBeforeDone: json.streamAudioBeforeDone,
+      audioHoldMs: json.audioHoldMs,
       turnDetectionCreateResponse: json.turnDetection?.create_response !== false,
+      turnDetectionSilenceMs: json.turnDetection?.silence_duration_ms,
       realtimeTransport: json.realtimeTransport,
       wsUrl: json.wsUrl,
       authMode: json.realtimeAuth?.mode,
@@ -230,6 +234,10 @@ function summarize(attempts) {
     ]) {
       if (session[key] !== false) add(`${key}=${session[key] ?? "<missing>"}`);
     }
+    if (session.latencyMode !== "fastest_streaming") add(`latencyMode=${session.latencyMode ?? "<missing>"}`);
+    if (session.streamAudioBeforeDone !== true) add(`streamAudioBeforeDone=${session.streamAudioBeforeDone ?? "<missing>"}`);
+    if (session.audioHoldMs !== 0) add(`audioHoldMs=${session.audioHoldMs ?? "<missing>"}`);
+    if (session.turnDetectionSilenceMs !== 350) add(`turnDetectionSilenceMs=${session.turnDetectionSilenceMs ?? "<missing>"}`);
     if (session.runtimeControlMode !== "prompt_only") add(`runtimeControl.mode=${session.runtimeControlMode ?? "<missing>"}`);
     if (!attempt.websocketUrls.includes(expected.wsUrl)) add("relay websocket missing");
     for (const kind of ["ws.connected", "session.ready", "stt.completed", "turn.completed"]) {
@@ -256,15 +264,23 @@ function summarize(attempts) {
       if (Number(metric?.fullTurnBufferCount ?? 0) !== 0) add(`fullTurnBufferCount=${metric?.fullTurnBufferCount}`);
       if (Number(metric?.tailGuardHoldMs ?? 0) !== 0) add(`tailGuardHoldMs=${metric?.tailGuardHoldMs}`);
       if (Number(metric?.tailAudioDroppedBytes ?? 0) !== 0) add(`tailAudioDroppedBytes=${metric?.tailAudioDroppedBytes}`);
+      if (metric?.latencyMode !== "fastest_streaming") add(`metric.latencyMode=${metric?.latencyMode}`);
+      if (metric?.streamAudioBeforeDone !== true) add(`metric.streamAudioBeforeDone=${metric?.streamAudioBeforeDone}`);
+      if (metric?.turnDetectionSilenceMs !== 350) add(`metric.turnDetectionSilenceMs=${metric?.turnDetectionSilenceMs}`);
       if (forbiddenRoutePaths.includes(metric?.routePath)) add(`forbidden routePath=${metric.routePath}`);
       if (forbiddenGuardActions.includes(metric?.guardAction)) add(`forbidden guardAction=${metric.guardAction}`);
     }
   }
+  const metrics = attempts.flatMap((attempt) => attempt.metrics);
   return {
     eventCounts: counts,
     failures,
     smokeResult: failures.length === 0 ? "PASS" : "FAIL",
     conclusion: failures.length === 0 ? "MANUAL_REVIEW_REQUIRED" : "PROMPT_ONLY_BLOCKED",
+    firstAudioDeltaMs: percentileSummary(metrics.map((metric) => metric.firstAudioDeltaMs).filter(isFiniteNumber)),
+    firstAudibleAudioMs: percentileSummary(metrics.map((metric) => metric.firstAudibleAudioMs).filter(isFiniteNumber)),
+    firstDeltaToFirstAudibleMs: percentileSummary(metrics.map((metric) => metric.firstDeltaToFirstAudibleMs).filter(isFiniteNumber)),
+    doneMs: percentileSummary(metrics.map((metric) => metric.doneMs).filter(isFiniteNumber)),
   };
 }
 
@@ -286,6 +302,10 @@ function renderReport(data) {
     `API base: ${data.apiBase}`,
     `Prompt version: ${session.promptVersion ?? "not observed"}`,
     `Guardrail version: ${session.guardrailVersion ?? "not observed"}`,
+    `Latency mode: ${session.latencyMode ?? "not observed"}`,
+    `streamAudioBeforeDone: ${String(session.streamAudioBeforeDone)}`,
+    `audioHoldMs: ${session.audioHoldMs ?? "not observed"}`,
+    `turnDetection.silence_duration_ms: ${session.turnDetectionSilenceMs ?? "not observed"}`,
     "Response orchestration mode: app_manual_response_create",
     "",
     "## Runtime Guard Absence Proof",
@@ -315,8 +335,14 @@ function renderReport(data) {
     "## Voice Path Proof",
     "",
     `firstAudioDeltaMs: ${metric.firstAudioDeltaMs ?? "not observed"}`,
+    `firstAudibleAudioMs: ${metric.firstAudibleAudioMs ?? "not observed"}`,
+    `firstDeltaToFirstAudibleMs: ${metric.firstDeltaToFirstAudibleMs ?? "not observed"}`,
     `audioBytes: ${metric.audioBytes ?? "not observed"}`,
     `turn.completed: ${count("turn.completed")}`,
+    `firstAudioDelta p50/p95: ${data.summary.firstAudioDeltaMs.p50 ?? "n/a"} / ${data.summary.firstAudioDeltaMs.p95 ?? "n/a"}`,
+    `firstAudible p50/p95: ${data.summary.firstAudibleAudioMs.p50 ?? "n/a"} / ${data.summary.firstAudibleAudioMs.p95 ?? "n/a"}`,
+    `firstDeltaToFirstAudible p50/p95: ${data.summary.firstDeltaToFirstAudibleMs.p50 ?? "n/a"} / ${data.summary.firstDeltaToFirstAudibleMs.p95 ?? "n/a"}`,
+    `doneMs p50/p95: ${data.summary.doneMs.p50 ?? "n/a"} / ${data.summary.doneMs.p95 ?? "n/a"}`,
     "",
     "## Smoke Result",
     "",
@@ -349,8 +375,7 @@ function renderManualResultTemplate() {
   return [
     "# Prompt-Only Manual Review Result",
     "",
-    "Current status: MANUAL_REVIEW_REQUIRED",
-    "Final conclusion: fill after review with PROMPT_ONLY_USABLE / PROMPT_ONLY_NOT_USABLE / PROMPT_ONLY_BLOCKED",
+    "Final conclusion: PROMPT_ONLY_BLOCKED",
     "Product human test allowed: no",
     "",
     "Key prompt-only failures:",
@@ -386,6 +411,23 @@ function stringArg(value, fallback) {
 function numberArg(value, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function percentileSummary(values) {
+  const sorted = values.filter(isFiniteNumber).sort((a, b) => a - b);
+  if (sorted.length === 0) return { n: 0, p50: null, p95: null, min: null, max: null };
+  const at = (p) => sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))];
+  return {
+    n: sorted.length,
+    p50: at(0.5),
+    p95: at(0.95),
+    min: sorted[0],
+    max: sorted[sorted.length - 1],
+  };
+}
+
+function isFiniteNumber(value) {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 function resolveAccessToken(project) {

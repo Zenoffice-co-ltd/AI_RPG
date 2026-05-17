@@ -16,6 +16,14 @@ scoring / Gmail delivery separation, use
 `.agents/skills/ai-rpg-v50-browser-evaluation/SKILL.md`. Do not treat browser
 evaluation DoD as voice E2E or fixed guard DoD.
 
+For Grok-first v50-family checks, capture the full variant identity matrix
+before judging latency or quality: route, API base, `demoSlug`, `backend`,
+`promptVersion`, `guardrailVersion`, `promptHash`, `model`, `voiceId`,
+`realtimeTransport`, `runtimeControl.mode`, guard flags, `latencyMode`,
+`streamAudioBeforeDone`, `audioHoldMs`, and `turnDetection` settings. Speed
+smoke, guard smoke, naturalness DoD, and product human-test approval are
+separate labels.
+
 ## Canonical Sources
 
 - [docs/GROK_VOICE_ROLEPLAY.md](../../docs/GROK_VOICE_ROLEPLAY.md) — Grok Voice runbook
@@ -374,9 +382,23 @@ pnpm grok:first-v50:prod-logs -- --session <gfv50_session_id>
 Expected session identity for v50.7:
 `demoSlug=adecco-roleplay-v50-7`, `backend=grok-first-v50-7`,
 `promptVersion=grok-first-v50.6-2026-05-15`,
-`guardrailVersion=grok-first-v50.7-guard-2026-05-15`,
+`guardrailVersion=grok-first-v50.7-speed-hotfix-2026-05-17`,
 `realtimeTransport=mendan_cloud_run_relay_wss`, and
 `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`.
+For this speed hotfix, also expect `latencyMode=fastest_streaming`,
+`streamAudioBeforeDone=true`, `normalInputRouterEnabled=false`,
+`boundedRewriteEnabled=false`, and `turnDetection.silence_duration_ms=350`.
+Quality status is NOT EVALUATED.
+
+Expected prompt-only speed-hotfix identity:
+`demoSlug=adecco-roleplay-v50-7-prompt-only`,
+`backend=grok-first-v50-7-prompt-only`,
+`promptVersion=grok-first-v50.6-2026-05-15`,
+`guardrailVersion=prompt-only-no-runtime-guard-speed-hotfix-2026-05-17`,
+`runtimeControl.mode=prompt_only`, `runtimeGuardrailsEnabled=false`,
+`latencyMode=fastest_streaming`, `streamAudioBeforeDone=true`, and
+`turnDetection.silence_duration_ms=350`. All runtime guard/router flags remain
+false.
 
 Expected runtime evidence for a normal voice turn is `stt.completed`,
 `turn.completed`, `audioBytes > 0`, and `error=null`. For fixed guard turns,

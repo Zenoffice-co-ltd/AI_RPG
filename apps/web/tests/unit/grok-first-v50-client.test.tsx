@@ -18,7 +18,7 @@ const SESSION: GrokFirstV50Session = {
   scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_6",
   promptVersion: "grok-first-v50.6-2026-05-15",
   promptHash: "abc123def456",
-  guardrailVersion: "grok-first-v50.7-guard-2026-05-15",
+  guardrailVersion: "grok-first-v50.7-speed-hotfix-2026-05-17",
   model: "grok-voice-think-fast-1.0",
   voiceId: "99c95cc8a177",
   realtimeTransport: "mendan_cloud_run_relay_wss",
@@ -33,8 +33,9 @@ const SESSION: GrokFirstV50Session = {
   turnDetection: {
     type: "server_vad",
     threshold: 0.65,
-    silence_duration_ms: 650,
+    silence_duration_ms: 350,
     prefix_padding_ms: 333,
+    create_response: false,
   },
   tools: [],
   instructions: "# v50.6",
@@ -43,16 +44,37 @@ const SESSION: GrokFirstV50Session = {
   lockedResponseAudioBundleIncluded: false,
   runtimeTtsEnabled: false,
   replacementTtsEnabled: false,
+  latencyMode: "fastest_streaming",
+  streamAudioBeforeDone: true,
+  audioHoldMs: 0,
   fullTurnBufferEnabled: false,
   runtimeGuardrailsEnabled: true,
+  normalInputRouterEnabled: false,
+  boundedRewriteEnabled: false,
+  tailGuardEnabled: false,
   debugTranscriptPreviewEnabled: false,
+};
+
+const BUFFERED_SESSION: GrokFirstV50Session = {
+  ...SESSION,
+  guardrailVersion: "test-buffered-guard",
+  latencyMode: undefined,
+  streamAudioBeforeDone: false,
+  audioHoldMs: undefined,
+  turnDetection: {
+    ...SESSION.turnDetection,
+    silence_duration_ms: 650,
+  },
+  normalInputRouterEnabled: true,
+  boundedRewriteEnabled: true,
+  tailGuardEnabled: true,
 };
 
 const PROMPT_ONLY_SESSION: GrokFirstV50Session = {
   ...SESSION,
   demoSlug: "adecco-roleplay-v50-7-prompt-only",
   backend: "grok-first-v50-7-prompt-only",
-  guardrailVersion: "prompt-only-no-runtime-guard-2026-05-17",
+  guardrailVersion: "prompt-only-no-runtime-guard-speed-hotfix-2026-05-17",
   runtimeGuardrailsEnabled: false,
   inputGuardEnabled: false,
   normalInputRouterEnabled: false,
@@ -300,6 +322,10 @@ describe("grok-first v50.7 client input guard", () => {
         responseCancelCount: 0,
         responseCancelReasons: [],
         turnDetectionCreateResponse: false,
+        latencyMode: "fastest_streaming",
+        streamAudioBeforeDone: true,
+        audioHoldMs: 0,
+        turnDetectionSilenceMs: 350,
         fullTurnBufferCount: 0,
         tailGuardHoldMs: 0,
         tailAudioDroppedBytes: 0,
@@ -312,8 +338,53 @@ describe("grok-first v50.7 client input guard", () => {
     );
   });
 
-  it("buffers realtime audio until the final transcript is safe", async () => {
+  it("streams v50.7 hotfix realtime audio before response.done without double release", async () => {
     const { result, fake, queue } = renderConversation();
+    const audio = Buffer.from(new Uint8Array(48)).toString("base64");
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "業務内容を教えてください",
+      });
+      fake.emit({ type: "response.created" });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+    });
+
+    expect(queue.enqueueBase64).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "受注入力が中心です。",
+      });
+      fake.emit({ type: "response.done" });
+    });
+
+    await waitFor(() => {
+      expect(queue.enqueueBase64).toHaveBeenCalledTimes(1);
+      const metric = result.current.metricsLog.at(-1);
+      expect(metric).toMatchObject({
+        routePath: "grok_first_realtime",
+        fullTurnBufferCount: 0,
+        latencyMode: "fastest_streaming",
+        streamAudioBeforeDone: true,
+        audioHoldMs: 0,
+        turnDetectionSilenceMs: 350,
+      });
+      expect(metric?.firstDeltaToFirstAudibleMs).toBeLessThanOrEqual(5);
+    });
+  });
+
+  it("buffers realtime audio until the final transcript is safe without speed hotfix", async () => {
+    const { result, fake, queue } = renderConversation({
+      session: BUFFERED_SESSION,
+    });
     const audio = Buffer.from(new Uint8Array(48)).toString("base64");
 
     await act(async () => {
@@ -350,7 +421,9 @@ describe("grok-first v50.7 client input guard", () => {
   });
 
   it("waits for rewritten realtime response after ignoring the canceled empty done", async () => {
-    const { result, fake, queue, postEvent } = renderConversation();
+    const { result, fake, queue, postEvent } = renderConversation({
+      session: BUFFERED_SESSION,
+    });
     const audio = Buffer.from(new Uint8Array(48)).toString("base64");
 
     await act(async () => {
@@ -392,7 +465,9 @@ describe("grok-first v50.7 client input guard", () => {
   });
 
   it("does not attach stale assistant deltas to a low-information barge-in turn", async () => {
-    const { result, fake } = renderConversation();
+    const { result, fake } = renderConversation({
+      session: BUFFERED_SESSION,
+    });
 
     await act(async () => {
       await result.current.startConversation();
@@ -419,7 +494,9 @@ describe("grok-first v50.7 client input guard", () => {
   });
 
   it("drops buffered realtime audio when transcript guard cancels the turn", async () => {
-    const { result, fake, queue, postEvent } = renderConversation();
+    const { result, fake, queue, postEvent } = renderConversation({
+      session: BUFFERED_SESSION,
+    });
     const audio = Buffer.from(new Uint8Array(96)).toString("base64");
 
     await act(async () => {

@@ -26,6 +26,20 @@ Use this skill when the job is to prove that the repo is shippable.
 5. When a legacy scenario fails during a new-scenario task, compare the relevant generated scenario/assets and live test definition before calling it a regression. If needed, use a temporary clean worktree at the pre-task baseline to establish causality.
 6. Record concrete evidence, not just that scripts exist.
 
+## Harness Evidence Contract
+
+For release or production-smoke evidence, prefer reusable harnesses over ad-hoc
+commands. Before running a broad check, record the route/API, denominator,
+expected identity, guard/latency flags, event endpoint, and output directory.
+Evidence directories should include `report.md`, `session_payload.json`,
+`events.jsonl`, `evidence.json` or `results.json`, and screenshots when a
+browser flow is involved.
+
+Keep status labels distinct. `deploy success`, `route/session smoke success`,
+`speed smoke PASS`, `targeted voice sentinel PASS`, `full quality DoD PASS`, and
+`human test allowed` are separate claims. Do not promote one label into another
+without the matching denominator.
+
 ## Long-running E2E / Spreadsheet DoD Preflight
 
 Before running a browser E2E, voice E2E, spreadsheet-defined plan, or final DoD,

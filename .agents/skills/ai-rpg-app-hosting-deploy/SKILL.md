@@ -16,15 +16,17 @@ Any change to the deploy contract must update **all six** files in the same chan
 
 ## Pre-flight checks (do these BEFORE running any deploy command)
 
-1. **Confirm what is being deployed.** Normal customer-facing deploys must be from the intended merged `origin/main` commit. Run `git fetch origin`, `git status --short`, `git rev-parse HEAD`, and `git rev-parse origin/main`. If an unmerged local commit was deployed for emergency validation, treat production as drifted until the diff is PR'd, merged, verified with `git show origin/main:<path>`, and redeployed from `origin/main`. For registered-speech deploys, read the promoted `buildId` and `voiceId` so you can later verify the live `/api/v3/session` returns the same values.
+1. **Confirm the deploy worktree.** Manual App Hosting deploys for this repo must run from `C:\dev\AI_RPG\_worktrees\deploy_clean`, not `C:\dev\AI_RPG`, unless the operator explicitly overrides this for a one-off emergency. If implementation happened elsewhere, sync/PR the diff first and deploy from `deploy_clean`.
 
-2. **Confirm the active gcloud account is project owner.**
+2. **Confirm what is being deployed.** Normal customer-facing deploys must be from the intended merged `origin/main` commit. Run `git fetch origin`, `git status --short`, `git rev-parse HEAD`, and `git rev-parse origin/main`. If an unmerged local commit was deployed for emergency validation, treat production as drifted until the diff is PR'd, merged, verified with `git show origin/main:<path>`, and redeployed from `origin/main`. For registered-speech deploys, read the promoted `buildId` and `voiceId` so you can later verify the live `/api/v3/session` returns the same values.
+
+3. **Confirm the active gcloud account is project owner.**
    ```bash
    gcloud auth list                                                    # iwase@zenoffice.co.jp ACTIVE
    ```
    If not, ask the operator to switch — do NOT proceed under a non-owner identity.
 
-3. **Confirm the owner ADC file exists.**
+4. **Confirm the owner ADC file exists.**
    The default ADC at `%APPDATA%/gcloud/application_default_credentials.json` is typically a different (lower-privilege) account that fails Firebase deploy with a misleading "Failed to create backend" error. The owner credential lives at `<gcloud-config-dir>/legacy_credentials/<owner-account>/adc.json`. On the canonical operator workstation:
    ```
    C:/Users/yukih/AppData/Roaming/gcloud/legacy_credentials/iwase@zenoffice.co.jp/adc.json
@@ -92,6 +94,19 @@ so the post-check verifies `/api/grok-first-v50*/session` identity
 (`backend`, `promptVersion`, `guardrailVersion`) instead of only
 `/api/v3/session`. Use `--skip-tts-warm` only when the change does not affect
 registered-speech/TTS artifacts.
+
+For the 2026-05-17 in-place v50.7 speed hotfix, the `--variant v50-7`
+post-check expects `guardrailVersion=grok-first-v50.7-speed-hotfix-2026-05-17`,
+`runtimeGuardrailsEnabled=true`, `latencyMode=fastest_streaming`,
+`streamAudioBeforeDone=true`, `normalInputRouterEnabled=false`,
+`boundedRewriteEnabled=false`, and `turnDetection.silence_duration_ms=350`.
+
+For the prompt-only speed hotfix, use `--variant v50-7-prompt-only`. The
+post-check expects
+`guardrailVersion=prompt-only-no-runtime-guard-speed-hotfix-2026-05-17`,
+`runtimeGuardrailsEnabled=false`, `latencyMode=fastest_streaming`,
+`streamAudioBeforeDone=true`, all runtime guard/router flags false, and
+`turnDetection.silence_duration_ms=350`.
 
 The gcloud wrapper uploads the local working tree. It now writes an
 `archive-manifest.json`, warns on suspicious generated folders, and checks for

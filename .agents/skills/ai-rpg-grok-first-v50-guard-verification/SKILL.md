@@ -38,19 +38,75 @@ unless an exact runner/evidence set exists:
 
 Scoped fixed_external evidence is valuable, but it is not final DoD.
 
+## Harness-First Contract
+
+Before changing v50 runtime behavior or reporting production evidence, write
+down the smallest executable harness and its denominator. Every run must capture
+a variant identity matrix before judging either speed or quality:
+
+- route and API base
+- `demoSlug`, `backend`, `promptVersion`, `guardrailVersion`, and `promptHash`
+- commit SHA when available, `model`, `voiceId`, and `realtimeTransport`
+- `runtimeControl.mode`, all guard flags, and response orchestration mode
+- `latencyMode`, `streamAudioBeforeDone`, `audioHoldMs`,
+  `turnDetection.silence_duration_ms`, and `turnDetection.create_response`
+
+Use this ladder before spending on broad voice E2E: route/API 200, session
+identity, relay connection, STT completed, response orchestration consistency,
+first assistant audio delta, first audible audio, `response.done`,
+`turn.completed`, then manual review or the wider DoD. Promote repeated checks
+to `scripts/` and write evidence under `out/<workflow>/<timestamp>/`; do not
+build release evidence from repeated `.codex_tmp` one-offs.
+
+Speed and quality are separate gates. A speed smoke PASS does not imply
+naturalness, guard correctness, prompt-only usability, or product human-test
+readiness. Mark speed-only work as `Quality status: NOT EVALUATED` until the
+relevant naturalness/guard denominator is rerun.
+
 ## v50.7 Prompt-Only Diagnostic Route
 
 Use `/demo/adecco-roleplay-v50-7-prompt-only` only when measuring the v50.6
 System Prompt without app-side runtime assistance. This route is diagnostic, not
 a human-test rollout approval path.
 
+## v50.7 In-place Speed Hotfix
+
+As of 2026-05-17, `/demo/adecco-roleplay-v50-7` may be deployed in-place as a
+speed-only hotfix. Do not create `v50.7.1` or `v50.7-speed` for that check. The
+expected identity is still `demoSlug=adecco-roleplay-v50-7`,
+`backend=grok-first-v50-7`, and `promptVersion=grok-first-v50.6-2026-05-15`,
+but `guardrailVersion` becomes
+`grok-first-v50.7-speed-hotfix-2026-05-17`.
+
+Expected speed-hotfix fields:
+
+- `latencyMode=fastest_streaming`
+- `streamAudioBeforeDone=true`
+- `audioHoldMs=0`
+- `normalInputRouterEnabled=false`
+- `boundedRewriteEnabled=false`
+- `turnDetection.silence_duration_ms=350`
+- `turnDetection.create_response=false`
+
+The normal input router is intentionally bypassed for this speed-only hotfix to
+avoid rewrite-response stalls during manual latency checks. Treat quality as NOT
+EVALUATED.
+
+This is not a quality or naturalness PASS. Report `Quality status: NOT
+EVALUATED` and the known risk that audio may be heard before the final
+transcript guard. Manual access is `manual speed check only`.
+
 Expected identity:
 
 - `demoSlug=adecco-roleplay-v50-7-prompt-only`
 - `backend=grok-first-v50-7-prompt-only`
 - `promptVersion=grok-first-v50.6-2026-05-15`
-- `guardrailVersion=prompt-only-no-runtime-guard-2026-05-17`
+- `guardrailVersion=prompt-only-no-runtime-guard-speed-hotfix-2026-05-17`
 - `runtimeControl.mode=prompt_only`
+- `latencyMode=fastest_streaming`
+- `streamAudioBeforeDone=true`
+- `audioHoldMs=0`
+- `turnDetection.silence_duration_ms=350`
 - all runtime guard/router flags false:
   `runtimeGuardrailsEnabled`, `inputGuardEnabled`, `normalInputRouterEnabled`,
   `negativeGuardEnabled`, `tailGuardEnabled`, `fixedGuardAudioEnabled`,

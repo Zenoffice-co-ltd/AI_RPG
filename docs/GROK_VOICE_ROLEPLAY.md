@@ -53,6 +53,30 @@ legacy `/api/v3/*` stack. Its source lives under
 `apps/web/lib/grok-first-roleplay/` and its API namespace is
 `/api/grok-first-v50/*`.
 
+### Harness engineering contract
+
+For v50-family work, define the evidence harness before broad implementation or
+manual testing. Each production run must record the variant identity matrix:
+route, API base, `demoSlug`, `backend`, `promptVersion`, `guardrailVersion`,
+`promptHash`, commit SHA when available, `model`, `voiceId`,
+`realtimeTransport`, `runtimeControl.mode`, guard flags, `latencyMode`,
+`streamAudioBeforeDone`, `audioHoldMs`,
+`turnDetection.silence_duration_ms`, and `turnDetection.create_response`.
+
+Use the shortest diagnostic ladder first: route/API 200, session identity, relay
+connection, STT completed, response orchestration consistency, first assistant
+audio delta, first audible audio, `response.done`, `turn.completed`, then manual
+review or the wider DoD. Repeated checks should live in `scripts/` and emit
+`report.md`, `session_payload.json`, `events.jsonl`, `evidence.json` or
+`results.json`, and browser screenshots when applicable under
+`out/<workflow>/<timestamp>/`.
+
+Speed and quality are reported separately. A speed-smoke PASS means the latency
+path is observable and within the stated thresholds only; it does not grant
+naturalness PASS, guard PASS, prompt-only usability, product human-test
+readiness, or rollout approval. Speed-only reports must state
+`Quality status: NOT EVALUATED`.
+
 `/demo/adecco-roleplay-v50-1` uses the same v50 runtime and negative-guard-only
 contract, but its API namespace is `/api/grok-first-v50-1/*` and its
 `promptVersion` is `grok-first-v50.1-2026-05-14`. The only behavior change from
@@ -94,17 +118,38 @@ is detected, held audio is dropped before playback, so `fullTurnBufferCount` may
 be `1` for safe normal turns. This is runtime/output-guard behavior, not a prompt
 change.
 
+As of the 2026-05-17 in-place v50.7 speed hotfix, the customer-facing
+`/demo/adecco-roleplay-v50-7` route is temporarily optimized for manual speed
+checking. It keeps `demoSlug=adecco-roleplay-v50-7`,
+`backend=grok-first-v50-7`, `promptVersion=grok-first-v50.6-2026-05-15`, model,
+voice, and relay identity unchanged, but returns
+`guardrailVersion=grok-first-v50.7-speed-hotfix-2026-05-17`,
+`latencyMode=fastest_streaming`, `streamAudioBeforeDone=true`,
+`audioHoldMs=0`, `normalInputRouterEnabled=false`,
+`boundedRewriteEnabled=false`, and `turnDetection.silence_duration_ms=350`.
+The normal input router is intentionally bypassed in this speed-only hotfix to
+avoid rewrite-response stalls during manual latency checks; input guard, fixed
+guard audio, and negative output guard remain enabled.
+Quality status is NOT EVALUATED for this hotfix: normal assistant audio may be
+heard before the final transcript guard can drop or trim it. This in-place
+deployment invalidates direct latency comparison with prior v50.7 quality
+evidence after the hotfix deploy. Human access is limited to manual speed check
+only, not product human-test approval.
+
 `/demo/adecco-roleplay-v50-7-prompt-only` is a diagnostic-only route for
 measuring the v50.6 System Prompt without app-side runtime assistance. It keeps
 `promptVersion=grok-first-v50.6-2026-05-15` and returns
-`guardrailVersion=prompt-only-no-runtime-guard-2026-05-17`,
+`guardrailVersion=prompt-only-no-runtime-guard-speed-hotfix-2026-05-17`,
 `demoSlug=adecco-roleplay-v50-7-prompt-only`, and
 `backend=grok-first-v50-7-prompt-only`. Its session payload must show
 `runtimeControl.mode=prompt_only` and all runtime guard/router flags false:
 `runtimeGuardrailsEnabled`, `inputGuardEnabled`, `normalInputRouterEnabled`,
 `negativeGuardEnabled`, `tailGuardEnabled`, `fixedGuardAudioEnabled`,
 `boundedRewriteEnabled`, `noiseIgnoredEnabled`, `fullTurnBufferEnabled`, and
-`replacementTtsEnabled`. It uses manual response orchestration
+`replacementTtsEnabled`. As of the 2026-05-17 prompt-only speed hotfix, it also
+uses `latencyMode=fastest_streaming`, `streamAudioBeforeDone=true`,
+`audioHoldMs=0`, and `turnDetection.silence_duration_ms=350` while keeping all
+runtime guards off. It uses manual response orchestration
 (`turnDetection.create_response=false` plus one app-side `response.create` after
 non-empty STT) but must not use content-based `response.cancel`, fixed guard
 audio, rewrite, suppression, `noise_ignored`, negative output deletion, or tail
@@ -271,8 +316,10 @@ The final conclusion is exactly one of `PASS`, `FAIL`, or `BLOCKED`.
    works, and `/api/grok-first-v50-7/event` works.
 2. Actual session identity records `demoSlug=adecco-roleplay-v50-7`,
    `backend=grok-first-v50-7`, `promptVersion=grok-first-v50.6-2026-05-15`,
-   `guardrailVersion=grok-first-v50.7-guard-2026-05-15`, plus `model`,
-   `voiceId`, `realtimeTransport`, and `promptHash`.
+   `guardrailVersion=grok-first-v50.7-speed-hotfix-2026-05-17`, plus `model`,
+   `voiceId`, `realtimeTransport`, and `promptHash`. The speed-hotfix identity
+   is not an Option A quality PASS by itself; quality status remains NOT
+   EVALUATED until the full naturalness denominator is rerun.
 3. Production voice path observes mic audio chunks, STT completed, assistant
    transcript delta, assistant audio delta, `response.done`, and
    `turn.completed`.
