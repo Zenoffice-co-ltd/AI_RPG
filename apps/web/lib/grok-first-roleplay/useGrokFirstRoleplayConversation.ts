@@ -842,13 +842,11 @@ export function useGrokFirstRoleplayConversation(
             });
             break;
           }
-          const normalizedRealtimeText =
-            normalization.normalizationApplied &&
-            normalization.normalizedText !== text
-              ? normalization.normalizedText
-              : "";
+          const boundedRewriteEnabled =
+            activeSession.boundedRewriteEnabled ?? runtimeGuardrailsEnabled;
+          const normalizedRealtimeText = "";
           const realtimeRewriteText =
-            normalRoute?.rewrittenText ?? normalizedRealtimeText;
+            boundedRewriteEnabled ? normalRoute?.rewrittenText ?? normalizedRealtimeText : "";
           if (realtimeRewriteText) {
             userSpeechInProgressRef.current = false;
             ignoreNextEmptyResponseDoneRef.current = true;
@@ -1302,13 +1300,11 @@ export function useGrokFirstRoleplayConversation(
         });
         return;
       }
-      const normalizedRealtimeText =
-        normalization.normalizationApplied &&
-        normalization.normalizedText !== trimmed
-          ? normalization.normalizedText
-          : "";
+      const boundedRewriteEnabled =
+        activeSession.boundedRewriteEnabled ?? runtimeGuardrailsEnabled;
+      const normalizedRealtimeText = "";
       const realtimeRewriteText =
-        normalRoute?.rewrittenText ?? normalizedRealtimeText;
+        boundedRewriteEnabled ? normalRoute?.rewrittenText ?? normalizedRealtimeText : "";
       if (realtimeRewriteText) {
         void postEvent({
           kind: "guard.detected",

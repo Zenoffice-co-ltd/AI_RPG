@@ -106,7 +106,7 @@ const VARIANT_SESSION_TARGETS = {
     expectedNoiseIgnoredEnabled: true,
     expectedTurnDetectionSilenceMs: 650,
     expectedNormalInputRouterEnabled: true,
-    expectedBoundedRewriteEnabled: true,
+    expectedBoundedRewriteEnabled: false,
     expectedLatencyMode: "default",
     expectedStreamAudioBeforeDone: false,
   },

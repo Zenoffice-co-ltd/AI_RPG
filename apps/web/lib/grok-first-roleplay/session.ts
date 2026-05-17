@@ -209,7 +209,8 @@ export async function createGrokFirstV50Session(input?: {
     negativeGuardEnabled: runtimeGuardrailsEnabled,
     tailGuardEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
     fixedGuardAudioEnabled: runtimeGuardrailsEnabled,
-    boundedRewriteEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
+    boundedRewriteEnabled:
+      isV507SpeedHotfix || isV507Quality ? false : runtimeGuardrailsEnabled,
     noiseIgnoredEnabled: runtimeGuardrailsEnabled,
     runtimeControl: {
       mode: isPromptOnly ? "prompt_only" : "default",
@@ -219,7 +220,8 @@ export async function createGrokFirstV50Session(input?: {
       negativeGuardEnabled: runtimeGuardrailsEnabled,
       tailGuardEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
       fixedGuardAudioEnabled: runtimeGuardrailsEnabled,
-      boundedRewriteEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
+      boundedRewriteEnabled:
+        isV507SpeedHotfix || isV507Quality ? false : runtimeGuardrailsEnabled,
       noiseIgnoredEnabled: runtimeGuardrailsEnabled,
     },
     debugTranscriptPreviewEnabled:

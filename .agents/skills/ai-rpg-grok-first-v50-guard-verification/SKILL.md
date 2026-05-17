@@ -79,7 +79,7 @@ prompt-only base with runtime quality guards enabled. Expected identity:
 - `runtimeControl.mode=default`
 - `runtimeGuardrailsEnabled=true`
 - `normalInputRouterEnabled=true`
-- `boundedRewriteEnabled=true`
+- `boundedRewriteEnabled=false` for the first quality gate
 - `streamAudioBeforeDone=false`
 - `fullTurnBufferEnabled=false`
 - `turnDetection.create_response=false`
@@ -88,6 +88,10 @@ prompt-only base with runtime quality guards enabled. Expected identity:
 The quality route is not the speed hotfix. It holds Realtime audio until
 `response.done` and uses `fullTurnBufferCount`, `tailAudioDroppedBytes`, and
 raw/visible/audible transcript evidence for the quality guard DoD.
+Bounded rewrite is disabled in the first production quality route because the
+route starts from v50.7.2 prompt-only behavior and uses runtime guards for
+input suppression, fixed responses, negative output detection, and audio
+hold/drop.
 For the first quality DoD, P0 detection drops held audio even when the decision
 is `strip_tail`; a safe body plus bad tail may leave visible text but no audible
 output. Treat that as an accepted safety-first behavior until tail-only release

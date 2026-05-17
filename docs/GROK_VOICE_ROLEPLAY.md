@@ -116,7 +116,10 @@ prompt-only prompt. `/demo/adecco-roleplay-v50-7-quality` and
 `demoSlug=adecco-roleplay-v50-7-quality`, and
 `backend=grok-first-v50-7-quality`. Runtime guard flags are enabled,
 `streamAudioBeforeDone=false`, `fullTurnBufferEnabled=false`, and browser
-evaluation is disabled for this route. Opening-only greetings and
+evaluation is disabled for this route. `boundedRewriteEnabled=false` for the
+first quality gate, so normal sales turns keep the v50.7.2 prompt-only voice
+behavior and are protected by runtime guards rather than app-side text
+injection. Opening-only greetings and
 low-information backchannels are routed to `routePath=noise_ignored` with no
 assistant audio. Normal Realtime assistant audio is held until the final
 transcript guard has passed; if a P0 customer-led, meta, instruction-leak, or
@@ -464,7 +467,7 @@ requires guard-disabled runtime evidence: `routePath=grok_first_realtime`,
 `guardAction=pass`, empty `guardReasons`, `fullTurnBufferCount=0`,
 `tailAudioDroppedBytes=0`, and `audioBytes > 0`. For v50.7 quality, session
 smoke must report `runtimeGuardrailsEnabled=true`,
-`normalInputRouterEnabled=true`, `boundedRewriteEnabled=true`,
+`normalInputRouterEnabled=true`, `boundedRewriteEnabled=false`,
 `streamAudioBeforeDone=false`, `fullTurnBufferEnabled=false`, and
 `turnDetection.create_response=false`; the focused quality runner's final label
 is only `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`, or
