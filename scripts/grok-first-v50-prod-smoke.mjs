@@ -24,17 +24,23 @@ const apiBase = `/api/grok-first-${variant}`;
 const url = `${origin}/demo/${demoSlug}?debugMetrics=1`;
 const expectedPromptVersion = stringArg(
   args["expected-prompt-version"],
-  "grok-first-v50.6-2026-05-15"
+  variant === "v50-7-prompt-only" || variant === "v50-7-quality"
+    ? "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17"
+    : "grok-first-v50.6-2026-05-15"
 );
 const expectedGuardrailVersion = stringArg(
   args["expected-guardrail-version"],
   variant === "v50-8"
     ? "grok-first-v50.8-guard-2026-05-16"
+    : variant === "v50-7-prompt-only"
+    ? "prompt-only-no-runtime-guard-2026-05-17"
+    : variant === "v50-7-quality"
+    ? "grok-first-v50.7-quality-guard-2026-05-17"
     : "grok-first-v50.7-speed-hotfix-2026-05-17"
 );
 const expectedRuntimeGuardrailsEnabled = booleanArg(
   args["expected-runtime-guardrails-enabled"],
-  true
+  variant !== "v50-7-prompt-only"
 );
 const fixture = path.resolve(
   stringArg(
@@ -400,7 +406,13 @@ async function runBrowserSmoke() {
     const startOk =
       evidence.eventKinds.includes("ws.connected") &&
       evidence.eventKinds.includes("session.ready") &&
-      evidence.texts.some((text) => text.includes("お電話ありがとうございます。"));
+      evidence.texts.some((text) =>
+        text.includes(
+          variant === "v50-7-prompt-only" || variant === "v50-7-quality"
+            ? "本日はお時間頂きありがとうございます。営業事務の件で、一名派遣の方を検討しています。"
+            : "お電話ありがとうございます。"
+        )
+      );
     const voiceOk =
       mode !== "voice-turn" ||
       (evidence.eventKinds.includes("stt.completed") &&
@@ -462,8 +474,13 @@ function summarizeSessionPayload(json) {
     wsUrl: json.wsUrl,
     authMode: json.realtimeAuth?.mode,
     runtimeGuardrailsEnabled: json.runtimeGuardrailsEnabled,
+    inputGuardEnabled: json.inputGuardEnabled,
     normalInputRouterEnabled: json.normalInputRouterEnabled,
+    negativeGuardEnabled: json.negativeGuardEnabled,
+    tailGuardEnabled: json.tailGuardEnabled,
+    fixedGuardAudioEnabled: json.fixedGuardAudioEnabled,
     boundedRewriteEnabled: json.boundedRewriteEnabled,
+    noiseIgnoredEnabled: json.noiseIgnoredEnabled,
     runtimeTtsEnabled: json.runtimeTtsEnabled,
     replacementTtsEnabled: json.replacementTtsEnabled,
     latencyMode: json.latencyMode,
@@ -493,6 +510,14 @@ function isSessionContractOk(payload, status = evidence.sessionResponse?.status)
         payload?.normalInputRouterEnabled === false &&
         payload?.boundedRewriteEnabled === false &&
         payload?.turnDetectionSilenceMs === 350 &&
+        payload?.turnDetectionCreateResponse === false)) &&
+    (variant !== "v50-7-quality" ||
+      (payload?.latencyMode === "default" &&
+        payload?.streamAudioBeforeDone === false &&
+        payload?.fullTurnBufferEnabled === false &&
+        payload?.normalInputRouterEnabled === true &&
+        payload?.boundedRewriteEnabled === true &&
+        payload?.turnDetectionSilenceMs === 650 &&
         payload?.turnDetectionCreateResponse === false)) &&
     payload?.wsUrl === "wss://voice.mendan.biz/api/v3/realtime-relay" &&
     payload?.authMode === "mendan_relay_subprotocol" &&

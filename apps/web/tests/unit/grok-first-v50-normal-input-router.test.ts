@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { normalizeGrokFirstUserText } from "../../lib/grok-first-roleplay/guard/input-normalization";
 import { classifyNormalInputRoute } from "../../lib/grok-first-roleplay/guard/normal-input-router";
 
 describe("grok-first v50 normal input router", () => {
@@ -38,22 +39,22 @@ describe("grok-first v50 normal input router", () => {
   it("bounds continuation and budgeted residual risk inputs", () => {
     const continuation = classifyNormalInputRoute("分かりました、続けてください。");
     expect(continuation.action).toBe("pass");
-    expect(continuation.rewrittenText).toContain("直前に話していた募集背景だけ");
+    expect(continuation.rewrittenText).toContain("直前の募集背景");
     expect(continuation.rewrittenText).toContain(
-      "「品番確認が滞りやすい状況です。」とだけ"
+      "品番確認が滞りやすい状況です。"
     );
-    expect(continuation.rewrittenText).toContain("確認します");
+    expect(continuation.rewrittenText).not.toContain("何も足さ");
     expect(continuation.reasons).toContain("continue_detail_request");
 
     const conditions = classifyNormalInputRoute("条件を全部教えてください。");
-    expect(conditions.rewrittenText).toContain("条件の大枠だけ");
+    expect(conditions.rewrittenText).toContain("条件大枠");
     expect(conditions.rewrittenText).not.toContain("ご質問ください");
 
     const rate = classifyNormalInputRoute("単価レンジはどのくらいですか。");
     expect(rate.rewrittenText).toContain("単価レンジ");
-    expect(rate.rewrittenText).toContain("具体額");
-    expect(rate.rewrittenText).toContain("聞き返し");
-    expect(rate.rewrittenText).toContain("出さない");
+    expect(rate.rewrittenText).not.toContain("具体額");
+    expect(rate.rewrittenText).not.toContain("聞き返し");
+    expect(rate.rewrittenText).not.toContain("出さない");
 
     const misheardRate = classifyNormalInputRoute(
       "炭火レンジはどのくらいですか。"
@@ -81,17 +82,17 @@ describe("grok-first v50 normal input router", () => {
     expect(tradeoff.reasons).toContain("requirement_tradeoff_request");
 
     const otherVendor = classifyNormalInputRoute("他社状況を教えてください。");
-    expect(otherVendor.rewrittenText).toContain("他社状況");
+    expect(otherVendor.rewrittenText).toContain("他社にも相談");
     expect(otherVendor.rewrittenText).toContain("決定的な候補者");
     expect(otherVendor.reasons).toContain("other_vendor_status_request");
 
     const misheardOtherVendor =
       classifyNormalInputRoute("求人状況を教えてください。");
-    expect(misheardOtherVendor.rewrittenText).toContain("他社状況");
+    expect(misheardOtherVendor.rewrittenText).toContain("他社にも相談");
     expect(misheardOtherVendor.reasons).toContain("other_vendor_status_request");
 
     const companyStatus = classifyNormalInputRoute("会社状況を教えてください。");
-    expect(companyStatus.rewrittenText).toContain("他社状況");
+    expect(companyStatus.rewrittenText).toContain("他社にも相談");
     expect(companyStatus.reasons).toContain("other_vendor_status_request");
 
     const destination = classifyNormalInputRoute(
@@ -134,12 +135,12 @@ describe("grok-first v50 normal input router", () => {
       "そうですね、今回の募集背景を教えてください。"
     );
     expect(background.action).toBe("pass");
-    expect(background.rewrittenText).toContain("募集背景だけ");
-    expect(background.rewrittenText).toContain("とだけ一文");
-    expect(background.rewrittenText).toContain("何も足さない");
-    expect(background.rewrittenText).toContain("現場課長");
-    expect(background.rewrittenText).toContain("出さず");
-    expect(background.rewrittenText).toContain("挨拶・確認文で終えない");
+    expect(background.rewrittenText).toContain("募集背景");
+    expect(background.rewrittenText).toContain("自然に一文");
+    expect(background.rewrittenText).not.toContain("何も足さない");
+    expect(background.rewrittenText).not.toContain("現場課長");
+    expect(background.rewrittenText).not.toContain("出さず");
+    expect(background.rewrittenText).not.toContain("挨拶・確認文で終えない");
     expect(background.reasons).toContain("normal_realtime_rewrite");
 
     const detail = classifyNormalInputRoute(
@@ -149,5 +150,25 @@ describe("grok-first v50 normal input router", () => {
     expect(detail.rewrittenText).toContain("品番確認");
     expect(detail.rewrittenText).toContain("納期回答");
     expect(detail.reasons).toContain("background_detail_request");
+  });
+
+  it("normalizes domain STT confusion before routing", () => {
+    const feedback = normalizeGrokFirstUserText("スピードバックしてください。");
+    expect(feedback.normalizedText).toBe("フィードバックしてください。");
+    expect(feedback.normalizationReasons).toContain("stt_feedback");
+
+    const rate = normalizeGrokFirstUserText("炭火レンジはどのくらいですか。");
+    expect(rate.normalizedText).toBe("単価レンジはどのくらいですか。");
+    expect(rate.normalizationReasons).toContain("stt_rate_range");
+
+    const duplicate = normalizeGrokFirstUserText(
+      "応募者には何を伝えればよいですか。候補者には何を伝えればよいですか。"
+    );
+    expect(duplicate.normalizedText).toBe(
+      "候補者には何を伝えればよいですか。"
+    );
+    expect(duplicate.normalizationReasons).toContain(
+      "duplicate_synonym_question_compressed"
+    );
   });
 });

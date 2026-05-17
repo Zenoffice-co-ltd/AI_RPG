@@ -65,9 +65,33 @@ relevant naturalness/guard denominator is rerun.
 
 ## v50.7 Prompt-Only Diagnostic Route
 
-Use `/demo/adecco-roleplay-v50-7-prompt-only` only when measuring the v50.6
-System Prompt without app-side runtime assistance. This route is diagnostic, not
-a human-test rollout approval path.
+Use `/demo/adecco-roleplay-v50-7-prompt-only` only when measuring the v50.7.2
+prompt without app-side runtime assistance. This route is diagnostic, not a
+human-test rollout approval path.
+
+Use `/demo/adecco-roleplay-v50-7-quality` when validating the v50.7.2
+prompt-only base with runtime quality guards enabled. Expected identity:
+
+- `demoSlug=adecco-roleplay-v50-7-quality`
+- `backend=grok-first-v50-7-quality`
+- `promptVersion=grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17`
+- `guardrailVersion=grok-first-v50.7-quality-guard-2026-05-17`
+- `runtimeControl.mode=default`
+- `runtimeGuardrailsEnabled=true`
+- `normalInputRouterEnabled=true`
+- `boundedRewriteEnabled=true`
+- `streamAudioBeforeDone=false`
+- `fullTurnBufferEnabled=false`
+- `turnDetection.create_response=false`
+- browser evaluation disabled
+
+The quality route is not the speed hotfix. It holds Realtime audio until
+`response.done` and uses `fullTurnBufferCount`, `tailAudioDroppedBytes`, and
+raw/visible/audible transcript evidence for the quality guard DoD.
+For the first quality DoD, P0 detection drops held audio even when the decision
+is `strip_tail`; a safe body plus bad tail may leave visible text but no audible
+output. Treat that as an accepted safety-first behavior until tail-only release
+is explicitly optimized.
 
 ## v50.7 In-place Speed Hotfix
 
@@ -100,7 +124,7 @@ Expected identity:
 
 - `demoSlug=adecco-roleplay-v50-7-prompt-only`
 - `backend=grok-first-v50-7-prompt-only`
-- `promptVersion=grok-first-v50.6-2026-05-15`
+- `promptVersion=grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17`
 - `guardrailVersion=prompt-only-no-runtime-guard-2026-05-17`
 - `runtimeControl.mode=prompt_only`
 - no prompt-only speed-hotfix latency fields
@@ -111,7 +135,7 @@ Expected identity:
   `boundedRewriteEnabled`, `noiseIgnoredEnabled`, `fullTurnBufferEnabled`, and
   `replacementTtsEnabled`
 
-The v50.6 System Prompt itself must not change. The prompt-only route uses manual
+The v50.7.2 prompt itself must not change. The prompt-only route uses manual
 response orchestration (`turnDetection.create_response=false` and one app-side
 `response.create` after non-empty STT), but must not use content-based
 `response.cancel`, fixed guard audio, input guard, normal input router, negative
@@ -603,13 +627,20 @@ Useful commands:
 pnpm grok:first-v50:prod-smoke -- --variant <v50-x> --mode session
 pnpm grok:first-v50:prod-smoke -- --variant <v50-x> --mode start
 pnpm grok:first-v50:prod-smoke -- --variant <v50-x> --mode voice-turn
+pnpm grok:first-v50:prod-smoke -- --variant v50-7-quality --mode session
+pnpm grok:first-v50-7:natural-voice-e2e -- --case-set quality-guard-focused
 pnpm grok:first-v50:prod-logs -- --from-smoke out/.../evidence.json
 ```
 
-For v50.7 guard-disabled releases, the session smoke must show
-`runtimeGuardrailsEnabled=false`; the voice-turn smoke must show
+For v50.7 prompt-only guard-disabled diagnostic releases, the session smoke must
+show `runtimeGuardrailsEnabled=false`; the voice-turn smoke must show
 `routePath=grok_first_realtime`, `guardAction=pass`, `guardReasons=[]`,
 `fullTurnBufferCount=0`, `tailAudioDroppedBytes=0`, and `audioBytes > 0`.
+For v50.7 quality, session smoke must show the quality route identity, guards
+enabled, `streamAudioBeforeDone=false`, `fullTurnBufferEnabled=false`, and
+route-specific event endpoint `/api/grok-first-v50-7-quality/event`. Focused
+quality evidence reports only `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`, or
+`QUALITY_GUARD_BLOCKED`.
 `prod-logs --expect start` treats missing `turn.completed` as normal for
 start-only sessions, while `--expect voice-turn` treats `stt.completed` without
 `turn.completed` as a lifecycle failure.

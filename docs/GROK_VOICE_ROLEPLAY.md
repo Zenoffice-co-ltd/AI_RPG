@@ -42,9 +42,10 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 - **Research v50.4 / v50.1 relay runtime with latest System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-4
 - **Research v50.5 / v50 runtime with fixed output-contract System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-5
 - **Research v50.6 / v50 runtime with one-sentence guarded System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-6
-- **Diagnostic v50.7 prompt-only / v50.6 System Prompt with runtime guards off**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7-prompt-only
+- **Diagnostic v50.7.2 prompt-only / runtime guards off**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7-prompt-only
+- **v50.7.2 quality guard / prompt-only base with runtime guards on**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7-quality
 - **vFinal security foundation / invite-gated relay route**: https://roleplay.mendan.biz/demo/adecco-roleplay-vFinal
-- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1/v50.4/v50.5/v50.6/v50.7-prompt-only/vFinal: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1,50-4,50-5,50-6,50-7-prompt-only,Final}`
+- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1/v50.4/v50.5/v50.6/v50.7-prompt-only/v50.7-quality/vFinal: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1,50-4,50-5,50-6,50-7-prompt-only,50-7-quality,Final}`
 
 ## v50 Grok-first negative guard runtime
 
@@ -107,16 +108,26 @@ sentence, collapse off-role/ending guard handling to one fixed response, remove
 customer-side reverse questions, and keep the first message free of forbidden
 polite-request wording.
 
-For v50.7 Option A naturalness verification, the v50.6 System Prompt remains
-fixed. Normal sales naturalness is controlled in runtime code: opening-only
-greetings and low-information backchannels are routed to `routePath=noise_ignored`
-with no assistant audio, while bounded background/detail/business-flow questions
-may be rewritten before Realtime generation so the customer does not lead the
-salesperson into a next topic. Normal Realtime assistant audio is held until the
-final transcript guard has passed; if a P0 customer-led or generic-closing phrase
-is detected, held audio is dropped before playback, so `fullTurnBufferCount` may
-be `1` for safe normal turns. This is runtime/output-guard behavior, not a prompt
-change.
+For v50.7 quality-guard verification, the base prompt is the v50.7.2
+prompt-only prompt. `/demo/adecco-roleplay-v50-7-quality` and
+`/api/grok-first-v50-7-quality/*` keep the prompt-only `promptVersion` and
+`promptHash`, but return
+`guardrailVersion=grok-first-v50.7-quality-guard-2026-05-17`,
+`demoSlug=adecco-roleplay-v50-7-quality`, and
+`backend=grok-first-v50-7-quality`. Runtime guard flags are enabled,
+`streamAudioBeforeDone=false`, `fullTurnBufferEnabled=false`, and browser
+evaluation is disabled for this route. Opening-only greetings and
+low-information backchannels are routed to `routePath=noise_ignored` with no
+assistant audio. Normal Realtime assistant audio is held until the final
+transcript guard has passed; if a P0 customer-led, meta, instruction-leak, or
+generic-closing phrase is detected, held audio is dropped before playback.
+For the initial quality DoD this is safety-first even for `strip_tail`: a turn
+with a safe body and bad tail may keep safe visible transcript text while
+audible output is zero. Tail-only audio release is a later optimization, not a
+requirement for this first quality guard gate.
+Quality evidence uses `fullTurnBufferCount`, `tailAudioDroppedBytes`, and
+raw/visible/audible transcript separation rather than changing
+`fullTurnBufferEnabled`.
 
 As of the 2026-05-17 in-place v50.7 speed hotfix, the customer-facing
 `/demo/adecco-roleplay-v50-7` route is temporarily optimized for manual speed
@@ -137,8 +148,9 @@ evidence after the hotfix deploy. Human access is limited to manual speed check
 only, not product human-test approval.
 
 `/demo/adecco-roleplay-v50-7-prompt-only` is a diagnostic-only route for
-measuring the v50.6 System Prompt without app-side runtime assistance. It keeps
-`promptVersion=grok-first-v50.6-2026-05-15` and returns
+measuring the v50.7.2 prompt without app-side runtime assistance. It keeps
+`promptVersion=grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17`
+and returns
 `guardrailVersion=prompt-only-no-runtime-guard-2026-05-17`,
 `demoSlug=adecco-roleplay-v50-7-prompt-only`, and
 `backend=grok-first-v50-7-prompt-only`. Its session payload must show
@@ -157,7 +169,7 @@ prompt-only diagnostic.
 
 Prompt-only conclusions are:
 
-- `PROMPT_ONLY_USABLE`: v50.6 prompt identity, runtime guard fully off, voice
+- `PROMPT_ONLY_USABLE`: v50.7.2 prompt identity, runtime guard fully off, voice
   path established, guard events `0`, fixed guard audio `0`, content cancel `0`,
   manual review `P0=0`, and manual review `P1<=3`.
 - `PROMPT_ONLY_NOT_USABLE`: voice path works, but prompt-only produces at least
@@ -431,6 +443,11 @@ scripts instead of one-off `.codex_tmp` harnesses:
 pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode session
 pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode start
 pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode voice-turn
+pnpm grok:first-v50:prod-smoke -- --variant v50-7-quality --mode session
+pnpm grok:first-v50-7:natural-voice-e2e -- \
+  --case-set quality-guard-focused \
+  --base-url https://roleplay.mendan.biz \
+  --out out/grok_first_v50_7_quality_guard/<timestamp>
 pnpm grok:first-v50:prod-logs -- --from-smoke out/.../evidence.json
 pnpm grok:first-v50-7-prompt-only-smoke -- \
   --base-url https://roleplay.mendan.biz \
@@ -441,10 +458,17 @@ pnpm grok:first-v50-7-prompt-only-smoke -- \
   --out out/grok_first_v50_7_prompt_only/smoke_<timestamp>
 ```
 
-For v50.7, `--mode session` must report `runtimeGuardrailsEnabled=false`.
-The voice-turn smoke additionally requires the guard-disabled runtime evidence:
-`routePath=grok_first_realtime`, `guardAction=pass`, empty `guardReasons`,
-`fullTurnBufferCount=0`, `tailAudioDroppedBytes=0`, and `audioBytes > 0`.
+For v50.7 prompt-only, `--mode session` must report
+`runtimeGuardrailsEnabled=false`. Prompt-only voice-turn smoke additionally
+requires guard-disabled runtime evidence: `routePath=grok_first_realtime`,
+`guardAction=pass`, empty `guardReasons`, `fullTurnBufferCount=0`,
+`tailAudioDroppedBytes=0`, and `audioBytes > 0`. For v50.7 quality, session
+smoke must report `runtimeGuardrailsEnabled=true`,
+`normalInputRouterEnabled=true`, `boundedRewriteEnabled=true`,
+`streamAudioBeforeDone=false`, `fullTurnBufferEnabled=false`, and
+`turnDetection.create_response=false`; the focused quality runner's final label
+is only `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`, or
+`QUALITY_GUARD_BLOCKED`.
 Use `prod-logs --expect start` for start-only sessions and
 `prod-logs --expect voice-turn` for same-session turn evidence.
 

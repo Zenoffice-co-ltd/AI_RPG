@@ -1,4 +1,4 @@
-// Prompt-only production smoke for the v50.6 system-prompt diagnostic route.
+// Prompt-only production smoke for the v50.7.2 diagnostic route.
 //
 // Usage:
 //   pnpm grok:first-v50-7-prompt-only-smoke -- \
@@ -32,7 +32,7 @@ mkdirSync(screenshotsDir, { recursive: true });
 const expected = {
   demoSlug: "adecco-roleplay-v50-7-prompt-only",
   backend: "grok-first-v50-7-prompt-only",
-  promptVersion: "grok-first-v50.6-2026-05-15",
+  promptVersion: "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17",
   guardrailVersion: "prompt-only-no-runtime-guard-2026-05-17",
   wsUrl: "wss://voice.mendan.biz/api/v3/realtime-relay",
   authMode: "mendan_relay_subprotocol",

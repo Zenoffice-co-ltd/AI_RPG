@@ -453,7 +453,8 @@ describe("grok-first v50.7 client input guard", () => {
 
     expect(fake.cancelResponse).toHaveBeenCalledTimes(1);
     expect(fake.sendUserText).toHaveBeenCalledTimes(1);
-    expect(fake.sendUserText.mock.calls[0]?.[0]).toContain("募集背景だけ");
+    expect(fake.sendUserText.mock.calls[0]?.[0]).toContain("募集背景");
+    expect(fake.sendUserText.mock.calls[0]?.[0]).toContain("自然に一文");
     expect(
       postEvent.mock.calls.some(
         ([event]) => event.kind === "guard.rewrite_empty_done_ignored"
