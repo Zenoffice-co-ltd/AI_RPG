@@ -1,7 +1,10 @@
 "use client";
 
 import type { GrokFirstV50EventKind } from "./metrics";
-import type { GrokFirstV50Session } from "./types";
+import type {
+  GrokFirstV50GreetingAudio,
+  GrokFirstV50Session,
+} from "./types";
 
 export async function fetchGrokFirstV50Session(
   endpoint = "/api/grok-first-v50/session"
@@ -30,4 +33,19 @@ export function postGrokFirstV50Event(input: {
   })
     .then(() => undefined)
     .catch(() => undefined);
+}
+
+export async function fetchGrokFirstV50GreetingAudio(
+  input: { sessionId: string; text: string },
+  endpoint = "/api/grok-first-v50/greet"
+): Promise<GrokFirstV50GreetingAudio> {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error(`grok-first v50 greeting failed: ${response.status}`);
+  }
+  return (await response.json()) as GrokFirstV50GreetingAudio;
 }

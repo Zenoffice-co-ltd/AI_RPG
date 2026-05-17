@@ -120,6 +120,24 @@ function validV507Request() {
   });
 }
 
+function validV507PromptOnlyRequest() {
+  const headers = new Headers({
+    "content-type": "application/json",
+    origin: "http://127.0.0.1:3000",
+    referer:
+      "http://127.0.0.1:3000/demo/adecco-roleplay-v50-7-prompt-only",
+    cookie: `roleplay_api_access=${signAccessToken("demo-secret")}`,
+  });
+  return new NextRequest(
+    "http://127.0.0.1:3000/api/grok-first-v50-7-prompt-only/session",
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({}),
+    }
+  );
+}
+
 function validV51Request() {
   const headers = new Headers({
     "content-type": "application/json",
@@ -379,7 +397,7 @@ describe("grok-first v50 runtime", () => {
     expect(body["ephemeralExpiresAt"]).toBeUndefined();
   });
 
-  it("serves v50.7 with v50.6 prompt and v50.7 runtime guard contract", async () => {
+  it("serves v50.7 with v50.7.1 prompt and v50.7 runtime guard contract", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
     const { POST } =
       await import("../../app/api/grok-first-v50-7/session/route");
@@ -389,7 +407,9 @@ describe("grok-first v50 runtime", () => {
 
     expect(body["demoSlug"]).toBe("adecco-roleplay-v50-7");
     expect(body["backend"]).toBe("grok-first-v50-7");
-    expect(body["promptVersion"]).toBe("grok-first-v50.6-2026-05-15");
+    expect(body["promptVersion"]).toBe(
+      "grok-first-v50.7.1-natural-interactive-sales-2026-05-17",
+    );
     expect(String(body["guardrailVersion"])).toContain("v50.7");
     expect(body["browserEvaluationEnabled"]).toBe(true);
     expect(body["model"]).toBe("grok-voice-think-fast-1.0");
@@ -401,9 +421,25 @@ describe("grok-first v50 runtime", () => {
     expect(body["runtimeTtsEnabled"]).toBe(false);
     expect(body["replacementTtsEnabled"]).toBe(false);
     expect(body["fullTurnBufferEnabled"]).toBe(false);
+    expect(body["runtimeGuardrailsEnabled"]).toBe(true);
+    expect(body["inputGuardEnabled"]).toBe(true);
+    expect(body["normalInputRouterEnabled"]).toBe(true);
+    expect(body["negativeGuardEnabled"]).toBe(true);
+    expect(body["tailGuardEnabled"]).toBe(true);
+    expect(body["fixedGuardAudioEnabled"]).toBe(true);
+    expect(body["boundedRewriteEnabled"]).toBe(true);
+    expect(body["noiseIgnoredEnabled"]).toBe(true);
+    expect(body["runtimeControl"]).toMatchObject({
+      mode: "default",
+      runtimeGuardrailsEnabled: true,
+    });
     expect(body["ephemeralToken"]).toBeUndefined();
     expect(body["ephemeralExpiresAt"]).toBeUndefined();
-    expect(String(body["instructions"])).toContain("# v50.6");
+    expect(body["firstMessage"]).toBe(
+      "本日はありがとうございます。営業事務の件で、ご相談させていただければと思っています。",
+    );
+    expect(body["initialGreetingMode"]).toBe("spoken");
+    expect(String(body["instructions"])).toContain("grok-first-v50.7.1");
 
     const auth = body["realtimeAuth"] as Record<string, unknown>;
     const verification = verifyRelayTicket({
@@ -434,6 +470,66 @@ describe("grok-first v50 runtime", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as Record<string, unknown>;
     expect(body["browserEvaluationEnabled"]).toBe(false);
+  });
+
+  it("serves v50.7.1 on the prompt-only diagnostic route with all runtime guards disabled", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const { POST } = await import(
+      "../../app/api/grok-first-v50-7-prompt-only/session/route"
+    );
+    const response = await POST(validV507PromptOnlyRequest());
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as Record<string, unknown>;
+
+    expect(body["demoSlug"]).toBe("adecco-roleplay-v50-7-prompt-only");
+    expect(body["backend"]).toBe("grok-first-v50-7-prompt-only");
+    expect(body["promptVersion"]).toBe(
+      "grok-first-v50.7.1-natural-interactive-sales-2026-05-17",
+    );
+    expect(body["guardrailVersion"]).toBe(
+      "prompt-only-no-runtime-guard-2026-05-17"
+    );
+    expect(body["runtimeGuardrailsEnabled"]).toBe(false);
+    expect(body["inputGuardEnabled"]).toBe(false);
+    expect(body["normalInputRouterEnabled"]).toBe(false);
+    expect(body["negativeGuardEnabled"]).toBe(false);
+    expect(body["tailGuardEnabled"]).toBe(false);
+    expect(body["fixedGuardAudioEnabled"]).toBe(false);
+    expect(body["boundedRewriteEnabled"]).toBe(false);
+    expect(body["noiseIgnoredEnabled"]).toBe(false);
+    expect(body["fullTurnBufferEnabled"]).toBe(false);
+    expect(body["replacementTtsEnabled"]).toBe(false);
+    expect(body["turnDetection"]).toMatchObject({ create_response: false });
+    expect(body["initialGreetingMode"]).toBe("spoken");
+    expect(body["runtimeControl"]).toMatchObject({
+      mode: "prompt_only",
+      runtimeGuardrailsEnabled: false,
+      inputGuardEnabled: false,
+      normalInputRouterEnabled: false,
+      negativeGuardEnabled: false,
+      tailGuardEnabled: false,
+      fixedGuardAudioEnabled: false,
+      boundedRewriteEnabled: false,
+      noiseIgnoredEnabled: false,
+    });
+    expect(String(body["instructions"])).toContain("grok-first-v50.7.1");
+
+    const auth = body["realtimeAuth"] as Record<string, unknown>;
+    const verification = verifyRelayTicket({
+      ticket: String(auth["ticket"]),
+      secret: "0123456789abcdef0123456789abcdef",
+      expectedAud: "voice.mendan.biz",
+      expectedPath: DEFAULT_RELAY_TICKET_PATH,
+    });
+    expect(verification).toMatchObject({
+      ok: true,
+      payload: {
+        demoSlug: "adecco-roleplay-v50-7-prompt-only",
+        backend: "grok-first-v50-7-prompt-only",
+        transport: "mendan_cloud_run_relay_wss",
+      },
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("serves v51 with customer criteria persona and browser evaluation config", async () => {
@@ -586,6 +682,7 @@ describe("grok-first v50 runtime", () => {
     const v504Prompt = buildGrokFirstV50Prompt("v50.4");
     const v505Prompt = buildGrokFirstV50Prompt("v50.5");
     const v506Prompt = buildGrokFirstV50Prompt("v50.6");
+    const v5071Prompt = buildGrokFirstV50Prompt("v50.7.1");
     expect(prompt.instructions).toContain("Reveal Depth");
     expect(prompt.instructions).toContain("Culture Fit Facts");
     expect(prompt.instructions).toContain("Job Level Facts");
@@ -631,6 +728,16 @@ describe("grok-first v50 runtime", () => {
     );
     expect(v506Prompt.firstMessage).not.toContain("よろしくお願いします");
     expect(() => assertPromptDenylist(v506Prompt.instructions)).not.toThrow();
+    expect(v5071Prompt.instructions).toContain(
+      "grok-first-v50.7.1-natural-interactive-sales-2026-05-17",
+    );
+    expect(v5071Prompt.promptVersion).toBe(
+      "grok-first-v50.7.1-natural-interactive-sales-2026-05-17",
+    );
+    expect(v5071Prompt.firstMessage).toBe(
+      "本日はありがとうございます。営業事務の件で、ご相談させていただければと思っています。",
+    );
+    expect(() => assertPromptDenylist(v5071Prompt.instructions)).not.toThrow();
   });
 
   it("negative guard never generates fallback text", () => {

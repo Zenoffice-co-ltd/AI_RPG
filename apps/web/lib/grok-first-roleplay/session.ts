@@ -8,6 +8,7 @@ import { ensureEnvLoaded } from "@/server/loadEnv";
 import {
   buildGrokFirstV50Prompt,
   GROK_FIRST_V50_7_GUARDRAIL_VERSION,
+  GROK_FIRST_V50_7_PROMPT_ONLY_GUARDRAIL_VERSION,
   GROK_FIRST_V50_8_GUARDRAIL_VERSION,
   GROK_FIRST_V51_GUARDRAIL_VERSION,
   type GrokFirstPromptVariant,
@@ -23,6 +24,8 @@ import {
   GROK_FIRST_V50_6_DEMO_SLUG,
   GROK_FIRST_V50_7_BACKEND,
   GROK_FIRST_V50_7_DEMO_SLUG,
+  GROK_FIRST_V50_7_PROMPT_ONLY_BACKEND,
+  GROK_FIRST_V50_7_PROMPT_ONLY_DEMO_SLUG,
   GROK_FIRST_V50_8_BACKEND,
   GROK_FIRST_V50_8_DEMO_SLUG,
   GROK_FIRST_V51_BACKEND,
@@ -52,16 +55,22 @@ const envSchema = z.object({
 export async function createGrokFirstV50Session(input?: {
   variant?: GrokFirstPromptVariant;
   promptVariant?: GrokFirstPromptVariant;
-  runtimeVariant?: GrokFirstPromptVariant | "v50.7" | "v50.8" | "v51";
+  runtimeVariant?:
+    | GrokFirstPromptVariant
+    | "v50.7"
+    | "v50.7-prompt-only"
+    | "v50.8"
+    | "v51";
 }): Promise<GrokFirstV50Session> {
   await Promise.resolve();
   const env = getEnv();
   const promptVariant = input?.promptVariant ?? input?.variant ?? "v50";
   const runtimeVariant = input?.runtimeVariant ?? input?.variant ?? promptVariant;
+  const isPromptOnly = runtimeVariant === "v50.7-prompt-only";
   const prompt = buildGrokFirstV50Prompt(promptVariant);
   const voiceId = env.GROK_FIRST_V50_VOICE_ID ?? GROK_FIRST_V50_VOICE_ID;
   const sessionId = `gfv50_${randomUUID()}`;
-  const runtimeGuardrailsEnabled = runtimeVariant !== "v50.7";
+  const runtimeGuardrailsEnabled = !isPromptOnly;
   const identity =
     runtimeVariant === "v51"
       ? {
@@ -77,6 +86,11 @@ export async function createGrokFirstV50Session(input?: {
       ? {
           demoSlug: GROK_FIRST_V50_7_DEMO_SLUG,
           backend: GROK_FIRST_V50_7_BACKEND,
+        }
+      : isPromptOnly
+      ? {
+          demoSlug: GROK_FIRST_V50_7_PROMPT_ONLY_DEMO_SLUG,
+          backend: GROK_FIRST_V50_7_PROMPT_ONLY_BACKEND,
         }
       : runtimeVariant === "v50.6"
       ? {
@@ -129,6 +143,8 @@ export async function createGrokFirstV50Session(input?: {
         ? GROK_FIRST_V50_8_GUARDRAIL_VERSION
         : runtimeVariant === "v50.7"
         ? GROK_FIRST_V50_7_GUARDRAIL_VERSION
+        : isPromptOnly
+        ? GROK_FIRST_V50_7_PROMPT_ONLY_GUARDRAIL_VERSION
         : prompt.guardrailVersion,
     model: GROK_FIRST_V50_MODEL,
     voiceId,
@@ -150,17 +166,41 @@ export async function createGrokFirstV50Session(input?: {
       threshold: 0.65,
       silence_duration_ms: 650,
       prefix_padding_ms: 333,
-      ...(runtimeVariant === "v50.7" ? { create_response: false as const } : {}),
+      ...(runtimeVariant === "v50.7" || isPromptOnly
+        ? { create_response: false as const }
+        : {}),
     },
     tools: [],
     instructions: prompt.instructions,
     firstMessage: prompt.firstMessage,
+    initialGreetingMode:
+      runtimeVariant === "v50.7" || promptVariant === "v50.7.1"
+        ? "spoken"
+        : "history",
     registeredSpeechPayloadIncluded: false,
     lockedResponseAudioBundleIncluded: false,
     runtimeTtsEnabled: false,
     replacementTtsEnabled: false,
     fullTurnBufferEnabled: false,
     runtimeGuardrailsEnabled,
+    inputGuardEnabled: runtimeGuardrailsEnabled,
+    normalInputRouterEnabled: runtimeGuardrailsEnabled,
+    negativeGuardEnabled: runtimeGuardrailsEnabled,
+    tailGuardEnabled: runtimeGuardrailsEnabled,
+    fixedGuardAudioEnabled: runtimeGuardrailsEnabled,
+    boundedRewriteEnabled: runtimeGuardrailsEnabled,
+    noiseIgnoredEnabled: runtimeGuardrailsEnabled,
+    runtimeControl: {
+      mode: isPromptOnly ? "prompt_only" : "default",
+      runtimeGuardrailsEnabled,
+      inputGuardEnabled: runtimeGuardrailsEnabled,
+      normalInputRouterEnabled: runtimeGuardrailsEnabled,
+      negativeGuardEnabled: runtimeGuardrailsEnabled,
+      tailGuardEnabled: runtimeGuardrailsEnabled,
+      fixedGuardAudioEnabled: runtimeGuardrailsEnabled,
+      boundedRewriteEnabled: runtimeGuardrailsEnabled,
+      noiseIgnoredEnabled: runtimeGuardrailsEnabled,
+    },
     debugTranscriptPreviewEnabled:
       env.GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED === "true",
     browserEvaluationEnabled:

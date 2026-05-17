@@ -21,13 +21,23 @@ const apiBase = `/api/grok-first-${variant}`;
 const url = `${origin}/demo/${demoSlug}?debugMetrics=1`;
 const expectedPromptVersion = stringArg(
   args["expected-prompt-version"],
-  "grok-first-v50.6-2026-05-15"
+  variant === "v50-7" || variant === "v50-7-prompt-only"
+    ? "grok-first-v50.7.1-natural-interactive-sales-2026-05-17"
+    : "grok-first-v50.6-2026-05-15"
 );
 const expectedGuardrailVersion = stringArg(
   args["expected-guardrail-version"],
-  variant === "v50-8"
+  variant === "v50-7-prompt-only"
+    ? "prompt-only-no-runtime-guard-2026-05-17"
+    : variant === "v50-8"
     ? "grok-first-v50.8-guard-2026-05-16"
     : "grok-first-v50.7-guard-2026-05-15"
+);
+const expectedOpeningText = stringArg(
+  args["expected-opening-text"],
+  variant === "v50-7" || variant === "v50-7-prompt-only"
+    ? "本日はありがとうございます。営業事務の件で、ご相談させていただければと思っています。"
+    : "お電話ありがとうございます。"
 );
 const fixture = path.resolve(
   stringArg(
@@ -213,7 +223,7 @@ try {
   const startOk =
     evidence.eventKinds.includes("ws.connected") &&
     evidence.eventKinds.includes("session.ready") &&
-    evidence.texts.some((text) => text.includes("お電話ありがとうございます。"));
+    evidence.texts.some((text) => text.includes(expectedOpeningText));
   const voiceOk =
     mode !== "voice-turn" ||
     (evidence.eventKinds.includes("stt.completed") &&

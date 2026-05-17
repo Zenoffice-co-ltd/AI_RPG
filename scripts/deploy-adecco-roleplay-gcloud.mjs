@@ -54,8 +54,17 @@ const VARIANT_SESSION_TARGETS = {
     route: "/demo/adecco-roleplay-v50-7",
     apiPath: "/api/grok-first-v50-7/session",
     expectedBackend: "grok-first-v50-7",
-    expectedPromptVersion: "grok-first-v50.6-2026-05-15",
+    expectedPromptVersion:
+      "grok-first-v50.7.1-natural-interactive-sales-2026-05-17",
     expectedGuardrailVersion: "grok-first-v50.7-guard-2026-05-15",
+  },
+  "v50-7-prompt-only": {
+    route: "/demo/adecco-roleplay-v50-7-prompt-only",
+    apiPath: "/api/grok-first-v50-7-prompt-only/session",
+    expectedBackend: "grok-first-v50-7-prompt-only",
+    expectedPromptVersion:
+      "grok-first-v50.7.1-natural-interactive-sales-2026-05-17",
+    expectedGuardrailVersion: "prompt-only-no-runtime-guard-2026-05-17",
   },
   "v50-8": {
     route: "/demo/adecco-roleplay-v50-8",

@@ -7,6 +7,7 @@ import { OrbStage } from "./OrbStage";
 import { TranscriptPanel } from "./TranscriptPanel";
 import {
   fetchGrokFirstV50Session,
+  fetchGrokFirstV50GreetingAudio,
   postGrokFirstV50Event,
 } from "@/lib/grok-first-roleplay/client";
 import { useGrokFirstRoleplayConversation } from "@/lib/grok-first-roleplay/useGrokFirstRoleplayConversation";
@@ -39,6 +40,7 @@ export function GrokFirstV50RoleplayShell({
     | "/api/grok-first-v50-5"
     | "/api/grok-first-v50-6"
     | "/api/grok-first-v50-7"
+    | "/api/grok-first-v50-7-prompt-only"
     | "/api/grok-first-v50-8"
     | "/api/grok-first-v51"
     | "/api/grok-first-vFinal";
@@ -51,6 +53,8 @@ export function GrokFirstV50RoleplayShell({
   const apiDeps = useMemo(
     () => ({
       fetchSession: () => fetchGrokFirstV50Session(`${apiBase}/session`),
+      fetchGreetingAudio: (input: { sessionId: string; text: string }) =>
+        fetchGrokFirstV50GreetingAudio(input, `${apiBase}/greet`),
       postEvent: (input: Parameters<typeof postGrokFirstV50Event>[0]) =>
         postGrokFirstV50Event(input, `${apiBase}/event`),
       micEnabled: true,
@@ -163,7 +167,8 @@ async function endAndStartBrowserEvaluation({
     }
 
     const transcript = toEvaluationTranscript(messages);
-    let startFailed = transcript.length < 2;
+    const transcriptValidation = validateEvaluationTranscript(transcript);
+    let startFailed = !transcriptValidation.ok;
     if (!startFailed) {
       const response = await fetch(browserEvaluation.startEndpoint, {
         method: "POST",
@@ -208,9 +213,19 @@ export function resolveBrowserEvaluationConfig(
   return null;
 }
 
-function toEvaluationTranscript(messages: TranscriptMessage[]) {
+export type EvaluationTranscriptTurn = {
+  turn_id: string;
+  role: "user" | "agent";
+  text: string;
+};
+
+export function toEvaluationTranscript(
+  messages: TranscriptMessage[]
+): EvaluationTranscriptTurn[] {
   return messages
-    .filter((message) => message.status !== "interim")
+    .filter(
+      (message) => message.status !== "interim" && message.role !== "system"
+    )
     .map((message, index) => ({
       turn_id:
         message.sdkMessageId ??
@@ -220,6 +235,63 @@ function toEvaluationTranscript(messages: TranscriptMessage[]) {
       text: message.text.trim(),
     }))
     .filter((message) => message.text.length > 0);
+}
+
+export function validateEvaluationTranscript(
+  transcript: EvaluationTranscriptTurn[]
+):
+  | {
+      ok: true;
+      userTurns: number;
+      agentTurns: number;
+      turnCount: number;
+    }
+  | {
+      ok: false;
+      reason:
+        | "missing_sales_transcript"
+        | "missing_client_transcript"
+        | "too_short";
+      userTurns: number;
+      agentTurns: number;
+      turnCount: number;
+    } {
+  const userTurns = transcript.filter(
+    (turn) => turn.role === "user" && turn.text.trim().length > 0
+  ).length;
+  const agentTurns = transcript.filter(
+    (turn) => turn.role === "agent" && turn.text.trim().length > 0
+  ).length;
+  const turnCount = transcript.length;
+
+  if (userTurns === 0) {
+    return {
+      ok: false,
+      reason: "missing_sales_transcript",
+      userTurns,
+      agentTurns,
+      turnCount,
+    };
+  }
+  if (agentTurns === 0) {
+    return {
+      ok: false,
+      reason: "missing_client_transcript",
+      userTurns,
+      agentTurns,
+      turnCount,
+    };
+  }
+  if (turnCount < 2) {
+    return {
+      ok: false,
+      reason: "too_short",
+      userTurns,
+      agentTurns,
+      turnCount,
+    };
+  }
+  return { ok: true, userTurns, agentTurns, turnCount };
 }
 
 function DebugMetricsPanel({ metrics }: { metrics: GrokFirstV50Metric[] }) {

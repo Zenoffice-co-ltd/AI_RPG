@@ -155,7 +155,9 @@ describe("v50.7 browser evaluation APIs", () => {
     expect(response.status).toBe(200);
     expect(body.demoSlug).toBe("adecco-roleplay-v50-7");
     expect(body.backend).toBe("grok-first-v50-7");
-    expect(body.promptVersion).toBe("grok-first-v50.6-2026-05-15");
+    expect(body.promptVersion).toBe(
+      "grok-first-v50.7.1-natural-interactive-sales-2026-05-17"
+    );
     expect(body.guardrailVersion).toBe("grok-first-v50.7-guard-2026-05-15");
     expect(body.browserEvaluationEnabled).toBe(true);
   });
@@ -204,6 +206,44 @@ describe("v50.7 browser evaluation APIs", () => {
     expect(savedArtifacts.get("gv_sess_eval:adecco_eval_status")?.payload).toMatchObject({
       status: "queued",
     });
+  });
+
+  it("rejects evaluation start when the sales-side transcript is missing", async () => {
+    const { POST } = await import(
+      "../../app/api/grok-first-v50-7/evaluation/start/route"
+    );
+    const response = await POST(
+      apiRequest("http://127.0.0.1:3000/api/grok-first-v50-7/evaluation/start", {
+        sessionId: "gv_sess_eval",
+        transcript: [
+          { turn_id: "a1", role: "agent", text: "増員です。" },
+          { turn_id: "a2", role: "agent", text: "曜日は平日です。" },
+        ],
+        source: "grok_first_v50_7_browser",
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(enqueueMock).not.toHaveBeenCalled();
+    expect(savedArtifacts.get("gv_sess_eval:adecco_eval_status")).toBeUndefined();
+  });
+
+  it("rejects evaluation start when the client-side transcript is missing", async () => {
+    const { POST } = await import(
+      "../../app/api/grok-first-v50-7/evaluation/start/route"
+    );
+    const response = await POST(
+      apiRequest("http://127.0.0.1:3000/api/grok-first-v50-7/evaluation/start", {
+        sessionId: "gv_sess_eval",
+        transcript: [
+          { turn_id: "u1", role: "user", text: "募集背景を教えてください" },
+          { turn_id: "u2", role: "user", text: "人数は何名ですか" },
+        ],
+        source: "grok_first_v50_7_browser",
+      })
+    );
+    expect(response.status).toBe(400);
+    expect(enqueueMock).not.toHaveBeenCalled();
+    expect(savedArtifacts.get("gv_sess_eval:adecco_eval_status")).toBeUndefined();
   });
 
   it("worker saves browser scorecard and raw model output without sending Gmail", async () => {

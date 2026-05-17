@@ -142,8 +142,30 @@ export class GrokFirstRealtime {
     this.send({ type: "response.create" }, { gate: "ready" });
   }
 
-  createResponse(): void {
-    this.send({ type: "response.create" }, { gate: "ready" });
+  sendUserHistory(text: string): void {
+    this.send(
+      {
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text }],
+        },
+      },
+      { gate: "ready" }
+    );
+  }
+
+  createResponse(input?: { instructions?: string }): void {
+    this.send(
+      input?.instructions
+        ? {
+            type: "response.create",
+            response: { instructions: input.instructions },
+          }
+        : { type: "response.create" },
+      { gate: "ready" }
+    );
   }
 
   appendAudio(base64Pcm16: string): void {

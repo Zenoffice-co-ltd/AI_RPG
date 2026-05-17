@@ -10,6 +10,8 @@ export const GROK_FIRST_V50_4_DEMO_SLUG = "adecco-roleplay-v50-4" as const;
 export const GROK_FIRST_V50_5_DEMO_SLUG = "adecco-roleplay-v50-5" as const;
 export const GROK_FIRST_V50_6_DEMO_SLUG = "adecco-roleplay-v50-6" as const;
 export const GROK_FIRST_V50_7_DEMO_SLUG = "adecco-roleplay-v50-7" as const;
+export const GROK_FIRST_V50_7_PROMPT_ONLY_DEMO_SLUG =
+  "adecco-roleplay-v50-7-prompt-only" as const;
 export const GROK_FIRST_V50_8_DEMO_SLUG = "adecco-roleplay-v50-8" as const;
 export const GROK_FIRST_V51_DEMO_SLUG = "adecco-roleplay-v51" as const;
 export const GROK_FIRST_VFINAL_DEMO_SLUG = "adecco-roleplay-vFinal" as const;
@@ -19,6 +21,8 @@ export const GROK_FIRST_V50_4_BACKEND = "grok-first-v50-4" as const;
 export const GROK_FIRST_V50_5_BACKEND = "grok-first-v50-5" as const;
 export const GROK_FIRST_V50_6_BACKEND = "grok-first-v50-6" as const;
 export const GROK_FIRST_V50_7_BACKEND = "grok-first-v50-7" as const;
+export const GROK_FIRST_V50_7_PROMPT_ONLY_BACKEND =
+  "grok-first-v50-7-prompt-only" as const;
 export const GROK_FIRST_V50_8_BACKEND = "grok-first-v50-8" as const;
 export const GROK_FIRST_V51_BACKEND = "grok-first-v51" as const;
 export const GROK_FIRST_VFINAL_BACKEND = "grok-first-vFinal" as const;
@@ -33,6 +37,7 @@ export type GrokFirstDemoSlug =
   | typeof GROK_FIRST_V50_5_DEMO_SLUG
   | typeof GROK_FIRST_V50_6_DEMO_SLUG
   | typeof GROK_FIRST_V50_7_DEMO_SLUG
+  | typeof GROK_FIRST_V50_7_PROMPT_ONLY_DEMO_SLUG
   | typeof GROK_FIRST_V50_8_DEMO_SLUG
   | typeof GROK_FIRST_V51_DEMO_SLUG
   | typeof GROK_FIRST_VFINAL_DEMO_SLUG;
@@ -43,6 +48,7 @@ export type GrokFirstBackend =
   | typeof GROK_FIRST_V50_5_BACKEND
   | typeof GROK_FIRST_V50_6_BACKEND
   | typeof GROK_FIRST_V50_7_BACKEND
+  | typeof GROK_FIRST_V50_7_PROMPT_ONLY_BACKEND
   | typeof GROK_FIRST_V50_8_BACKEND
   | typeof GROK_FIRST_V51_BACKEND
   | typeof GROK_FIRST_VFINAL_BACKEND;
@@ -76,6 +82,18 @@ export type GrokFirstV50RealtimeAuth =
       expiresAt: string;
     };
 
+export type GrokFirstRuntimeControl = {
+  mode: "default" | "prompt_only";
+  runtimeGuardrailsEnabled: boolean;
+  inputGuardEnabled: boolean;
+  normalInputRouterEnabled: boolean;
+  negativeGuardEnabled: boolean;
+  tailGuardEnabled: boolean;
+  fixedGuardAudioEnabled: boolean;
+  boundedRewriteEnabled: boolean;
+  noiseIgnoredEnabled: boolean;
+};
+
 export type GrokFirstV50Session = {
   sessionId: string;
   demoSlug: GrokFirstDemoSlug;
@@ -104,15 +122,35 @@ export type GrokFirstV50Session = {
   tools: [];
   instructions: string;
   firstMessage: string;
+  initialGreetingMode?: "history" | "spoken";
   registeredSpeechPayloadIncluded: false;
   lockedResponseAudioBundleIncluded: false;
   runtimeTtsEnabled: false;
   replacementTtsEnabled: false;
   fullTurnBufferEnabled: false;
   runtimeGuardrailsEnabled: boolean;
+  inputGuardEnabled?: boolean | undefined;
+  normalInputRouterEnabled?: boolean | undefined;
+  negativeGuardEnabled?: boolean | undefined;
+  tailGuardEnabled?: boolean | undefined;
+  fixedGuardAudioEnabled?: boolean | undefined;
+  boundedRewriteEnabled?: boolean | undefined;
+  noiseIgnoredEnabled?: boolean | undefined;
+  runtimeControl?: GrokFirstRuntimeControl | undefined;
   debugTranscriptPreviewEnabled: boolean;
   browserEvaluationEnabled?: boolean;
   browserEvaluation?: GrokFirstBrowserEvaluationConfig | undefined;
+};
+
+export type GrokFirstV50GreetingAudio = {
+  audioBase64: string;
+  mimeType: "audio/pcm";
+  sampleRateHz: typeof GROK_FIRST_V50_SAMPLE_RATE;
+  textLen: number;
+  voiceId: string;
+  vendorMs?: number | undefined;
+  cacheStatus: "hit" | "miss";
+  cacheKeyHash?: string | undefined;
 };
 
 export type GrokFirstV50ServerEvent = {
@@ -163,6 +201,24 @@ export type GrokFirstV50Metric = {
   jobLevelPrematureRevealDetected: boolean;
   guardAction: GuardAction;
   guardReasons: string[];
+  runtimeControlMode?: GrokFirstRuntimeControl["mode"] | undefined;
+  runtimeGuardrailsEnabled?: boolean | undefined;
+  inputGuardEnabled?: boolean | undefined;
+  normalInputRouterEnabled?: boolean | undefined;
+  negativeGuardEnabled?: boolean | undefined;
+  tailGuardEnabled?: boolean | undefined;
+  fixedGuardAudioEnabled?: boolean | undefined;
+  boundedRewriteEnabled?: boolean | undefined;
+  noiseIgnoredEnabled?: boolean | undefined;
+  runtimeControl?: GrokFirstRuntimeControl | undefined;
+  responseCreateCount?: number | undefined;
+  responseCancelCount?: number | undefined;
+  responseCancelReasons?: string[] | undefined;
+  turnDetectionCreateResponse?: boolean | undefined;
+  rawAssistantTranscript?: string | undefined;
+  visibleAssistantTranscript?: string | undefined;
+  audibleTranscript?: string | undefined;
+  audibleTranscriptPreview?: string | undefined;
   promptHash: string;
   promptVersion: string;
   guardrailVersion: string;

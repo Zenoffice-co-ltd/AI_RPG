@@ -6,6 +6,7 @@
 
 import { createHash, createHmac } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import {
   appendFileSync,
   existsSync,
@@ -22,7 +23,7 @@ const SAMPLE_RATE = 24_000;
 const DEFAULT_BASE_URL = "https://roleplay.mendan.biz";
 const DEFAULT_ROUTE = "/demo/adecco-roleplay-v50-7";
 const DEFAULT_API_BASE = "/api/grok-first-v50-7";
-const EXPECTED_PROMPT_VERSION = "grok-first-v50.6-2026-05-15";
+const DEFAULT_EXPECTED_PROMPT_VERSION = "grok-first-v50.6-2026-05-15";
 const EXPECTED_GUARDRAIL_VERSION = "grok-first-v50.7-guard-2026-05-15";
 const ACCESS_COOKIE = "roleplay_access";
 const API_ACCESS_COOKIE = "roleplay_api_access";
@@ -62,6 +63,14 @@ const baseUrl = trimTrailingSlash(stringArg(args["base-url"], DEFAULT_BASE_URL))
 const route = normalizePath(stringArg(args.route, DEFAULT_ROUTE));
 const apiBase = normalizePath(stringArg(args["api-base"], DEFAULT_API_BASE));
 const caseSet = stringArg(args["case-set"], "evaluator-calibration");
+const workbookPath = args.workbook ? path.resolve(stringArg(args.workbook, "")) : "";
+const csvPath = args.csv ? path.resolve(stringArg(args.csv, "")) : "";
+const EXPECTED_PROMPT_VERSION = stringArg(
+  args["expected-prompt-version"],
+  caseSet === "prompt-only-csv"
+    ? "grok-first-v50.7.1-natural-interactive-sales-2026-05-17"
+    : DEFAULT_EXPECTED_PROMPT_VERSION
+);
 const caseIds = stringArg(args["case-ids"], "")
   .split(",")
   .map((value) => value.trim())
@@ -112,6 +121,7 @@ const authNotes = [];
 const secretSources = {};
 let caseDefinitions = [];
 let suite = null;
+let csvDesignSummary = null;
 
 async function main() {
   caseDefinitions = buildCaseSet(caseSet);
@@ -131,6 +141,9 @@ async function main() {
   suite.baseUrl = baseUrl;
   suite.route = route;
   suite.apiBase = apiBase;
+  if (workbookPath) suite.workbookPath = workbookPath;
+  if (csvPath) suite.csvPath = csvPath;
+  if (csvDesignSummary) suite.csvDesignSummary = csvDesignSummary;
   suite.localCheckoutSha = localCheckoutSha;
   suite.productionCommitSha ||= "not observable";
   suite.productionCommitShaReason ||=
@@ -169,7 +182,9 @@ async function main() {
   if (refreshReportOnly) {
     suite.completedAt = new Date().toISOString();
     suite.overall =
-      suite.budgetedResidualContract || caseSet === BUDGETED_RESIDUAL_CASE_SET
+      caseSet === "prompt-only-workbook" || caseSet === "prompt-only-csv"
+        ? summarizePromptOnlyWorkbookSuite(suite)
+        : suite.budgetedResidualContract || caseSet === BUDGETED_RESIDUAL_CASE_SET
         ? summarizeBudgetedResidualSuite(suite)
         : summarizeSuite(suite);
     writeOutputs();
@@ -196,7 +211,9 @@ async function main() {
   suite.caseSets[caseSet].completedAt = new Date().toISOString();
   suite.completedAt = new Date().toISOString();
   suite.overall =
-    suite.budgetedResidualContract || caseSet === BUDGETED_RESIDUAL_CASE_SET
+    caseSet === "prompt-only-workbook" || caseSet === "prompt-only-csv"
+      ? summarizePromptOnlyWorkbookSuite(suite)
+      : suite.budgetedResidualContract || caseSet === BUDGETED_RESIDUAL_CASE_SET
       ? summarizeBudgetedResidualSuite(suite)
       : summarizeSuite(suite);
   writeOutputs();
@@ -337,8 +354,17 @@ async function runRuntimeCases() {
   }
 
   const runResults = [];
+  const totalRuntimeCases = caseDefinitions.length * runs;
+  let completedRuntimeCases = 0;
+  logRuntimeProgress("start", { completed: completedRuntimeCases, total: totalRuntimeCases });
   for (let runIndex = 1; runIndex <= runs; runIndex += 1) {
     for (const testCase of caseDefinitions) {
+      logRuntimeProgress("case_start", {
+        completed: completedRuntimeCases,
+        total: totalRuntimeCases,
+        caseId: testCase.id,
+        runIndex,
+      });
       const nextCaseCostUsd = estimateRuntimeCaseCostUsd(testCase);
       if (wouldExceedApiCostLimit(nextCaseCostUsd)) {
         const blockedResults = remainingRuntimeCases(caseDefinitions, runs, runIndex, testCase).map(
@@ -373,11 +399,48 @@ async function runRuntimeCases() {
           : await runVoiceCase(testCase, runIndex, demoToken, accessSignature, xaiApiKey);
       runResults.push(result);
       suite.caseSets[caseSet].results.push(result);
+      completedRuntimeCases += 1;
+      suite.caseSets[caseSet].progress = {
+        completed: completedRuntimeCases,
+        total: totalRuntimeCases,
+        lastCaseId: testCase.id,
+        lastStatus: result.status,
+        updatedAt: new Date().toISOString(),
+      };
+      logRuntimeProgress("case_done", {
+        completed: completedRuntimeCases,
+        total: totalRuntimeCases,
+        caseId: testCase.id,
+        runIndex,
+        status: result.status,
+      });
       writeOutputs();
       await sleep(INTER_CASE_COOLDOWN_MS);
     }
   }
   suite.caseSets[caseSet].summary = summarizeCaseSet(caseSet, runResults);
+  logRuntimeProgress("complete", { completed: completedRuntimeCases, total: totalRuntimeCases });
+}
+
+function logRuntimeProgress(kind, details) {
+  const completed = Number(details.completed ?? 0);
+  const total = Number(details.total ?? 0);
+  const casePart = details.caseId ? ` case=${details.caseId}` : "";
+  const runPart = details.runIndex ? ` run=${details.runIndex}` : "";
+  const statusPart = details.status ? ` status=${details.status}` : "";
+  const line = `[progress] ${kind} ${completed}/${total}${casePart}${runPart}${statusPart}`;
+  console.log(line);
+  appendEvent({
+    source: "runner",
+    payload: {
+      kind: `progress.${kind}`,
+      completed,
+      total,
+      caseId: details.caseId ?? null,
+      runIndex: details.runIndex ?? null,
+      status: details.status ?? null,
+    },
+  });
 }
 
 async function runProductionPreflight(options = {}) {
@@ -705,6 +768,16 @@ function extractSessionPayload(json) {
     realtimeTransport: json.realtimeTransport,
     wsUrl: json.wsUrl,
     authMode: json.realtimeAuth?.mode,
+    runtimeControlMode: json.runtimeControl?.mode,
+    runtimeGuardrailsEnabled: json.runtimeGuardrailsEnabled,
+    inputGuardEnabled: json.inputGuardEnabled,
+    normalInputRouterEnabled: json.normalInputRouterEnabled,
+    negativeGuardEnabled: json.negativeGuardEnabled,
+    tailGuardEnabled: json.tailGuardEnabled,
+    fixedGuardAudioEnabled: json.fixedGuardAudioEnabled,
+    boundedRewriteEnabled: json.boundedRewriteEnabled,
+    noiseIgnoredEnabled: json.noiseIgnoredEnabled,
+    turnDetectionCreateResponse: json.turnDetection?.create_response !== false,
     registeredSpeechPayloadIncluded: json.registeredSpeechPayloadIncluded,
     lockedResponseAudioBundleIncluded: json.lockedResponseAudioBundleIncluded,
     runtimeTtsEnabled: json.runtimeTtsEnabled,
@@ -715,19 +788,67 @@ function extractSessionPayload(json) {
 
 function validateSessionIdentity(sessionPayload) {
   const invalidReasons = [];
-  if (sessionPayload?.demoSlug !== "adecco-roleplay-v50-7") {
+  const expected = expectedSessionIdentity();
+  if (sessionPayload?.demoSlug !== expected.demoSlug) {
     invalidReasons.push(`demoSlug=${sessionPayload?.demoSlug ?? "<missing>"}`);
   }
-  if (sessionPayload?.backend !== "grok-first-v50-7") {
+  if (sessionPayload?.backend !== expected.backend) {
     invalidReasons.push(`backend=${sessionPayload?.backend ?? "<missing>"}`);
   }
-  if (sessionPayload?.promptVersion !== EXPECTED_PROMPT_VERSION) {
+  if (sessionPayload?.promptVersion !== expected.promptVersion) {
     invalidReasons.push(`promptVersion=${sessionPayload?.promptVersion ?? "<missing>"}`);
   }
-  if (sessionPayload?.guardrailVersion !== EXPECTED_GUARDRAIL_VERSION) {
+  if (sessionPayload?.guardrailVersion !== expected.guardrailVersion) {
     invalidReasons.push(`guardrailVersion=${sessionPayload?.guardrailVersion ?? "<missing>"}`);
   }
+  if (expected.promptOnly) {
+    if (sessionPayload?.runtimeControlMode !== "prompt_only") {
+      invalidReasons.push(`runtimeControl.mode=${sessionPayload?.runtimeControlMode ?? "<missing>"}`);
+    }
+    for (const key of [
+      "runtimeGuardrailsEnabled",
+      "inputGuardEnabled",
+      "normalInputRouterEnabled",
+      "negativeGuardEnabled",
+      "tailGuardEnabled",
+      "fixedGuardAudioEnabled",
+      "boundedRewriteEnabled",
+      "noiseIgnoredEnabled",
+      "fullTurnBufferEnabled",
+      "replacementTtsEnabled",
+    ]) {
+      if (sessionPayload?.[key] !== false) invalidReasons.push(`${key}=${sessionPayload?.[key] ?? "<missing>"}`);
+    }
+    if (sessionPayload?.turnDetectionCreateResponse !== false) {
+      invalidReasons.push(`turnDetection.create_response=${sessionPayload?.turnDetectionCreateResponse ?? "<missing>"}`);
+    }
+    if (sessionPayload?.wsUrl !== "wss://voice.mendan.biz/api/v3/realtime-relay") {
+      invalidReasons.push(`wsUrl=${sessionPayload?.wsUrl ?? "<missing>"}`);
+    }
+    if (sessionPayload?.authMode !== "mendan_relay_subprotocol") {
+      invalidReasons.push(`authMode=${sessionPayload?.authMode ?? "<missing>"}`);
+    }
+  }
   return invalidReasons;
+}
+
+function expectedSessionIdentity() {
+  if (route.includes("v50-7-prompt-only") || apiBase.includes("v50-7-prompt-only")) {
+    return {
+      demoSlug: "adecco-roleplay-v50-7-prompt-only",
+      backend: "grok-first-v50-7-prompt-only",
+      promptVersion: EXPECTED_PROMPT_VERSION,
+      guardrailVersion: "prompt-only-no-runtime-guard-2026-05-17",
+      promptOnly: true,
+    };
+  }
+  return {
+    demoSlug: "adecco-roleplay-v50-7",
+    backend: "grok-first-v50-7",
+    promptVersion: EXPECTED_PROMPT_VERSION,
+    guardrailVersion: EXPECTED_GUARDRAIL_VERSION,
+    promptOnly: false,
+  };
 }
 
 async function sendTextTurn(page, text) {
@@ -822,6 +943,8 @@ function finalizeRuntimeCase(testCase, evidence) {
     caseSet,
     runIndex: evidence.runIndex,
     category: testCase.category,
+    priority: testCase.priority ?? null,
+    phase: testCase.phase ?? null,
     runtimeMode: testCase.runtimeMode,
     userInput: testCase.userInput ?? "",
     status,
@@ -1171,6 +1294,67 @@ function summarizeSuite(currentSuite) {
       missingRequiredEstimatedCostUsd: missingRequiredCostProjection.estimatedCostUsd,
       projectedTotalEstimatedCostUsd,
     }),
+  };
+}
+
+function summarizePromptOnlyWorkbookSuite(currentSuite) {
+  const results = allResults(currentSuite);
+  const total = results.length;
+  const pass = results.filter((result) => result.status === "PASS").length;
+  const fail = results.filter((result) => result.status === "FAIL").length;
+  const invalid = results.filter((result) => result.status === "INVALID").length;
+  const blocked = results.filter((result) => result.status === "BLOCKED").length;
+  const p0 = results.filter((result) => result.priority === "P0");
+  const p0Fail = p0.filter((result) => result.status === "FAIL").length;
+  const p0InvalidOrBlocked = p0.filter((result) => result.status === "INVALID" || result.status === "BLOCKED").length;
+  const falsePassAudit = results.filter((result) => result.falsePassRisk).length;
+  const guardIntervention = results.filter((result) =>
+    ["fixed_guard", "noise_ignored", "suppressed"].includes(result.routePath ?? "") ||
+    ["fixed_exit", "fixed_external", "cancel", "suppress"].includes(result.guardAction ?? "") ||
+    result.fixedPlaybackStarted ||
+    result.fixedPlaybackCompleted
+  ).length;
+  const final =
+    blocked || invalid || p0InvalidOrBlocked || guardIntervention
+      ? "PROMPT_CONTROL_BLOCKED"
+      : fail || p0Fail
+        ? "PROMPT_CONTROL_FAIL"
+        : falsePassAudit
+          ? "PROMPT_CONTROL_BLOCKED"
+          : "PROMPT_CONTROL_BLOCKED";
+  const finalReason =
+    final === "PROMPT_CONTROL_FAIL"
+      ? "one or more workbook assertions failed"
+      : final === "PROMPT_CONTROL_BLOCKED" && falsePassAudit
+        ? "automatic assertions passed for some review-risk cases, but workbook PASS requires human review"
+        : final === "PROMPT_CONTROL_BLOCKED" && (blocked || invalid || p0InvalidOrBlocked || guardIntervention)
+          ? "required route/session/voice/guard-absence evidence was blocked or invalid"
+          : "automatic assertions completed, but workbook PASS requires the two-reviewer manual review gate";
+  return {
+    final,
+    finalReason,
+    promptOnlyWorkbookContract: {
+      allowedFinalConclusions: ["PROMPT_CONTROL_PASS", "PROMPT_CONTROL_FAIL", "PROMPT_CONTROL_BLOCKED"],
+      passRequiresManualReview: true,
+      productHumanTestAllowed: "no",
+    },
+    sourceWorkbook: currentSuite.workbookPath ?? workbookPath,
+    sourceCsv: currentSuite.csvPath ?? csvPath,
+    csvDesignSummary: currentSuite.csvDesignSummary ?? csvDesignSummary,
+    total,
+    pass,
+    fail,
+    invalid,
+    blocked,
+    p0Total: p0.length,
+    p0Pass: p0.filter((result) => result.status === "PASS").length,
+    p0Fail,
+    p0InvalidOrBlocked,
+    falsePassAudit,
+    guardIntervention,
+    estimatedSpentUsd: currentSuite.apiCost?.estimatedSpentUsd ?? 0,
+    passRate: total ? pass / total : 0,
+    humanTestAllowed: "no",
   };
 }
 
@@ -1907,6 +2091,9 @@ function renderReport(currentSuite) {
   if (currentSuite.overall?.budgetedResidualContract) {
     return renderBudgetedResidualReport(currentSuite);
   }
+  if (currentSuite.overall?.promptOnlyWorkbookContract) {
+    return renderPromptOnlyWorkbookReport(currentSuite);
+  }
   const finalConclusion = currentSuite.overall?.final ?? "BLOCKED";
   const versionPayload =
     currentSuite.preflight?.sessionPayload ??
@@ -2116,6 +2303,107 @@ function renderReport(currentSuite) {
   lines.push("- Do not substitute fixed guard or text-only evidence for normal sales voice PASS.");
   lines.push("- For production SHA uncertainty, compare Cloud/App Hosting rollout metadata separately if exact build identity is required.");
   lines.push("");
+  return `${lines.join("\n")}\n`;
+}
+
+function renderPromptOnlyWorkbookReport(currentSuite) {
+  const overall = currentSuite.overall ?? {};
+  const versionPayload =
+    currentSuite.preflight?.sessionPayload ??
+    allResults(currentSuite).find((result) => result.sessionPayload)?.sessionPayload ??
+    null;
+  const failures = allResults(currentSuite).filter((result) => result.status !== "PASS");
+  const falsePassRisk = allResults(currentSuite).filter((result) => result.falsePassRisk);
+  const tagCounts = countBy(
+    allResults(currentSuite).flatMap((result) => result.failureTags ?? [])
+  );
+  const hardFailCounts = countBy(
+    allResults(currentSuite).flatMap((result) => result.hardFailReasons ?? [])
+  );
+  const p50FirstAudio = percentile(
+    allResults(currentSuite).map((result) => result.firstAudibleAudioMs).filter((value) => typeof value === "number"),
+    0.5
+  );
+  const p95FirstAudio = percentile(
+    allResults(currentSuite).map((result) => result.firstAudibleAudioMs).filter((value) => typeof value === "number"),
+    0.95
+  );
+  const lines = [
+    "# v50.7 Prompt-Only Design E2E Report",
+    "",
+    "## Executive Summary",
+    "",
+    `- Final conclusion: ${overall.final ?? "PROMPT_CONTROL_BLOCKED"}`,
+    `- Final reason: ${overall.finalReason ?? "not available"}`,
+    "- Product human test allowed: no",
+    `- Source workbook: ${overall.sourceWorkbook ?? currentSuite.workbookPath ?? workbookPath ?? ""}`,
+    `- Source CSV: ${overall.sourceCsv ?? currentSuite.csvPath ?? csvPath ?? ""}`,
+    `- CSV design rows: ${overall.csvDesignSummary?.totalRows ?? currentSuite.csvDesignSummary?.totalRows ?? "n/a"}`,
+    `- CSV executable voice rows: ${overall.csvDesignSummary?.executableVoiceRows ?? currentSuite.csvDesignSummary?.executableVoiceRows ?? "n/a"}`,
+    `- CSV preflight rows: ${overall.csvDesignSummary?.preflightRows ?? currentSuite.csvDesignSummary?.preflightRows ?? "n/a"}`,
+    `- Started: ${currentSuite.startedAt}`,
+    `- Completed: ${currentSuite.completedAt ?? "in progress"}`,
+    `- Base URL: ${currentSuite.baseUrl}`,
+    `- Route: ${currentSuite.route}`,
+    `- API base: ${currentSuite.apiBase}`,
+    "",
+    "## Version / Guard Absence",
+    "",
+    `- demoSlug: ${versionPayload?.demoSlug ?? "not observable"}`,
+    `- backend: ${versionPayload?.backend ?? "not observable"}`,
+    `- promptVersion: ${versionPayload?.promptVersion ?? "not observable"}`,
+    `- guardrailVersion: ${versionPayload?.guardrailVersion ?? "not observable"}`,
+    `- runtimeControl.mode: ${versionPayload?.runtimeControlMode ?? "not observable"}`,
+    `- runtimeGuardrailsEnabled: ${String(versionPayload?.runtimeGuardrailsEnabled)}`,
+    `- inputGuardEnabled: ${String(versionPayload?.inputGuardEnabled)}`,
+    `- normalInputRouterEnabled: ${String(versionPayload?.normalInputRouterEnabled)}`,
+    `- negativeGuardEnabled: ${String(versionPayload?.negativeGuardEnabled)}`,
+    `- tailGuardEnabled: ${String(versionPayload?.tailGuardEnabled)}`,
+    `- fixedGuardAudioEnabled: ${String(versionPayload?.fixedGuardAudioEnabled)}`,
+    `- boundedRewriteEnabled: ${String(versionPayload?.boundedRewriteEnabled)}`,
+    `- noiseIgnoredEnabled: ${String(versionPayload?.noiseIgnoredEnabled)}`,
+    `- turnDetection.create_response false observed: ${versionPayload?.turnDetectionCreateResponse === false ? "yes" : "no"}`,
+    `- wsUrl: ${versionPayload?.wsUrl ?? "not observable"}`,
+    `- authMode: ${versionPayload?.authMode ?? "not observable"}`,
+    `- model: ${versionPayload?.model ?? "not observable"}`,
+    `- voiceId: ${versionPayload?.voiceId ?? "not observable"}`,
+    "",
+    "## Results",
+    "",
+    `- total: ${overall.total ?? 0}`,
+    `- pass: ${overall.pass ?? 0}`,
+    `- fail: ${overall.fail ?? 0}`,
+    `- invalid: ${overall.invalid ?? 0}`,
+    `- blocked: ${overall.blocked ?? 0}`,
+    `- P0 total: ${overall.p0Total ?? 0}`,
+    `- P0 pass: ${overall.p0Pass ?? 0}`,
+    `- P0 fail: ${overall.p0Fail ?? 0}`,
+    `- false-pass audit required: ${overall.falsePassAudit ?? 0}`,
+    `- guard intervention count: ${overall.guardIntervention ?? 0}`,
+    `- estimated spent USD: ${overall.estimatedSpentUsd ?? 0}`,
+    `- firstAudibleAudioMs p50/p95: ${p50FirstAudio ?? "n/a"} / ${p95FirstAudio ?? "n/a"}`,
+    "",
+    "## Top Failure Tags",
+    "",
+    ...formatTopCounts(tagCounts),
+    "",
+    "## Top Hard Fails",
+    "",
+    ...formatTopCounts(hardFailCounts),
+    "",
+    "## Failed / Invalid / Blocked Cases",
+    "",
+    ...(failures.length
+      ? failures.map((result) => `- ${result.caseId} [${result.priority ?? "-"}] ${result.status}: ${(result.hardFailReasons ?? result.invalidReasons ?? result.blockedReasons ?? []).slice(0, 3).join("; ")}`)
+      : ["- None"]),
+    "",
+    "## Manual Review Required",
+    "",
+    ...(falsePassRisk.length
+      ? falsePassRisk.map((result) => `- ${result.caseId} [${result.priority ?? "-"}]`)
+      : ["- None"]),
+    "",
+  ];
   return `${lines.join("\n")}\n`;
 }
 
@@ -2463,7 +2751,200 @@ function buildCaseSet(name) {
   if (name === "mixed-recovery") return buildMixedRecoveryCases();
   if (name === "fixed-guard-smoke") return buildFixedGuardCases();
   if (name === BUDGETED_RESIDUAL_CASE_SET) return buildBudgetedResidualCases();
+  if (name === "prompt-only-workbook") return buildPromptOnlyWorkbookCases();
+  if (name === "prompt-only-csv") return buildPromptOnlyCsvCases();
   throw new Error(`Unsupported --case-set ${name}`);
+}
+
+function buildPromptOnlyWorkbookCases() {
+  if (!workbookPath) throw new Error("BLOCKED: --workbook is required for --case-set prompt-only-workbook");
+  const rows = loadWorkbookRows(workbookPath, "03_Turn_Cases");
+  const forbiddenRows = loadWorkbookRows(workbookPath, "06_Forbidden_Phrases");
+  const forbiddenForAll = forbiddenRows
+    .filter((row) => String(row["P0?"] ?? "").trim().toLowerCase() === "yes")
+    .filter((row) => String(row.Scope ?? "").includes("All outputs"))
+    .map((row) => String(row.Phrase ?? "").trim())
+    .filter(Boolean);
+  const forbiddenForExternal = forbiddenRows
+    .filter((row) => String(row["P0?"] ?? "").trim().toLowerCase() === "yes")
+    .filter((row) => !String(row.Scope ?? "").includes("All outputs"))
+    .map((row) => String(row.Phrase ?? "").trim())
+    .filter(Boolean);
+
+  return rows
+    .filter((row) => String(row["Case ID"] ?? "").trim())
+    .sort((a, b) => Number(a["Run Order"] || 0) - Number(b["Run Order"] || 0))
+    .flatMap((row) => {
+      const id = String(row["Case ID"] ?? "").trim();
+      const category = String(row.Category ?? "").trim();
+      const userInput = String(row["User Input"] ?? "").trim();
+      if (!userInput) return [];
+      const mustNotContain = [
+        ...splitWorkbookList(row["Must Not Include"]),
+        ...forbiddenForAll,
+        ...(category.startsWith("E_External") ? forbiddenForExternal : []),
+      ];
+      return [
+        voiceCase(id, category, userInput, {
+          priority: String(row.Priority ?? "").trim(),
+          phase: String(row.Phase ?? "").trim(),
+          contextTurns: parseWorkbookContextTurns(row["Context Turns"]),
+          expectedIntent: /Backchannel|Low_Info/i.test(`${category} ${row.Phase ?? ""}`)
+            ? "backchannel"
+            : undefined,
+          mustContainAll: splitWorkbookList(row["Must Include All"]),
+          mustContainAny: splitWorkbookList(row["Must Include Any"]),
+          mustNotContain,
+          overDisclosureForbidden: splitWorkbookList(row["Overdisclosure Forbidden"]),
+          maxSentences: Number(row["Max Sentences"] || 0) || 2,
+          manualReviewRequired: String(row["Human Review Required"] ?? "").trim(),
+          expectedPolicy: String(row["Expected Raw Assistant Behavior"] ?? "").trim(),
+        }),
+      ];
+    });
+}
+
+function loadWorkbookRows(targetWorkbookPath, sheetName) {
+  if (!existsSync(targetWorkbookPath)) throw new Error(`Workbook not found: ${targetWorkbookPath}`);
+  const requireFromScenarioEngine = createRequire(path.join(ROOT, "packages", "scenario-engine", "package.json"));
+  const XLSX = requireFromScenarioEngine("xlsx");
+  const workbook = XLSX.readFile(targetWorkbookPath);
+  const sheet = workbook.Sheets[sheetName];
+  if (!sheet) throw new Error(`Worksheet not found: ${sheetName}`);
+  return XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
+}
+
+function splitWorkbookList(value) {
+  return String(value ?? "")
+    .split(/\s*\|\s*|\r?\n/u)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseWorkbookContextTurns(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return [];
+  const quotedSalesTurns = [...text.matchAll(/営業[『「]([^』」]+)[』」]/gu)]
+    .map((match) => match[1]?.trim())
+    .filter(Boolean);
+  if (quotedSalesTurns.length > 0) return quotedSalesTurns;
+  return splitWorkbookList(text);
+}
+
+function buildPromptOnlyCsvCases() {
+  if (!csvPath) throw new Error("BLOCKED: --csv is required for --case-set prompt-only-csv");
+  if (!existsSync(csvPath)) throw new Error(`CSV not found: ${csvPath}`);
+  const rows = parseCsvRecords(readFileSync(csvPath, "utf8"));
+  const caseRows = rows.filter((row) => String(row.case_id ?? "").trim());
+  const executableRows = caseRows.filter((row) => String(row.sales_user_input ?? "").trim());
+  const preflightRows = caseRows.filter((row) => !String(row.sales_user_input ?? "").trim());
+  csvDesignSummary = {
+    sourceCsv: csvPath,
+    totalRows: rows.length,
+    caseRows: caseRows.length,
+    executableVoiceRows: executableRows.length,
+    preflightRows: preflightRows.length,
+    runTierCounts: countBy(caseRows.map((row) => String(row.run_tier ?? "").trim() || "<blank>")),
+    priorityCounts: countBy(caseRows.map((row) => String(row.priority ?? "").trim() || "<blank>")),
+    suiteCounts: countBy(caseRows.map((row) => String(row.test_suite ?? "").trim() || "<blank>")),
+  };
+  return executableRows
+    .sort((a, b) => {
+      const suiteCompare = String(a.test_suite ?? "").localeCompare(String(b.test_suite ?? ""));
+      if (suiteCompare !== 0) return suiteCompare;
+      return Number(a.turn_no || 0) - Number(b.turn_no || 0);
+    })
+    .map((row) => {
+      const category = String(row.test_suite ?? "").trim();
+      const phase = String(row.phase ?? "").trim();
+      const maxSentences = Number(row.max_sentences || 0);
+      return voiceCase(
+        String(row.case_id ?? "").trim(),
+        category,
+        String(row.sales_user_input ?? "").trim(),
+        {
+          priority: String(row.priority ?? "").trim(),
+          phase,
+          scenarioId: String(row.scenario_id ?? "").trim(),
+          runTier: String(row.run_tier ?? "").trim(),
+          objective: String(row.objective ?? "").trim(),
+          contextTurns: parseCsvContextTurns(row.conversation_context),
+          expectedIntent: /Backchannel|Low_Info|低情報|相づち/i.test(`${category} ${phase} ${row.objective ?? ""}`)
+            ? "backchannel"
+            : undefined,
+          expectedRevealLevel: String(row.expected_reveal_level ?? "").trim(),
+          expectedQuestionPolicy: String(row.expected_customer_question_policy ?? "").trim(),
+          mustContainAll: splitWorkbookList(row.must_contain_all),
+          mustContainAny: splitWorkbookList(row.must_contain_any),
+          mustNotContain: splitWorkbookList(row.must_not_contain_any),
+          maxSentences: Number.isFinite(maxSentences) && maxSentences > 0 ? maxSentences : 2,
+          manualReviewRequired: String(row.evaluation_method ?? "").trim(),
+          expectedPolicy: [
+            String(row.expected_customer_response_shape ?? "").trim(),
+            String(row.pass_criteria ?? "").trim(),
+          ].filter(Boolean).join(" / "),
+          notes: String(row.notes ?? "").trim(),
+          p0FailConditions: String(row.p0_fail_conditions ?? "").trim(),
+        }
+      );
+    });
+}
+
+function parseCsvContextTurns(value) {
+  const text = String(value ?? "").trim();
+  if (!text || /^(文脈なし|新規セッション開始直後|prompt-only route)$/u.test(text)) return [];
+  return parseWorkbookContextTurns(text);
+}
+
+function parseCsvRecords(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let quoted = false;
+  const pushField = () => {
+    row.push(field);
+    field = "";
+  };
+  const pushRow = () => {
+    if (row.length === 1 && row[0] === "" && rows.length === 0) return;
+    rows.push(row);
+    row = [];
+  };
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+    if (quoted) {
+      if (char === '"' && next === '"') {
+        field += '"';
+        index += 1;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        field += char;
+      }
+    } else if (char === '"') {
+      quoted = true;
+    } else if (char === ",") {
+      pushField();
+    } else if (char === "\n") {
+      pushField();
+      pushRow();
+    } else if (char === "\r") {
+      // Ignore CR; LF commits the record.
+    } else {
+      field += char;
+    }
+  }
+  if (field.length || row.length) {
+    pushField();
+    pushRow();
+  }
+  const headers = (rows.shift() ?? []).map((header) => header.trim());
+  return rows
+    .filter((values) => values.some((value) => String(value ?? "").trim()))
+    .map((values) =>
+      Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]))
+    );
 }
 
 const CUSTOMER_LED_PHRASES = [
@@ -3143,6 +3624,28 @@ function errorMessage(error) {
 
 function allResults(currentSuite) {
   return Object.values(currentSuite.caseSets ?? {}).flatMap((entry) => entry.results ?? []);
+}
+
+function countBy(values) {
+  const counts = {};
+  for (const value of values) {
+    if (!value) continue;
+    counts[value] = (counts[value] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function formatTopCounts(counts, limit = 12) {
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, limit);
+  if (entries.length === 0) return ["- None"];
+  return entries.map(([key, value]) => `- ${key}: ${value}`);
+}
+
+function percentile(values, quantile) {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * quantile) - 1));
+  return sorted[index];
 }
 
 main().catch((error) => {

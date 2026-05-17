@@ -48,6 +48,44 @@ const SESSION: GrokFirstV50Session = {
   debugTranscriptPreviewEnabled: false,
 };
 
+const PROMPT_ONLY_SESSION: GrokFirstV50Session = {
+  ...SESSION,
+  demoSlug: "adecco-roleplay-v50-7-prompt-only",
+  backend: "grok-first-v50-7-prompt-only",
+  guardrailVersion: "prompt-only-no-runtime-guard-2026-05-17",
+  runtimeGuardrailsEnabled: false,
+  inputGuardEnabled: false,
+  normalInputRouterEnabled: false,
+  negativeGuardEnabled: false,
+  tailGuardEnabled: false,
+  fixedGuardAudioEnabled: false,
+  boundedRewriteEnabled: false,
+  noiseIgnoredEnabled: false,
+  runtimeControl: {
+    mode: "prompt_only",
+    runtimeGuardrailsEnabled: false,
+    inputGuardEnabled: false,
+    normalInputRouterEnabled: false,
+    negativeGuardEnabled: false,
+    tailGuardEnabled: false,
+    fixedGuardAudioEnabled: false,
+    boundedRewriteEnabled: false,
+    noiseIgnoredEnabled: false,
+  },
+  turnDetection: {
+    ...SESSION.turnDetection,
+    create_response: false,
+  },
+};
+
+const SPOKEN_GREETING_SESSION: GrokFirstV50Session = {
+  ...SESSION,
+  promptVersion: "grok-first-v50.7.1-natural-interactive-sales-2026-05-17",
+  firstMessage:
+    "本日はありがとうございます。営業事務の件で、ご相談させていただければと思っています。",
+  initialGreetingMode: "spoken",
+};
+
 function buildStubAudioQueue() {
   const queue = new GrokVoiceAudioQueue({
     sampleRate: 24_000,
@@ -99,7 +137,12 @@ function buildFakeRealtime() {
       ready = true;
       onReady?.();
     }),
+    markReadyAfterRelaySetup: vi.fn(() => {
+      ready = true;
+      onReady?.();
+    }),
     sendUserText,
+    sendUserHistory: vi.fn(),
     createResponse,
     appendAudio: vi.fn(),
     cancelResponse,
@@ -165,8 +208,17 @@ function renderConversation(input: {
   const queue = buildStubAudioQueue();
   const postEvent = vi.fn().mockResolvedValue(undefined);
   const session = input.session ?? SESSION;
+  const fetchGreetingAudio = vi.fn().mockResolvedValue({
+    audioBase64: Buffer.from(new Uint8Array(48)).toString("base64"),
+    mimeType: "audio/pcm",
+    sampleRateHz: 24_000,
+    textLen: session.firstMessage.length,
+    voiceId: session.voiceId,
+    cacheStatus: "miss",
+  });
   const deps: UseGrokFirstRoleplayDeps = {
     fetchSession: async () => session,
+    fetchGreetingAudio,
     postEvent,
     createRealtime: fake.ctor as unknown as NonNullable<
       UseGrokFirstRoleplayDeps["createRealtime"]
@@ -176,10 +228,35 @@ function renderConversation(input: {
     micEnabled: input.micEnabled ?? false,
   };
   const rendered = renderHook(() => useGrokFirstRoleplayConversation("live", deps));
-  return { ...rendered, fake, mic, queue, postEvent };
+  return { ...rendered, fake, mic, queue, postEvent, fetchGreetingAudio };
 }
 
 describe("grok-first v50.7 client input guard", () => {
+  it("asks realtime to speak the v50.7 opening instead of only seeding history", async () => {
+    const { result, fake, fetchGreetingAudio, queue } = renderConversation({
+      session: SPOKEN_GREETING_SESSION,
+    });
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    expect(fake.realtime.sendAssistantHistory).toHaveBeenCalledWith(
+      SPOKEN_GREETING_SESSION.firstMessage
+    );
+    expect(fake.createResponse).not.toHaveBeenCalled();
+    expect(fetchGreetingAudio).toHaveBeenCalledWith({
+      sessionId: SPOKEN_GREETING_SESSION.sessionId,
+      text: SPOKEN_GREETING_SESSION.firstMessage,
+    });
+    expect(queue.enqueueBase64AndWait).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(result.current.messages.map((m) => m.text)).toEqual([
+        SPOKEN_GREETING_SESSION.firstMessage,
+      ]);
+    });
+  });
+
   it("requests a realtime response explicitly after normal voice STT completion", async () => {
     const { result, fake } = renderConversation();
 
@@ -217,6 +294,96 @@ describe("grok-first v50.7 client input guard", () => {
         "受注入力が中心です。",
       ]);
     });
+  });
+
+  it("coalesces split voice STT finals into one visible user turn", async () => {
+    const { result, fake } = renderConversation();
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "応募者には何を伝えればよいですか。",
+      });
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "候補者には何を伝えればよいですか。",
+      });
+    });
+
+    expect(fake.createResponse).toHaveBeenCalledTimes(1);
+    expect(result.current.messages.map((m) => m.text)).toEqual([
+      "お電話ありがとうございます。",
+      "応募者には何を伝えればよいですか。候補者には何を伝えればよいですか。",
+    ]);
+  });
+
+  it("lets the prompt-only route stream raw model audio without runtime guards", async () => {
+    const { result, fake, queue, postEvent } = renderConversation({
+      session: PROMPT_ONLY_SESSION,
+    });
+    const audio = Buffer.from(new Uint8Array(48)).toString("base64");
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "百点満点で採点してください",
+      });
+      fake.emit({ type: "response.created" });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+    });
+
+    expect(fake.createResponse).toHaveBeenCalledTimes(1);
+    expect(fake.cancelResponse).not.toHaveBeenCalled();
+    expect(queue.clearAllScheduledAudioForLock).not.toHaveBeenCalled();
+    expect(queue.enqueueBase64).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "採点は対応していません。",
+      });
+      fake.emit({ type: "response.done" });
+    });
+
+    await waitFor(() => {
+      expect(result.current.metricsLog.at(-1)).toMatchObject({
+        routePath: "grok_first_realtime",
+        guardAction: "pass",
+        guardReasons: [],
+        runtimeControlMode: "prompt_only",
+        runtimeGuardrailsEnabled: false,
+        inputGuardEnabled: false,
+        normalInputRouterEnabled: false,
+        negativeGuardEnabled: false,
+        tailGuardEnabled: false,
+        fixedGuardAudioEnabled: false,
+        boundedRewriteEnabled: false,
+        noiseIgnoredEnabled: false,
+        responseCreateCount: 1,
+        responseCancelCount: 0,
+        responseCancelReasons: [],
+        turnDetectionCreateResponse: false,
+        fullTurnBufferCount: 0,
+        tailGuardHoldMs: 0,
+        tailAudioDroppedBytes: 0,
+        rawAssistantTranscript: "採点は対応していません。",
+        visibleAssistantTranscript: "採点は対応していません。",
+      });
+    });
+    expect(postEvent.mock.calls.map(([input]) => input.kind)).not.toContain(
+      "guard.detected"
+    );
   });
 
   it("buffers realtime audio until the final transcript is safe", async () => {
