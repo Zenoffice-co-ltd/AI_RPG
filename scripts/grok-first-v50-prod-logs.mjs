@@ -3,6 +3,7 @@
 // Usage:
 //   node scripts/grok-first-v50-prod-logs.mjs --minutes 30
 //   node scripts/grok-first-v50-prod-logs.mjs --session gfv50_...
+//   node scripts/grok-first-v50-prod-logs.mjs --from-smoke out/.../evidence.json
 //   node scripts/grok-first-v50-prod-logs.mjs --input out/logs.json
 
 import { spawnSync } from "node:child_process";
@@ -13,11 +14,21 @@ const args = parseArgs(process.argv.slice(2));
 const project = stringArg(args.project, "adecco-mendan");
 const minutes = numberArg(args.minutes, 30);
 const limit = numberArg(args.limit, 1000);
-const sessionArg = stringArg(args.session, "latest");
+const fromSmokeArg = stringArg(args["from-smoke"], "");
+const smokeEvidence = fromSmokeArg ? JSON.parse(readFileSync(fromSmokeArg, "utf8")) : null;
+const sessionArg = stringArg(args.session, smokeEvidence?.sessionId ?? "latest");
+const expectMode = stringArg(
+  args.expect,
+  smokeEvidence?.mode === "session" ? "summary-only" : smokeEvidence?.mode ?? "summary-only"
+);
 const inputArg = stringArg(args.input, "");
 const outRoot = stringArg(args.out, "");
 const sinceArg = stringArg(args.since, "");
-const since = sinceArg ? new Date(sinceArg) : new Date(Date.now() - minutes * 60_000);
+const since = sinceArg
+  ? new Date(sinceArg)
+  : smokeEvidence?.startedAt
+    ? new Date(smokeEvidence.startedAt)
+    : new Date(Date.now() - minutes * 60_000);
 
 if (Number.isNaN(since.getTime())) {
   console.error(`Invalid --since value: ${sinceArg}`);
@@ -66,6 +77,8 @@ const selectedEntries = payloadEntries
   .filter((entry) => entry.payload.sessionId === selected.sessionId)
   .sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
 const report = buildReport(selectedEntries);
+const missingTurns = report.turns.filter((turn) => turn.sttCompleted && !turn.turnCompleted);
+const expectation = evaluateExpectation(report, expectMode);
 const stamp = compactTimestamp(new Date());
 const outDir =
   outRoot ||
@@ -80,18 +93,28 @@ const summary = {
   selectedSession: selected,
   sessions,
   report,
+  expectation: {
+    mode: expectMode,
+    pass: expectation.pass,
+    reasons: expectation.reasons,
+    missingTurnCompleted: missingTurns.length,
+  },
 };
 
 writeFileSync(resolve(outDir, "summary.json"), JSON.stringify(summary, null, 2) + "\n");
 writeFileSync(resolve(outDir, "events.json"), JSON.stringify(selectedEntries, null, 2) + "\n");
 writeFileSync(resolve(outDir, "report.md"), renderMarkdown(summary));
 
-const missingTurns = report.turns.filter((turn) => turn.sttCompleted && !turn.turnCompleted);
-console.log("[grok-first-v50-prod-logs] PASS");
+console.log(`[grok-first-v50-prod-logs] ${expectation.pass ? "PASS" : "FAIL"}`);
 console.log(`[grok-first-v50-prod-logs] sessionId: ${selected.sessionId}`);
+console.log(`[grok-first-v50-prod-logs] expect: ${expectMode}`);
 console.log(`[grok-first-v50-prod-logs] turns: ${report.turns.length}`);
 console.log(`[grok-first-v50-prod-logs] missing turn.completed: ${missingTurns.length}`);
+for (const reason of expectation.reasons) {
+  console.log(`[grok-first-v50-prod-logs] ${reason}`);
+}
 console.log(`[grok-first-v50-prod-logs] out: ${outDir}`);
+process.exitCode = expectation.pass ? 0 : 1;
 
 function readCloudLogs({ project, filter, limit, freshnessMinutes }) {
   const result =
@@ -226,6 +249,9 @@ function buildReport(entries) {
       turn.doneMs = numberOr(details.doneMs, null);
       turn.audioBytes = numberOr(details.audioBytes, null);
       turn.error = details.error ?? null;
+      turn.fullTurnBufferCount = numberOr(details.fullTurnBufferCount, null);
+      turn.tailAudioDroppedBytes = numberOr(details.tailAudioDroppedBytes, null);
+      turn.runtimeGuardrailsEnabled = details.runtimeGuardrailsEnabled ?? null;
       turn.promptVersion = stringOr(details.promptVersion, "");
       turn.guardrailVersion = stringOr(details.guardrailVersion, "");
     }
@@ -257,11 +283,56 @@ function ensureTurn(turns, turnIndex) {
     doneMs: null,
     audioBytes: null,
     error: null,
+    fullTurnBufferCount: null,
+    tailAudioDroppedBytes: null,
+    runtimeGuardrailsEnabled: null,
     promptVersion: "",
     guardrailVersion: "",
   };
   turns.set(turnIndex, next);
   return next;
+}
+
+function evaluateExpectation(report, mode) {
+  const reasons = [];
+  if (mode === "summary-only") return { pass: true, reasons };
+  if (mode === "start") {
+    for (const required of ["session.created", "ws.connected", "session.ready"]) {
+      if (!report.eventCounts[required]) reasons.push(`missing ${required}`);
+    }
+    return { pass: reasons.length === 0, reasons };
+  }
+  if (mode === "voice-turn") {
+    const completed = report.turns.filter((turn) => turn.turnCompleted);
+    if (!report.eventCounts["stt.completed"]) reasons.push("missing stt.completed");
+    if (completed.length === 0) reasons.push("missing turn.completed");
+    if (
+      !completed.some(
+        (turn) => turn.audioBytes > 0 && turn.error === null
+      )
+    ) {
+      reasons.push("missing successful audible turn");
+    }
+    return { pass: reasons.length === 0, reasons };
+  }
+  if (mode === "fixed-guard") {
+    for (const required of [
+      "guard.detected",
+      "fixed_guard.playback.started",
+      "fixed_guard.playback.completed",
+      "turn.completed",
+    ]) {
+      if (!report.eventCounts[required]) reasons.push(`missing ${required}`);
+    }
+    if (!report.turns.some((turn) => turn.routePath === "fixed_guard")) {
+      reasons.push("missing fixed_guard routePath");
+    }
+    return { pass: reasons.length === 0, reasons };
+  }
+  return {
+    pass: false,
+    reasons: [`unsupported --expect ${mode}`],
+  };
 }
 
 function renderMarkdown(summary) {
@@ -274,6 +345,11 @@ function renderMarkdown(summary) {
   lines.push(`- STT completed: ${summary.selectedSession.sttCompleted}`);
   lines.push(`- Turn completed: ${summary.selectedSession.turnCompleted}`);
   lines.push(`- Fixed guard completed: ${summary.selectedSession.fixedGuardCompleted}`);
+  lines.push(`- Expectation: ${summary.expectation.mode}`);
+  lines.push(`- Pass: ${summary.expectation.pass ? "yes" : "no"}`);
+  if (summary.expectation.reasons.length > 0) {
+    lines.push(`- Reasons: ${summary.expectation.reasons.join(", ")}`);
+  }
   lines.push("");
   lines.push("## Turns");
   lines.push("");
@@ -297,8 +373,13 @@ function parseArgs(argv) {
   const out = {};
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
+    if (arg === "--") continue;
     if (!arg.startsWith("--")) continue;
-    const key = arg.slice(2);
+    const [key, inlineValue] = arg.slice(2).split(/=(.*)/s, 2);
+    if (inlineValue !== undefined) {
+      out[key] = inlineValue;
+      continue;
+    }
     const next = argv[i + 1];
     if (next && !next.startsWith("--")) {
       out[key] = next;

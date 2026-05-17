@@ -496,10 +496,19 @@ Before redeploying or broadening the run:
 Useful commands:
 
 ```bash
+pnpm grok:first-v50:prod-smoke -- --variant <v50-x> --mode session
 pnpm grok:first-v50:prod-smoke -- --variant <v50-x> --mode start
 pnpm grok:first-v50:prod-smoke -- --variant <v50-x> --mode voice-turn
-pnpm grok:first-v50:prod-logs -- --session gfv50_...
+pnpm grok:first-v50:prod-logs -- --from-smoke out/.../evidence.json
 ```
+
+For v50.7 guard-disabled releases, the session smoke must show
+`runtimeGuardrailsEnabled=false`; the voice-turn smoke must show
+`routePath=grok_first_realtime`, `guardAction=pass`, `guardReasons=[]`,
+`fullTurnBufferCount=0`, `tailAudioDroppedBytes=0`, and `audioBytes > 0`.
+`prod-logs --expect start` treats missing `turn.completed` as normal for
+start-only sessions, while `--expect voice-turn` treats `stt.completed` without
+`turn.completed` as a lifecycle failure.
 
 ## Fixed Guard Checks
 
