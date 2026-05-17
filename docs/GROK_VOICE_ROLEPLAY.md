@@ -139,17 +139,16 @@ only, not product human-test approval.
 `/demo/adecco-roleplay-v50-7-prompt-only` is a diagnostic-only route for
 measuring the v50.6 System Prompt without app-side runtime assistance. It keeps
 `promptVersion=grok-first-v50.6-2026-05-15` and returns
-`guardrailVersion=prompt-only-no-runtime-guard-speed-hotfix-2026-05-17`,
+`guardrailVersion=prompt-only-no-runtime-guard-2026-05-17`,
 `demoSlug=adecco-roleplay-v50-7-prompt-only`, and
 `backend=grok-first-v50-7-prompt-only`. Its session payload must show
 `runtimeControl.mode=prompt_only` and all runtime guard/router flags false:
 `runtimeGuardrailsEnabled`, `inputGuardEnabled`, `normalInputRouterEnabled`,
 `negativeGuardEnabled`, `tailGuardEnabled`, `fixedGuardAudioEnabled`,
 `boundedRewriteEnabled`, `noiseIgnoredEnabled`, `fullTurnBufferEnabled`, and
-`replacementTtsEnabled`. As of the 2026-05-17 prompt-only speed hotfix, it also
-uses `latencyMode=fastest_streaming`, `streamAudioBeforeDone=true`,
-`audioHoldMs=0`, and `turnDetection.silence_duration_ms=350` while keeping all
-runtime guards off. It uses manual response orchestration
+`replacementTtsEnabled`. Its VAD uses the default v50-family
+`turnDetection.silence_duration_ms=650`; the prompt-only speed-hotfix latency
+fields are intentionally removed. It uses manual response orchestration
 (`turnDetection.create_response=false` plus one app-side `response.create` after
 non-empty STT) but must not use content-based `response.cancel`, fixed guard
 audio, rewrite, suppression, `noise_ignored`, negative output deletion, or tail

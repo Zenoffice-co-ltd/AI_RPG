@@ -33,7 +33,7 @@ const expected = {
   demoSlug: "adecco-roleplay-v50-7-prompt-only",
   backend: "grok-first-v50-7-prompt-only",
   promptVersion: "grok-first-v50.6-2026-05-15",
-  guardrailVersion: "prompt-only-no-runtime-guard-speed-hotfix-2026-05-17",
+  guardrailVersion: "prompt-only-no-runtime-guard-2026-05-17",
   wsUrl: "wss://voice.mendan.biz/api/v3/realtime-relay",
   authMode: "mendan_relay_subprotocol",
 };
@@ -234,10 +234,10 @@ function summarize(attempts) {
     ]) {
       if (session[key] !== false) add(`${key}=${session[key] ?? "<missing>"}`);
     }
-    if (session.latencyMode !== "fastest_streaming") add(`latencyMode=${session.latencyMode ?? "<missing>"}`);
-    if (session.streamAudioBeforeDone !== true) add(`streamAudioBeforeDone=${session.streamAudioBeforeDone ?? "<missing>"}`);
-    if (session.audioHoldMs !== 0) add(`audioHoldMs=${session.audioHoldMs ?? "<missing>"}`);
-    if (session.turnDetectionSilenceMs !== 350) add(`turnDetectionSilenceMs=${session.turnDetectionSilenceMs ?? "<missing>"}`);
+    if (session.latencyMode !== undefined) add(`latencyMode=${session.latencyMode}`);
+    if (session.streamAudioBeforeDone !== undefined) add(`streamAudioBeforeDone=${session.streamAudioBeforeDone}`);
+    if (session.audioHoldMs !== undefined) add(`audioHoldMs=${session.audioHoldMs}`);
+    if (session.turnDetectionSilenceMs !== 650) add(`turnDetectionSilenceMs=${session.turnDetectionSilenceMs ?? "<missing>"}`);
     if (session.runtimeControlMode !== "prompt_only") add(`runtimeControl.mode=${session.runtimeControlMode ?? "<missing>"}`);
     if (!attempt.websocketUrls.includes(expected.wsUrl)) add("relay websocket missing");
     for (const kind of ["ws.connected", "session.ready", "stt.completed", "turn.completed"]) {
@@ -264,9 +264,9 @@ function summarize(attempts) {
       if (Number(metric?.fullTurnBufferCount ?? 0) !== 0) add(`fullTurnBufferCount=${metric?.fullTurnBufferCount}`);
       if (Number(metric?.tailGuardHoldMs ?? 0) !== 0) add(`tailGuardHoldMs=${metric?.tailGuardHoldMs}`);
       if (Number(metric?.tailAudioDroppedBytes ?? 0) !== 0) add(`tailAudioDroppedBytes=${metric?.tailAudioDroppedBytes}`);
-      if (metric?.latencyMode !== "fastest_streaming") add(`metric.latencyMode=${metric?.latencyMode}`);
-      if (metric?.streamAudioBeforeDone !== true) add(`metric.streamAudioBeforeDone=${metric?.streamAudioBeforeDone}`);
-      if (metric?.turnDetectionSilenceMs !== 350) add(`metric.turnDetectionSilenceMs=${metric?.turnDetectionSilenceMs}`);
+      if (metric?.latencyMode !== "default") add(`metric.latencyMode=${metric?.latencyMode}`);
+      if (metric?.streamAudioBeforeDone !== false) add(`metric.streamAudioBeforeDone=${metric?.streamAudioBeforeDone}`);
+      if (metric?.turnDetectionSilenceMs !== 650) add(`metric.turnDetectionSilenceMs=${metric?.turnDetectionSilenceMs}`);
       if (forbiddenRoutePaths.includes(metric?.routePath)) add(`forbidden routePath=${metric.routePath}`);
       if (forbiddenGuardActions.includes(metric?.guardAction)) add(`forbidden guardAction=${metric.guardAction}`);
     }
