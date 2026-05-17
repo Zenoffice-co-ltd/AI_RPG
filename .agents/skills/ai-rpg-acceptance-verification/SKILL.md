@@ -289,9 +289,11 @@ For `/demo/adecco-roleplay-v50*` work, use this order before broad acceptance:
    `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md`.
 4. Local focused fixed-guard or voice browser E2E, if the requested denominator
    has a runner.
-5. Deploy through `pnpm deploy:adecco-roleplay` or
-   `pnpm deploy:adecco-roleplay:gcloud`; avoid bare deploy except Cloud Build
-   debugging.
+5. Merge to `main` and confirm the Firebase App Hosting GitHub check / Firebase
+   Console rollout for the `adecco-roleplay` backend reached `SUCCEEDED`. If the
+   native automatic rollout is absent, skipped, or stuck, use
+   `pnpm deploy:adecco-roleplay` or `pnpm deploy:adecco-roleplay:gcloud` as the
+   manual fallback; avoid bare deploy except Cloud Build debugging.
 6. Production session API smoke for `/api/grok-first-v50*/session`.
 7. Production URL smoke with `pnpm grok:first-v50:prod-smoke`.
 8. Relay health/log check if `realtimeTransport=mendan_cloud_run_relay_wss`.

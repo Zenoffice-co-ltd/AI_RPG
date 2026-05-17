@@ -30,9 +30,62 @@ roleplay UI.
 | Demo path | `/demo/adecco-roleplay-v3` |
 | Compute SA | `firebase-app-hosting-compute@adecco-mendan.iam.gserviceaccount.com` |
 
-App Hosting **auto-deploy on main push is NOT configured** for this backend.
-Every deploy is a manual `pnpm deploy:adecco-roleplay` invocation. Merging a
-PR to main does NOT make code live; see the deploy lag note below.
+App Hosting should be configured with **automatic rollouts enabled** and
+`main` as the live branch for this backend. With that setting, a merge to
+`main` starts a native App Hosting rollout; the rollout status is visible in the
+Firebase Console and in the App Hosting GitHub check. If the check is absent,
+skipped, or disabled, do not assume the merge is live; use the manual wrapper
+fallback below and record the gap.
+
+Reference: Firebase App Hosting supports automatic rollouts on every push to
+the live GitHub branch and lets operators change the live branch / automatic
+rollout setting from the backend's Settings > Deployment view:
+<https://firebase.google.com/docs/app-hosting/rollouts>.
+
+## Default flow — keep deploy out of the test loop
+
+Use this ladder for v50-family guard, router, rewrite, and STT-normalization
+work:
+
+```text
+PR work
+  -> local deterministic harness
+  -> unit / hook / fixture replay
+  -> targeted failing case ids only
+  -> patch batch
+
+Merge to main
+  -> Firebase App Hosting native auto-rollout
+  -> route/session smoke
+  -> targeted voice sentinel when needed
+  -> production validation ready
+
+Full / Budgeted DoD
+  -> release candidate, human-test gate, or explicit acceptance checkpoint
+```
+
+Do not use `patch -> deploy -> production test -> patch -> deploy` as the
+normal remediation loop. Production voice cases are reserved for confirming a
+batched runtime change after deterministic local evidence is clean.
+
+Keep these labels separate:
+
+- `deploy success`
+- `route/session smoke success`
+- `targeted voice sentinel PASS`
+- `Budgeted Residual PASS`
+- `Full Option A PASS`
+- `human test allowed`
+
+`deploy success` and `route/session smoke success` never grant human testing by
+themselves.
+
+Post-merge automation is checked in at
+[`.github/workflows/apphosting-main-post-merge.yml`](../.github/workflows/apphosting-main-post-merge.yml).
+It does not replace the native App Hosting rollout. It runs deterministic v50
+gates, waits for the native rollout, runs `pnpm grok:first-v50:prod-smoke`
+when `DEMO_ACCESS_TOKEN` is configured in GitHub secrets, and can run a small
+targeted v50.7 voice sentinel through manual `workflow_dispatch`.
 
 ## Source-of-truth guard: avoid production drift
 
@@ -143,13 +196,15 @@ session does not have to re-export it.
 `XAI_API_KEY` is fetched by the warm-cache step from Secret Manager
 (`zapier-transfer` → `adecco-mendan` precedence per AGENTS.md `## Secrets`).
 
-## Step 2 — Run the wrapper
+## Step 2 — Manual fallback wrapper
 
 ```bash
 pnpm deploy:adecco-roleplay
 ```
 
-The wrapper (`scripts/deploy-adecco-roleplay.ts`) does five things in
+Use this wrapper when the native main-branch App Hosting rollout is unavailable,
+stuck, disabled, or an operator intentionally chooses a manual rollout. The
+wrapper (`scripts/deploy-adecco-roleplay.ts`) does five things in
 order. Failures at any step abort with a non-zero exit code:
 
 1. **Baseline snapshot** — reads the current rollout id and
@@ -232,11 +287,10 @@ rm -f /tmp/session-resp.json
 Expected: `buildId` matches the buildId you just promoted via
 `pnpm grok:promote-registered-speech`.
 
-If the buildId is older, see the "deploy lag" note in the
-[`adecco_apphosting_deploy_lag` memory](../memory/adecco_apphosting_deploy_lag.md)
-and the [`feedback_pr_body_not_deployed_code` memory](../memory/feedback_pr_body_not_deployed_code.md)
-on the user's `~/.claude/projects/.../memory/` index — main-merge does
-NOT auto-deploy this backend.
+If the buildId is older, check the App Hosting GitHub check and Firebase
+Console rollout first. If native auto-rollout was not configured or did not run,
+use the manual wrapper from the intended `origin/main` commit and record the
+rollout gap.
 
 For enterprise relay routes (`v25`, `v50`, `v50.1`), record only summarized
 session fields and browser evidence:

@@ -18,7 +18,26 @@ The production roleplay UI is the Firebase **App Hosting** backend:
 
 The legacy Cloud Run service `roleplay-ui` covered in [`docs/deploy.md`](../../docs/deploy.md) is kept for older A/B routes only. **Do NOT run `gcloud run deploy roleplay-ui` for Grok Voice or registered-speech changes** — they will not reach the live App Hosting URL.
 
-## Canonical command
+## Default deployment model
+
+Expected production path:
+
+```text
+merge to main
+  -> Firebase App Hosting native automatic rollout
+  -> App Hosting GitHub check / Firebase Console rollout status
+  -> route/session smoke
+  -> targeted voice sentinel when needed
+```
+
+Keep deploy status separate from quality status. `deploy success` and
+`route/session smoke success` do not mean `human test allowed`.
+
+For v50 remediation, do not use production deploy as the normal test loop.
+Convert production failures into deterministic local fixtures / hook tests,
+patch in batches, and use targeted `--case-ids` reruns before broad DoD.
+
+## Manual fallback command
 
 ```bash
 pnpm deploy:adecco-roleplay
@@ -32,7 +51,9 @@ Wraps:
 4. `pnpm grok:warm-tts-cache` (load-bearing — production measured 25 % cache miss without it, 1.5–3 s synth penalty per affected turn)
 5. Post-deploy `/api/v3/session` verification (prints new `guardrailVersion` / `promptVersion`)
 
-Bare `firebase deploy` is acceptable for Cloud Build debugging only. **App Hosting is NOT auto-deployed on main push** — `pnpm deploy:adecco-roleplay` is the only path that makes new code live.
+Bare `firebase deploy` is acceptable for Cloud Build debugging only. Use this
+wrapper when the native App Hosting GitHub check is absent, skipped, stuck, or
+disabled, or when the operator explicitly requests a manual rollout.
 
 For Firebase CLI auth blockers or explicit gcloud requests, use:
 

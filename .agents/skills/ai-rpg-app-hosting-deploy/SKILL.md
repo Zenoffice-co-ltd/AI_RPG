@@ -30,7 +30,32 @@ Any change to the deploy contract must update **all six** files in the same chan
    C:/Users/yukih/AppData/Roaming/gcloud/legacy_credentials/iwase@zenoffice.co.jp/adc.json
    ```
 
-## Deploy
+## Default deployment model
+
+The expected production path is Firebase App Hosting native automatic rollout:
+
+```text
+merge to main
+  -> App Hosting live-branch rollout
+  -> App Hosting GitHub check / Firebase Console rollout status
+  -> route/session smoke
+  -> targeted voice sentinel when needed
+```
+
+Keep deploy status separate from quality gates. `deploy success` and
+`route/session smoke success` do not mean `human test allowed`.
+
+For v50 remediation, keep deploy out of the inner test loop: create local
+deterministic fixtures or hook/unit tests for production failures, patch in a
+batch, and use `--case-ids` targeted reruns before any broad DoD rerun.
+
+The repo-side post-merge workflow is
+`.github/workflows/apphosting-main-post-merge.yml`. It waits for the native
+rollout and runs route/session smoke when `DEMO_ACCESS_TOKEN` is configured.
+It can run the targeted production voice sentinel through manual
+`workflow_dispatch`.
+
+## Manual fallback deploy
 
 ```bash
 export GOOGLE_APPLICATION_CREDENTIALS="C:/Users/yukih/AppData/Roaming/gcloud/legacy_credentials/iwase@zenoffice.co.jp/adc.json"
@@ -38,6 +63,9 @@ export GROK_VOICE_VOICE_ID=99c95cc8a177
 export GOOGLE_CLOUD_PROJECT=adecco-mendan
 pnpm deploy:adecco-roleplay
 ```
+
+Use the wrapper when the App Hosting GitHub check is absent, skipped, stuck, or
+disabled, or when the operator explicitly requests a manual rollout.
 
 The wrapper does:
 
@@ -88,7 +116,10 @@ node -e "const d=JSON.parse(require('fs').readFileSync('out/post-deploy-session.
 rm -f out/post-deploy-session.json
 ```
 
-Assert: `buildId` matches the buildId you just promoted. If it lags, the deploy did not pick up the latest commit — re-run `pnpm deploy:adecco-roleplay` from the worktree that has the intended HEAD. Main-merge does NOT auto-deploy.
+Assert: `buildId` matches the buildId you just promoted. If it lags, inspect
+the App Hosting GitHub check / Firebase Console rollout first. If native
+auto-rollout did not run, use the manual fallback wrapper from the intended
+`origin/main` commit.
 
 For relay routes (`v25`, `v50`, `v50.1`), also assert the summarized session/browser contract: `realtimeTransport=mendan_cloud_run_relay_wss`, `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, `realtimeAuth.mode=mendan_relay_subprotocol`, no browser `ephemeralToken`, and no direct browser `wss://api.x.ai`. Use Cloud Logging structured relay logs with `jsonPayload.scope="grokVoice.realtimeRelay"` and `jsonPayload.phase` for `client.connected`, `ticket.accepted`, and `upstream.connected`; do not store raw JSON in git.
 

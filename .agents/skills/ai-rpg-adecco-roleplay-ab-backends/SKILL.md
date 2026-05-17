@@ -333,14 +333,17 @@ returns `ServiceUnavailable` until secrets are provisioned. Flip the flag to
 
 ## Deploy
 
-Firebase App Hosting **does NOT auto-deploy on push to main** for this backend
-(no Repository binding). Use the wrapper script:
+Firebase App Hosting should use native automatic rollouts from the `main` live
+branch for this backend. Confirm the App Hosting GitHub check or Firebase
+Console rollout reached `SUCCEEDED` before production smoke. If that check is
+absent, skipped, stuck, or disabled, use the wrapper script as the manual
+fallback:
 
 ```bash
 pnpm deploy:adecco-roleplay
 ```
 
-This runs: baseline rollout/version check → `firebase deploy --only apphosting`
+The fallback runs: baseline rollout/version check → `firebase deploy --only apphosting`
 → poll until SUCCEEDED → `pnpm grok:warm-tts-cache` → post-deploy verification
 that `/api/v3/session` returns the expected `guardrailVersion`. Skipping the
 warm step leaves a 25% locked-response cache miss rate in production (PR60

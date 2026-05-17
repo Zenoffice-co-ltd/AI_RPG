@@ -9,8 +9,13 @@
 # App Hosting default URL is retained for internal verification / rollback:
 #   https://adecco-roleplay--adecco-mendan.asia-east1.hosted.app
 #
-# Canonical deploy command (allowed without prompt — wraps the destructive
-# action with baseline snapshot + warm-cache + post-deploy verification):
+# Default deployment model: Firebase App Hosting native automatic rollout from
+# the `main` live branch. The App Hosting GitHub check / Firebase Console
+# rollout record is deploy status SoT. If that check is absent, skipped, stuck,
+# or disabled, use the manual wrapper fallback below.
+#
+# Manual fallback deploy command (wraps the destructive action with baseline
+# snapshot + warm-cache + post-deploy verification):
 #   pnpm deploy:adecco-roleplay
 # gcloud App Hosting API wrapper for ADC/Firebase CLI blockers:
 #   pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
@@ -36,9 +41,10 @@
 # merged, verified with `git show origin/main:<path>`, and redeployed from
 # origin/main.
 #
-# Deploy productivity: batch router/guard/runtime fixes and deploy once per
-# targeted remediation batch. Do not deploy for runner-only, docs-only, or
-# unit-test-only edits.
+# Deploy productivity: keep deploy out of the inner v50 test loop. Use local
+# deterministic fixtures, unit/hook tests, and targeted --case-ids remediation;
+# batch router/guard/runtime fixes and deploy once per remediation batch. Do not
+# deploy for runner-only, docs-only, or unit-test-only edits.
 #
 # NEVER:
 #   - run `gcloud run deploy roleplay-ui` for Grok Voice or registered-speech
@@ -64,7 +70,7 @@
 prefix_rule(
     pattern = ["pnpm", "deploy:adecco-roleplay"],
     decision = "prompt",
-    justification = "Production rollout to the Adecco App Hosting backend (adecco-roleplay@adecco-mendan, asia-east1; customer URL https://roleplay.mendan.biz). Confirm: (1) intended merged origin/main commit is checked out for customer-facing closeout, or any local emergency deploy is explicitly tracked as production drift, (2) GOOGLE_APPLICATION_CREDENTIALS points at the owner-level legacy_credentials ADC (NOT the default ADC, which fails with a misleading 'Failed to create backend' error), (3) GROK_VOICE_VOICE_ID and GOOGLE_CLOUD_PROJECT envs are set per AGENTS.md `## Deploy (App Hosting)`, (4) any registered-speech artifact rebuild has been promoted (data/generated/registered-speech/v1/manifest.json reflects intent), and (5) operator can run post-deploy /api/v3/session verification + browser/Cloud Logging evidence. App Hosting does NOT auto-deploy on main push — this command is the only way the new code goes live.",
+    justification = "Manual fallback production rollout to the Adecco App Hosting backend (adecco-roleplay@adecco-mendan, asia-east1; customer URL https://roleplay.mendan.biz). Native App Hosting automatic rollout from main is the default; use this wrapper only when the App Hosting GitHub check is absent, skipped, stuck, disabled, or the operator explicitly requests manual rollout. Confirm: (1) intended merged origin/main commit is checked out for customer-facing closeout, or any local emergency deploy is explicitly tracked as production drift, (2) GOOGLE_APPLICATION_CREDENTIALS points at the owner-level legacy_credentials ADC (NOT the default ADC, which fails with a misleading 'Failed to create backend' error), (3) GROK_VOICE_VOICE_ID and GOOGLE_CLOUD_PROJECT envs are set per AGENTS.md `## Deploy (App Hosting)`, (4) any registered-speech artifact rebuild has been promoted (data/generated/registered-speech/v1/manifest.json reflects intent), and (5) operator can run post-deploy /api/v3/session verification + browser/Cloud Logging evidence. Deploy success is not human-test approval.",
     match = [
         "pnpm deploy:adecco-roleplay",
         "pnpm deploy:adecco-roleplay -- --skip-warm",

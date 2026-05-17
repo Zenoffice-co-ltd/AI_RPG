@@ -103,12 +103,19 @@ transcript, make it a guard pattern and a unit fixture.
 
 App Hosting rollout time is minutes, so optimize for fewer deploys:
 
+- First convert production failures into deterministic local evidence: unit
+  tests, hook tests, fixture replay, and targeted `--case-ids` subsets. Do not
+  use production deploy as the normal phrase-by-phrase test loop.
 - Batch router/guard phrase fixes before deploying; do not deploy after each
   single phrase.
 - Runner, docs, and unit-test-only edits do not need App Hosting deploy.
 - Changes under `apps/web/lib/grok-first-roleplay/**`, route/session APIs, or
   client runtime behavior do need deploy before production voice evidence.
-- Use the gcloud deploy wrapper with the relevant v50 post-check:
+- The default post-merge deploy path is native Firebase App Hosting automatic
+  rollout from the `main` live branch. Confirm the App Hosting GitHub check or
+  Firebase Console rollout status before running production smoke.
+- Use the gcloud deploy wrapper only as the manual fallback with the relevant
+  v50 post-check:
 
 ```bash
 corepack pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
@@ -116,6 +123,9 @@ corepack pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
 
 The v50 post-check must inspect `/api/grok-first-v50-7/session`; a v3
 `/api/v3/session` check is not sufficient evidence for v50-family changes.
+After rollout, run `pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode
+start`, then use a small targeted production voice sentinel only when needed.
+Full/Budgeted DoD is reserved for release-candidate or human-test gates.
 
 ## Gate Order
 

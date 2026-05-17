@@ -188,6 +188,49 @@ rewrites should prefer exact one-sentence safe answers over long negative
 instructions, because leaked harness instructions are raw/visible/audible P0
 failures and must be covered by output-guard tests.
 
+### v50.7 Test / Deploy Productivity Ladder
+
+Do not put App Hosting deploy in the center of normal remediation. The intended
+loop is:
+
+```text
+production failure evidence
+  -> deterministic local fixture / hook or unit test
+  -> targeted --case-ids subset
+  -> batched runtime/router/guard patch
+  -> one main-branch App Hosting rollout
+  -> route/session smoke
+  -> small targeted production voice sentinel
+  -> budgeted/full DoD only at release or human-test gates
+```
+
+Main-branch deployment should use Firebase App Hosting native automatic
+rollouts for the `adecco-roleplay` backend, with the App Hosting GitHub check or
+Firebase Console rollout as deploy status evidence. If the rollout check is
+missing or stuck, use the manual fallback:
+
+```bash
+pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
+```
+
+After rollout, run route/session smoke first:
+
+```bash
+pnpm grok:first-v50:prod-smoke -- --variant v50-7 --mode start
+```
+
+Run a production voice sentinel only after route/session smoke passes, and keep
+it targeted. `deploy success`, `route/session smoke success`, `targeted voice
+sentinel PASS`, `BUDGETED_PASS`, `Full Option A PASS`, and `human test
+allowed` remain separate labels.
+
+Medium-term harness direction: keep runtime code changes deploy-gated, but move
+guard phrase tables, bounded rewrites, and STT normalization entries toward a
+versioned external config surface so phrase/STT drift can be published and
+target-smoked without rebuilding the Next app. Until that exists, every runtime
+change under `apps/web/lib/grok-first-roleplay/**` still requires deploy before
+production voice evidence is claimed.
+
 ### v50.7 Option A DoD
 
 The final conclusion is exactly one of `PASS`, `FAIL`, or `BLOCKED`.
