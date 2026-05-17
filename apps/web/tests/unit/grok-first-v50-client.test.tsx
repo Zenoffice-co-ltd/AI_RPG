@@ -424,7 +424,7 @@ describe("grok-first v50.7 client input guard", () => {
     });
   });
 
-  it("waits for rewritten realtime response after ignoring the canceled empty done", async () => {
+  it("waits for rewritten realtime response after ignoring an empty done", async () => {
     const { result, fake, queue, postEvent } = renderConversation({
       session: BUFFERED_SESSION,
     });
@@ -451,7 +451,7 @@ describe("grok-first v50.7 client input guard", () => {
       fake.emit({ type: "response.done" });
     });
 
-    expect(fake.cancelResponse).toHaveBeenCalledTimes(1);
+    expect(fake.cancelResponse).not.toHaveBeenCalled();
     expect(fake.sendUserText).toHaveBeenCalledTimes(1);
     expect(fake.sendUserText.mock.calls[0]?.[0]).toContain("募集背景");
     expect(fake.sendUserText.mock.calls[0]?.[0]).toContain("自然に一文");

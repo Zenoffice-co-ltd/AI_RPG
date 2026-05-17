@@ -851,11 +851,6 @@ export function useGrokFirstRoleplayConversation(
             normalRoute?.rewrittenText ?? normalizedRealtimeText;
           if (realtimeRewriteText) {
             userSpeechInProgressRef.current = false;
-            cancelRealtimeResponse(
-              normalRoute?.rewrittenText
-                ? "normal_realtime_rewrite"
-                : "input_normalization_rewrite"
-            );
             ignoreNextEmptyResponseDoneRef.current = true;
             const dropped = tailGuardRef.current.clear();
             const bufferedDroppedBytes = clearBufferedAudio();
