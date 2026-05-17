@@ -264,9 +264,9 @@ function summarize(attempts) {
       if (Number(metric?.fullTurnBufferCount ?? 0) !== 0) add(`fullTurnBufferCount=${metric?.fullTurnBufferCount}`);
       if (Number(metric?.tailGuardHoldMs ?? 0) !== 0) add(`tailGuardHoldMs=${metric?.tailGuardHoldMs}`);
       if (Number(metric?.tailAudioDroppedBytes ?? 0) !== 0) add(`tailAudioDroppedBytes=${metric?.tailAudioDroppedBytes}`);
-      if (metric?.latencyMode !== "default") add(`metric.latencyMode=${metric?.latencyMode}`);
-      if (metric?.streamAudioBeforeDone !== false) add(`metric.streamAudioBeforeDone=${metric?.streamAudioBeforeDone}`);
-      if (metric?.turnDetectionSilenceMs !== 650) add(`metric.turnDetectionSilenceMs=${metric?.turnDetectionSilenceMs}`);
+      if (metric?.latencyMode !== undefined && metric.latencyMode !== "default") add(`metric.latencyMode=${metric?.latencyMode}`);
+      if (metric?.streamAudioBeforeDone !== undefined && metric.streamAudioBeforeDone !== false) add(`metric.streamAudioBeforeDone=${metric?.streamAudioBeforeDone}`);
+      if (metric?.turnDetectionSilenceMs !== undefined && metric.turnDetectionSilenceMs !== 650) add(`metric.turnDetectionSilenceMs=${metric?.turnDetectionSilenceMs}`);
       if (forbiddenRoutePaths.includes(metric?.routePath)) add(`forbidden routePath=${metric.routePath}`);
       if (forbiddenGuardActions.includes(metric?.guardAction)) add(`forbidden guardAction=${metric.guardAction}`);
     }
