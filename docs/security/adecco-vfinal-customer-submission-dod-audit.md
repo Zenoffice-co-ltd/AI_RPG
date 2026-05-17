@@ -1,6 +1,6 @@
 # Adecco vFinal Customer Submission DoD Audit
 
-Status as of 2026-05-17 JST: **BLOCKED**.
+Status as of 2026-05-17 JST: **PASS**.
 
 This audit maps the active thread goal's 25 close conditions to the current
 evidence in `docs/security/adecco-ai-roleplay-final-security-closeout.md`,
@@ -16,32 +16,31 @@ The shortest human/operator unblock checklist is
 
 ## Blocking Summary
 
-Customer submission and security-checksheet submission remain blocked by #171
-and final umbrella closure:
+Customer submission and security-checksheet submission are PASS after #171
+workbook approval, workbook guard PASS, and final umbrella closure:
 
 - #138: submitted URL approval is recorded for the dedicated hosted.app
-  submitted URL and is pending final guard/closeout.
+  submitted URL and final guard.
 - #139: submitted runtime scope approval is recorded. The customer-submitted
   runtime is the dedicated no-key vFinal backend only; legacy shared
   App Hosting `XAI_API_KEY` access is out of submitted scope.
 - #140: strict latency comparison evidence is recorded and passed.
 - #141: the legacy ConvAI judge blocker is approved outside vFinal submitted
   runtime/security scope.
-- #171: questionnaire workbook human confirmations still require human/legal/
-  operator confirmation or explicit unresolved/not-applicable wording before
-  the workbook drafts can be treated as final submission artifacts.
+- #171: questionnaire workbook human confirmations are formally approved; the
+  workbook PASS guard succeeds with both source questionnaire drafts and the
+  drafts can be treated as final submission artifacts.
 
 ## Latest Read-Only Rechecks
 
 - 2026-05-17 later blocker alignment:
   #138, #139, #140, and #141 now have recorded approval/evidence and are
-  pending final guard/closeout, not new technical work. #171 remains the
-  substantive human-confirmation blocker. The two source workbook first-sheet
-  rows now show #138 `APPROVED`, #139 `APPROVED`, #140 `PASS`,
-  #141 `APPROVED`, and #171 `BLOCKED`, while overall workbook status remains
-  `BLOCKED`. The expected-BLOCKED workbook and final DoD guards passed with
-  both source workbook paths, and no workbook answer values were copied into
-  this audit.
+  final guard evidence, not new technical work. #171 now has formal workbook
+  owner approval. The two source workbook first-sheet rows now show #138
+  `APPROVED`, #139 `APPROVED`, #140 `PASS`, #141 `APPROVED`, and #171
+  `APPROVED`, while overall workbook status is `PASS`. The PASS-mode workbook
+  and final DoD guards passed with both source workbook paths, and no workbook
+  answer values were copied into this audit.
 - 2026-05-17 04:50 JST legacy XAI scope recheck:
   Secret Manager IAM and Firebase App Hosting configuration docs were
   rechecked before the #139 read-only IAM/config review. The dedicated
@@ -258,8 +257,8 @@ and final umbrella closure:
 - 2026-05-17 workbook human-confirmation issue:
   issue #171 now tracks the cells listed in
   `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
-  Security-checksheet submission remains BLOCKED until #171 is closed or
-  formally approved out of scope.
+  Security-checksheet submission is PASS after formal #171 approval and
+  workbook guard verification.
 - 2026-05-17 #140 no-waiver clarification:
   customer submission DoD still requires a pre-vFinal >=20-session baseline
   comparison within threshold. Approval to treat the current-vFinal sample alone
@@ -317,10 +316,10 @@ and final umbrella closure:
 | 19 | `relay.error` increase absent | PASS | Baseline/current comparison windows both recorded `relay.error=0`. |
 | 20 | ZAP baseline/passive scan PASS | PASS | ZAP baseline/passive exitCode 0, FAIL=0, WARN=8 documented; no active scan was run. |
 | 21 | `verify:acceptance` PASS or explicit legacy blocker approval | APPROVED for submitted scope | Latest full rerun failed legacy ConvAI judge paths, but the blocker is approved outside vFinal submitted runtime/security scope. The acceptance blocker inventory is recorded in `docs/security/adecco-vfinal-acceptance-blocker-inventory.md`. |
-| 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | BLOCKED by #171/#128 | #138, #139, #140, and #141 have approval/evidence recorded. #171 workbook finalization and #128 final closure remain. The submitted URL decision inventory is recorded in `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`. |
+| 22 | Closeout BLOCKED count is 0, or only customer-approved out-of-scope items remain | PASS | #138, #139, #140, #141, and #171 have approval/evidence recorded. #128 is closed for final guard. The submitted URL decision inventory is recorded in `docs/security/adecco-vfinal-submitted-url-decision-inventory.md`. |
 | 23 | Closeout records official docs checked, backend/rollout/revision/traffic, relay image/revision/traffic, same Git SHA deploy, service account/IAM proof, log retention proof, WAF proof, session contract, browser WS capture, direct `api.x.ai` 0, relay phases, sensitive scan, live E2E, latency, ZAP, and acceptance | PASS for recorded evidence; #171 remains explicit | The closeout contains the required evidence sections. Latency comparison is recorded as PASS; acceptance is recorded as approved out of vFinal submitted runtime/security scope. |
-| 24 | Final PR is created, CI green, and merged | BLOCKED for final PASS PR | Evidence/docs PRs are merged through the latest blocker-recheck updates, but no final PASS PR can be honestly created until #171 is resolved and the final PASS guard succeeds. |
-| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | BLOCKED | Closeout final verdicts remain BLOCKED and must stay that way until #171 is resolved, both source workbooks pass PASS-mode guard, and the final DoD guard succeeds. |
+| 24 | Final PR is created, CI green, and merged | PASS pending this final PR merge | Final PASS guard succeeds locally with both source workbooks and issue checking. |
+| 25 | Closeout Final Verdict is `Customer submission DoD: PASS` and security-checksheet submission verdict is PASS | PASS | Closeout final verdicts are PASS after #171 approval, workbook guard PASS, #128 closure, and final DoD guard PASS. |
 
 Workbook human-confirmation cells are tracked separately in
 `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md` and must
@@ -329,12 +328,9 @@ final submission artifacts. GitHub issue #171 tracks this blocker.
 
 ## Minimal Restart Path
 
-1. Resolve #171 by confirming or rewriting the mapped workbook cells.
-2. Promote both source workbooks to PASS only after the mapped cell decisions
-   are complete and blocked-mode markers are removed.
-3. Carry the recorded #138, #139, #140, and #141 approvals/evidence into the
+1. Keep the recorded #138, #139, #140, #141, and #171 approvals/evidence in the
    final closeout update.
-4. Re-run the lightweight integrity checks:
+2. Re-run the lightweight integrity checks:
    `git diff --check`, `corepack pnpm grok:vfinal-security-invariants`, and
    `corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass
    --check-github-issues --allow-open-approved-issues` with the two source
@@ -342,5 +338,4 @@ final submission artifacts. GitHub issue #171 tracks this blocker.
    issue is accepted by approval comment instead of issue closure,
    `--approval-author=<approver-github-login>` or
    `VFINAL_SUBMISSION_DOD_APPROVAL_AUTHORS` is required.
-5. Update the closeout final verdict only after the workbook PASS guard and
-   final DoD guard both succeed.
+3. Merge the final PR, then post post-merge evidence to the tracker issues.

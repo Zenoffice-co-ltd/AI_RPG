@@ -61,6 +61,30 @@ pnpm verify:acceptance -- --preflight
 pnpm verify:acceptance
 ```
 
+## Adecco vFinal Final Submission Guard
+
+As of 2026-05-17 JST, the Adecco vFinal customer submission and
+security-checksheet submission DoD is PASS only when both source questionnaire
+workbooks are supplied to the final guard and GitHub issue state/approval
+checking is enabled:
+
+```bash
+corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=pass \
+  --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" \
+  --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
+
+corepack pnpm grok:vfinal-submission-dod-status -- --expect=pass \
+  --check-github-issues \
+  --allow-open-approved-issues \
+  --approval-author=iwase-cpu \
+  --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx" \
+  --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"
+```
+
+Do not copy raw workbook answer values into docs, PR text, issue comments, or
+commit messages. The TPISA `.xlsm` must retain its VBA project. Keep `out/`
+uncommitted; reference output paths only as evidence pointers.
+
 ## Adecco Manufacturer Staffing Reference Runbook
 
 Adecco の住宅設備メーカー向け初回派遣オーダーヒアリングは、legacy staffing family の単一 reference scenario として運用する。

@@ -171,7 +171,7 @@ submission closeout because the latest full rerun also failed
 
 ## Valid Resolution Paths
 
-Issue #141 remains blocked until one of these is true:
+Issue #141 is approved out of submitted scope until one of these is true:
 
 1. A clean full `corepack pnpm verify:acceptance` run passes.
 2. A customer/operator explicitly approves that the current legacy ConvAI judge

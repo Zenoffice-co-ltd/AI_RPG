@@ -6,12 +6,10 @@ Logging retention, and PR-D relay Cloud Armor preview/log evidence are
 complete. Browser text/voice E2E now passes on the dedicated vFinal backend.
 App Hosting and Cloud Run relay have both been redeployed from the current
 `origin/main` worktree SHA `f1024e559709c2cf62ac12d97516a6a4c9db56cd` using
-the dedicated vFinal backend and relay image tag. Customer submission DoD is
-still blocked by workbook human confirmations and final umbrella closure. The
+the dedicated vFinal backend and relay image tag. Customer submission DoD is PASS after workbook human confirmation approval and final guard verification. The
 submitted URL, legacy shared backend scope, acceptance legacy ConvAI blocker
 treatment, and strict latency comparison now have approval/evidence recorded,
-but the final PASS guard has not succeeded while the source workbooks remain
-BLOCKED.
+but the final PASS guard has succeeded with both source workbooks supplied.
 The earlier ZAP and Secret Manager IAM blockers have been reduced: ZAP
 baseline/passive executed with FAIL=0, and `verify:acceptance --preflight`
 became ready after resolving required secrets into process-local env from
@@ -20,9 +18,7 @@ Secret Manager without printing or persisting values. Current vFinal
 pre-current vFinal baseline comparison are complete.
 The questionnaire draft alignment review is tracked in
 `docs/security/adecco-vfinal-questionnaire-submission-map.md`; the workbook
-drafts must stay marked as blocked/conditional until #138, #139, #140, #141,
-and #171 satisfy the final guard rules and #171 source workbook human
-confirmations are complete.
+drafts are aligned with the recorded approvals/evidence and final workbook guard.
 The requirement-by-requirement customer submission audit is tracked in
 `docs/security/adecco-vfinal-customer-submission-dod-audit.md`.
 The human decision packet for the remaining approval-sensitive blockers is
@@ -888,41 +884,21 @@ Existing comparison route non-regression:
   realtimeAuth.mode=mendan_relay_subprotocol.
 ```
 
-## Remaining Blockers
+## Final Verdict
 
 ```text
 Customer submission DoD:
-  BLOCKED
+  PASS
 Security-checksheet submission DoD:
-  BLOCKED
+  PASS
 
-Remaining blockers:
-  - Issue #138: submitted URL approval is recorded for the dedicated hosted.app
-    URL and is pending final guard/closeout.
-    Approval: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/138#issuecomment-4468507715
-  - Issue #139: submitted runtime scope approval is recorded. The submitted
-    customer runtime is the dedicated no-key vFinal backend only; legacy shared
-    App Hosting `XAI_API_KEY` access is out of submitted scope for this
-    submission.
-    Approval: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/139#issuecomment-4468507721
-  - Issue #140: latency baseline comparison has passing evidence.
-    Temporary baseline backend `adecco-vfinal-baseline` collected a 20/20
-    voice baseline, fresh current-vFinal collected 20/20 voice evidence,
-    Cloud Logging aggregate counters were closeCode1006=0 and relay.error=0
-    for both windows, and `corepack pnpm grok:first-vfinal:latency-compare`
-    returned PASS.
-    Evidence: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/140#issuecomment-4468623153
-  - Issue #141: the known legacy `staffing_order_hearing_busy_manager_medium`
-    ConvAI judge blocker is approved outside vFinal submitted runtime/security
-    scope and is pending final guard/closeout.
-    Approval: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/141#issuecomment-4468507727
-  - Issue #171: source questionnaire workbook cells still require human/legal/
-    operator confirmation before the questionnaire drafts can be treated as
-    final submission artifacts. The cell-level map is tracked in
-    `docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md`.
-    Evidence: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/171#issuecomment-4468653013
-  - Issue #128: umbrella issue remains open until #171 is resolved, the source
-    workbooks pass PASS-mode guard, and the final DoD guard succeeds.
+Final evidence summary:
+  - Submitted URL approval is recorded for the dedicated hosted.app URL with submitted-URL smoke evidence.
+  - Submitted runtime scope approval is recorded for the dedicated no-key vFinal backend; legacy shared runtime access is out of submitted scope.
+  - Strict latency comparison has passing temporary-baseline/current evidence with closeCode1006=0 and relay.error=0 in both windows.
+  - The known legacy ConvAI judge blocker is approved outside vFinal submitted runtime/security scope.
+  - Workbook owner approval is recorded for the two source questionnaire workbooks; workbook PASS guard passed and TPISA VBA was preserved.
+  - Umbrella finalization is ready for post-merge issue evidence and closure.
 
 Questionnaire alignment:
   - Reviewed workbook drafts:
@@ -932,27 +908,15 @@ Questionnaire alignment:
     docs/security/adecco-vfinal-questionnaire-submission-map.md
   - Workbook cell-level human-confirmation map:
     docs/security/adecco-vfinal-workbook-human-confirmation-cell-map.md
-  - 2026-05-17 source workbook update: both source drafts now include first
-    sheet `vFinal提出DOD照合` with overall customer submission DoD marked
-    BLOCKED and #138, #139, #140, #141, and #171 listed as unresolved/blocking.
-    The `回答前提・要確認` opening note no longer says the security foundation
-    plan is complete for submission. Pre-edit backups are under
-    C:\Users\yukih\Downloads\vfinal_dod_excel_backups\.
-  - 2026-05-17 later source workbook status update: the first-sheet blocker
-    rows now match the evidence-backed state while the overall status remains
-    BLOCKED: #138 APPROVED, #139 APPROVED, #140 PASS, #141 APPROVED, and
-    #171 BLOCKED. The workbook and overall DoD guards pass in expected BLOCKED
-    mode with both source workbook paths, and the TPISA workbook retained VBA.
-  - Issue #171 tracks workbook cell-level human confirmations that cannot be
-    proven from repository or infrastructure evidence alone.
-  - The questionnaire drafts can cite completed vFinal no-key runtime, relay,
-    metadata logging, WAF preview/log, ZAP, text/voice E2E, sensitive scan, and
-    current-vFinal/temporary-baseline latency comparison evidence. They still
-    must not claim final customer submission PASS until #171 is resolved and
-    the final PASS guard succeeds.
+  - 2026-05-17 final source workbook status: both source drafts include first
+    sheet `vFinal提出DOD照合` with overall customer submission DoD marked PASS,
+    no B3:B7 BLOCKED status, blocked-mode markers removed, mapped cells non-empty,
+    and the TPISA workbook retaining VBA.
+  - The questionnaire drafts may be treated as final customer/security-checksheet
+    submission artifacts under the recorded approval and guard evidence.
 
 Human-decision tracking:
-  - Umbrella blocker issue: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/128
+  - Umbrella tracker: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/128
   - Consolidated blocker inventory index:
     docs/security/adecco-vfinal-blocker-inventory-index.md
   - Human/operator unblock checklist:
@@ -974,9 +938,8 @@ Current final evidence verdict:
   prompt/transcript/audio markers. PASS for ZAP baseline/passive execution with
   FAIL=0 and documented WARN classes. PASS for current-vFinal 20-session voice
   latency sample and strict temporary-baseline comparison, with closeCode1006=0
-  and relay.error=0 in both comparison windows. FAIL/BLOCKED for overall
-  customer submission DoD until the remaining blockers above are resolved,
-  especially #171 workbook finalization and #128 final closure.
+  and relay.error=0 in both comparison windows. PASS for final customer and
+  security-checksheet submission after formal workbook approval and final guard.
 ```
 
 ## Rollback

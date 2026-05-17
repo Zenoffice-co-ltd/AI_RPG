@@ -1,6 +1,6 @@
 # Adecco vFinal Submitted URL Decision Inventory
 
-Status as of 2026-05-17 JST: **APPROVED pending final guard**.
+Status as of 2026-05-17 JST: **PASS**.
 
 This note supports issue #138. It does not change the customer submission DoD
 verdict by itself. The dedicated Firebase hosted.app backend is live and
@@ -113,7 +113,7 @@ belongs to the dedicated `adecco-roleplay-vfinal` App Hosting backend.
 
 ## Valid Resolution Paths
 
-Issue #138 remains blocked until one of these is true:
+Issue #138 is approved until one of these is true:
 
 1. A customer/operator explicitly approves the dedicated hosted.app URL as the
    vFinal customer-submitted URL with the existing submitted-URL smoke evidence:
@@ -144,3 +144,6 @@ corepack pnpm grok:vfinal-submitted-url-candidates -- --expect=blocked
 
 Until then, the customer submission DoD and security-checksheet submission DoD
 must remain BLOCKED for #138.
+
+
+Final PASS evidence marker: Submitted-URL smoke passed with invite consume 307, session 200, wsUrl wss://voice.mendan.biz/api/v3/realtime-relay, direct api.x.ai count 0, and forbidden session keys absent.
