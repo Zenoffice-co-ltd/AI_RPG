@@ -1,11 +1,16 @@
 # Adecco vFinal Submitted URL Decision Inventory
 
-Status as of 2026-05-17 JST: **submitted URL approval or custom domain mapping still required**.
+Status as of 2026-05-17 JST: **APPROVED pending final guard**.
 
 This note supports issue #138. It does not change the customer submission DoD
-verdict. Current evidence proves the dedicated Firebase hosted.app backend is
-live and separated from the legacy shared backend, but it does not by itself
-approve that URL for customer submission.
+verdict by itself. The dedicated Firebase hosted.app backend is live and
+separated from the legacy shared backend, and the hosted.app submitted-URL
+approval has been recorded. The overall customer submission DoD remains blocked
+until #171 workbook finalization and the final PASS guard.
+
+Approval evidence:
+
+- https://github.com/Zenoffice-co-ltd/AI_RPG/issues/138#issuecomment-4468507715
 
 ## Current Submitted URL Candidate
 

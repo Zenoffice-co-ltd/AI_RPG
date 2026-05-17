@@ -1,12 +1,16 @@
 # Adecco vFinal Legacy XAI Scope Inventory
 
-Status as of 2026-05-17 JST: **legacy shared XAI_API_KEY scope decision still required**.
+Status as of 2026-05-17 JST: **APPROVED pending final guard**.
 
 This note supports issue #139. It does not change the customer submission DoD
-verdict. The dedicated submitted vFinal runtime remains no-key, but the legacy
-shared App Hosting backend still has `XAI_API_KEY` access for non-submitted
-comparison/direct routes. Removing that access without a migration or formal
-de-scope decision can break existing legacy behavior.
+verdict by itself. The dedicated submitted vFinal runtime remains no-key, and
+the legacy shared App Hosting backend `XAI_API_KEY` access has been approved as
+out of submitted scope for this vFinal customer submission. Removing that
+legacy access remains a separate migration/de-scope decision.
+
+Approval evidence:
+
+- https://github.com/Zenoffice-co-ltd/AI_RPG/issues/139#issuecomment-4468507721
 
 ## Official Docs Rechecked
 

@@ -1,12 +1,17 @@
 # Adecco vFinal Latency Baseline Candidate Assessment
 
-Status as of 2026-05-17 JST: **no approved strict pre-vFinal baseline found**.
+Status as of 2026-05-17 JST: **PASS pending final guard**.
 
 This note supports issue #140. It does not change the customer submission DoD
-verdict. The formal latency gate remains blocked until an approved
-same-environment, same-scenario, >=20-session pre-vFinal baseline is compared
-against the current-vFinal 20-session evidence and the comparison is within the
-thresholds below.
+verdict by itself. A strict temporary-baseline comparison has been collected
+and returned PASS. The overall customer submission DoD remains blocked until
+the remaining non-latency blockers, especially #171 workbook human
+confirmations and umbrella #128 final closure, are resolved.
+
+Evidence comments:
+
+- https://github.com/Zenoffice-co-ltd/AI_RPG/issues/140#issuecomment-4468623153
+- https://github.com/Zenoffice-co-ltd/AI_RPG/issues/128#issuecomment-4468623211
 
 ## Strict Baseline Requirement
 
@@ -25,6 +30,75 @@ The PASS thresholds are:
 - current `firstAudibleAudioMs` p95 <= baseline p95 + 100ms;
 - no close code 1006 increase;
 - no `relay.error` increase.
+
+## 2026-05-17 Strict Baseline Comparison PASS
+
+Temporary baseline environment:
+
+- Backend: `adecco-vfinal-baseline`
+- Origin: `https://adecco-vfinal-baseline--adecco-mendan.asia-east1.hosted.app`
+- Service account:
+  `firebase-app-hosting-vfinal@adecco-mendan.iam.gserviceaccount.com`
+- Source: `adecco-roleplay-vfinal` App Hosting build-004 source archive
+  `gs://firebaseapphosting-sources-787365421680-asia-east1/adecco-roleplay-vfinal-2026-05-16T10-38-49-527Z.zip`
+- Baseline App Hosting rollout:
+  `projects/adecco-mendan/locations/asia-east1/backends/adecco-vfinal-baseline/rollouts/build-2026-05-16-004`
+- Rollout state: `SUCCEEDED`
+- Relay allowlist: baseline hosted.app origin added while preserving existing
+  origins.
+- Relay revision after allowlist update: `xai-realtime-relay-00015-pwh`
+
+Pre-sample baseline smoke:
+
+```bash
+corepack pnpm grok:first-vfinal:browser-e2e -- --mode start \
+  --origin https://adecco-vfinal-baseline--adecco-mendan.asia-east1.hosted.app \
+  --out out/grok_first_vfinal_baseline_smoke/2026-05-17T00-10-00-baseline-build004-start
+```
+
+Result: PASS. Session 200, `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`,
+relay WSS only, direct `api.x.ai` count 0, and forbidden session/outgoing keys
+absent.
+
+Strict comparison inputs:
+
+| Artifact | Runs | Result | `sessionApiMs` p95 | `firstAudioDeltaMs` p95 | `firstAudibleAudioMs` p95 | closeCode1006 | `relay.error` |
+|---|---:|---|---:|---:|---:|---:|---:|
+| `out/grok_first_vfinal_latency/2026-05-17T00-12-00-baseline-build004-voice20/summary.json` | 20 | 20/20 pass | 153 | 4633 | 4868 | 0 | 0 |
+| `out/grok_first_vfinal_latency/2026-05-17T00-15-00-current-vfinal-voice20/summary.json` | 20 | 20/20 pass | 187 | 4702 | 4923 | 0 | 0 |
+
+Cloud Logging aggregate counters for the matching windows:
+
+- Baseline window: 2026-05-17T00:07:30Z to 2026-05-17T00:12:25Z.
+  `client.connected=20`, `upstream.connected=20`, `closeCode1006=0`,
+  `relay.error=0`.
+- Current window: 2026-05-17T00:12:20Z to 2026-05-17T00:18:00Z.
+  `client.connected=20`, `upstream.connected=20`, `closeCode1006=0`,
+  `relay.error=0`.
+
+Comparison command:
+
+```bash
+corepack pnpm grok:first-vfinal:latency-compare -- \
+  --baseline out/grok_first_vfinal_latency/2026-05-17T00-12-00-baseline-build004-voice20/summary.json \
+  --current out/grok_first_vfinal_latency/2026-05-17T00-15-00-current-vfinal-voice20/summary.json \
+  --baseline-close-code1006 0 \
+  --current-close-code1006 0 \
+  --baseline-relay-error 0 \
+  --current-relay-error 0 \
+  --out out/grok_first_vfinal_latency_compare/2026-05-17T00-20-00-baseline-build004-vs-current/comparison-summary.json
+```
+
+Comparison output:
+
+- `status=PASS`
+- `sessionApiMs p95`: baseline 153, current 187, threshold 203.
+- `firstAudioDeltaMs p95`: baseline 4633, current 4702, threshold 4733.
+- `firstAudibleAudioMs p95`: baseline 4868, current 4923, threshold 4968.
+- closeCode1006 increase: baseline 0, current 0, PASS.
+- `relay.error` increase: baseline 0, current 0, PASS.
+
+Comparison result: **PASS**.
 
 ## Eligible Current-vFinal Evidence
 
@@ -144,42 +218,16 @@ metrics.
 
 ## Current Decision
 
-Issue #140 remains blocked. The repository evidence supports only this narrow
-statement:
+Issue #140 now has passing strict latency comparison evidence. The repository
+evidence supports this narrow statement:
 
-> Current-vFinal 20-session latency evidence exists and passes its own scoped
-> checks, but no approved strict pre-vFinal >=20-session baseline artifact is
-> available for the formal comparison gate.
+> A same-environment temporary baseline backend collected a 20/20 pre-current
+> vFinal voice baseline, a fresh current-vFinal 20/20 voice sample was collected
+> in the same measurement window, Cloud Logging aggregate counters showed
+> closeCode1006=0 and `relay.error=0` for both windows, and
+> `corepack pnpm grok:first-vfinal:latency-compare` returned PASS.
 
-The next valid paths are:
-
-1. Obtain approval for a specific pre-existing baseline source and document its
-   denominator, three required p95 metrics, close code 1006 comparison, and
-   `relay.error` comparison.
-2. Obtain approval to collect a new baseline in a separate equivalent
-   environment or approved rollback window.
-3. Compare that baseline against the current-vFinal 20-session sample and record
-   `PASS` only if all thresholds in this document are met.
-
-Comparison command once an approved baseline exists:
-
-```bash
-corepack pnpm grok:first-vfinal:latency-artifact-inventory -- \
-  --expect=blocked \
-  --root out\grok_first_vfinal_latency
-
-corepack pnpm grok:first-vfinal:latency-compare -- \
-  --baseline <pre-vFinal-summary.json> \
-  --current out/grok_first_vfinal_latency/2026-05-16T14-32-01-504Z/summary.json \
-  --baseline-close-code1006 <count> \
-  --current-close-code1006 <count> \
-  --baseline-relay-error <count> \
-  --current-relay-error <count> \
-  --out <comparison-summary.json>
-```
-
-The comparison output is the evidence to cite before promoting this assessment
-to `PASS`. If the summary JSONs later include `closeCode1006Count` and
-`relayErrorCount`, the explicit count flags may be omitted. Missing counter
-evidence, fewer than 20 runs, any failed run, or passing the same summary as
-both baseline and current returns `FAIL` and must keep #140 blocked.
+This closes the latency-evidence gap for #140, subject to issue comment
+recording and final DoD guard verification. It does not make the overall
+customer submission DoD PASS while #171 workbook finalization and #128 final
+closure remain incomplete.

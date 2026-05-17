@@ -9,6 +9,9 @@ legal, insurance, audit, contract, or operational facts remain open.
 
 GitHub tracking issue: https://github.com/Zenoffice-co-ltd/AI_RPG/issues/171
 
+Workbook-owner signoff packet:
+`docs/security/adecco-vfinal-workbook-owner-signoff-2026-05-17.md`
+
 ## Source Workbooks
 
 - `C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx`
@@ -65,6 +68,46 @@ The source workbooks currently stay in BLOCKED mode through the first sheet
   mode only treats concrete blocker references as mapped-cell blockers so a
   final human answer such as "confirmed" or "確認済み" is not rejected solely for
   being a confirmation statement.
+- No workbook answer values were copied into this file.
+
+2026-05-17 later partial-progress workbook update:
+
+- The source workbooks remain in `vFinal提出DOD照合` overall `BLOCKED` mode.
+- The first-sheet blocker rows now reflect the evidence-backed state:
+  #138 `APPROVED`, #139 `APPROVED`, #140 `PASS`, #141 `APPROVED`, and
+  #171 `BLOCKED`.
+- `corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked
+  --workbook="C:\Users\yukih\Downloads\Adecco_データ保護アンケート_v01_回答ドラフト.xlsx"
+  --workbook="C:\Users\yukih\Downloads\Adecco_TPISAアンケート_v01_回答ドラフト.xlsm"`
+  passed after the update.
+- `corepack pnpm grok:vfinal-submission-dod-status -- --expect=blocked
+  --check-github-issues --allow-open-approved-issues --approval-author=iwase-cpu
+  --workbook=... --workbook=...` also passed after the update.
+- The TPISA workbook still retained `vbaProject.bin`.
+- GitHub evidence comment:
+  https://github.com/Zenoffice-co-ltd/AI_RPG/issues/171#issuecomment-4468653013
+- No workbook answer values were copied into this file.
+
+2026-05-17 later sanitized marker-reference helper update:
+
+- `corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=blocked
+  --workbook=... --workbook=...` now reports mapped marker references as
+  sheet/cell/type metadata only, without workbook answer values.
+- Current count-only output identifies `Sheet1!E24` in the Data Protection
+  workbook as the only mapped blocker-marker cell. Its confirmation category
+  is final data-flow attachment and processing locations, including xAI and
+  cloud regions.
+- The TPISA workbook reports no mapped blocker-marker cells and still retains
+  `vbaProject.bin`.
+
+2026-05-17 PASS-mode dry run:
+
+- `corepack pnpm grok:vfinal-workbook-human-confirmations -- --expect=pass
+  --workbook=... --workbook=...` failed as expected.
+- Sanitized failure reasons: both workbooks still have overall status not
+  `PASS`, both still have B7 `BLOCKED`, workbook-wide blocked-mode markers
+  remain, and the Data Protection workbook still has the mapped blocker marker
+  at `Sheet1!E24`.
 - No workbook answer values were copied into this file.
 
 ## Data Protection Questionnaire Cells
