@@ -1,0 +1,133 @@
+name: apphosting-main-post-merge
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - "scripts/grok-first-v50-prod-smoke.mjs"
+      - "scripts/grok-first-v50-7-natural-voice-e2e.mjs"
+      - "scripts/deploy-adecco-roleplay*.mjs"
+      - "scripts/deploy-adecco-roleplay.ts"
+      - "firebase.json"
+      - "apps/web/apphosting*.yaml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/apphosting-main-post-merge.yml"
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: "v50-family variant to smoke after App Hosting rollout"
+        required: true
+        default: "v50-7"
+      wait_seconds:
+        description: "Seconds to wait for native App Hosting auto-rollout before smoke"
+        required: true
+        default: "420"
+      run_voice_sentinel:
+        description: "Run the targeted production voice sentinel after route/session smoke"
+        type: boolean
+        required: true
+        default: false
+      sentinel_case_ids:
+        description: "Comma-separated v50.7 budgeted-residual case ids for targeted sentinel"
+        required: true
+        default: "NAT-BUD-06,NAT-BUD-08,BACK-BUD-14,REV-BUD-08,TRANS-BUD-A-T4,TRANS-BUD-B-T4"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apphosting-main-post-merge-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deterministic-gates:
+    name: deterministic v50 gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.1
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Syntax check v50 runners
+        run: |
+          node --check scripts/grok-first-v50-prod-smoke.mjs
+          node --check scripts/grok-first-v50-7-natural-voice-e2e.mjs
+      - name: Local deterministic v50 tests
+        run: pnpm --filter @top-performer/web test -- grok-first-v50
+
+  post-merge-smoke:
+    name: post-merge route/session smoke
+    runs-on: ubuntu-latest
+    needs:
+      - deterministic-gates
+    env:
+      DEMO_ACCESS_TOKEN: ${{ secrets.DEMO_ACCESS_TOKEN }}
+      VARIANT: ${{ github.event.inputs.variant || 'v50-7' }}
+      WAIT_SECONDS: ${{ github.event.inputs.wait_seconds || '420' }}
+      RUN_VOICE_SENTINEL: ${{ github.event.inputs.run_voice_sentinel || 'false' }}
+      SENTINEL_CASE_IDS: ${{ github.event.inputs.sentinel_case_ids || 'NAT-BUD-06,NAT-BUD-08,BACK-BUD-14,REV-BUD-08,TRANS-BUD-A-T4,TRANS-BUD-B-T4' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.1
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Wait for native App Hosting rollout
+        run: |
+          seconds="${WAIT_SECONDS:-420}"
+          if ! [[ "$seconds" =~ ^[0-9]+$ ]]; then
+            echo "::warning::Invalid wait_seconds '$seconds'; using 420."
+            seconds=420
+          fi
+          echo "Waiting ${seconds}s for Firebase App Hosting's native main-branch rollout."
+          sleep "$seconds"
+      - name: v50 route/session smoke
+        run: |
+          if [ -z "${DEMO_ACCESS_TOKEN:-}" ]; then
+            echo "::warning::DEMO_ACCESS_TOKEN is not configured in GitHub secrets; skipping production smoke."
+            echo "Native App Hosting rollout status remains available in the Firebase/App Hosting GitHub check."
+            exit 0
+          fi
+          pnpm grok:first-v50:prod-smoke -- \
+            --variant "$VARIANT" \
+            --mode start \
+            --out "out/apphosting_main_post_merge/${GITHUB_RUN_ID}/route_session"
+      - name: Optional targeted voice sentinel
+        run: |
+          if [ "$RUN_VOICE_SENTINEL" != "true" ]; then
+            echo "Skipping targeted voice sentinel. Use workflow_dispatch with run_voice_sentinel=true for the post-deploy production voice gate."
+            exit 0
+          fi
+          if [ -z "${DEMO_ACCESS_TOKEN:-}" ]; then
+            echo "::error::DEMO_ACCESS_TOKEN is required for targeted production voice sentinel."
+            exit 2
+          fi
+          pnpm grok:first-v50-7:natural-voice-e2e -- \
+            --base-url https://roleplay.mendan.biz \
+            --route /demo/adecco-roleplay-v50-7 \
+            --api-base /api/grok-first-v50-7 \
+            --case-set budgeted-residual-dod \
+            --case-ids "$SENTINEL_CASE_IDS" \
+            --runs 1 \
+            --max-api-cost-usd 3 \
+            --out "out/apphosting_main_post_merge/${GITHUB_RUN_ID}/targeted_sentinel"
+      - name: Upload post-merge evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apphosting-main-post-merge-${{ github.run_id }}
+          path: out/apphosting_main_post_merge/${{ github.run_id }}
+          if-no-files-found: ignore
