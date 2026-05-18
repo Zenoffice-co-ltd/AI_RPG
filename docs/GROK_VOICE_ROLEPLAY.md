@@ -115,46 +115,54 @@ prompt-only prompt. `/demo/adecco-roleplay-v50-7-quality` and
 `guardrailVersion=grok-first-v50.7-quality-guard-2026-05-17`,
 `demoSlug=adecco-roleplay-v50-7-quality`, and
 `backend=grok-first-v50-7-quality`. Runtime guard flags are enabled,
-`streamAudioBeforeDone=false`, `fullTurnBufferEnabled=false`, and browser
-evaluation is disabled for this route. `boundedRewriteEnabled=true` for the
-human-functional quality gate, so high-risk broad normal-sales questions use
-short positive target-shape rewrites while the v50.7.2 prompt text remains
-frozen. The session first message must be audible on this route: after
+`latencyMode=guarded_tail_streaming`, `streamAudioBeforeDone=true`,
+`guardedStreamingEnabled=true`, `tailGuardNormalHoldMs=300`,
+`tailGuardRiskHoldMs=800`, `tailGuardMaxHoldMs=1000`,
+`fullTurnBufferEnabled=false`, and browser evaluation is disabled for this
+route. `boundedRewriteEnabled=false`: normal sales remains Grok-generated and
+is not rewritten into deterministic safe-body text. The session first message
+must be audible on this route: after
 `session.ready`, the client fetches cached static opening audio and records
 `opening.playback.started` / `opening.playback.completed` with
-`firstAudibleAudioMs`. After the 2026-05-18 human-session review,
-low-information and gratitude inputs are deterministic short acknowledgements
-(`はい。`, `そうですね。`, or `いえいえ、こちらこそ。`) served through the
-bounded short-ack TTS path; they must not call Grok or append customer-led
-tails. Broad high-risk normal-sales questions use the same locked-response
-cache only for whitelisted safe-body texts when Grok repeatedly appends
-customer-led tails; this is reported as `audioReleaseMode=fixed_safe_body_audio`.
-The current whitelist includes the focused guard safe bodies for background,
-business overview, broad conditions, candidate explanation, and decision
-structure confirmation, plus the manufacturer-experience requirement check.
-Normal Realtime assistant audio is held until the final transcript guard
-has passed; if a P0
-customer-led, meta, instruction-leak, or generic-closing phrase is detected,
-held audio is dropped before playback.
-Risk-based safe-prefix streaming is temporarily disabled for `v50-7-quality`
-because human review heard forbidden tail starts even when the declared
-`audibleTranscript` was clean.
+`firstAudibleAudioMs`.
+
+`v50-7-quality` uses guarded rolling tail-buffer streaming. Normal Grok audio is
+not fully held until `response.done`; instead the client keeps the last
+300-800ms of audio unplayed, releases older chunks only while stream transcript
+guarding remains clean, and drops the held tail when a customer-led, meta,
+instruction-leak, or generic-closing phrase appears. Low-information and
+gratitude turns also call Grok and use the same rolling tail guard; they are not
+served by deterministic short-ack TTS. Broad high-risk normal-sales questions
+also remain Grok-generated. `fixed_safe_body_audio`, locked normal-sales cache,
+runtime replacement TTS, and deterministic normal-sales safe-body answers are
+forbidden on this route; if they appear in normal-sales evidence, the run fails.
+The only deterministic audio paths that remain valid are `fixed_external` and
+`fixed_exit` static guard audio.
+
+`response.done` is final cleanup, not the first playback trigger. A normal pass
+turn should report `releasedBeforeDone=true`,
+`responseDoneBeforeFirstAudible=false`,
+`audioReleaseMode=guarded_tail_stream_release`, and
+`firstDeltaToFirstAudibleMs` bounded by the selected tail hold plus playback
+overhead. If stream guarding detects a leading hard P0, the client cancels and
+drops unreleased audio. If a safe prefix has already been released and a tail P0
+appears later, the already audible safe prefix is kept, new release is stopped,
+and the held tail is dropped.
 For `cancel` and `suppress`, the quality route still treats the turn as a hard
-block and drops held audio. For `strip_tail` and `drop_sentence`, the runtime
-now attempts conservative Approx Chunk release after `response.done`: transcript-
-delta order is used first, character ratio only as a fallback, and the trailing
-chunk/window is dropped so the safe body can be audible without the bad tail.
-If a conservative boundary cannot be established, the turn remains
-`tail_only_drop_fallback` and does not qualify for `ROLEPLAY_FUNCTIONAL_PASS`.
-For human-test readiness, chat-visible assistant text must match the audible
-transcript whenever the turn is intentionally silent, normal sales turns must
-not use `tail_only_drop_fallback`, and the focused quality report must show
-`firstAudibleAudioMs` p50 `<3000ms` and p95 `<7000ms`.
+block and drops unreleased audio. For `strip_tail` and `drop_sentence`, the
+runtime drops the held tail and may release only a proven-safe suffix; it must
+not drop an already clean streamed prefix. For human-test readiness, chat-visible
+assistant text must match the audible transcript whenever the turn is
+intentionally silent, normal sales turns must not use `tail_only_drop_fallback`,
+and normal pass turns with `firstDeltaToFirstAudibleMs > 2000ms` are treated as
+evidence that response-done hold is still effectively present.
 `potentialAudioLeak` must be `0`; declared `audibleTranscript` alone is not
-accepted as proof when raw text contained a customer-led or forbidden tail.
-Quality evidence uses `fullTurnBufferCount`, `tailAudioDroppedBytes`, and
-raw/visible/audible transcript separation rather than changing
-`fullTurnBufferEnabled`.
+accepted as proof when released chunks could overlap a customer-led or forbidden
+tail. Quality evidence uses `releasedBeforeDone`,
+`responseDoneBeforeFirstAudible`, `streamReleasedAudioBytes`,
+`heldTailAudioBytes`, `droppedTailAudioBytes`, `finalReleaseAudioBytes`,
+`tailGuardHoldMs`, and raw/visible/audible transcript separation rather than
+changing `fullTurnBufferEnabled`.
 
 The quality route uses a short remediation ladder so the team does not spend a
 full production run on every tweak:
@@ -514,17 +522,22 @@ requires guard-disabled runtime evidence: `routePath=grok_first_realtime`,
 `guardAction=pass`, empty `guardReasons`, `fullTurnBufferCount=0`,
 `tailAudioDroppedBytes=0`, and `audioBytes > 0`. For v50.7 quality, session
 smoke must report `runtimeGuardrailsEnabled=true`,
-`normalInputRouterEnabled=true`, `boundedRewriteEnabled=true`,
-`streamAudioBeforeDone=false`, `fullTurnBufferEnabled=false`, and
-`turnDetection.create_response=false`; the focused quality runner's final label
+`normalInputRouterEnabled=true`, `boundedRewriteEnabled=false`,
+`latencyMode=guarded_tail_streaming`, `streamAudioBeforeDone=true`,
+`guardedStreamingEnabled=true`, `tailGuardNormalHoldMs=300`,
+`tailGuardRiskHoldMs=800`, `tailGuardMaxHoldMs=1000`,
+`fullTurnBufferEnabled=false`, and `turnDetection.create_response=false`; the
+focused quality runner's final label
 is `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`, `QUALITY_GUARD_BLOCKED`, or
 `ROLEPLAY_FUNCTIONAL_PASS`. Human testing requires `ROLEPLAY_FUNCTIONAL_PASS`;
 `QUALITY_GUARD_PASS` alone means the guard is safe but not necessarily audible
 for normal roleplay turns. `ROLEPLAY_FUNCTIONAL_PASS` additionally requires
-opening greeting audio, normal-sales audible output, customer-led safe-body
-audible output, `tail_only_drop_fallback=0` for normal sales, safe-body all-drop
-`0`, visible/audible mismatch `0`, false-pass audit `0`, audio leak `0`, and
-`firstAudibleAudioMs` p50 `<3000ms` / p95 `<7000ms`.
+opening greeting audio, normal-sales audible output from Grok,
+`fixed_safe_body_audio=0` for normal sales, `responseCreateCount > 0` for normal
+sales, `releasedBeforeDone=true` for normal pass turns,
+`tail_only_drop_fallback=0` for normal sales, safe-prefix all-drop `0`,
+visible/audible mismatch `0`, false-pass audit `0`, audio leak `0`, and no
+normal pass turn with `firstDeltaToFirstAudibleMs > 2000ms`.
 Use `prod-logs --expect start` for start-only sessions and
 `prod-logs --expect voice-turn` for same-session turn evidence.
 

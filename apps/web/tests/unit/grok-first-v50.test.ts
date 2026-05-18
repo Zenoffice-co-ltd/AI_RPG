@@ -592,9 +592,13 @@ describe("grok-first v50 runtime", () => {
     expect(body["guardrailVersion"]).toBe(
       "grok-first-v50.7-quality-guard-2026-05-17"
     );
-    expect(body["latencyMode"]).toBe("default");
-    expect(body["streamAudioBeforeDone"]).toBe(false);
+    expect(body["latencyMode"]).toBe("guarded_tail_streaming");
+    expect(body["streamAudioBeforeDone"]).toBe(true);
     expect(body["audioHoldMs"]).toBeUndefined();
+    expect(body["guardedStreamingEnabled"]).toBe(true);
+    expect(body["tailGuardNormalHoldMs"]).toBe(300);
+    expect(body["tailGuardRiskHoldMs"]).toBe(800);
+    expect(body["tailGuardMaxHoldMs"]).toBe(1000);
     expect(body["fullTurnBufferEnabled"]).toBe(false);
     expect(body["browserEvaluationEnabled"]).toBe(false);
     expect(body["browserEvaluation"]).toBeUndefined();
@@ -604,7 +608,7 @@ describe("grok-first v50 runtime", () => {
     expect(body["negativeGuardEnabled"]).toBe(true);
     expect(body["tailGuardEnabled"]).toBe(true);
     expect(body["fixedGuardAudioEnabled"]).toBe(true);
-    expect(body["boundedRewriteEnabled"]).toBe(true);
+    expect(body["boundedRewriteEnabled"]).toBe(false);
     expect(body["noiseIgnoredEnabled"]).toBe(true);
     expect(body["turnDetection"]).toEqual({
       type: "server_vad",
@@ -621,7 +625,7 @@ describe("grok-first v50 runtime", () => {
       negativeGuardEnabled: true,
       tailGuardEnabled: true,
       fixedGuardAudioEnabled: true,
-      boundedRewriteEnabled: true,
+      boundedRewriteEnabled: false,
       noiseIgnoredEnabled: true,
     });
 

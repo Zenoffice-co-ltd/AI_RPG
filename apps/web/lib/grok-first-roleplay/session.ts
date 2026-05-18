@@ -15,6 +15,11 @@ import {
   type GrokFirstPromptVariant,
 } from "./prompt";
 import {
+  TAIL_GUARD_MAX_HOLD_MS,
+  TAIL_GUARD_NORMAL_HOLD_MS,
+  TAIL_GUARD_RISK_HOLD_MS,
+} from "./audio-tail-guard";
+import {
   GROK_FIRST_V50_1_BACKEND,
   GROK_FIRST_V50_1_DEMO_SLUG,
   GROK_FIRST_V50_4_BACKEND,
@@ -194,14 +199,20 @@ export async function createGrokFirstV50Session(input?: {
     latencyMode: isLatencySpeedHotfix
       ? "fastest_streaming"
       : isV507Quality
-      ? "default"
+      ? "guarded_tail_streaming"
       : undefined,
     streamAudioBeforeDone: isLatencySpeedHotfix
       ? true
       : isV507Quality
-      ? false
+      ? true
       : undefined,
     audioHoldMs: isLatencySpeedHotfix ? 0 : undefined,
+    guardedStreamingEnabled: isV507Quality ? true : undefined,
+    tailGuardNormalHoldMs: isV507Quality
+      ? TAIL_GUARD_NORMAL_HOLD_MS
+      : undefined,
+    tailGuardRiskHoldMs: isV507Quality ? TAIL_GUARD_RISK_HOLD_MS : undefined,
+    tailGuardMaxHoldMs: isV507Quality ? TAIL_GUARD_MAX_HOLD_MS : undefined,
     fullTurnBufferEnabled: false,
     runtimeGuardrailsEnabled,
     inputGuardEnabled: runtimeGuardrailsEnabled,
@@ -209,7 +220,8 @@ export async function createGrokFirstV50Session(input?: {
     negativeGuardEnabled: runtimeGuardrailsEnabled,
     tailGuardEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
     fixedGuardAudioEnabled: runtimeGuardrailsEnabled,
-    boundedRewriteEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
+    boundedRewriteEnabled:
+      isV507SpeedHotfix || isV507Quality ? false : runtimeGuardrailsEnabled,
     noiseIgnoredEnabled: runtimeGuardrailsEnabled,
     runtimeControl: {
       mode: isPromptOnly ? "prompt_only" : "default",
@@ -219,7 +231,8 @@ export async function createGrokFirstV50Session(input?: {
       negativeGuardEnabled: runtimeGuardrailsEnabled,
       tailGuardEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
       fixedGuardAudioEnabled: runtimeGuardrailsEnabled,
-      boundedRewriteEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
+      boundedRewriteEnabled:
+        isV507SpeedHotfix || isV507Quality ? false : runtimeGuardrailsEnabled,
       noiseIgnoredEnabled: runtimeGuardrailsEnabled,
     },
     debugTranscriptPreviewEnabled:

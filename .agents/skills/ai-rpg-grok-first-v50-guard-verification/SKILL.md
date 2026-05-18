@@ -79,48 +79,48 @@ prompt-only base with runtime quality guards enabled. Expected identity:
 - `runtimeControl.mode=default`
 - `runtimeGuardrailsEnabled=true`
 - `normalInputRouterEnabled=true`
-- `boundedRewriteEnabled=true` for the human-functional quality gate
-- `streamAudioBeforeDone=false`
+- `boundedRewriteEnabled=false`
+- `latencyMode=guarded_tail_streaming`
+- `streamAudioBeforeDone=true`
+- `guardedStreamingEnabled=true`
+- `tailGuardNormalHoldMs=300`
+- `tailGuardRiskHoldMs=800`
+- `tailGuardMaxHoldMs=1000`
 - `fullTurnBufferEnabled=false`
 - `turnDetection.create_response=false`
 - browser evaluation disabled
 
-The quality route is not the speed hotfix. It holds Realtime audio until
-`response.done` and uses `fullTurnBufferCount`, `tailAudioDroppedBytes`, and
-raw/visible/audible transcript evidence for the quality guard DoD.
+The quality route is not the speed hotfix. It uses guarded rolling tail-buffer
+streaming: normal Grok audio is released before `response.done` only after the
+rolling transcript/audio tail window is safe, while the last 300-800ms remains
+unplayed for possible tail drop. Evidence uses `releasedBeforeDone`,
+`responseDoneBeforeFirstAudible`, `streamReleasedAudioBytes`,
+`heldTailAudioBytes`, `droppedTailAudioBytes`, `finalReleaseAudioBytes`, and
+raw/visible/audible transcript separation for the quality guard DoD.
 The v50.7-quality first message must also be audible: after `session.ready`, the
 client records `opening.playback.started` and `opening.playback.completed` with
 `firstAudibleAudioMs` for the cached static opening audio.
-Bounded rewrite is enabled for the human-functional quality route because
-production human review showed repeated customer-led tails in broad normal
-sales questions. Keep rewrites short, positive target-shape only, and scoped to
-high-risk normal sales questions; do not edit the v50.7.2 prompt text.
-After the 2026-05-18 human-session review, low-information and gratitude
-inputs on v50.7-quality should use deterministic short acknowledgements
-(`はい。`, `そうですね。`, or `いえいえ、こちらこそ。`) through the bounded
-short-ack TTS path. They must not call Grok or append customer-led tails.
-Broad high-risk normal-sales questions may use the same locked-response cache
-only for whitelisted safe-body texts when Grok repeatedly appends customer-led
-tails. Report this as `audioReleaseMode=fixed_safe_body_audio`; it is not a
-general Runtime TTS fallback. The focused guard whitelist currently covers
-background, business overview, broad conditions, candidate explanation, and
-decision structure confirmation, plus the manufacturer-experience requirement
-check.
-Risk-based safe-prefix streaming is temporarily disabled because human review
-heard forbidden tail starts while declared `audibleTranscript` was clean.
+Normal sales, low-information, and gratitude inputs call Grok and use the same
+rolling tail guard. Do not rewrite normal sales into deterministic safe bodies,
+do not use deterministic short-ack TTS, and do not use
+`fixed_safe_body_audio`/locked normal-sales cache on this route. The only
+deterministic audio paths that remain valid are `fixed_external` and
+`fixed_exit` static guard audio.
 For hard P0 actions (`cancel` / `suppress`), quality route drops held audio.
-For tail-only actions (`strip_tail` / `drop_sentence`), quality route attempts
-Approx Chunk release of the safe body without Runtime TTS after `response.done`.
-The boundary prefers transcript-delta order, falls back to character ratio, and
-always drops the trailing safety window/chunk for tail-only decisions. Boundary failure is reported as
-`audioReleaseMode=tail_only_drop_fallback` and blocks
-`ROLEPLAY_FUNCTIONAL_PASS`.
+For tail-only actions (`strip_tail` / `drop_sentence`), quality route keeps any
+already released clean prefix, stops further release, and drops the held tail.
+`response.done` is final cleanup, not the first playback trigger. A normal pass
+turn should report `audioReleaseMode=guarded_tail_stream_release`,
+`releasedBeforeDone=true`, `responseDoneBeforeFirstAudible=false`, and
+`firstDeltaToFirstAudibleMs` bounded by the selected hold plus playback
+overhead.
 `ROLEPLAY_FUNCTIONAL_PASS` additionally requires normal-sales audible output,
-customer-led safe-body audible output, no safe-body all-drop, no normal-sales
-`tail_only_drop_fallback`, no chat-visible/audible transcript mismatch, opening
-audio present, `turn.completed` completeness, audio leak `0`, false-pass audit
-`0`, `potentialAudioLeak=0`, and `firstAudibleAudioMs` p50 `<3000ms` / p95
-`<7000ms`.
+no normal-sales `fixed_safe_body_audio`, `responseCreateCount > 0` for normal
+sales, no safe-prefix all-drop, no normal-sales `tail_only_drop_fallback`, no
+chat-visible/audible transcript mismatch, opening audio present,
+`turn.completed` completeness, audio leak `0`, false-pass audit `0`,
+`potentialAudioLeak=0`, and no normal pass turn with
+`firstDeltaToFirstAudibleMs > 2000ms`.
 
 ## v50.7 In-place Speed Hotfix
 
@@ -706,9 +706,12 @@ show `runtimeGuardrailsEnabled=false`; the voice-turn smoke must show
 `routePath=grok_first_realtime`, `guardAction=pass`, `guardReasons=[]`,
 `fullTurnBufferCount=0`, `tailAudioDroppedBytes=0`, and `audioBytes > 0`.
 For v50.7 quality, session smoke must show the quality route identity, guards
-enabled, `streamAudioBeforeDone=false`, `fullTurnBufferEnabled=false`, and
-route-specific event endpoint `/api/grok-first-v50-7-quality/event`. Focused
-quality evidence reports `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`,
+enabled, `latencyMode=guarded_tail_streaming`, `streamAudioBeforeDone=true`,
+`guardedStreamingEnabled=true`, `tailGuardNormalHoldMs=300`,
+`tailGuardRiskHoldMs=800`, `tailGuardMaxHoldMs=1000`,
+`boundedRewriteEnabled=false`, `fullTurnBufferEnabled=false`, and route-specific
+event endpoint `/api/grok-first-v50-7-quality/event`. Focused quality evidence
+reports `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`,
 `QUALITY_GUARD_BLOCKED`, or `ROLEPLAY_FUNCTIONAL_PASS`. Human testing requires
 `ROLEPLAY_FUNCTIONAL_PASS`; `QUALITY_GUARD_PASS` alone is not sufficient when
 normal sales or safe-body tail turns are silent.

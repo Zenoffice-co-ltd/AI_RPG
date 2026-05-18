@@ -15,6 +15,7 @@ import {
 } from "@/lib/roleplay/grok-voice-audio-queue";
 import { GrokVoiceMicRecorder } from "@/lib/roleplay/grok-voice-mic-recorder";
 import {
+  selectTailHoldMs,
   TailOnlyAudioGuard,
   type TailGuardChunk,
 } from "./audio-tail-guard";
@@ -62,14 +63,32 @@ const TAIL_ONLY_SAFETY_DROP_MS = 200;
 const TAIL_ONLY_FADE_OUT_MS = 80;
 const TAIL_ONLY_MIN_RELEASE_MS = 700;
 const TAIL_ONLY_MIN_SAFE_BODY_RATIO = 0.8;
-const DETERMINISTIC_SAFE_BODY_TEXTS = new Set([
-  "受注処理が増えていて、社員側の確認負荷が高くなっています。",
-  "受注入力、発注処理、納期調整、代理店や工務店からの問い合わせ対応が中心です。",
-  "営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。",
-  "受注入力と納期調整が中心で、代理店や工務店との電話・メール対応があり、週五日出社前提です。",
-  "人事側で条件面を確認し、現場課長が業務適性を見る理解で近いです。",
-  "メーカー経験は必須ではありませんが、受発注と対外調整の経験は見たいです。",
-]);
+
+const RISKY_INPUT_PATTERNS: RegExp[] = [
+  /^(はい|うん|そうですね|そうですか|なるほど|わかりました|分かりました|ありがとうございます|ありがとうございました|はいはい|え)[。！？!?]*$/u,
+  /募集背景/u,
+  /業務内容/u,
+  /業務.*大枠/u,
+  /条件.*(全部|教えて)/u,
+  /候補者.*伝え/u,
+  /応募者.*伝え/u,
+  /決定構造/u,
+  /人事.*現場課長/u,
+  /在宅/u,
+  /メーカー経験/u,
+  /住宅設備経験/u,
+];
+
+const RISKY_STREAM_PATTERNS: RegExp[] = [
+  /何か/u,
+  /ご質問/u,
+  /お聞き/u,
+  /お話し/u,
+  /よろしく/u,
+  /補足/u,
+  /後ほど/u,
+  /後で/u,
+];
 
 type FixedInputGuardDecision = InputGuardDecision & {
   action: "fixed_exit" | "fixed_external";
@@ -128,6 +147,20 @@ function sumAudioDurationMs(
 
 function hasCompleteSentence(text: string): boolean {
   return /[。！？!?]\s*$/u.test(text.trim());
+}
+
+function matchesAnyPattern(text: string, patterns: RegExp[]): boolean {
+  return patterns.some((pattern) => pattern.test(text));
+}
+
+function isRiskyTailBufferTurn(input: {
+  userText: string;
+  streamText: string;
+}): boolean {
+  return (
+    matchesAnyPattern(input.userText, RISKY_INPUT_PATTERNS) ||
+    matchesAnyPattern(input.streamText, RISKY_STREAM_PATTERNS)
+  );
 }
 
 function slicePcmBase64(base64: string, keepBytes: number): string {
@@ -390,6 +423,11 @@ export function useGrokFirstRoleplayConversation(
   const bufferedAudioDroppedBytesRef = useRef(0);
   const bufferedAudioObservedRef = useRef(false);
   const riskSafePrefixReadyRef = useRef(false);
+  const streamReleaseBlockedRef = useRef(false);
+  const guardedStreamReleasedBeforeDoneRef = useRef(false);
+  const streamReleasedAudioBytesRef = useRef(0);
+  const finalReleaseAudioBytesRef = useRef(0);
+  const lastStreamDecisionRef = useRef<NegativeGuardDecision | null>(null);
   const transcriptDeltasRef = useRef<TranscriptDeltaTiming[]>([]);
   const eventOrderRef = useRef(0);
   const currentUserTextRef = useRef("");
@@ -436,8 +474,11 @@ export function useGrokFirstRoleplayConversation(
 
   const shouldStreamAudioBeforeDone = useCallback(() => {
     const activeSession = sessionRef.current;
+    const guardedTailStreaming =
+      activeSession?.backend === "grok-first-v50-7-quality" &&
+      activeSession.guardedStreamingEnabled === true;
     return (
-      activeSession?.streamAudioBeforeDone === true ||
+      (activeSession?.streamAudioBeforeDone === true && !guardedTailStreaming) ||
       activeSession?.latencyMode === "fastest_streaming"
     );
   }, []);
@@ -446,6 +487,14 @@ export function useGrokFirstRoleplayConversation(
     () => sessionRef.current?.backend === "grok-first-v50-7-quality",
     []
   );
+
+  const isGuardedTailStreamingSession = useCallback(() => {
+    const activeSession = sessionRef.current;
+    return (
+      activeSession?.backend === "grok-first-v50-7-quality" &&
+      activeSession.guardedStreamingEnabled === true
+    );
+  }, []);
 
   const createRealtimeResponse = useCallback((responseInstructions?: string) => {
     expectedAssistantResponseRef.current = true;
@@ -499,6 +548,10 @@ export function useGrokFirstRoleplayConversation(
       latencyMode: activeSession.latencyMode ?? "default",
       streamAudioBeforeDone: activeSession.streamAudioBeforeDone === true,
       audioHoldMs: activeSession.audioHoldMs ?? undefined,
+      guardedStreamingEnabled: activeSession.guardedStreamingEnabled ?? undefined,
+      tailGuardNormalHoldMs: activeSession.tailGuardNormalHoldMs ?? undefined,
+      tailGuardRiskHoldMs: activeSession.tailGuardRiskHoldMs ?? undefined,
+      tailGuardMaxHoldMs: activeSession.tailGuardMaxHoldMs ?? undefined,
       turnDetectionSilenceMs: activeSession.turnDetection.silence_duration_ms,
     }),
     []
@@ -556,6 +609,11 @@ export function useGrokFirstRoleplayConversation(
     bufferedAudioDroppedBytesRef.current = 0;
     bufferedAudioObservedRef.current = false;
     riskSafePrefixReadyRef.current = false;
+    streamReleaseBlockedRef.current = false;
+    guardedStreamReleasedBeforeDoneRef.current = false;
+    streamReleasedAudioBytesRef.current = 0;
+    finalReleaseAudioBytesRef.current = 0;
+    lastStreamDecisionRef.current = null;
     transcriptDeltasRef.current = [];
     eventOrderRef.current = 0;
     currentUserTextRef.current = "";
@@ -590,6 +648,7 @@ export function useGrokFirstRoleplayConversation(
       visibleTextOverride?: string;
       releasedAudioBytes?: number;
       droppedAudioBytes?: number;
+      finalReleaseAudioBytes?: number;
       tailOnlyFallbackReason?: string | undefined;
       audioSource?: GrokFirstV50Metric["audioSource"];
     }) => {
@@ -674,6 +733,10 @@ export function useGrokFirstRoleplayConversation(
         fullTurnBufferCount: input.fullTurnBuffered ? 1 : 0,
         ...runtimeDetails,
         firstDeltaToFirstAudibleMs,
+        releasedBeforeDone: guardedStreamReleasedBeforeDoneRef.current,
+        responseDoneBeforeFirstAudible:
+          !guardedStreamReleasedBeforeDoneRef.current &&
+          firstAudibleAudioAtRef.current !== null,
         rawAssistantTranscript: accumulatedTextRef.current,
         visibleAssistantTranscript: visibleText,
         audibleTranscript: audibleText,
@@ -690,6 +753,14 @@ export function useGrokFirstRoleplayConversation(
         releasedAudioBytes,
         droppedAudioBytes,
         audibleAudioBytes: releasedAudioBytes,
+        streamReleasedAudioBytes: streamReleasedAudioBytesRef.current,
+        heldTailAudioBytes:
+          input.audioReleaseMode === "hard_block_drop" ||
+          input.audioReleaseMode === "tail_only_drop_fallback"
+            ? 0
+            : Math.max(0, generatedAudioBytes - releasedAudioBytes - droppedAudioBytes),
+        droppedTailAudioBytes: droppedAudioBytes,
+        finalReleaseAudioBytes: input.finalReleaseAudioBytes ?? finalReleaseAudioBytesRef.current,
         audioReleaseMode: input.audioReleaseMode,
         tailOnlyFallbackReason: input.tailOnlyFallbackReason,
         potentialAudioLeak:
@@ -1300,7 +1371,11 @@ export function useGrokFirstRoleplayConversation(
           const normalRoute = normalInputRouterEnabled
             ? classifyNormalInputRoute(normalization.normalizedText)
             : null;
-          if (normalRoute && normalRoute.action !== "pass") {
+          if (
+            normalRoute &&
+            normalRoute.action !== "pass" &&
+            !isGuardedTailStreamingSession()
+          ) {
             userSpeechInProgressRef.current = false;
             handleNormalInputRouteDecision({
               text,
@@ -1355,83 +1430,6 @@ export function useGrokFirstRoleplayConversation(
                 tailAudioDroppedBytes: dropped.droppedBytes + bufferedDroppedBytes,
               },
             });
-            if (
-              isV507QualitySession() &&
-              DETERMINISTIC_SAFE_BODY_TEXTS.has(realtimeRewriteText)
-            ) {
-              void (async () => {
-                void postEvent({
-                  kind: "stt.completed",
-                  sessionId: activeSession.sessionId,
-                  details: {
-                    turnIndex: turnIndexRef.current,
-                    textLen: text.length,
-                    sttTextPreview: text.slice(0, 200),
-                    normalizedUserText: normalization.normalizedText,
-                    normalizationApplied: normalization.normalizationApplied,
-                    normalizationReasons: normalization.normalizationReasons,
-                    guardAction: "normal_realtime_rewrite",
-                    guardReasons: [
-                      ...(normalRoute?.reasons ?? []),
-                      ...normalization.normalizationReasons,
-                    ],
-                  },
-                });
-                let playbackError: string | null = null;
-                let safeBodyAudioBytes = 0;
-                try {
-                  const safeBodyAudio =
-                    await (deps.fetchShortAckAudio ?? fetchGrokFirstV50ShortAck)({
-                      sessionId: activeSession.sessionId,
-                      text: realtimeRewriteText,
-                    });
-                  safeBodyAudioBytes = Math.floor(
-                    (safeBodyAudio.audioBase64.length * 3) / 4
-                  );
-                  const playbackStartedAt = Date.now();
-                  fixedPlaybackStartedAtRef.current = playbackStartedAt;
-                  firstAudioDeltaAtRef.current = playbackStartedAt;
-                  firstAudibleAudioAtRef.current = playbackStartedAt;
-                  accumulatedTextRef.current = realtimeRewriteText;
-                  accumulatedAudioBytesRef.current = safeBodyAudioBytes;
-                  releasedAudioBytesRef.current = safeBodyAudioBytes;
-                  setStatus("speaking");
-                  await ensureAudioQueue().enqueueBase64AndWait(
-                    safeBodyAudio.audioBase64
-                  );
-                  appendFixedAssistantTranscript(realtimeRewriteText);
-                } catch (error) {
-                  playbackError =
-                    error instanceof Error ? error.message : String(error);
-                  setErrorMessage(AUDIO_ERROR);
-                } finally {
-                  fixedPlaybackCompletedAtRef.current = Date.now();
-                }
-                emitMetric({
-                  routePath: "grok_first_realtime",
-                  guardAction: "pass",
-                  guardReasons: [
-                    ...(normalRoute?.reasons ?? []),
-                    ...normalization.normalizationReasons,
-                    "deterministic_safe_body_audio",
-                  ],
-                  agentTextOverride: playbackError ? "" : realtimeRewriteText,
-                  audibleTextOverride: playbackError ? "" : realtimeRewriteText,
-                  rawTextBeforeGuard: playbackError ? "" : realtimeRewriteText,
-                  finalTextAfterGuard: playbackError ? "" : realtimeRewriteText,
-                  audioReleaseMode: "fixed_safe_body_audio",
-                  audioSource: "static_safe_body_tts",
-                  releasedAudioBytes: playbackError ? 0 : safeBodyAudioBytes,
-                  droppedAudioBytes:
-                    dropped.droppedBytes + bufferedDroppedBytes,
-                  error: playbackError,
-                });
-                resetTurn();
-                micRef.current?.setEnabled(!mutedRef.current);
-                setStatus(mutedRef.current ? "muted" : "listening");
-              })();
-              break;
-            }
             createRealtimeResponse(realtimeRewriteText);
             const rewriteSessionId = activeSession.sessionId;
             const rewriteTurnIndex = turnIndexRef.current;
@@ -1520,6 +1518,7 @@ export function useGrokFirstRoleplayConversation(
             userText: normalizedUserTextRef.current || currentUserTextRef.current,
             phase: "stream",
           });
+          lastStreamDecisionRef.current = streamDecision;
           const tailOnlyCandidate =
             streamDecision.action === "strip_tail" ||
             streamDecision.action === "drop_sentence";
@@ -1530,6 +1529,12 @@ export function useGrokFirstRoleplayConversation(
           const hardStreamBlock =
             shouldCancelStream &&
             (!qualitySession || streamDecision.hardStop);
+          if (
+            qualitySession &&
+            (tailOnlyCandidate || (shouldCancelStream && !streamDecision.hardStop))
+          ) {
+            streamReleaseBlockedRef.current = true;
+          }
           if (
             hardStreamBlock ||
             (tailOnlyCandidate && !qualitySession)
@@ -1542,7 +1547,9 @@ export function useGrokFirstRoleplayConversation(
             );
             const dropped = tailGuardRef.current.clear();
             const bufferedDroppedBytes = clearBufferedAudio();
-            audioQueueRef.current?.clearAllScheduledAudioForLock();
+            if (!qualitySession || !guardedStreamReleasedBeforeDoneRef.current) {
+              audioQueueRef.current?.clearAllScheduledAudioForLock();
+            }
             void postEvent({
               kind: "guard.detected",
               sessionId: activeSession.sessionId,
@@ -1587,7 +1594,39 @@ export function useGrokFirstRoleplayConversation(
           const order = eventOrderRef.current++;
           const bytes = Math.floor((base64.length * 3) / 4);
           accumulatedAudioBytesRef.current += bytes;
-          if (shouldStreamAudioBeforeDone()) {
+          if (isGuardedTailStreamingSession() && runtimeGuardrailsEnabled) {
+            bufferedAudioObservedRef.current = true;
+            const streamDecision = lastStreamDecisionRef.current;
+            const streamClean =
+              streamDecision === null ||
+              streamDecision.action === "pass" ||
+              streamDecision.action === "metric";
+            const risky = isRiskyTailBufferTurn({
+              userText: normalizedUserTextRef.current || currentUserTextRef.current,
+              streamText: accumulatedTextRef.current,
+            });
+            const holdMs = selectTailHoldMs({ risky });
+            const release = tailGuardRef.current.push(
+              base64,
+              holdMs,
+              streamClean &&
+                !streamReleaseBlockedRef.current &&
+                riskSafePrefixReadyRef.current
+            );
+            if (release.chunks.length > 0) {
+              const released = releaseChunks(
+                release.chunks.map((chunk, index) => ({
+                  ...chunk,
+                  at: now,
+                  order: order - release.chunks.length + index,
+                }))
+              );
+              if (released > 0) {
+                guardedStreamReleasedBeforeDoneRef.current = true;
+                streamReleasedAudioBytesRef.current += released;
+              }
+            }
+          } else if (shouldStreamAudioBeforeDone()) {
             releaseChunks([toBufferedAudioChunk(base64, now, order)]);
           } else if (runtimeGuardrailsEnabled) {
             bufferedAudioObservedRef.current = true;
@@ -1623,6 +1662,7 @@ export function useGrokFirstRoleplayConversation(
             userText: normalizedUserTextRef.current || currentUserTextRef.current,
             phase: "final",
           });
+          const guardedTailStreaming = isGuardedTailStreamingSession();
           const streamingBeforeDone = shouldStreamAudioBeforeDone();
           const release = runtimeGuardrailsEnabled && !streamingBeforeDone
             ? tailGuardRef.current.finalize(decision)
@@ -1674,7 +1714,22 @@ export function useGrokFirstRoleplayConversation(
               decision.action === "strip_tail" ||
               decision.action === "drop_sentence"
             ) {
-              const finalTextDecision = tailOnlyReleaseEnabled
+              if (guardedTailStreaming) {
+                const bufferedDroppedBytes = sumAudioBytes(allBufferedChunks);
+                bufferedAudioDroppedBytesRef.current += bufferedDroppedBytes;
+                droppedAudioBytes += bufferedDroppedBytes;
+                if (guardedStreamReleasedBeforeDoneRef.current) {
+                  routePath = "grok_first_realtime";
+                  audioReleaseMode = "guarded_tail_stream_release";
+                  audibleText = finalText;
+                } else {
+                  routePath = "suppressed";
+                  audioReleaseMode = "tail_only_drop_fallback";
+                  audibleText = "";
+                  tailOnlyFallbackReason = "no_streamed_safe_prefix";
+                }
+              } else {
+                const finalTextDecision = tailOnlyReleaseEnabled
                 ? evaluateActiveNegativeGuard({
                     text: finalText,
                     userText:
@@ -1682,48 +1737,55 @@ export function useGrokFirstRoleplayConversation(
                     phase: "final",
                   })
                 : null;
-              const finalTextIsSafe =
-                tailOnlyReleaseEnabled &&
-                finalText.trim().length > 0 &&
-                (finalTextDecision?.action === "pass" ||
-                  finalTextDecision?.action === "metric");
-              const plan = finalTextIsSafe
-                ? planTailOnlyRelease({
-                    rawText: rawTextBeforeGuard,
-                    finalText,
-                    chunks: allBufferedChunks,
-                    transcriptDeltas: transcriptDeltasRef.current,
-                  })
-                : {
-                    ok: false as const,
-                    droppedBytes: sumAudioBytes(allBufferedChunks),
-                    reason: finalText.trim()
-                      ? "final_text_still_guarded"
-                      : "empty_final_text",
-                  };
-              if (plan.ok) {
-                routePath = "grok_first_realtime";
-                audioReleaseMode = "tail_only_release";
-                audibleText = finalText;
-                setStatus("speaking");
-                releasedAudioBytes += releaseChunks(plan.chunks);
-                droppedAudioBytes += plan.droppedBytes;
-                bufferedAudioDroppedBytesRef.current += plan.droppedBytes;
-              } else {
-                routePath = "suppressed";
-                audioReleaseMode = "tail_only_drop_fallback";
-                audibleText = "";
-                tailOnlyFallbackReason = plan.reason;
-                droppedAudioBytes += plan.droppedBytes;
-                bufferedAudioDroppedBytesRef.current += plan.droppedBytes;
+                const finalTextIsSafe =
+                  tailOnlyReleaseEnabled &&
+                  finalText.trim().length > 0 &&
+                  (finalTextDecision?.action === "pass" ||
+                    finalTextDecision?.action === "metric");
+                const plan = finalTextIsSafe
+                  ? planTailOnlyRelease({
+                      rawText: rawTextBeforeGuard,
+                      finalText,
+                      chunks: allBufferedChunks,
+                      transcriptDeltas: transcriptDeltasRef.current,
+                    })
+                  : {
+                      ok: false as const,
+                      droppedBytes: sumAudioBytes(allBufferedChunks),
+                      reason: finalText.trim()
+                        ? "final_text_still_guarded"
+                        : "empty_final_text",
+                    };
+                if (plan.ok) {
+                  routePath = "grok_first_realtime";
+                  audioReleaseMode = "tail_only_release";
+                  audibleText = finalText;
+                  setStatus("speaking");
+                  const finalReleased = releaseChunks(plan.chunks);
+                  finalReleaseAudioBytesRef.current += finalReleased;
+                  releasedAudioBytes += finalReleased;
+                  droppedAudioBytes += plan.droppedBytes;
+                  bufferedAudioDroppedBytesRef.current += plan.droppedBytes;
+                } else {
+                  routePath = "suppressed";
+                  audioReleaseMode = "tail_only_drop_fallback";
+                  audibleText = "";
+                  tailOnlyFallbackReason = plan.reason;
+                  droppedAudioBytes += plan.droppedBytes;
+                  bufferedAudioDroppedBytesRef.current += plan.droppedBytes;
+                }
               }
             } else {
               audioReleaseMode =
-                releasedAudioBytesRef.current > 0
+                guardedTailStreaming && guardedStreamReleasedBeforeDoneRef.current
+                  ? "guarded_tail_stream_release"
+                  : releasedAudioBytesRef.current > 0
                   ? "pass_stream_release"
                   : "pass_buffer_release";
               setStatus("speaking");
-              releasedAudioBytes += releaseChunks(allBufferedChunks);
+              const finalReleased = releaseChunks(allBufferedChunks);
+              finalReleaseAudioBytesRef.current += finalReleased;
+              releasedAudioBytes += finalReleased;
             }
           } else if (runtimeGuardrailsEnabled && streamingBeforeDone && hardBlockDecision) {
             audioReleaseMode = "hard_block_drop";
@@ -1769,7 +1831,11 @@ export function useGrokFirstRoleplayConversation(
               bufferedAudioDroppedBytesRef.current,
             tailOnlyFallbackReason,
             fullTurnBuffered:
-              runtimeGuardrailsEnabled && hadBufferedAudio && !streamingBeforeDone,
+              runtimeGuardrailsEnabled &&
+              hadBufferedAudio &&
+              !streamingBeforeDone &&
+              !guardedTailStreaming,
+            finalReleaseAudioBytes: finalReleaseAudioBytesRef.current,
           });
           resetTurn();
           micRef.current?.setEnabled(!mutedRef.current);
@@ -1800,6 +1866,7 @@ export function useGrokFirstRoleplayConversation(
       ensureInterimAgentTranscript,
       handleFixedGuardDecision,
       handleNormalInputRouteDecision,
+      isGuardedTailStreamingSession,
       isV507QualitySession,
       postEvent,
       releaseChunks,
@@ -1990,7 +2057,11 @@ export function useGrokFirstRoleplayConversation(
       const normalRoute = normalInputRouterEnabled
         ? classifyNormalInputRoute(normalization.normalizedText)
         : null;
-      if (normalRoute && normalRoute.action !== "pass") {
+      if (
+        normalRoute &&
+        normalRoute.action !== "pass" &&
+        !isGuardedTailStreamingSession()
+      ) {
         handleNormalInputRouteDecision({
           text: trimmed,
           decision: normalRoute,
@@ -2032,6 +2103,7 @@ export function useGrokFirstRoleplayConversation(
       areRuntimeGuardrailsEnabled,
       handleFixedGuardDecision,
       handleNormalInputRouteDecision,
+      isGuardedTailStreamingSession,
       postEvent,
       resetTurn,
       sendRealtimeUserText,

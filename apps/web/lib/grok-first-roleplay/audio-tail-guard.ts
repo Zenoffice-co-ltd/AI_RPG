@@ -25,7 +25,7 @@ export class TailOnlyAudioGuard {
   private droppedBytes = 0;
   private maxObservedHoldMs = 0;
 
-  push(base64: string, holdMs: number): TailGuardRelease {
+  push(base64: string, holdMs: number, releaseEligible = true): TailGuardRelease {
     const chunk = toChunk(base64);
     this.held.push(chunk);
     this.heldDurationMs += chunk.durationMs;
@@ -35,6 +35,9 @@ export class TailOnlyAudioGuard {
     );
 
     const release: TailGuardChunk[] = [];
+    if (!releaseEligible) {
+      return { chunks: release, droppedBytes: 0 };
+    }
     const boundedHoldMs = Math.min(Math.max(0, holdMs), TAIL_GUARD_MAX_HOLD_MS);
     while (this.heldDurationMs > boundedHoldMs && this.held.length > 1) {
       const next = this.held.shift();
