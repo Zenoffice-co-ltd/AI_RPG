@@ -42,6 +42,9 @@ const CONFIRMATION_DESTINATION_REWRITE =
 const CANDIDATE_FLOW_REWRITE =
   "顧客として、「まずスキルカードを確認し、良さそうであれば職場見学に進む流れです。」という内容だけを自然に一文で答える。";
 
+const CANDIDATE_EXPLANATION_REWRITE =
+  "顧客として、候補者に伝える内容は「受注入力と納期調整が中心で、代理店や工務店との電話・メール対応があり、週五日出社前提です。」という内容だけを自然に一文で答える。";
+
 const CANDIDATE_PROPOSAL_CLOSING_REWRITE =
   "顧客として、「はい、次は候補者提案に進める形で大丈夫です。」という内容だけを自然に一文で答える。";
 
@@ -123,6 +126,11 @@ const CANDIDATE_FLOW_PATTERNS: RegExp[] = [
   /スキルカード.*確認/u,
 ];
 
+const CANDIDATE_EXPLANATION_PATTERNS: RegExp[] = [
+  /候補者.*伝え/u,
+  /応募者.*伝え/u,
+];
+
 const CANDIDATE_PROPOSAL_CLOSING_PATTERNS: RegExp[] = [
   /次は候補者提案/u,
   /候補者提案に進める/u,
@@ -190,6 +198,11 @@ const LOW_INFORMATION_PATTERNS: RegExp[] = [
   /^始めてください$/u,
 ];
 
+const GRATITUDE_PATTERNS: RegExp[] = [
+  /^ありがとうございます$/u,
+  /^ありがとうございました$/u,
+];
+
 const OPENING_GREETING_PATTERNS: RegExp[] = [
   /^(はい)?(今回|本日|今日は|お電話)?よろしくお願いします$/u,
   /^(はい)?(今回|本日|今日は|お電話)?よろしくお願いいたします$/u,
@@ -233,16 +246,28 @@ export function classifyNormalInputRoute(
 
   const lowInformation = findMatch(normalizedText, LOW_INFORMATION_PATTERNS);
   if (lowInformation) {
+    const fixedText = selectShortAckText(normalizedText);
     return {
       action: "noise_ignored",
       reasons: ["low_information_input"],
       normalizedText,
       shouldSendToRealtime: false,
-      shouldSpeak: false,
+      shouldSpeak: true,
+      fixedText,
     };
   }
 
   return pass(normalizedText);
+}
+
+function selectShortAckText(normalizedText: string): string {
+  if (matchesAny(normalizedText, GRATITUDE_PATTERNS)) {
+    return "いえいえ、こちらこそ。";
+  }
+  if (normalizedText === "そうですね") {
+    return "そうですね。";
+  }
+  return "はい。";
 }
 
 function pass(normalizedText: string): NormalInputRouteDecision {
@@ -296,6 +321,12 @@ function selectRealtimeRewrite(
     return {
       text: CANDIDATE_PROPOSAL_CLOSING_REWRITE,
       reasons: ["normal_realtime_rewrite", "candidate_proposal_closing_request"],
+    };
+  }
+  if (matchesAny(normalizedText, CANDIDATE_EXPLANATION_PATTERNS)) {
+    return {
+      text: CANDIDATE_EXPLANATION_REWRITE,
+      reasons: ["normal_realtime_rewrite", "candidate_explanation_request"],
     };
   }
   if (matchesAny(normalizedText, CANDIDATE_FLOW_PATTERNS)) {

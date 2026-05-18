@@ -223,6 +223,7 @@ function renderConversation(input: {
   micEnabled?: boolean;
   session?: GrokFirstV50Session;
   fetchOpeningAudio?: UseGrokFirstRoleplayDeps["fetchOpeningAudio"];
+  fetchShortAckAudio?: UseGrokFirstRoleplayDeps["fetchShortAckAudio"];
 } = {}) {
   const fake = buildFakeRealtime();
   const mic = buildFakeMicRecorder();
@@ -243,6 +244,9 @@ function renderConversation(input: {
     createMicRecorder: mic.ctor,
     micEnabled: input.micEnabled ?? false,
   };
+  if (input.fetchShortAckAudio) {
+    deps.fetchShortAckAudio = input.fetchShortAckAudio;
+  }
   const rendered = renderHook(() => useGrokFirstRoleplayConversation("live", deps));
   return { ...rendered, fake, mic, queue, postEvent, fetchOpeningAudio };
 }
@@ -540,6 +544,119 @@ describe("grok-first v50.7 client input guard", () => {
         routePath: "noise_ignored",
         agentTextLen: 0,
       });
+    });
+  });
+
+  it("plays deterministic short ack for v50.7 quality low-information input and drains late assistant events", async () => {
+    const shortAckAudio = Buffer.from(new Uint8Array(24_000)).toString("base64");
+    const fetchShortAckAudio = vi.fn().mockResolvedValue({
+      audioBase64: shortAckAudio,
+      mimeType: "audio/pcm" as const,
+      sampleRateHz: 24_000,
+      textLen: 3,
+      voiceId: QUALITY_BUFFERED_SESSION.voiceId,
+      vendorMs: 10,
+      cacheStatus: "hit" as const,
+    });
+    const { result, fake, queue, postEvent } = renderConversation({
+      session: QUALITY_BUFFERED_SESSION,
+      fetchShortAckAudio,
+    });
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "はい。",
+      });
+    });
+
+    await waitFor(() => {
+      expect(fetchShortAckAudio).toHaveBeenCalledWith({
+        sessionId: QUALITY_BUFFERED_SESSION.sessionId,
+        text: "はい。",
+      });
+      expect(queue.enqueueBase64AndWait).toHaveBeenCalledWith(shortAckAudio);
+      expect(result.current.metricsLog.at(-1)).toMatchObject({
+        routePath: "noise_ignored",
+        guardAction: "suppress",
+        visibleAssistantTranscript: "はい。",
+        audibleTranscript: "はい。",
+        audioReleaseMode: "fixed_short_ack_audio",
+        audioSource: "static_short_ack_tts",
+      });
+    });
+
+    const metricCount = result.current.metricsLog.length;
+    act(() => {
+      fake.emit({ type: "response.created", response: { id: "late-low-info" } });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "何かご質問ありますか。",
+      });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: Buffer.from(new Uint8Array(48)).toString("base64"),
+      });
+      fake.emit({ type: "response.done" });
+    });
+
+    expect(result.current.metricsLog).toHaveLength(metricCount);
+    expect(queue.enqueueBase64).not.toHaveBeenCalled();
+    const drainEvents = postEvent.mock.calls
+      .map(([event]) => event)
+      .filter((event) => event.kind === "guard.drain.ignored");
+    expect(drainEvents).toHaveLength(4);
+    expect(drainEvents[0]).toMatchObject({
+      details: {
+        drain: "normal_input_suppression",
+        eventType: "response.created",
+      },
+    });
+  });
+
+  it("ignores orphan assistant responses with no active user turn", async () => {
+    const { result, fake, queue, postEvent } = renderConversation({
+      session: QUALITY_BUFFERED_SESSION,
+    });
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      fake.emit({ type: "response.created", response: { id: "orphan-r1" } });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "何かご質問ありますか。",
+      });
+      fake.emit({
+        type: "response.output_audio.delta",
+        delta: Buffer.from(new Uint8Array(48)).toString("base64"),
+      });
+      fake.emit({ type: "response.done" });
+    });
+
+    expect(result.current.metricsLog).toHaveLength(0);
+    expect(queue.enqueueBase64).not.toHaveBeenCalled();
+    expect(
+      result.current.messages.some((message) =>
+        message.text.includes("何かご質問")
+      )
+    ).toBe(false);
+    const orphanEvents = postEvent.mock.calls
+      .map(([event]) => event)
+      .filter((event) => event.kind === "orphan_assistant_response.ignored");
+    expect(orphanEvents).toHaveLength(4);
+    expect(orphanEvents[0]).toMatchObject({
+      details: {
+        eventType: "response.created",
+        reason: "no_active_user_turn",
+      },
     });
   });
 

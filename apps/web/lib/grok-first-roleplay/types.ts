@@ -171,7 +171,10 @@ export type GrokFirstV50Metric = {
   firstAudibleAudioMs: number | null;
   doneMs: number | null;
   audioBytes: number;
-  audioSource: "xai_realtime_stream" | "static_guard_pcm_base64";
+  audioSource:
+    | "xai_realtime_stream"
+    | "static_guard_pcm_base64"
+    | "static_short_ack_tts";
   sttCompletedToGuardDetectedMs: number | null;
   guardDetectedToPlaybackStartedMs: number | null;
   fixedPlaybackDurationMs: number | null;
@@ -230,6 +233,10 @@ export type GrokFirstV50Metric = {
   audibleAudioBytes?: number | undefined;
   audioReleaseMode?: AudioReleaseMode | undefined;
   tailOnlyFallbackReason?: string | undefined;
+  declaredAudibleTranscript?: string | undefined;
+  actualAudibleAuditTranscript?: string | undefined;
+  potentialAudioLeak?: boolean | undefined;
+  potentialAudioLeakReasons?: string[] | undefined;
   normalizedUserText?: string | undefined;
   normalizationApplied?: boolean | undefined;
   normalizationReasons?: string[] | undefined;
@@ -248,6 +255,7 @@ export type AudioReleaseMode =
   | "tail_only_drop_fallback"
   | "hard_block_drop"
   | "fixed_guard_static_audio"
+  | "fixed_short_ack_audio"
   | "noise_ignored_no_audio";
 
 export type GuardAction =
