@@ -251,6 +251,9 @@ const TAIL_ONLY_BAD_PATTERNS: RegExp[] = [
   /詳細は.*補足/u,
   /また詳しく.*(お聞き|聞かれた|確認).*(時|際).*説明/u,
   /業務内容をお聞きになった後/u,
+  /(勤務時間|残業).*(後ほど|後で|あとで|詳しく|お伝え|補足)/u,
+  /勤務時間.*残業/u,
+  /残業.*勤務時間/u,
 ];
 
 export function evaluateNegativeGuard(input: {

@@ -119,18 +119,25 @@ prompt-only prompt. `/demo/adecco-roleplay-v50-7-quality` and
 evaluation is disabled for this route. `boundedRewriteEnabled=false` for the
 first quality gate, so normal sales turns keep the v50.7.2 prompt-only voice
 behavior and are protected by runtime guards rather than app-side text
-injection. Opening-only greetings and
-low-information backchannels are routed to `routePath=noise_ignored` with no
-assistant audio. Normal Realtime assistant audio is held until the final
-transcript guard has passed; if a P0 customer-led, meta, instruction-leak, or
-generic-closing phrase is detected, held audio is dropped before playback.
+injection. The session first message must be audible on this route: after
+`session.ready`, the client fetches cached static opening audio and records
+`opening.playback.started` / `opening.playback.completed` with
+`firstAudibleAudioMs`. Low-information backchannels are still routed to
+`routePath=noise_ignored` with no assistant audio. Normal Realtime assistant
+audio is held until the final transcript guard has passed; if a P0
+customer-led, meta, instruction-leak, or generic-closing phrase is detected,
+held audio is dropped before playback.
 For `cancel` and `suppress`, the quality route still treats the turn as a hard
 block and drops held audio. For `strip_tail` and `drop_sentence`, the runtime
 now attempts conservative Approx Chunk release: transcript-delta order is used
 first, character ratio only as a fallback, and the trailing chunk/window is
 dropped so the safe body can be audible without the bad tail. If a conservative
 boundary cannot be established, the turn remains `tail_only_drop_fallback` and
-does not qualify for `ROLEPLAY_FUNCTIONAL_PASS`.
+does not qualify for `ROLEPLAY_FUNCTIONAL_PASS`. For human-test readiness,
+chat-visible assistant text must match the audible transcript whenever the turn
+is intentionally silent, normal sales turns must not use
+`tail_only_drop_fallback`, and the focused quality report must show
+`firstAudibleAudioMs` p50 `<3000ms` and p95 `<7000ms`.
 Quality evidence uses `fullTurnBufferCount`, `tailAudioDroppedBytes`, and
 raw/visible/audible transcript separation rather than changing
 `fullTurnBufferEnabled`.
@@ -476,7 +483,11 @@ smoke must report `runtimeGuardrailsEnabled=true`,
 is `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`, `QUALITY_GUARD_BLOCKED`, or
 `ROLEPLAY_FUNCTIONAL_PASS`. Human testing requires `ROLEPLAY_FUNCTIONAL_PASS`;
 `QUALITY_GUARD_PASS` alone means the guard is safe but not necessarily audible
-for normal roleplay turns.
+for normal roleplay turns. `ROLEPLAY_FUNCTIONAL_PASS` additionally requires
+opening greeting audio, normal-sales audible output, customer-led safe-body
+audible output, `tail_only_drop_fallback=0` for normal sales, safe-body all-drop
+`0`, visible/audible mismatch `0`, false-pass audit `0`, audio leak `0`, and
+`firstAudibleAudioMs` p50 `<3000ms` / p95 `<7000ms`.
 Use `prod-logs --expect start` for start-only sessions and
 `prod-logs --expect voice-turn` for same-session turn evidence.
 
