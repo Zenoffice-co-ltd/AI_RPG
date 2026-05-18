@@ -27,6 +27,10 @@ import {
   type InputGuardDecision,
 } from "./guard/input-guard";
 import {
+  normalizeGrokFirstUserText,
+  type UserTextNormalization,
+} from "./guard/input-normalization";
+import {
   classifyNormalInputRoute,
   type NormalInputRouteDecision,
 } from "./guard/normal-input-router";
@@ -119,6 +123,9 @@ export function useGrokFirstRoleplayConversation(
   const bufferedAudioDroppedBytesRef = useRef(0);
   const bufferedAudioObservedRef = useRef(false);
   const currentUserTextRef = useRef("");
+  const normalizedUserTextRef = useRef("");
+  const normalizationAppliedRef = useRef(false);
+  const normalizationReasonsRef = useRef<string[]>([]);
   const inputModeRef = useRef<"voice" | "text">("voice");
   const interimAgentClientIdRef = useRef<string | null>(null);
   const interimAgentMessageAppendedRef = useRef(false);
@@ -266,6 +273,9 @@ export function useGrokFirstRoleplayConversation(
     bufferedAudioDroppedBytesRef.current = 0;
     bufferedAudioObservedRef.current = false;
     currentUserTextRef.current = "";
+    normalizedUserTextRef.current = "";
+    normalizationAppliedRef.current = false;
+    normalizationReasonsRef.current = [];
     interimAgentClientIdRef.current = null;
     interimAgentMessageAppendedRef.current = false;
     hardSuppressedRef.current = false;
@@ -292,7 +302,7 @@ export function useGrokFirstRoleplayConversation(
       const startedAt = turnStartAtRef.current;
       const finalDecision = evaluateActiveNegativeGuard({
         text: accumulatedTextRef.current,
-        userText: currentUserTextRef.current,
+        userText: normalizedUserTextRef.current || currentUserTextRef.current,
         phase: "final",
       });
       const finalText =
@@ -364,6 +374,9 @@ export function useGrokFirstRoleplayConversation(
         visibleAssistantTranscript: finalText,
         audibleTranscript: finalText,
         audibleTranscriptPreview: finalText.slice(0, 200),
+        normalizedUserText: normalizedUserTextRef.current || undefined,
+        normalizationApplied: normalizationAppliedRef.current,
+        normalizationReasons: [...normalizationReasonsRef.current],
         regenerationRate: 0,
         businessRegisteredSpeechHitCount: 0,
         businessPr60LockHitCount: 0,
@@ -402,6 +415,8 @@ export function useGrokFirstRoleplayConversation(
         details: {
           ...metric,
           userTextPreview: currentUserTextRef.current.slice(0, 200),
+          normalizedUserTextPreview:
+            normalizedUserTextRef.current.slice(0, 200),
           agentTextPreview: finalText.slice(0, 200),
         },
       });
@@ -761,7 +776,24 @@ export function useGrokFirstRoleplayConversation(
             });
             break;
           }
-          const guard = runtimeGuardrailsEnabled ? classifyInputGuard(text) : null;
+          const normalInputRouterEnabled =
+            activeSession.normalInputRouterEnabled ?? runtimeGuardrailsEnabled;
+          const rawNormalization =
+            runtimeGuardrailsEnabled && shouldNormalizeUserText(activeSession)
+            ? normalizeGrokFirstUserText(text)
+            : passthroughNormalization(text);
+          const normalization = enrichNormalizationReasons({
+            text,
+            normalization: rawNormalization,
+            inputGuardEnabled: runtimeGuardrailsEnabled,
+            normalInputRouterEnabled,
+          });
+          normalizedUserTextRef.current = normalization.normalizedText;
+          normalizationAppliedRef.current = normalization.normalizationApplied;
+          normalizationReasonsRef.current = normalization.normalizationReasons;
+          const guard = runtimeGuardrailsEnabled
+            ? classifyInputGuard(normalization.normalizedText)
+            : null;
           if (guard && isFixedInputGuardDecision(guard)) {
             userSpeechInProgressRef.current = false;
             void handleFixedGuardDecision({
@@ -776,15 +808,16 @@ export function useGrokFirstRoleplayConversation(
                 turnIndex: turnIndexRef.current,
                 textLen: text.length,
                 sttTextPreview: text.slice(0, 200),
+                normalizedUserText: normalization.normalizedText,
+                normalizationApplied: normalization.normalizationApplied,
+                normalizationReasons: normalization.normalizationReasons,
                 guardAction: guard.action,
               },
             });
             break;
           }
-          const normalInputRouterEnabled =
-            activeSession.normalInputRouterEnabled ?? runtimeGuardrailsEnabled;
           const normalRoute = normalInputRouterEnabled
-            ? classifyNormalInputRoute(text)
+            ? classifyNormalInputRoute(normalization.normalizedText)
             : null;
           if (normalRoute && normalRoute.action !== "pass") {
             userSpeechInProgressRef.current = false;
@@ -800,15 +833,22 @@ export function useGrokFirstRoleplayConversation(
                 turnIndex: turnIndexRef.current,
                 textLen: text.length,
                 sttTextPreview: text.slice(0, 200),
+                normalizedUserText: normalization.normalizedText,
+                normalizationApplied: normalization.normalizationApplied,
+                normalizationReasons: normalization.normalizationReasons,
                 guardAction: normalRoute.action,
                 guardReasons: normalRoute.reasons,
               },
             });
             break;
           }
-          if (normalRoute?.rewrittenText) {
+          const boundedRewriteEnabled =
+            activeSession.boundedRewriteEnabled ?? runtimeGuardrailsEnabled;
+          const normalizedRealtimeText = "";
+          const realtimeRewriteText =
+            boundedRewriteEnabled ? normalRoute?.rewrittenText ?? normalizedRealtimeText : "";
+          if (realtimeRewriteText) {
             userSpeechInProgressRef.current = false;
-            cancelRealtimeResponse("normal_realtime_rewrite");
             ignoreNextEmptyResponseDoneRef.current = true;
             const dropped = tailGuardRef.current.clear();
             const bufferedDroppedBytes = clearBufferedAudio();
@@ -822,19 +862,27 @@ export function useGrokFirstRoleplayConversation(
               details: {
                 turnIndex: turnIndexRef.current,
                 action: "normal_realtime_rewrite",
-                reasons: normalRoute.reasons,
+                reasons: [
+                  ...(normalRoute?.reasons ?? []),
+                  ...normalization.normalizationReasons,
+                ],
                 originalTextLen: text.length,
-                rewrittenTextLen: normalRoute.rewrittenText.length,
+                normalizedUserText: normalization.normalizedText,
+                normalizationApplied: normalization.normalizationApplied,
+                normalizationReasons: normalization.normalizationReasons,
+                rewrittenTextLen: realtimeRewriteText.length,
                 tailAudioDroppedBytes: dropped.droppedBytes + bufferedDroppedBytes,
               },
             });
-            sendRealtimeUserText(normalRoute.rewrittenText);
+            sendRealtimeUserText(realtimeRewriteText);
             const rewriteSessionId = activeSession.sessionId;
             const rewriteTurnIndex = turnIndexRef.current;
             window.setTimeout(() => {
               if (sessionRef.current?.sessionId !== rewriteSessionId) return;
               if (turnIndexRef.current !== rewriteTurnIndex) return;
-              if (turnStartAtRef.current !== null) return;
+              if (accumulatedTextRef.current) return;
+              if (hardSuppressedRef.current) return;
+              if (fixedGuardActiveRef.current) return;
               createRealtimeResponse();
               void postEvent({
                 kind: "guard.rewrite_response_retry",
@@ -852,8 +900,14 @@ export function useGrokFirstRoleplayConversation(
                 turnIndex: turnIndexRef.current,
                 textLen: text.length,
                 sttTextPreview: text.slice(0, 200),
+                normalizedUserText: normalization.normalizedText,
+                normalizationApplied: normalization.normalizationApplied,
+                normalizationReasons: normalization.normalizationReasons,
                 guardAction: "normal_realtime_rewrite",
-                guardReasons: normalRoute.reasons,
+                guardReasons: [
+                  ...(normalRoute?.reasons ?? []),
+                  ...normalization.normalizationReasons,
+                ],
               },
             });
             break;
@@ -869,6 +923,9 @@ export function useGrokFirstRoleplayConversation(
               turnIndex: turnIndexRef.current,
               textLen: text.length,
               sttTextPreview: text.slice(0, 200),
+              normalizedUserText: normalization.normalizedText,
+              normalizationApplied: normalization.normalizationApplied,
+              normalizationReasons: normalization.normalizationReasons,
             },
           });
           break;
@@ -895,7 +952,7 @@ export function useGrokFirstRoleplayConversation(
           accumulatedTextRef.current += delta;
           const streamDecision = evaluateActiveNegativeGuard({
             text: accumulatedTextRef.current,
-            userText: currentUserTextRef.current,
+            userText: normalizedUserTextRef.current || currentUserTextRef.current,
             phase: "stream",
           });
           if (streamDecision.action === "cancel" || streamDecision.action === "suppress") {
@@ -966,7 +1023,7 @@ export function useGrokFirstRoleplayConversation(
           const wasHardSuppressed = hardSuppressedRef.current;
           const decision = evaluateActiveNegativeGuard({
             text: accumulatedTextRef.current,
-            userText: currentUserTextRef.current,
+            userText: normalizedUserTextRef.current || currentUserTextRef.current,
             phase: "final",
           });
           const streamingBeforeDone = shouldStreamAudioBeforeDone();
@@ -1206,7 +1263,24 @@ export function useGrokFirstRoleplayConversation(
       currentUserTextRef.current = trimmed;
       inputModeRef.current = "text";
       const runtimeGuardrailsEnabled = areRuntimeGuardrailsEnabled();
-      const guard = runtimeGuardrailsEnabled ? classifyInputGuard(trimmed) : null;
+      const normalInputRouterEnabled =
+        activeSession.normalInputRouterEnabled ?? runtimeGuardrailsEnabled;
+      const rawNormalization =
+        runtimeGuardrailsEnabled && shouldNormalizeUserText(activeSession)
+        ? normalizeGrokFirstUserText(trimmed)
+        : passthroughNormalization(trimmed);
+      const normalization = enrichNormalizationReasons({
+        text: trimmed,
+        normalization: rawNormalization,
+        inputGuardEnabled: runtimeGuardrailsEnabled,
+        normalInputRouterEnabled,
+      });
+      normalizedUserTextRef.current = normalization.normalizedText;
+      normalizationAppliedRef.current = normalization.normalizationApplied;
+      normalizationReasonsRef.current = normalization.normalizationReasons;
+      const guard = runtimeGuardrailsEnabled
+        ? classifyInputGuard(normalization.normalizedText)
+        : null;
       if (guard && isFixedInputGuardDecision(guard)) {
         void handleFixedGuardDecision({
           text: trimmed,
@@ -1215,8 +1289,8 @@ export function useGrokFirstRoleplayConversation(
         });
         return;
       }
-      const normalRoute = runtimeGuardrailsEnabled
-        ? classifyNormalInputRoute(trimmed)
+      const normalRoute = normalInputRouterEnabled
+        ? classifyNormalInputRoute(normalization.normalizedText)
         : null;
       if (normalRoute && normalRoute.action !== "pass") {
         handleNormalInputRouteDecision({
@@ -1226,23 +1300,34 @@ export function useGrokFirstRoleplayConversation(
         });
         return;
       }
-      if (normalRoute?.rewrittenText) {
+      const boundedRewriteEnabled =
+        activeSession.boundedRewriteEnabled ?? runtimeGuardrailsEnabled;
+      const normalizedRealtimeText = "";
+      const realtimeRewriteText =
+        boundedRewriteEnabled ? normalRoute?.rewrittenText ?? normalizedRealtimeText : "";
+      if (realtimeRewriteText) {
         void postEvent({
           kind: "guard.detected",
           sessionId: activeSession.sessionId,
           details: {
             turnIndex: turnIndexRef.current,
             action: "normal_realtime_rewrite",
-            reasons: normalRoute.reasons,
+            reasons: [
+              ...(normalRoute?.reasons ?? []),
+              ...normalization.normalizationReasons,
+            ],
             originalTextLen: trimmed.length,
-            rewrittenTextLen: normalRoute.rewrittenText.length,
+            normalizedUserText: normalization.normalizedText,
+            normalizationApplied: normalization.normalizationApplied,
+            normalizationReasons: normalization.normalizationReasons,
+            rewrittenTextLen: realtimeRewriteText.length,
             tailAudioDroppedBytes: 0,
           },
         });
       }
       appendUserTranscript({ text: trimmed, channel: "chat", status: "sent" });
       setStatus("thinking");
-      sendRealtimeUserText(normalRoute?.rewrittenText ?? trimmed);
+      sendRealtimeUserText(realtimeRewriteText || trimmed);
     },
     [
       appendUserTranscript,
@@ -1321,6 +1406,59 @@ function isFixedInputGuardDecision(
       decision.action === "fixed_external") &&
     typeof decision.fixedText === "string"
   );
+}
+
+function passthroughNormalization(text: string): UserTextNormalization {
+  return {
+    originalText: text,
+    normalizedText: text,
+    normalizationApplied: false,
+    normalizationReasons: [],
+  };
+}
+
+function enrichNormalizationReasons({
+  text,
+  normalization,
+  inputGuardEnabled,
+  normalInputRouterEnabled,
+}: {
+  text: string;
+  normalization: UserTextNormalization;
+  inputGuardEnabled: boolean;
+  normalInputRouterEnabled: boolean;
+}): UserTextNormalization {
+  if (!normalization.normalizationApplied || normalization.normalizedText === text) {
+    return normalization;
+  }
+
+  const reasons = new Set(normalization.normalizationReasons);
+  if (inputGuardEnabled) {
+    const before = classifyInputGuard(text);
+    const after = classifyInputGuard(normalization.normalizedText);
+    if (before.action !== after.action) {
+      reasons.add(`normalization_changed_input_guard:${before.action}->${after.action}`);
+    }
+  }
+  if (normalInputRouterEnabled) {
+    const before = classifyNormalInputRoute(text);
+    const after = classifyNormalInputRoute(normalization.normalizedText);
+    if (before.action !== after.action) {
+      reasons.add(`normalization_changed_normal_route:${before.action}->${after.action}`);
+    }
+    if (Boolean(before.rewrittenText) !== Boolean(after.rewrittenText)) {
+      reasons.add("normalization_changed_rewrite_selection");
+    }
+  }
+
+  return {
+    ...normalization,
+    normalizationReasons: [...reasons],
+  };
+}
+
+function shouldNormalizeUserText(session: GrokFirstV50Session): boolean {
+  return session.backend === "grok-first-v50-7-quality";
 }
 
 function isAssistantResponseEvent(type: string): boolean {

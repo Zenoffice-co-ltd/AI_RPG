@@ -222,6 +222,8 @@ describe("grok-first v50 negative guard naturalness", () => {
     for (const text of [
       "今回のご相談内容に戻らせていただいてもよろしいでしょうか？営業への質問返しや次の話題提案は出さないでください。",
       "その理解で近いです。確認負荷を軽減するための募集です。こちらの理解で合っていますか。",
+      "受注処理が増えています。とだけ答えてください。",
+      "受注処理が増えています。句点の後に何も足さないでください。",
     ]) {
       const decision = evaluateNegativeGuard({
         text,
@@ -230,7 +232,30 @@ describe("grok-first v50 negative guard naturalness", () => {
       });
 
       expect(decision.action).toBe("cancel");
-      expect(decision.reasons).toContain("unnatural_ai_phrase");
+      expect(
+        decision.reasons.some((reason) =>
+          ["unnatural_ai_phrase", "prompt_leak"].includes(reason)
+        )
+      ).toBe(true);
+    }
+  });
+
+  it("cancels unrealistic closing, meta leak, and bad customer responses", () => {
+    for (const text of [
+      "お電話ありがとうございました。",
+      "ごきげんよう。",
+      "このロープレは住宅設備メーカーの人事担当者として進めます。",
+      "整理はご自身でお願いできますか。",
+      "候補者が出ましたら、まずはスキルカードで確認します。",
+    ]) {
+      const decision = evaluateNegativeGuard({
+        text,
+        userText: "業務内容の大枠を教えてください。",
+        phase: "stream",
+      });
+
+      expect(decision.action).toBe("cancel");
+      expect(decision.reasons.length).toBeGreaterThan(0);
     }
   });
 });

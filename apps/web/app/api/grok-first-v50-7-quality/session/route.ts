@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await createGrokFirstV50Session({
       promptVariant: "v50.7.2",
-      runtimeVariant: "v50.7-prompt-only",
+      runtimeVariant: "v50.7-quality",
     });
     assertGrokFirstV50SessionPayload(session);
     logGrokFirstV50ServerEvent({
@@ -53,6 +53,9 @@ export async function POST(request: NextRequest) {
         fixedGuardAudioEnabled: session.fixedGuardAudioEnabled,
         boundedRewriteEnabled: session.boundedRewriteEnabled,
         noiseIgnoredEnabled: session.noiseIgnoredEnabled,
+        streamAudioBeforeDone: session.streamAudioBeforeDone,
+        fullTurnBufferEnabled: session.fullTurnBufferEnabled,
+        browserEvaluationEnabled: session.browserEvaluationEnabled,
         runtimeControl: session.runtimeControl,
         turnDetectionCreateResponse: false,
         regenerationRate: 0,
@@ -61,7 +64,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(session);
   } catch (error) {
     console.error(
-      "grok-first v50.7 prompt-only session failed",
+      "grok-first v50.7 quality session failed",
       error instanceof Error ? error.message : String(error)
     );
     return safeError(503);

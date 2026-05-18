@@ -9,6 +9,7 @@ import {
   buildGrokFirstV50Prompt,
   GROK_FIRST_V50_7_SPEED_HOTFIX_GUARDRAIL_VERSION,
   GROK_FIRST_V50_7_PROMPT_ONLY_GUARDRAIL_VERSION,
+  GROK_FIRST_V50_7_QUALITY_GUARDRAIL_VERSION,
   GROK_FIRST_V50_8_GUARDRAIL_VERSION,
   GROK_FIRST_V51_GUARDRAIL_VERSION,
   type GrokFirstPromptVariant,
@@ -26,6 +27,8 @@ import {
   GROK_FIRST_V50_7_DEMO_SLUG,
   GROK_FIRST_V50_7_PROMPT_ONLY_BACKEND,
   GROK_FIRST_V50_7_PROMPT_ONLY_DEMO_SLUG,
+  GROK_FIRST_V50_7_QUALITY_BACKEND,
+  GROK_FIRST_V50_7_QUALITY_DEMO_SLUG,
   GROK_FIRST_V50_8_BACKEND,
   GROK_FIRST_V50_8_DEMO_SLUG,
   GROK_FIRST_V51_BACKEND,
@@ -59,6 +62,7 @@ export async function createGrokFirstV50Session(input?: {
     | GrokFirstPromptVariant
     | "v50.7"
     | "v50.7-prompt-only"
+    | "v50.7-quality"
     | "v50.8"
     | "v51";
 }): Promise<GrokFirstV50Session> {
@@ -67,9 +71,10 @@ export async function createGrokFirstV50Session(input?: {
   const promptVariant = input?.promptVariant ?? input?.variant ?? "v50";
   const runtimeVariant = input?.runtimeVariant ?? input?.variant ?? promptVariant;
   const isPromptOnly = runtimeVariant === "v50.7-prompt-only";
+  const isV507Quality = runtimeVariant === "v50.7-quality";
   const isV507SpeedHotfix = runtimeVariant === "v50.7";
   const isLatencySpeedHotfix = isV507SpeedHotfix;
-  const prompt = buildGrokFirstV50Prompt(isPromptOnly ? "v50.6" : promptVariant);
+  const prompt = buildGrokFirstV50Prompt(promptVariant);
   const voiceId = env.GROK_FIRST_V50_VOICE_ID ?? GROK_FIRST_V50_VOICE_ID;
   const sessionId = `gfv50_${randomUUID()}`;
   const runtimeGuardrailsEnabled = !isPromptOnly;
@@ -88,6 +93,11 @@ export async function createGrokFirstV50Session(input?: {
       ? {
           demoSlug: GROK_FIRST_V50_7_DEMO_SLUG,
           backend: GROK_FIRST_V50_7_BACKEND,
+        }
+      : isV507Quality
+      ? {
+          demoSlug: GROK_FIRST_V50_7_QUALITY_DEMO_SLUG,
+          backend: GROK_FIRST_V50_7_QUALITY_BACKEND,
         }
       : isPromptOnly
       ? {
@@ -145,6 +155,8 @@ export async function createGrokFirstV50Session(input?: {
         ? GROK_FIRST_V50_8_GUARDRAIL_VERSION
         : runtimeVariant === "v50.7"
         ? GROK_FIRST_V50_7_SPEED_HOTFIX_GUARDRAIL_VERSION
+        : isV507Quality
+        ? GROK_FIRST_V50_7_QUALITY_GUARDRAIL_VERSION
         : isPromptOnly
         ? GROK_FIRST_V50_7_PROMPT_ONLY_GUARDRAIL_VERSION
         : prompt.guardrailVersion,
@@ -168,7 +180,7 @@ export async function createGrokFirstV50Session(input?: {
       threshold: 0.65,
       silence_duration_ms: isLatencySpeedHotfix ? 350 : 650,
       prefix_padding_ms: 333,
-      ...(runtimeVariant === "v50.7" || isPromptOnly
+      ...(runtimeVariant === "v50.7" || isV507Quality || isPromptOnly
         ? { create_response: false as const }
         : {}),
     },
@@ -179,8 +191,16 @@ export async function createGrokFirstV50Session(input?: {
     lockedResponseAudioBundleIncluded: false,
     runtimeTtsEnabled: false,
     replacementTtsEnabled: false,
-    latencyMode: isLatencySpeedHotfix ? "fastest_streaming" : undefined,
-    streamAudioBeforeDone: isLatencySpeedHotfix ? true : undefined,
+    latencyMode: isLatencySpeedHotfix
+      ? "fastest_streaming"
+      : isV507Quality
+      ? "default"
+      : undefined,
+    streamAudioBeforeDone: isLatencySpeedHotfix
+      ? true
+      : isV507Quality
+      ? false
+      : undefined,
     audioHoldMs: isLatencySpeedHotfix ? 0 : undefined,
     fullTurnBufferEnabled: false,
     runtimeGuardrailsEnabled,
@@ -189,7 +209,8 @@ export async function createGrokFirstV50Session(input?: {
     negativeGuardEnabled: runtimeGuardrailsEnabled,
     tailGuardEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
     fixedGuardAudioEnabled: runtimeGuardrailsEnabled,
-    boundedRewriteEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
+    boundedRewriteEnabled:
+      isV507SpeedHotfix || isV507Quality ? false : runtimeGuardrailsEnabled,
     noiseIgnoredEnabled: runtimeGuardrailsEnabled,
     runtimeControl: {
       mode: isPromptOnly ? "prompt_only" : "default",
@@ -199,7 +220,8 @@ export async function createGrokFirstV50Session(input?: {
       negativeGuardEnabled: runtimeGuardrailsEnabled,
       tailGuardEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
       fixedGuardAudioEnabled: runtimeGuardrailsEnabled,
-      boundedRewriteEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
+      boundedRewriteEnabled:
+        isV507SpeedHotfix || isV507Quality ? false : runtimeGuardrailsEnabled,
       noiseIgnoredEnabled: runtimeGuardrailsEnabled,
     },
     debugTranscriptPreviewEnabled:
