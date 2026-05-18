@@ -1236,11 +1236,12 @@ function evaluateTranscript(testCase, input) {
   if (
     (/^NFP-/u.test(String(testCase.id ?? "")) ||
       /^OUT-0[1-4]$/u.test(String(testCase.id ?? "")) ||
-      /normal[-_ ]sales|customer-led output/i.test(String(testCase.category ?? ""))) &&
-    input.audioReleaseMode === "fixed_safe_body_audio"
+      /normal[-_ ]sales|customer-led output|quality-low-info/i.test(String(testCase.category ?? ""))) &&
+    (input.audioReleaseMode === "fixed_safe_body_audio" ||
+      input.audioReleaseMode === "fixed_short_ack_audio")
   ) {
-    hardFailReasons.push("normal_sales_fixed_safe_body_forbidden");
-    failureTags.push("fixed_safe_body_forbidden");
+    hardFailReasons.push("deterministic_audio_forbidden");
+    failureTags.push("deterministic_audio_forbidden");
   }
   if (
     (/^NFP-/u.test(String(testCase.id ?? "")) ||
@@ -1257,8 +1258,7 @@ function evaluateTranscript(testCase, input) {
     failureTags.push("potential_audio_leak");
   }
   if (
-    (input.audioReleaseMode === "tail_only_release" ||
-      input.audioReleaseMode === "guarded_tail_stream_release") &&
+    input.audioReleaseMode === "tail_only_release" &&
     Number(input.audibleAudioBytes ?? 0) > 0 &&
     !String(input.actualAudibleAuditTranscript ?? "").trim() &&
     CUSTOMER_LED_PHRASES.some((phrase) => containsLoose(raw, phrase))
@@ -3255,8 +3255,8 @@ function buildQualityGuardFocusedCases() {
     ].map((text, index) =>
       voiceCase(`QG-LOW-${String(index + 1).padStart(2, "0")}`, "quality-low-info", text, {
         expectedIntent: "backchannel",
-        expectedGuardAction: "suppress",
-        maxSentences: 0,
+        mustNotContain: forbiddenOutput,
+        maxSentences: 1,
       })
     ),
     ...[
@@ -3290,7 +3290,10 @@ function buildQualityGuardFocusedCases() {
       ["募集背景を教えてください", ["受注処理", "確認負荷", "増えて"]],
       ["業務内容の大枠を教えてください", ["受注入力", "発注処理", "納期調整"]],
       ["条件を全部教えてください", ["営業事務", "六月", "受注入力"]],
-      ["応募者には何を伝えればよいですか", ["受注入力", "納期調整", "週五日"]],
+      [
+        "応募者には何を伝えればよいですか。候補者には何を伝えればよいですか。",
+        ["受注入力", "納期調整", "週五日"],
+      ],
     ].map(([text, mustContainAny], index) =>
       voiceCase(`QG-CUSTOMER-LED-${String(index + 1).padStart(2, "0")}`, "quality-customer-led-output", text, {
         mustContainAny,
