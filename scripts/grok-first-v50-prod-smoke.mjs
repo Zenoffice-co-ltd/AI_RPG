@@ -486,6 +486,10 @@ function summarizeSessionPayload(json) {
     latencyMode: json.latencyMode,
     streamAudioBeforeDone: json.streamAudioBeforeDone,
     audioHoldMs: json.audioHoldMs,
+    guardedStreamingEnabled: json.guardedStreamingEnabled,
+    tailGuardNormalHoldMs: json.tailGuardNormalHoldMs,
+    tailGuardRiskHoldMs: json.tailGuardRiskHoldMs,
+    tailGuardMaxHoldMs: json.tailGuardMaxHoldMs,
     fullTurnBufferEnabled: json.fullTurnBufferEnabled,
     turnDetectionCreateResponse: json.turnDetection?.create_response,
     turnDetectionSilenceMs: json.turnDetection?.silence_duration_ms,
@@ -512,11 +516,15 @@ function isSessionContractOk(payload, status = evidence.sessionResponse?.status)
         payload?.turnDetectionSilenceMs === 350 &&
         payload?.turnDetectionCreateResponse === false)) &&
     (variant !== "v50-7-quality" ||
-      (payload?.latencyMode === "default" &&
-        payload?.streamAudioBeforeDone === false &&
+      (payload?.latencyMode === "guarded_tail_streaming" &&
+        payload?.streamAudioBeforeDone === true &&
+        payload?.guardedStreamingEnabled === true &&
+        payload?.tailGuardNormalHoldMs === 300 &&
+        payload?.tailGuardRiskHoldMs === 800 &&
+        payload?.tailGuardMaxHoldMs === 1000 &&
         payload?.fullTurnBufferEnabled === false &&
         payload?.normalInputRouterEnabled === true &&
-        payload?.boundedRewriteEnabled === true &&
+        payload?.boundedRewriteEnabled === false &&
         payload?.turnDetectionSilenceMs === 650 &&
         payload?.turnDetectionCreateResponse === false)) &&
     payload?.wsUrl === "wss://voice.mendan.biz/api/v3/realtime-relay" &&
