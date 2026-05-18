@@ -122,15 +122,20 @@ behavior and are protected by runtime guards rather than app-side text
 injection. The session first message must be audible on this route: after
 `session.ready`, the client fetches cached static opening audio and records
 `opening.playback.started` / `opening.playback.completed` with
-`firstAudibleAudioMs`. Low-information backchannels are still routed to
-`routePath=noise_ignored` with no assistant audio. Normal Realtime assistant
-audio is held until the final transcript guard has passed; if a P0
+`firstAudibleAudioMs`. After the 2026-05-18 human-session review,
+low-information and gratitude inputs are deterministic short acknowledgements
+(`はい。`, `そうですね。`, or `いえいえ、こちらこそ。`) served through the
+bounded short-ack TTS path; they must not call Grok or append customer-led
+tails. Normal Realtime assistant audio is held until the final transcript guard
+has passed; if a P0
 customer-led, meta, instruction-leak, or generic-closing phrase is detected,
 held audio is dropped before playback.
+Risk-based safe-prefix streaming is temporarily disabled for `v50-7-quality`
+because human review heard forbidden tail starts even when the declared
+`audibleTranscript` was clean.
 For `cancel` and `suppress`, the quality route still treats the turn as a hard
 block and drops held audio. For `strip_tail` and `drop_sentence`, the runtime
-now attempts conservative Approx Chunk release: low-risk complete safe
-sentences can begin audible playback after a short delayed hold, transcript-
+now attempts conservative Approx Chunk release after `response.done`: transcript-
 delta order is used first, character ratio only as a fallback, and the trailing
 chunk/window is dropped so the safe body can be audible without the bad tail.
 If a conservative boundary cannot be established, the turn remains
@@ -139,6 +144,8 @@ For human-test readiness, chat-visible assistant text must match the audible
 transcript whenever the turn is intentionally silent, normal sales turns must
 not use `tail_only_drop_fallback`, and the focused quality report must show
 `firstAudibleAudioMs` p50 `<3000ms` and p95 `<7000ms`.
+`potentialAudioLeak` must be `0`; declared `audibleTranscript` alone is not
+accepted as proof when raw text contained a customer-led or forbidden tail.
 Quality evidence uses `fullTurnBufferCount`, `tailAudioDroppedBytes`, and
 raw/visible/audible transcript separation rather than changing
 `fullTurnBufferEnabled`.

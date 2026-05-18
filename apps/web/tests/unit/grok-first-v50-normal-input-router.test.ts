@@ -29,9 +29,28 @@ describe("grok-first v50 normal input router", () => {
       const decision = classifyNormalInputRoute(input);
       expect(decision.action).toBe("noise_ignored");
       expect(decision.shouldSendToRealtime).toBe(false);
-      expect(decision.shouldSpeak).toBe(false);
+      expect(decision.shouldSpeak).toBe(true);
+      expect(decision.fixedText).toBeTruthy();
       expect(decision.reasons).toContain("low_information_input");
     }
+  });
+
+  it("maps low-information and gratitude inputs to deterministic short acknowledgements", () => {
+    expect(classifyNormalInputRoute("はい。")).toMatchObject({
+      action: "noise_ignored",
+      fixedText: "はい。",
+      shouldSpeak: true,
+    });
+    expect(classifyNormalInputRoute("ありがとうございます。")).toMatchObject({
+      action: "noise_ignored",
+      fixedText: "いえいえ、こちらこそ。",
+      shouldSpeak: true,
+    });
+    expect(classifyNormalInputRoute("そうですね。")).toMatchObject({
+      action: "noise_ignored",
+      fixedText: "そうですね。",
+      shouldSpeak: true,
+    });
   });
 
   it("passes or bounds explicit business questions", () => {
@@ -121,6 +140,13 @@ describe("grok-first v50 normal input router", () => {
     expect(candidateFlow.rewrittenText).toContain("スキルカード");
     expect(candidateFlow.rewrittenText).toContain("職場見学");
     expect(candidateFlow.reasons).toContain("candidate_flow_request");
+
+    const candidateExplanation = classifyNormalInputRoute(
+      "応募者には何を伝えればよいですか。候補者には何を伝えればよいですか。"
+    );
+    expect(candidateExplanation.rewrittenText).toContain("候補者に伝える内容");
+    expect(candidateExplanation.rewrittenText).toContain("週五日出社");
+    expect(candidateExplanation.reasons).toContain("candidate_explanation_request");
 
     const candidateClosing = classifyNormalInputRoute(
       "本日の内容を踏まえて、次は候補者提案に進める形でよいですか。"

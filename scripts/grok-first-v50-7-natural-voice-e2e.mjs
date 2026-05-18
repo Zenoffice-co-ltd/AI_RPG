@@ -954,6 +954,9 @@ function finalizeRuntimeCase(testCase, evidence) {
     firstAudibleAudioMs: turnDetails.firstAudibleAudioMs ?? null,
     audibleAudioBytes: turnDetails.audibleAudioBytes ?? turnDetails.releasedAudioBytes ?? null,
     audioReleaseMode: turnDetails.audioReleaseMode ?? null,
+    potentialAudioLeak: Boolean(turnDetails.potentialAudioLeak),
+    potentialAudioLeakReasons: turnDetails.potentialAudioLeakReasons ?? [],
+    actualAudibleAuditTranscript: turnDetails.actualAudibleAuditTranscript ?? "",
     voicePath,
     correlation,
   });
@@ -998,6 +1001,9 @@ function finalizeRuntimeCase(testCase, evidence) {
     droppedAudioBytes: turnDetails.droppedAudioBytes ?? turnDetails.tailAudioDroppedBytes ?? null,
     audibleAudioBytes: turnDetails.audibleAudioBytes ?? turnDetails.releasedAudioBytes ?? null,
     audioReleaseMode: turnDetails.audioReleaseMode ?? null,
+    potentialAudioLeak: Boolean(turnDetails.potentialAudioLeak),
+    potentialAudioLeakReasons: turnDetails.potentialAudioLeakReasons ?? [],
+    actualAudibleAuditTranscript: turnDetails.actualAudibleAuditTranscript ?? null,
     firstAudibleAudioMs: latestTurn?.details?.firstAudibleAudioMs ?? null,
     openingPlaybackStarted: Boolean(openingStarted),
     openingPlaybackCompleted: Boolean(openingCompleted),
@@ -1206,6 +1212,19 @@ function evaluateTranscript(testCase, input) {
   ) {
     hardFailReasons.push("normal_sales_tail_only_drop_fallback");
     failureTags.push("normal_sales_tail_fallback");
+  }
+  if (input.potentialAudioLeak) {
+    hardFailReasons.push("potential_audio_leak");
+    failureTags.push("potential_audio_leak");
+  }
+  if (
+    input.audioReleaseMode === "tail_only_release" &&
+    Number(input.audibleAudioBytes ?? 0) > 0 &&
+    !String(input.actualAudibleAuditTranscript ?? "").trim() &&
+    CUSTOMER_LED_PHRASES.some((phrase) => containsLoose(raw, phrase))
+  ) {
+    hardFailReasons.push("potential_audio_leak_without_actual_audit");
+    failureTags.push("potential_audio_leak");
   }
   for (const phrase of CUSTOMER_LED_PHRASES) {
     const rawOnlyHit =

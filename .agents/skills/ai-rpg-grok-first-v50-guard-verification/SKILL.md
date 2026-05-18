@@ -95,19 +95,25 @@ Bounded rewrite is disabled in the first production quality route because the
 route starts from v50.7.2 prompt-only behavior and uses runtime guards for
 input suppression, fixed responses, negative output detection, and audio
 hold/drop.
+After the 2026-05-18 human-session review, low-information and gratitude
+inputs on v50.7-quality should use deterministic short acknowledgements
+(`はい。`, `そうですね。`, or `いえいえ、こちらこそ。`) through the bounded
+short-ack TTS path. They must not call Grok or append customer-led tails.
+Risk-based safe-prefix streaming is temporarily disabled because human review
+heard forbidden tail starts while declared `audibleTranscript` was clean.
 For hard P0 actions (`cancel` / `suppress`), quality route drops held audio.
 For tail-only actions (`strip_tail` / `drop_sentence`), quality route attempts
-Approx Chunk release of the safe body without Runtime TTS. Low-risk complete
-safe sentences may start after a short delayed hold; the boundary prefers
-transcript-delta order, falls back to character ratio, and always drops the
-trailing safety window/chunk for tail-only decisions. Boundary failure is reported as
+Approx Chunk release of the safe body without Runtime TTS after `response.done`.
+The boundary prefers transcript-delta order, falls back to character ratio, and
+always drops the trailing safety window/chunk for tail-only decisions. Boundary failure is reported as
 `audioReleaseMode=tail_only_drop_fallback` and blocks
 `ROLEPLAY_FUNCTIONAL_PASS`.
 `ROLEPLAY_FUNCTIONAL_PASS` additionally requires normal-sales audible output,
 customer-led safe-body audible output, no safe-body all-drop, no normal-sales
 `tail_only_drop_fallback`, no chat-visible/audible transcript mismatch, opening
 audio present, `turn.completed` completeness, audio leak `0`, false-pass audit
-`0`, and `firstAudibleAudioMs` p50 `<3000ms` / p95 `<7000ms`.
+`0`, `potentialAudioLeak=0`, and `firstAudibleAudioMs` p50 `<3000ms` / p95
+`<7000ms`.
 
 ## v50.7 In-place Speed Hotfix
 
