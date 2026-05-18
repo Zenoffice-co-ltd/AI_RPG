@@ -1211,10 +1211,16 @@ export function useGrokFirstRoleplayConversation(
           const tailOnlyCandidate =
             streamDecision.action === "strip_tail" ||
             streamDecision.action === "drop_sentence";
-          if (
+          const qualitySession = isV507QualitySession();
+          const shouldCancelStream =
             streamDecision.action === "cancel" ||
-            streamDecision.action === "suppress" ||
-            (tailOnlyCandidate && !isV507QualitySession())
+            streamDecision.action === "suppress";
+          const hardStreamBlock =
+            shouldCancelStream &&
+            (!qualitySession || streamDecision.hardStop);
+          if (
+            hardStreamBlock ||
+            (tailOnlyCandidate && !qualitySession)
           ) {
             hardSuppressedRef.current = true;
             cancelRealtimeResponse(
