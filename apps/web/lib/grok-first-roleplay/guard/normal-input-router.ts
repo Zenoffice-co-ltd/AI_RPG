@@ -31,7 +31,7 @@ const CONFIRMATION_SCOPE_REWRITE =
   "顧客として、「背景、業務内容、要件まで確認いただければ大枠は足ります。」という内容だけを自然に一文で答える。";
 
 const REQUIREMENT_TRADEOFF_REWRITE =
-  "顧客として、「メーカー経験は必須ではありませんが、受発注と対外調整の経験は見たいです。」という内容だけを自然に一文で答える。";
+  "メーカー経験は必須ではありませんが、受発注と対外調整の経験は見たいです。";
 
 const OTHER_VENDOR_STATUS_REWRITE =
   "顧客として、「他社にも相談していますが、まだ決定的な候補者はいません。」という内容だけを自然に一文で答える。";
@@ -108,6 +108,8 @@ const REQUIREMENT_TRADEOFF_PATTERNS: RegExp[] = [
   /条件.*緩/u,
   /緩める/u,
   /候補者.*条件/u,
+  /メーカー経験/u,
+  /住宅設備経験/u,
 ];
 
 const OTHER_VENDOR_STATUS_PATTERNS: RegExp[] = [

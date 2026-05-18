@@ -131,7 +131,7 @@ cache only for whitelisted safe-body texts when Grok repeatedly appends
 customer-led tails; this is reported as `audioReleaseMode=fixed_safe_body_audio`.
 The current whitelist includes the focused guard safe bodies for background,
 business overview, broad conditions, candidate explanation, and decision
-structure confirmation.
+structure confirmation, plus the manufacturer-experience requirement check.
 Normal Realtime assistant audio is held until the final transcript guard
 has passed; if a P0
 customer-led, meta, instruction-leak, or generic-closing phrase is detected,
