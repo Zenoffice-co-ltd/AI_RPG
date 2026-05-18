@@ -18,6 +18,7 @@ describe("grok-first v50 normal input router", () => {
       "うん。",
       "そうですか。",
       "どうですか。",
+      "そこですね。",
       "なるほど。",
       "へ。",
       "え。",

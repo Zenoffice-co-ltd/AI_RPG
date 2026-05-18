@@ -187,6 +187,7 @@ const LOW_INFORMATION_PATTERNS: RegExp[] = [
   /^はい+$/u,
   /^うん+$/u,
   /^そうですね$/u,
+  /^そこですね$/u,
   /^そうですか$/u,
   /^どうですか$/u,
   /^なるほど$/u,
