@@ -79,7 +79,7 @@ describe("grok-first v50 normal input router", () => {
     expect(continuation.reasons).toContain("continue_detail_request");
 
     const conditions = classifyNormalInputRoute("条件を全部教えてください。");
-    expect(conditions.rewrittenText).toContain("条件大枠");
+    expect(conditions.rewrittenText).toContain("営業事務一名");
     expect(conditions.rewrittenText).not.toContain("ご質問ください");
 
     const rate = classifyNormalInputRoute("単価レンジはどのくらいですか。");
@@ -144,7 +144,7 @@ describe("grok-first v50 normal input router", () => {
     const candidateExplanation = classifyNormalInputRoute(
       "応募者には何を伝えればよいですか。候補者には何を伝えればよいですか。"
     );
-    expect(candidateExplanation.rewrittenText).toContain("候補者に伝える内容");
+    expect(candidateExplanation.rewrittenText).toContain("受注入力と納期調整");
     expect(candidateExplanation.rewrittenText).toContain("週五日出社");
     expect(candidateExplanation.reasons).toContain("candidate_explanation_request");
 
@@ -174,8 +174,8 @@ describe("grok-first v50 normal input router", () => {
       "そうですね、今回の募集背景を教えてください。"
     );
     expect(background.action).toBe("pass");
-    expect(background.rewrittenText).toContain("募集背景");
-    expect(background.rewrittenText).toContain("自然に一文");
+    expect(background.rewrittenText).toContain("受注処理");
+    expect(background.rewrittenText).toContain("確認負荷");
     expect(background.rewrittenText).not.toContain("何も足さない");
     expect(background.rewrittenText).not.toContain("現場課長");
     expect(background.rewrittenText).not.toContain("出さず");
