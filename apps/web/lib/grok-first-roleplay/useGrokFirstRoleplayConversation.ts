@@ -131,57 +131,64 @@ function planTailOnlyRelease(input: {
     );
   });
 
-  let candidateChunks: BufferedAudioChunk[];
+  const candidateSets: BufferedAudioChunk[][] = [];
   if (transcriptBoundary) {
-    candidateChunks = input.chunks.filter(
-      (chunk) => chunk.order <= transcriptBoundary.order
+    candidateSets.push(
+      input.chunks.filter((chunk) => chunk.order <= transcriptBoundary.order)
     );
-  } else {
-    const ratio = Math.max(
-      0,
-      Math.min(1, finalText.length / Math.max(rawText.length, 1))
-    );
-    const candidateCount = Math.floor(input.chunks.length * ratio);
-    candidateChunks = input.chunks.slice(0, candidateCount);
   }
-
-  if (candidateChunks.length === 0) {
-    return { ok: false, droppedBytes: allDroppedBytes };
-  }
-
-  const candidateDurationMs = sumAudioDurationMs(candidateChunks);
-  const maxReleaseDurationMs = Math.max(
+  const ratio = Math.max(
     0,
-    candidateDurationMs - TAIL_ONLY_SAFETY_DROP_MS
+    Math.min(1, finalText.length / Math.max(rawText.length, 1))
   );
-  let releaseDurationMs = 0;
-  let releaseCount = 0;
-  for (const chunk of candidateChunks) {
-    if (releaseDurationMs + chunk.durationMs > maxReleaseDurationMs) break;
-    releaseDurationMs += chunk.durationMs;
-    releaseCount += 1;
-  }
-  releaseCount = Math.min(releaseCount, candidateChunks.length - 1);
-  const releaseChunks = candidateChunks.slice(0, releaseCount);
-  const releasedDurationMs = sumAudioDurationMs(releaseChunks);
-  const estimatedSafeBodyDurationMs =
-    sumAudioDurationMs(input.chunks) *
-    (finalText.length / Math.max(rawText.length, 1));
-
+  const candidateCount = Math.floor(input.chunks.length * ratio);
+  const ratioCandidateChunks = input.chunks.slice(0, candidateCount);
   if (
-    releaseChunks.length === 0 ||
-    releasedDurationMs < TAIL_ONLY_MIN_RELEASE_MS ||
-    releasedDurationMs <
-      estimatedSafeBodyDurationMs * TAIL_ONLY_MIN_SAFE_BODY_RATIO
+    ratioCandidateChunks.length > 0 &&
+    !candidateSets.some((candidate) => candidate.length === ratioCandidateChunks.length)
   ) {
+    candidateSets.push(ratioCandidateChunks);
+  }
+
+  if (candidateSets.length === 0) {
     return { ok: false, droppedBytes: allDroppedBytes };
   }
 
-  return {
-    ok: true,
-    chunks: releaseChunks,
-    droppedBytes: allDroppedBytes - sumAudioBytes(releaseChunks),
-  };
+  const estimatedSafeBodyDurationMs =
+    sumAudioDurationMs(input.chunks) * ratio;
+
+  for (const candidateChunks of candidateSets) {
+    if (candidateChunks.length === 0) continue;
+    const candidateDurationMs = sumAudioDurationMs(candidateChunks);
+    const maxReleaseDurationMs = Math.max(
+      0,
+      candidateDurationMs - TAIL_ONLY_SAFETY_DROP_MS
+    );
+    let releaseDurationMs = 0;
+    let releaseCount = 0;
+    for (const chunk of candidateChunks) {
+      if (releaseDurationMs + chunk.durationMs > maxReleaseDurationMs) break;
+      releaseDurationMs += chunk.durationMs;
+      releaseCount += 1;
+    }
+    releaseCount = Math.min(releaseCount, candidateChunks.length - 1);
+    const releaseChunks = candidateChunks.slice(0, releaseCount);
+    const releasedDurationMs = sumAudioDurationMs(releaseChunks);
+    if (
+      releaseChunks.length === 0 ||
+      releasedDurationMs < TAIL_ONLY_MIN_RELEASE_MS ||
+      releasedDurationMs <
+        estimatedSafeBodyDurationMs * TAIL_ONLY_MIN_SAFE_BODY_RATIO
+    ) {
+      continue;
+    }
+    return {
+      ok: true,
+      chunks: releaseChunks,
+      droppedBytes: allDroppedBytes - sumAudioBytes(releaseChunks),
+    };
+  }
+  return { ok: false, droppedBytes: allDroppedBytes };
 }
 
 export type UseGrokFirstRoleplayDeps = {
