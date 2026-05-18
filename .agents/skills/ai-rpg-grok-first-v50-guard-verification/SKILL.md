@@ -92,10 +92,13 @@ Bounded rewrite is disabled in the first production quality route because the
 route starts from v50.7.2 prompt-only behavior and uses runtime guards for
 input suppression, fixed responses, negative output detection, and audio
 hold/drop.
-For the first quality DoD, P0 detection drops held audio even when the decision
-is `strip_tail`; a safe body plus bad tail may leave visible text but no audible
-output. Treat that as an accepted safety-first behavior until tail-only release
-is explicitly optimized.
+For hard P0 actions (`cancel` / `suppress`), quality route drops held audio.
+For tail-only actions (`strip_tail` / `drop_sentence`), quality route attempts
+Approx Chunk release of the safe body without Runtime TTS. The boundary prefers
+transcript-delta order, falls back to character ratio, and always drops the
+trailing safety window/chunk. Boundary failure is reported as
+`audioReleaseMode=tail_only_drop_fallback` and blocks
+`ROLEPLAY_FUNCTIONAL_PASS`.
 
 ## v50.7 In-place Speed Hotfix
 
@@ -643,8 +646,10 @@ show `runtimeGuardrailsEnabled=false`; the voice-turn smoke must show
 For v50.7 quality, session smoke must show the quality route identity, guards
 enabled, `streamAudioBeforeDone=false`, `fullTurnBufferEnabled=false`, and
 route-specific event endpoint `/api/grok-first-v50-7-quality/event`. Focused
-quality evidence reports only `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`, or
-`QUALITY_GUARD_BLOCKED`.
+quality evidence reports `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`,
+`QUALITY_GUARD_BLOCKED`, or `ROLEPLAY_FUNCTIONAL_PASS`. Human testing requires
+`ROLEPLAY_FUNCTIONAL_PASS`; `QUALITY_GUARD_PASS` alone is not sufficient when
+normal sales or safe-body tail turns are silent.
 `prod-logs --expect start` treats missing `turn.completed` as normal for
 start-only sessions, while `--expect voice-turn` treats `stt.completed` without
 `turn.completed` as a lifecycle failure.

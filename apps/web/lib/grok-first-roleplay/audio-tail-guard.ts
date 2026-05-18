@@ -46,12 +46,7 @@ export class TailOnlyAudioGuard {
   }
 
   finalize(decision: NegativeGuardDecision): TailGuardRelease {
-    if (
-      decision.action === "strip_tail" ||
-      decision.action === "drop_sentence" ||
-      decision.action === "cancel" ||
-      decision.action === "suppress"
-    ) {
+    if (decision.action === "cancel" || decision.action === "suppress") {
       const dropped = this.held.reduce((sum, chunk) => sum + chunk.bytes, 0);
       this.droppedBytes += dropped;
       this.held = [];

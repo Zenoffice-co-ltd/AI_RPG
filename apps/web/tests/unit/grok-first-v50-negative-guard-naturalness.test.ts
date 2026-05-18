@@ -56,19 +56,21 @@ describe("grok-first v50 negative guard naturalness", () => {
         phase: "stream",
       });
 
-      expect(decision.action).toBe("cancel");
+      expect(["cancel", "drop_sentence", "strip_tail"]).toContain(
+        decision.action
+      );
       expect(decision.reasons).toContain("customer_led_sales_flow");
     }
   });
 
-  it("cancels generic confirmation suffixes before they can leak as audio", () => {
+  it("marks generic confirmation suffixes for tail-only stripping during streaming", () => {
     const decision = evaluateNegativeGuard({
       text: "はい、受注処理が増えてきています。よろしいでしょうか。",
       userText: "そうですね。少し詳しくお話しいただけますか。",
       phase: "stream",
     });
 
-    expect(decision.action).toBe("cancel");
+    expect(decision.action).toBe("strip_tail");
     expect(decision.reasons).toContain("forbidden_suffix");
     expect(decision.reasons).toContain("generic_closing_question");
     expect(decision.reasons).toContain("customer_led_sales_flow");
@@ -103,7 +105,7 @@ describe("grok-first v50 negative guard naturalness", () => {
       phase: "stream",
     });
 
-    expect(streamDecision.action).toBe("cancel");
+    expect(streamDecision.action).toBe("drop_sentence");
     expect(streamDecision.reasons).toContain("premature_sensitive_reveal");
 
     const finalDecision = evaluateNegativeGuard({
@@ -154,7 +156,9 @@ describe("grok-first v50 negative guard naturalness", () => {
         phase: "stream",
       });
 
-      expect(decision.action).toBe("cancel");
+      expect(["cancel", "drop_sentence", "strip_tail"]).toContain(
+        decision.action
+      );
       expect(decision.reasons).toContain("customer_led_sales_flow");
     }
   });
@@ -166,7 +170,7 @@ describe("grok-first v50 negative guard naturalness", () => {
       phase: "stream",
     });
 
-    expect(decision.action).toBe("cancel");
+    expect(decision.action).toBe("strip_tail");
     expect(decision.reasons).toContain("forbidden_suffix");
   });
 
@@ -186,7 +190,7 @@ describe("grok-first v50 negative guard naturalness", () => {
         phase: "stream",
       });
 
-      expect(decision.action).toBe("cancel");
+      expect(decision.action).toBe("drop_sentence");
       expect(decision.reasons).toContain("unnatural_ai_phrase");
     }
   });
@@ -214,7 +218,7 @@ describe("grok-first v50 negative guard naturalness", () => {
       phase: "stream",
     });
 
-    expect(decision.action).toBe("cancel");
+    expect(decision.action).toBe("drop_sentence");
     expect(decision.reasons).toContain("unnatural_ai_phrase");
   });
 
@@ -231,7 +235,9 @@ describe("grok-first v50 negative guard naturalness", () => {
         phase: "stream",
       });
 
-      expect(decision.action).toBe("cancel");
+      expect(["cancel", "drop_sentence", "strip_tail"]).toContain(
+        decision.action
+      );
       expect(
         decision.reasons.some((reason) =>
           ["unnatural_ai_phrase", "prompt_leak"].includes(reason)
@@ -257,5 +263,52 @@ describe("grok-first v50 negative guard naturalness", () => {
       expect(decision.action).toBe("cancel");
       expect(decision.reasons.length).toBeGreaterThan(0);
     }
+  });
+
+  it("passes normal confirmation-and-reply business flow answers", () => {
+    for (const text of [
+      "代理店や工務店、社内営業から依頼が来て、品番や納期を確認して返す流れです。",
+      "代理店さんから来た問い合わせに対して、社内で確認して返す流れです。",
+      "品番や納期を確認して返す、という業務理解で近いです。",
+    ]) {
+      const decision = evaluateNegativeGuard({
+        text,
+        userText:
+          "受注から納期回答まで、誰から依頼が来て誰に返すのか確認させてください。",
+        phase: "final",
+      });
+
+      expect(decision).toMatchObject({
+        action: "pass",
+        reasons: [],
+      });
+    }
+  });
+
+  it("strips OUT-03 customer-led bad tail while keeping the safe body", () => {
+    const text =
+      "営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。詳細は業務内容をお聞きになった後で補足しますね。";
+    const decision = evaluateNegativeGuard({
+      text,
+      userText: "条件を全部教えてください。",
+      phase: "final",
+    });
+
+    expect(decision.action).toBe("drop_sentence");
+    expect(decision.reasons).toContain("customer_led_sales_flow");
+    expect(applyNegativeGuardDeletionOnly(text, decision)).toBe(
+      "営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。"
+    );
+  });
+
+  it("keeps whole-sentence P0 as a hard stream cancel", () => {
+    const decision = evaluateNegativeGuard({
+      text: "何か他に確認したい点はありますか。",
+      userText: "条件を全部教えてください。",
+      phase: "stream",
+    });
+
+    expect(decision.action).toBe("cancel");
+    expect(decision.reasons).toContain("customer_led_sales_flow");
   });
 });

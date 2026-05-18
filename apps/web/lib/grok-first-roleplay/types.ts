@@ -221,6 +221,14 @@ export type GrokFirstV50Metric = {
   visibleAssistantTranscript?: string | undefined;
   audibleTranscript?: string | undefined;
   audibleTranscriptPreview?: string | undefined;
+  rawTextBeforeGuard?: string | undefined;
+  finalTextAfterGuard?: string | undefined;
+  generatedAudioBytes?: number | undefined;
+  heldAudioBytes?: number | undefined;
+  releasedAudioBytes?: number | undefined;
+  droppedAudioBytes?: number | undefined;
+  audibleAudioBytes?: number | undefined;
+  audioReleaseMode?: AudioReleaseMode | undefined;
   normalizedUserText?: string | undefined;
   normalizationApplied?: boolean | undefined;
   normalizationReasons?: string[] | undefined;
@@ -231,6 +239,15 @@ export type GrokFirstV50Metric = {
   voiceId: string;
   error: string | null;
 };
+
+export type AudioReleaseMode =
+  | "pass_buffer_release"
+  | "pass_stream_release"
+  | "tail_only_release"
+  | "tail_only_drop_fallback"
+  | "hard_block_drop"
+  | "fixed_guard_static_audio"
+  | "noise_ignored_no_audio";
 
 export type GuardAction =
   | "pass"

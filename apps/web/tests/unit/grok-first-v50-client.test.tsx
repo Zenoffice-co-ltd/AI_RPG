@@ -71,6 +71,13 @@ const BUFFERED_SESSION: GrokFirstV50Session = {
   tailGuardEnabled: true,
 };
 
+const QUALITY_BUFFERED_SESSION: GrokFirstV50Session = {
+  ...BUFFERED_SESSION,
+  demoSlug: "adecco-roleplay-v50-7-quality",
+  backend: "grok-first-v50-7-quality",
+  guardrailVersion: "grok-first-v50.7-quality-guard-2026-05-17",
+};
+
 const PROMPT_ONLY_SESSION: GrokFirstV50Session = {
   ...SESSION,
   demoSlug: "adecco-roleplay-v50-7-prompt-only",
@@ -538,6 +545,94 @@ describe("grok-first v50.7 client input guard", () => {
       .map(([event]) => event)
       .find((event) => event.kind === "guard.detected");
     expect(guardEvent?.details?.tailAudioDroppedBytes).toBeGreaterThan(0);
+  });
+
+  it("releases conservative safe-body audio for tail-only guard decisions", async () => {
+    const { result, fake, queue } = renderConversation({
+      session: QUALITY_BUFFERED_SESSION,
+    });
+    const audio = Buffer.from(new Uint8Array(48_000)).toString("base64");
+    const safeText =
+      "営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。";
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "条件を全部教えてください",
+      });
+      fake.emit({ type: "response.created" });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: safeText,
+      });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "詳細は業務内容をお聞きになった後で補足しますね。",
+      });
+      fake.emit({ type: "response.done" });
+    });
+
+    await waitFor(() => {
+      expect(queue.enqueueBase64).toHaveBeenCalledTimes(2);
+      expect(result.current.metricsLog.at(-1)).toMatchObject({
+        routePath: "grok_first_realtime",
+        guardAction: "drop_sentence",
+        visibleAssistantTranscript: safeText,
+        audibleTranscript: safeText,
+        audioReleaseMode: "tail_only_release",
+      });
+      expect(result.current.metricsLog.at(-1)?.releasedAudioBytes).toBeGreaterThan(0);
+      expect(result.current.metricsLog.at(-1)?.droppedAudioBytes).toBeGreaterThan(0);
+    });
+  });
+
+  it("keeps tail-only fallback distinct from hard cancel when safe audio cannot be bounded", async () => {
+    const { result, fake, queue } = renderConversation({
+      session: QUALITY_BUFFERED_SESSION,
+    });
+    const audio = Buffer.from(new Uint8Array(48)).toString("base64");
+    const safeText =
+      "営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。";
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "条件を全部教えてください",
+      });
+      fake.emit({ type: "response.created" });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: `${safeText}詳細は業務内容をお聞きになった後で補足しますね。`,
+      });
+      fake.emit({ type: "response.done" });
+    });
+
+    await waitFor(() => {
+      expect(queue.enqueueBase64).not.toHaveBeenCalled();
+      expect(result.current.metricsLog.at(-1)).toMatchObject({
+        routePath: "suppressed",
+        guardAction: "drop_sentence",
+        visibleAssistantTranscript: safeText,
+        audibleTranscript: "",
+        audioReleaseMode: "tail_only_drop_fallback",
+      });
+      expect(fake.cancelResponse).not.toHaveBeenCalled();
+    });
   });
 
   it("cancels and suppresses xAI output after guarded voice STT completion", async () => {

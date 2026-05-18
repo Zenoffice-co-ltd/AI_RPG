@@ -90,6 +90,8 @@ const PROMPT_LEAK_PATTERNS: RegExp[] = [
   /隠された.*(指示|情報)/u,
   /とだけ答えて/u,
   /句点の後/u,
+  /営業への質問返し/u,
+  /次の話題提案/u,
   /何も足さない/u,
   /補足を出さない/u,
 ];
@@ -241,6 +243,14 @@ const CUSTOMER_LED_SALES_FLOW_PATTERNS: RegExp[] = [
   /具体的に.*条件.*お聞きになりたい点があれば.*(おっしゃって|教えて|お知らせ)/u,
 ];
 
+const TAIL_ONLY_BAD_PATTERNS: RegExp[] = [
+  /お聞きになった後で/u,
+  /後で補足します/u,
+  /補足しますね/u,
+  /詳細は.*補足/u,
+  /業務内容をお聞きになった後/u,
+];
+
 export function evaluateNegativeGuard(input: {
   text: string;
   userText?: string | undefined;
@@ -298,6 +308,9 @@ export function evaluateNegativeGuard(input: {
   if (matchesAny(text, CUSTOMER_LED_SALES_FLOW_PATTERNS)) {
     reasons.push("customer_led_sales_flow");
   }
+  if (matchesAny(text, TAIL_ONLY_BAD_PATTERNS)) {
+    reasons.push("customer_led_sales_flow");
+  }
   if (text && isLowInformationOnlyUserInput(input.userText ?? "")) {
     reasons.push("low_information_input_new_topic");
   }
@@ -329,6 +342,7 @@ export function evaluateNegativeGuard(input: {
         ? RISKY_TURN_ACK_DROP_PATTERNS
         : []),
       ...(continueOnlyTurn ? CONTINUATION_EXTRA_SENTENCE_PATTERNS : []),
+      ...TAIL_ONLY_BAD_PATTERNS,
     ],
     hardStop,
   };
@@ -368,6 +382,7 @@ function selectAction(
   text: string
 ): GuardAction {
   if (reasons.length === 0) return "pass";
+  const tailOnlySafeBody = hasSafeBodyAfterDroppingBadSentences(text, reasons);
   if (
     reasons.includes("premature_sensitive_reveal") &&
     !reasons.some((reason) =>
@@ -380,6 +395,7 @@ function selectAction(
       ].includes(reason)
     )
   ) {
+    if (phase === "stream" && tailOnlySafeBody) return "drop_sentence";
     return phase === "stream" ? "cancel" : "drop_sentence";
   }
   if (hardStop) return phase === "stream" ? "cancel" : "suppress";
@@ -387,12 +403,14 @@ function selectAction(
     reasons.includes("customer_led_sales_flow") &&
     !matchesAny(text, GENERIC_CLOSING_QUESTION_PATTERNS)
   ) {
+    if (phase === "stream" && tailOnlySafeBody) return "drop_sentence";
     return phase === "stream" ? "cancel" : "drop_sentence";
   }
   if (
     reasons.includes("forbidden_suffix") ||
     reasons.includes("generic_closing_question")
   ) {
+    if (phase === "stream" && tailOnlySafeBody) return "strip_tail";
     return phase === "stream" ? "cancel" : "strip_tail";
   }
   if (
@@ -400,6 +418,7 @@ function selectAction(
     reasons.includes("unnatural_ai_phrase") ||
     reasons.includes("customer_coaching")
   ) {
+    if (phase === "stream" && tailOnlySafeBody) return "drop_sentence";
     return phase === "stream" ? "cancel" : "drop_sentence";
   }
   return "metric";
@@ -445,4 +464,33 @@ function isContinueOnlyTurn(userText: string): boolean {
 function splitSentences(text: string): string[] {
   const matches = text.match(/[^。！？!?]+[。！？!?]?/gu);
   return matches?.map((part) => part.trim()).filter(Boolean) ?? [];
+}
+
+function hasSafeBodyAfterDroppingBadSentences(
+  text: string,
+  reasons: NegativeGuardReason[]
+): boolean {
+  if (!text.trim()) return false;
+  const decision: NegativeGuardDecision = {
+    action: "drop_sentence",
+    reasons,
+    stripTail:
+      reasons.includes("forbidden_suffix") ||
+      reasons.includes("generic_closing_question"),
+    dropSentencePatterns: [
+      ...FORBIDDEN_SUFFIX_PATTERNS,
+      ...GENERIC_CLOSING_QUESTION_PATTERNS,
+      ...UNNATURAL_AI_PHRASE_PATTERNS,
+      ...PREMATURE_SENSITIVE_FACT_PATTERNS,
+      ...CUSTOMER_COACHING_PATTERNS,
+      ...CUSTOMER_LED_SALES_FLOW_PATTERNS,
+      ...RISKY_TURN_ACK_DROP_PATTERNS,
+      ...CONTINUATION_EXTRA_SENTENCE_PATTERNS,
+      ...TAIL_ONLY_BAD_PATTERNS,
+    ],
+    hardStop: false,
+  };
+  const safeBody = applyNegativeGuardDeletionOnly(text, decision);
+  if (!safeBody) return false;
+  return safeBody.length < text.trim().length;
 }
