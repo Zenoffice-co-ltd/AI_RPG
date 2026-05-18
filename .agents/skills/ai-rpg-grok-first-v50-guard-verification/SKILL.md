@@ -79,7 +79,7 @@ prompt-only base with runtime quality guards enabled. Expected identity:
 - `runtimeControl.mode=default`
 - `runtimeGuardrailsEnabled=true`
 - `normalInputRouterEnabled=true`
-- `boundedRewriteEnabled=false` for the first quality gate
+- `boundedRewriteEnabled=true` for the human-functional quality gate
 - `streamAudioBeforeDone=false`
 - `fullTurnBufferEnabled=false`
 - `turnDetection.create_response=false`
@@ -91,10 +91,10 @@ raw/visible/audible transcript evidence for the quality guard DoD.
 The v50.7-quality first message must also be audible: after `session.ready`, the
 client records `opening.playback.started` and `opening.playback.completed` with
 `firstAudibleAudioMs` for the cached static opening audio.
-Bounded rewrite is disabled in the first production quality route because the
-route starts from v50.7.2 prompt-only behavior and uses runtime guards for
-input suppression, fixed responses, negative output detection, and audio
-hold/drop.
+Bounded rewrite is enabled for the human-functional quality route because
+production human review showed repeated customer-led tails in broad normal
+sales questions. Keep rewrites short, positive target-shape only, and scoped to
+high-risk normal sales questions; do not edit the v50.7.2 prompt text.
 After the 2026-05-18 human-session review, low-information and gratitude
 inputs on v50.7-quality should use deterministic short acknowledgements
 (`はい。`, `そうですね。`, or `いえいえ、こちらこそ。`) through the bounded

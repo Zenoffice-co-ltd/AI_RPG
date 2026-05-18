@@ -1127,7 +1127,11 @@ function assessVoicePath(evidence, correlation, runtimeMode) {
   if (correlation.inputSpeechStopped <= 0) missing.push("input_audio_buffer.speech_stopped_missing");
   if (correlation.inputTranscriptionCompleted <= 0) missing.push("input_audio_transcription.completed_missing");
   if (noiseIgnoredTurn) {
-    if ((latestTurn?.details?.audioBytes ?? 0) !== 0) {
+    const audioReleaseMode = latestTurn?.details?.audioReleaseMode ?? "";
+    if (
+      audioReleaseMode !== "fixed_short_ack_audio" &&
+      (latestTurn?.details?.audioBytes ?? 0) !== 0
+    ) {
       missing.push("noise_ignored_audio_bytes_nonzero");
     }
   } else if (fixedGuardTurn) {
@@ -1181,7 +1185,10 @@ function evaluateTranscript(testCase, input) {
       failureTags.push("expected_audible_missing");
     }
   }
-  if (testCase.expectedShouldSpeak === "false") {
+  if (
+    testCase.expectedShouldSpeak === "false" &&
+    input.audioReleaseMode !== "fixed_short_ack_audio"
+  ) {
     if (audible.trim() || Number(input.audibleAudioBytes ?? 0) > 0 || input.firstAudibleAudioMs != null) {
       hardFailReasons.push("expected_silence_but_audible_output");
       failureTags.push("unexpected_audible_output");

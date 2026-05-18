@@ -604,7 +604,7 @@ describe("grok-first v50 runtime", () => {
     expect(body["negativeGuardEnabled"]).toBe(true);
     expect(body["tailGuardEnabled"]).toBe(true);
     expect(body["fixedGuardAudioEnabled"]).toBe(true);
-    expect(body["boundedRewriteEnabled"]).toBe(false);
+    expect(body["boundedRewriteEnabled"]).toBe(true);
     expect(body["noiseIgnoredEnabled"]).toBe(true);
     expect(body["turnDetection"]).toEqual({
       type: "server_vad",
@@ -621,7 +621,7 @@ describe("grok-first v50 runtime", () => {
       negativeGuardEnabled: true,
       tailGuardEnabled: true,
       fixedGuardAudioEnabled: true,
-      boundedRewriteEnabled: false,
+      boundedRewriteEnabled: true,
       noiseIgnoredEnabled: true,
     });
 
