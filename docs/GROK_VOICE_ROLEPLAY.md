@@ -129,6 +129,9 @@ bounded short-ack TTS path; they must not call Grok or append customer-led
 tails. Broad high-risk normal-sales questions use the same locked-response
 cache only for whitelisted safe-body texts when Grok repeatedly appends
 customer-led tails; this is reported as `audioReleaseMode=fixed_safe_body_audio`.
+The current whitelist includes the focused guard safe bodies for background,
+business overview, broad conditions, candidate explanation, and decision
+structure confirmation.
 Normal Realtime assistant audio is held until the final transcript guard
 has passed; if a P0
 customer-led, meta, instruction-leak, or generic-closing phrase is detected,

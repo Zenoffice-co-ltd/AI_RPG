@@ -102,7 +102,9 @@ short-ack TTS path. They must not call Grok or append customer-led tails.
 Broad high-risk normal-sales questions may use the same locked-response cache
 only for whitelisted safe-body texts when Grok repeatedly appends customer-led
 tails. Report this as `audioReleaseMode=fixed_safe_body_audio`; it is not a
-general Runtime TTS fallback.
+general Runtime TTS fallback. The focused guard whitelist currently covers
+background, business overview, broad conditions, candidate explanation, and
+decision structure confirmation.
 Risk-based safe-prefix streaming is temporarily disabled because human review
 heard forbidden tail starts while declared `audibleTranscript` was clean.
 For hard P0 actions (`cancel` / `suppress`), quality route drops held audio.
