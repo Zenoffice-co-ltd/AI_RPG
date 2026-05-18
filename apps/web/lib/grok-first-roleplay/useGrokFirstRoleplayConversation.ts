@@ -110,6 +110,43 @@ function sumAudioDurationMs(
   return chunks.reduce((sum, chunk) => sum + chunk.durationMs, 0);
 }
 
+function slicePcmBase64(base64: string, keepBytes: number): string {
+  const binary = atob(base64);
+  return btoa(binary.slice(0, keepBytes));
+}
+
+function takeAudioPrefixByDuration(
+  chunks: BufferedAudioChunk[],
+  targetDurationMs: number
+): BufferedAudioChunk[] {
+  const releaseChunks: BufferedAudioChunk[] = [];
+  let remainingMs = targetDurationMs;
+  for (const chunk of chunks) {
+    if (remainingMs <= 0) break;
+    if (chunk.durationMs <= remainingMs) {
+      releaseChunks.push(chunk);
+      remainingMs -= chunk.durationMs;
+      continue;
+    }
+    const keepBytes = Math.max(
+      0,
+      Math.min(
+        chunk.bytes,
+        Math.floor(((remainingMs / 1000) * 24_000 * 2) / 2) * 2
+      )
+    );
+    if (keepBytes <= 0) break;
+    releaseChunks.push({
+      ...chunk,
+      base64: slicePcmBase64(chunk.base64, keepBytes),
+      bytes: keepBytes,
+      durationMs: Math.round((keepBytes / 2 / 24_000) * 1000),
+    });
+    break;
+  }
+  return releaseChunks;
+}
+
 function planTailOnlyRelease(input: {
   rawText: string;
   finalText: string;
@@ -154,8 +191,9 @@ function planTailOnlyRelease(input: {
     return { ok: false, droppedBytes: allDroppedBytes };
   }
 
+  const totalDurationMs = sumAudioDurationMs(input.chunks);
   const estimatedSafeBodyDurationMs =
-    sumAudioDurationMs(input.chunks) * ratio;
+    totalDurationMs * ratio;
 
   for (const candidateChunks of candidateSets) {
     if (candidateChunks.length === 0) continue;
@@ -186,6 +224,27 @@ function planTailOnlyRelease(input: {
       ok: true,
       chunks: releaseChunks,
       droppedBytes: allDroppedBytes - sumAudioBytes(releaseChunks),
+    };
+  }
+  const ratioReleaseDurationMs = Math.max(
+    0,
+    estimatedSafeBodyDurationMs - TAIL_ONLY_SAFETY_DROP_MS
+  );
+  const ratioReleaseChunks = takeAudioPrefixByDuration(
+    input.chunks,
+    ratioReleaseDurationMs
+  );
+  const ratioReleasedDurationMs = sumAudioDurationMs(ratioReleaseChunks);
+  if (
+    ratioReleaseChunks.length > 0 &&
+    ratioReleasedDurationMs >= TAIL_ONLY_MIN_RELEASE_MS &&
+    ratioReleasedDurationMs >=
+      estimatedSafeBodyDurationMs * TAIL_ONLY_MIN_SAFE_BODY_RATIO
+  ) {
+    return {
+      ok: true,
+      chunks: ratioReleaseChunks,
+      droppedBytes: allDroppedBytes - sumAudioBytes(ratioReleaseChunks),
     };
   }
   return { ok: false, droppedBytes: allDroppedBytes };
