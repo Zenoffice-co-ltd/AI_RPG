@@ -119,10 +119,6 @@ function sumAudioDurationMs(
   return chunks.reduce((sum, chunk) => sum + chunk.durationMs, 0);
 }
 
-function compactJapanese(text: string): string {
-  return text.normalize("NFKC").replace(/\s+/gu, "");
-}
-
 function hasCompleteSentence(text: string): boolean {
   return /[。！？!?]\s*$/u.test(text.trim());
 }
@@ -374,6 +370,7 @@ export function useGrokFirstRoleplayConversation(
   const bufferedAudioChunksRef = useRef<BufferedAudioChunk[]>([]);
   const bufferedAudioDroppedBytesRef = useRef(0);
   const bufferedAudioObservedRef = useRef(false);
+  const riskSafePrefixReadyRef = useRef(false);
   const transcriptDeltasRef = useRef<TranscriptDeltaTiming[]>([]);
   const eventOrderRef = useRef(0);
   const currentUserTextRef = useRef("");
@@ -532,6 +529,7 @@ export function useGrokFirstRoleplayConversation(
     bufferedAudioChunksRef.current = [];
     bufferedAudioDroppedBytesRef.current = 0;
     bufferedAudioObservedRef.current = false;
+    riskSafePrefixReadyRef.current = false;
     transcriptDeltasRef.current = [];
     eventOrderRef.current = 0;
     currentUserTextRef.current = "";
@@ -760,22 +758,10 @@ export function useGrokFirstRoleplayConversation(
       phase: "stream",
     });
     if (decision.action === "cancel" || decision.action === "suppress") return;
-    const safeText = applyNegativeGuardDeletionOnly(rawText, decision).trim();
-    if (!safeText || !hasCompleteSentence(safeText)) return;
-    const safeCompact = compactJapanese(safeText);
-    const boundary = [...transcriptDeltasRef.current].find((delta) => {
-      const cumulativeCompact = compactJapanese(delta.cumulativeText);
-      return (
-        cumulativeCompact === safeCompact ||
-        cumulativeCompact.startsWith(safeCompact)
-      );
-    });
-    if (!boundary) return;
+    if (!riskSafePrefixReadyRef.current) return;
     const now = Date.now();
     const boundaryChunks = bufferedAudioChunksRef.current.filter(
-      (chunk) =>
-        chunk.order <= boundary.order &&
-        now - chunk.at >= RISK_BASED_STREAM_HOLD_MS
+      (chunk) => now - chunk.at >= RISK_BASED_STREAM_HOLD_MS
     );
     if (boundaryChunks.length === 0) return;
     const releaseTargetMs = Math.max(
@@ -1430,6 +1416,14 @@ export function useGrokFirstRoleplayConversation(
                 streamDecision
               )
             : accumulatedTextRef.current;
+          if (
+            qualitySession &&
+            (streamDecision.action === "pass" ||
+              streamDecision.action === "metric") &&
+            hasCompleteSentence(visible)
+          ) {
+            riskSafePrefixReadyRef.current = true;
+          }
           if (!qualitySession || shouldStreamAudioBeforeDone()) {
             ensureInterimAgentTranscript(activeSession, visible, "interim");
           }
