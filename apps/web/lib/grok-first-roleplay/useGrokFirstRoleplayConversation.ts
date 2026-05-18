@@ -439,10 +439,10 @@ export function useGrokFirstRoleplayConversation(
     []
   );
 
-  const createRealtimeResponse = useCallback(() => {
+  const createRealtimeResponse = useCallback((responseInstructions?: string) => {
     expectedAssistantResponseRef.current = true;
     responseCreateCountRef.current += 1;
-    realtimeRef.current?.createResponse();
+    realtimeRef.current?.createResponse(responseInstructions);
   }, []);
 
   const cancelRealtimeResponse = useCallback((reason: string) => {
@@ -451,10 +451,10 @@ export function useGrokFirstRoleplayConversation(
     realtimeRef.current?.cancelResponse();
   }, []);
 
-  const sendRealtimeUserText = useCallback((text: string) => {
+  const sendRealtimeUserText = useCallback((text: string, responseInstructions?: string) => {
     expectedAssistantResponseRef.current = true;
     responseCreateCountRef.current += 1;
-    realtimeRef.current?.sendUserText(text);
+    realtimeRef.current?.sendUserText(text, responseInstructions);
   }, []);
 
   const runtimeFlagDetails = useCallback(
@@ -1347,7 +1347,7 @@ export function useGrokFirstRoleplayConversation(
                 tailAudioDroppedBytes: dropped.droppedBytes + bufferedDroppedBytes,
               },
             });
-            sendRealtimeUserText(realtimeRewriteText);
+            createRealtimeResponse(realtimeRewriteText);
             const rewriteSessionId = activeSession.sessionId;
             const rewriteTurnIndex = turnIndexRef.current;
             window.setTimeout(() => {
@@ -1940,7 +1940,7 @@ export function useGrokFirstRoleplayConversation(
       }
       appendUserTranscript({ text: trimmed, channel: "chat", status: "sent" });
       setStatus("thinking");
-      sendRealtimeUserText(realtimeRewriteText || trimmed);
+      sendRealtimeUserText(trimmed, realtimeRewriteText || undefined);
     },
     [
       appendUserTranscript,

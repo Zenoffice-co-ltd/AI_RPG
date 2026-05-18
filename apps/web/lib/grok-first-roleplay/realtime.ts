@@ -127,7 +127,7 @@ export class GrokFirstRealtime {
     this.markReadyAfterRelaySetup();
   }
 
-  sendUserText(text: string): void {
+  sendUserText(text: string, responseInstructions?: string): void {
     this.send(
       {
         type: "conversation.item.create",
@@ -139,11 +139,16 @@ export class GrokFirstRealtime {
       },
       { gate: "ready" }
     );
-    this.send({ type: "response.create" }, { gate: "ready" });
+    this.createResponse(responseInstructions);
   }
 
-  createResponse(): void {
-    this.send({ type: "response.create" }, { gate: "ready" });
+  createResponse(responseInstructions?: string): void {
+    this.send(
+      responseInstructions
+        ? { type: "response.create", response: { instructions: responseInstructions } }
+        : { type: "response.create" },
+      { gate: "ready" }
+    );
   }
 
   appendAudio(base64Pcm16: string): void {
