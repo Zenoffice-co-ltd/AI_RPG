@@ -104,7 +104,8 @@ only for whitelisted safe-body texts when Grok repeatedly appends customer-led
 tails. Report this as `audioReleaseMode=fixed_safe_body_audio`; it is not a
 general Runtime TTS fallback. The focused guard whitelist currently covers
 background, business overview, broad conditions, candidate explanation, and
-decision structure confirmation.
+decision structure confirmation, plus the manufacturer-experience requirement
+check.
 Risk-based safe-prefix streaming is temporarily disabled because human review
 heard forbidden tail starts while declared `audibleTranscript` was clean.
 For hard P0 actions (`cancel` / `suppress`), quality route drops held audio.

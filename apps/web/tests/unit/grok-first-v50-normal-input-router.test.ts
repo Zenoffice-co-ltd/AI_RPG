@@ -114,6 +114,14 @@ describe("grok-first v50 normal input router", () => {
     expect(tradeoff.rewrittenText).toContain("対外調整");
     expect(tradeoff.reasons).toContain("requirement_tradeoff_request");
 
+    const makerExperience = classifyNormalInputRoute(
+      "メーカー経験を必須にして、住宅設備経験者に絞るべきですか。"
+    );
+    expect(makerExperience.rewrittenText).toContain("メーカー経験");
+    expect(makerExperience.rewrittenText).toContain("受発注");
+    expect(makerExperience.rewrittenText).not.toContain("できますよ");
+    expect(makerExperience.reasons).toContain("requirement_tradeoff_request");
+
     const otherVendor = classifyNormalInputRoute("他社状況を教えてください。");
     expect(otherVendor.rewrittenText).toContain("他社にも相談");
     expect(otherVendor.rewrittenText).toContain("決定的な候補者");
