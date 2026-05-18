@@ -974,6 +974,22 @@ describe("grok-first v50 runtime", () => {
       ),
     ).toBe("了解しました。");
 
+    const vagueProgressPrompt = evaluateNegativeGuard({
+      text: "受注処理が増えていて、社員側の確認負荷が高くなっています。 どんな感じで進めていけそうですか。",
+      userText: "どうですか。",
+      phase: "final",
+    });
+    expect(vagueProgressPrompt.reasons).toContain("customer_led_sales_flow");
+    expect(["strip_tail", "drop_sentence"]).toContain(
+      vagueProgressPrompt.action,
+    );
+    expect(
+      applyNegativeGuardDeletionOnly(
+        "受注処理が増えていて、社員側の確認負荷が高くなっています。 どんな感じで進めていけそうですか。",
+        vagueProgressPrompt,
+      ),
+    ).toBe("受注処理が増えていて、社員側の確認負荷が高くなっています。");
+
     const delayedHoursAndOvertimeTail = evaluateNegativeGuard({
       text: "営業事務一名で、六月一日開始希望、受注入力と納期調整が中心です。勤務時間や残業についてはまた後ほど詳しくお伝えしますね。",
       userText: "条件を全部教えてください。",
