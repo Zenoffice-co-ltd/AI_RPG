@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { OrbStage } from "./OrbStage";
 import { TranscriptPanel } from "./TranscriptPanel";
 import {
+  fetchGrokFirstV50Greeting,
   fetchGrokFirstV50Session,
   postGrokFirstV50Event,
 } from "@/lib/grok-first-roleplay/client";
@@ -53,6 +54,8 @@ export function GrokFirstV50RoleplayShell({
   const apiDeps = useMemo(
     () => ({
       fetchSession: () => fetchGrokFirstV50Session(`${apiBase}/session`),
+      fetchOpeningAudio: (input: { sessionId: string; text: string }) =>
+        fetchGrokFirstV50Greeting(input, `${apiBase}/greet`),
       postEvent: (input: Parameters<typeof postGrokFirstV50Event>[0]) =>
         postGrokFirstV50Event(input, `${apiBase}/event`),
       micEnabled: true,

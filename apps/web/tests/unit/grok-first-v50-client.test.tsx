@@ -222,14 +222,19 @@ function buildFakeMicRecorder() {
 function renderConversation(input: {
   micEnabled?: boolean;
   session?: GrokFirstV50Session;
+  fetchOpeningAudio?: UseGrokFirstRoleplayDeps["fetchOpeningAudio"];
 } = {}) {
   const fake = buildFakeRealtime();
   const mic = buildFakeMicRecorder();
   const queue = buildStubAudioQueue();
   const postEvent = vi.fn().mockResolvedValue(undefined);
+  const fetchOpeningAudio =
+    input.fetchOpeningAudio ??
+    vi.fn().mockRejectedValue(new Error("opening audio disabled in unit default"));
   const session = input.session ?? SESSION;
   const deps: UseGrokFirstRoleplayDeps = {
     fetchSession: async () => session,
+    fetchOpeningAudio,
     postEvent,
     createRealtime: fake.ctor as unknown as NonNullable<
       UseGrokFirstRoleplayDeps["createRealtime"]
@@ -239,10 +244,43 @@ function renderConversation(input: {
     micEnabled: input.micEnabled ?? false,
   };
   const rendered = renderHook(() => useGrokFirstRoleplayConversation("live", deps));
-  return { ...rendered, fake, mic, queue, postEvent };
+  return { ...rendered, fake, mic, queue, postEvent, fetchOpeningAudio };
 }
 
 describe("grok-first v50.7 client input guard", () => {
+  it("plays v50.7 quality opening audio after session ready", async () => {
+    const openingAudio = Buffer.from(new Uint8Array(48_000)).toString("base64");
+    const fetchOpeningAudio = vi.fn().mockResolvedValue({
+      audioBase64: openingAudio,
+      textLen: QUALITY_BUFFERED_SESSION.firstMessage.length,
+      voiceId: QUALITY_BUFFERED_SESSION.voiceId,
+      vendorMs: 12,
+      cacheStatus: "hit",
+    });
+    const { result, queue, postEvent } = renderConversation({
+      session: QUALITY_BUFFERED_SESSION,
+      fetchOpeningAudio,
+    });
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    await waitFor(() => {
+      expect(fetchOpeningAudio).toHaveBeenCalledWith({
+        sessionId: QUALITY_BUFFERED_SESSION.sessionId,
+        text: QUALITY_BUFFERED_SESSION.firstMessage,
+      });
+      expect(queue.enqueueBase64AndWait).toHaveBeenCalledWith(openingAudio);
+      expect(postEvent.mock.calls.map(([event]) => event.kind)).toContain(
+        "opening.playback.started"
+      );
+      expect(postEvent.mock.calls.map(([event]) => event.kind)).toContain(
+        "opening.playback.completed"
+      );
+    });
+  });
+
   it("requests a realtime response explicitly after normal voice STT completion", async () => {
     const { result, fake } = renderConversation();
 
@@ -582,7 +620,7 @@ describe("grok-first v50.7 client input guard", () => {
     });
 
     await waitFor(() => {
-      expect(queue.enqueueBase64).toHaveBeenCalledTimes(2);
+      expect(queue.enqueueBase64).toHaveBeenCalledTimes(3);
       expect(result.current.metricsLog.at(-1)).toMatchObject({
         routePath: "grok_first_realtime",
         guardAction: "drop_sentence",
@@ -627,9 +665,11 @@ describe("grok-first v50.7 client input guard", () => {
       expect(result.current.metricsLog.at(-1)).toMatchObject({
         routePath: "suppressed",
         guardAction: "drop_sentence",
-        visibleAssistantTranscript: safeText,
+        visibleAssistantTranscript: "",
         audibleTranscript: "",
         audioReleaseMode: "tail_only_drop_fallback",
+        finalTextAfterGuard: safeText,
+        tailOnlyFallbackReason: expect.any(String),
       });
       expect(fake.cancelResponse).not.toHaveBeenCalled();
     });

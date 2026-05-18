@@ -88,6 +88,9 @@ prompt-only base with runtime quality guards enabled. Expected identity:
 The quality route is not the speed hotfix. It holds Realtime audio until
 `response.done` and uses `fullTurnBufferCount`, `tailAudioDroppedBytes`, and
 raw/visible/audible transcript evidence for the quality guard DoD.
+The v50.7-quality first message must also be audible: after `session.ready`, the
+client records `opening.playback.started` and `opening.playback.completed` with
+`firstAudibleAudioMs` for the cached static opening audio.
 Bounded rewrite is disabled in the first production quality route because the
 route starts from v50.7.2 prompt-only behavior and uses runtime guards for
 input suppression, fixed responses, negative output detection, and audio
@@ -99,6 +102,11 @@ transcript-delta order, falls back to character ratio, and always drops the
 trailing safety window/chunk. Boundary failure is reported as
 `audioReleaseMode=tail_only_drop_fallback` and blocks
 `ROLEPLAY_FUNCTIONAL_PASS`.
+`ROLEPLAY_FUNCTIONAL_PASS` additionally requires normal-sales audible output,
+customer-led safe-body audible output, no safe-body all-drop, no normal-sales
+`tail_only_drop_fallback`, no chat-visible/audible transcript mismatch, opening
+audio present, `turn.completed` completeness, audio leak `0`, false-pass audit
+`0`, and `firstAudibleAudioMs` p50 `<3000ms` / p95 `<7000ms`.
 
 ## v50.7 In-place Speed Hotfix
 

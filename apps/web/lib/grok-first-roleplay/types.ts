@@ -229,6 +229,7 @@ export type GrokFirstV50Metric = {
   droppedAudioBytes?: number | undefined;
   audibleAudioBytes?: number | undefined;
   audioReleaseMode?: AudioReleaseMode | undefined;
+  tailOnlyFallbackReason?: string | undefined;
   normalizedUserText?: string | undefined;
   normalizationApplied?: boolean | undefined;
   normalizationReasons?: string[] | undefined;

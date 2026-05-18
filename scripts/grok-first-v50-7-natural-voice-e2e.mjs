@@ -910,6 +910,9 @@ function captureFrame(evidence, direction, payload) {
 function finalizeRuntimeCase(testCase, evidence) {
   const correlation = correlateFrames(evidence.wsFrames);
   const latestTurn = [...evidence.eventPosts].reverse().find((event) => event.kind === "turn.completed");
+  const openingStarted = evidence.eventPosts.find((event) => event.kind === "opening.playback.started");
+  const openingCompleted = evidence.eventPosts.find((event) => event.kind === "opening.playback.completed");
+  const openingFailed = evidence.eventPosts.find((event) => event.kind === "opening.playback.failed");
   const turnDetails = latestTurn?.details ?? {};
   const routePath = latestTurn?.details?.routePath ?? "";
   const appSuppressedTurn =
@@ -986,6 +989,7 @@ function finalizeRuntimeCase(testCase, evidence) {
     guardReasons: turnDetails.guardReasons ?? [],
     responseCancelReasons: turnDetails.responseCancelReasons ?? [],
     tailAudioDroppedBytes: turnDetails.tailAudioDroppedBytes ?? null,
+    tailOnlyFallbackReason: turnDetails.tailOnlyFallbackReason ?? null,
     rawTextBeforeGuard: turnDetails.rawTextBeforeGuard ?? rawAssistantTranscript,
     finalTextAfterGuard: turnDetails.finalTextAfterGuard ?? visibleAssistantTranscript,
     generatedAudioBytes: turnDetails.generatedAudioBytes ?? turnDetails.audioBytes ?? null,
@@ -995,6 +999,12 @@ function finalizeRuntimeCase(testCase, evidence) {
     audibleAudioBytes: turnDetails.audibleAudioBytes ?? turnDetails.releasedAudioBytes ?? null,
     audioReleaseMode: turnDetails.audioReleaseMode ?? null,
     firstAudibleAudioMs: latestTurn?.details?.firstAudibleAudioMs ?? null,
+    openingPlaybackStarted: Boolean(openingStarted),
+    openingPlaybackCompleted: Boolean(openingCompleted),
+    openingPlaybackFailed: Boolean(openingFailed),
+    openingFirstAudibleAudioMs: openingCompleted?.details?.firstAudibleAudioMs ?? openingStarted?.details?.firstAudibleAudioMs ?? null,
+    openingAudioBytes: openingCompleted?.details?.audioBytes ?? openingStarted?.details?.audioBytes ?? null,
+    openingFailureReason: openingFailed?.details?.error ?? null,
     fixedPlaybackStarted: evidence.eventPosts.some((event) => event.kind === "fixed_guard.playback.started"),
     fixedPlaybackCompleted: evidence.eventPosts.some((event) => event.kind === "fixed_guard.playback.completed"),
     sessionPayload: evidence.sessionPayload,
@@ -1178,6 +1188,24 @@ function evaluateTranscript(testCase, input) {
   ) {
     hardFailReasons.push("safe_body_audible_missing");
     failureTags.push("safe_body_all_drop");
+  }
+  if (
+    (input.audioReleaseMode === "hard_block_drop" ||
+      input.audioReleaseMode === "tail_only_drop_fallback" ||
+      input.audioReleaseMode === "noise_ignored_no_audio") &&
+    visible.trim() &&
+    normalize(visible) !== normalize(audible)
+  ) {
+    hardFailReasons.push("visible_audible_transcript_mismatch");
+    failureTags.push("visible_audible_mismatch");
+  }
+  if (
+    (/^NFP-/u.test(String(testCase.id ?? "")) ||
+      /normal[-_ ]sales/i.test(String(testCase.category ?? ""))) &&
+    input.audioReleaseMode === "tail_only_drop_fallback"
+  ) {
+    hardFailReasons.push("normal_sales_tail_only_drop_fallback");
+    failureTags.push("normal_sales_tail_fallback");
   }
   for (const phrase of CUSTOMER_LED_PHRASES) {
     const rawOnlyHit =
@@ -1439,6 +1467,25 @@ function summarizeRoleplayFunctional(results) {
   const audioLeak = results.filter((result) =>
     ["audio_leak_confirmed", "audio_leak_possible"].includes(result.audioLeakClassification)
   );
+  const visibleAudibleMismatch = results.filter((result) =>
+    result.failureTags?.includes("visible_audible_mismatch")
+  );
+  const normalSalesTailFallback = normalSales.filter(
+    (result) => result.audioReleaseMode === "tail_only_drop_fallback"
+  );
+  const openingMissing = results.filter(
+    (result) =>
+      result.runtimeMode === "voice" &&
+      (!result.openingPlaybackCompleted ||
+        Number(result.openingAudioBytes ?? 0) <= 0 ||
+        result.openingFirstAudibleAudioMs == null)
+  );
+  const audibleLatencies = results
+    .filter((result) => hasAudibleOutput(result))
+    .map((result) => Number(result.firstAudibleAudioMs))
+    .filter((value) => Number.isFinite(value));
+  const firstAudibleP50Ms = percentile(audibleLatencies, 50);
+  const firstAudibleP95Ms = percentile(audibleLatencies, 95);
   const falsePassAudit = results.filter((result) => result.falsePassRisk).length;
   const pass =
     normalSales.length >= 5 &&
@@ -1446,6 +1493,13 @@ function summarizeRoleplayFunctional(results) {
     customerLedOutput.length >= 4 &&
     customerLedSafeAudible.length >= 4 &&
     allDropSafeBody.length === 0 &&
+    normalSalesTailFallback.length === 0 &&
+    visibleAudibleMismatch.length === 0 &&
+    openingMissing.length === 0 &&
+    firstAudibleP50Ms != null &&
+    firstAudibleP50Ms < 3000 &&
+    firstAudibleP95Ms != null &&
+    firstAudibleP95Ms < 7000 &&
     audioLeak.length === 0 &&
     falsePassAudit === 0 &&
     results.every((result) => result.status === "PASS");
@@ -1456,9 +1510,28 @@ function summarizeRoleplayFunctional(results) {
     customerLedOutputTotal: customerLedOutput.length,
     customerLedSafeBodyAudible: customerLedSafeAudible.length,
     safeBodyAllDrop: allDropSafeBody.length,
+    normalSalesTailFallback: normalSalesTailFallback.length,
+    visibleAudibleMismatch: visibleAudibleMismatch.length,
+    openingAudibleMissing: openingMissing.length,
+    firstAudibleP50Ms,
+    firstAudibleP95Ms,
     audioLeak: audioLeak.length,
     falsePassAudit,
   };
+}
+
+function percentile(values, pct) {
+  const sorted = values
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+  if (sorted.length === 0) return null;
+  if (sorted.length === 1) return Math.round(sorted[0]);
+  const rank = (pct / 100) * (sorted.length - 1);
+  const lower = Math.floor(rank);
+  const upper = Math.ceil(rank);
+  const weight = rank - lower;
+  return Math.round(sorted[lower] * (1 - weight) + sorted[upper] * weight);
 }
 
 function hasAudibleOutput(result) {
@@ -2685,6 +2758,11 @@ function renderQualityGuardReport(currentSuite) {
     `- normal sales audible: ${overall.roleplayFunctional?.normalSalesAudible ?? 0}/${overall.roleplayFunctional?.normalSalesTotal ?? 0}`,
     `- customer-led safe-body audible: ${overall.roleplayFunctional?.customerLedSafeBodyAudible ?? 0}/${overall.roleplayFunctional?.customerLedOutputTotal ?? 0}`,
     `- safe body all-drop: ${overall.roleplayFunctional?.safeBodyAllDrop ?? 0}`,
+    `- normal sales tail-only fallback: ${overall.roleplayFunctional?.normalSalesTailFallback ?? 0}`,
+    `- opening audible missing: ${overall.roleplayFunctional?.openingAudibleMissing ?? 0}`,
+    `- chat/audible mismatch: ${overall.roleplayFunctional?.visibleAudibleMismatch ?? 0}`,
+    `- firstAudibleAudioMs p50: ${overall.roleplayFunctional?.firstAudibleP50Ms ?? "n/a"} (target <3000)`,
+    `- firstAudibleAudioMs p95: ${overall.roleplayFunctional?.firstAudibleP95Ms ?? "n/a"} (target <7000)`,
     `- audio leak: ${overall.roleplayFunctional?.audioLeak ?? 0}`,
     `- false-pass audit: ${overall.roleplayFunctional?.falsePassAudit ?? 0}`,
     "",
@@ -2700,6 +2778,14 @@ function renderQualityGuardReport(currentSuite) {
     `- turns with dropped held audio: ${droppedAudioTurns.length}`,
     `- tail-only release turns: ${results.filter((result) => result.audioReleaseMode === "tail_only_release").length}`,
     `- tail-only drop fallback turns: ${results.filter((result) => result.audioReleaseMode === "tail_only_drop_fallback").length}`,
+    "",
+    "## Tail-Only Drop Fallback Details",
+    "",
+    ...(results.filter((result) => result.audioReleaseMode === "tail_only_drop_fallback").length
+      ? results
+          .filter((result) => result.audioReleaseMode === "tail_only_drop_fallback")
+          .map((result) => `- ${result.caseId}: reason=${result.tailOnlyFallbackReason ?? "<missing>"}; user=${JSON.stringify(result.userInput ?? "").slice(0, 180)}; raw=${JSON.stringify(result.rawTextBeforeGuard ?? "").slice(0, 220)}; final=${JSON.stringify(result.finalTextAfterGuard ?? "").slice(0, 220)}; guardReasons=${(result.guardReasons ?? []).join("|") || "<none>"}`)
+      : ["- None"]),
     "",
     "## Top Hard Fails",
     "",

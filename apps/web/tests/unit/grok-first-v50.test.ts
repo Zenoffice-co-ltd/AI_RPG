@@ -973,6 +973,24 @@ describe("grok-first v50 runtime", () => {
         saySomethingIfNeeded,
       ),
     ).toBe("了解しました。");
+
+    const delayedHoursAndOvertimeTail = evaluateNegativeGuard({
+      text: "営業事務一名で、六月一日開始希望、受注入力と納期調整が中心です。勤務時間や残業についてはまた後ほど詳しくお伝えしますね。",
+      userText: "条件を全部教えてください。",
+      phase: "final",
+    });
+    expect(delayedHoursAndOvertimeTail.reasons).toContain(
+      "customer_led_sales_flow",
+    );
+    expect(delayedHoursAndOvertimeTail.action).toBe("drop_sentence");
+    expect(
+      applyNegativeGuardDeletionOnly(
+        "営業事務一名で、六月一日開始希望、受注入力と納期調整が中心です。勤務時間や残業についてはまた後ほど詳しくお伝えしますね。",
+        delayedHoursAndOvertimeTail,
+      ),
+    ).toBe(
+      "営業事務一名で、六月一日開始希望、受注入力と納期調整が中心です。",
+    );
   });
 
   it("classifies v50.7 quality fixed-input guard edge cases", () => {
