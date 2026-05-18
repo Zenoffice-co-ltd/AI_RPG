@@ -143,6 +143,23 @@ Quality evidence uses `fullTurnBufferCount`, `tailAudioDroppedBytes`, and
 raw/visible/audible transcript separation rather than changing
 `fullTurnBufferEnabled`.
 
+The quality route uses a short remediation ladder so the team does not spend a
+full production run on every tweak:
+
+1. Read the previous `results.json`, `events.jsonl`, `report.md`, and
+   `false_pass_audit.md`.
+2. Add or update deterministic unit/hook/fixture coverage for the failure.
+3. Batch router/guard/runtime fixes and deploy once from `main`.
+4. Run `prod-smoke` for `v50-7-quality` in `session`, `start`, and `voice-turn`
+   modes.
+5. Run the targeted six-case sentinel:
+   `LIG-10,NFP-01,OUT-01,OUT-02,OUT-03,OUT-04`.
+6. Run the 30-case quality workbook only after the targeted six pass.
+
+If the targeted six fail, stop, report `human test allowed = no`, and rerun only
+failed or suspected false-pass ids with `--case-ids`. `QUALITY_GUARD_PASS` is a
+safety label; human testing requires `ROLEPLAY_FUNCTIONAL_PASS`.
+
 As of the 2026-05-17 in-place v50.7 speed hotfix, the customer-facing
 `/demo/adecco-roleplay-v50-7` route is temporarily optimized for manual speed
 checking. It keeps `demoSlug=adecco-roleplay-v50-7`,
@@ -321,6 +338,12 @@ Run a production voice sentinel only after route/session smoke passes, and keep
 it targeted. `deploy success`, `route/session smoke success`, `targeted voice
 sentinel PASS`, `BUDGETED_PASS`, `Full Option A PASS`, and `human test
 allowed` remain separate labels.
+
+For `v50-7-quality`, the first production sentinel is always the targeted six
+case set (`LIG-10,NFP-01,OUT-01,OUT-02,OUT-03,OUT-04`). Do not spend the
+30-case quality workbook until that sentinel passes. A targeted failure means
+`human test allowed = no` and the next run should use only the failed or
+suspected false-pass ids.
 
 Medium-term harness direction: keep runtime code changes deploy-gated, but move
 guard phrase tables, bounded rewrites, and STT normalization entries toward a
