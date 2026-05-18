@@ -62,6 +62,12 @@ const TAIL_ONLY_SAFETY_DROP_MS = 200;
 const TAIL_ONLY_FADE_OUT_MS = 80;
 const TAIL_ONLY_MIN_RELEASE_MS = 700;
 const TAIL_ONLY_MIN_SAFE_BODY_RATIO = 0.8;
+const DETERMINISTIC_SAFE_BODY_TEXTS = new Set([
+  "受注処理が増えていて、社員側の確認負荷が高くなっています。",
+  "受注入力、発注処理、納期調整、代理店や工務店からの問い合わせ対応が中心です。",
+  "営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。",
+  "受注入力と納期調整が中心で、代理店や工務店との電話・メール対応があり、週五日出社前提です。",
+]);
 
 type FixedInputGuardDecision = InputGuardDecision & {
   action: "fixed_exit" | "fixed_external";
@@ -1347,6 +1353,83 @@ export function useGrokFirstRoleplayConversation(
                 tailAudioDroppedBytes: dropped.droppedBytes + bufferedDroppedBytes,
               },
             });
+            if (
+              isV507QualitySession() &&
+              DETERMINISTIC_SAFE_BODY_TEXTS.has(realtimeRewriteText)
+            ) {
+              void (async () => {
+                void postEvent({
+                  kind: "stt.completed",
+                  sessionId: activeSession.sessionId,
+                  details: {
+                    turnIndex: turnIndexRef.current,
+                    textLen: text.length,
+                    sttTextPreview: text.slice(0, 200),
+                    normalizedUserText: normalization.normalizedText,
+                    normalizationApplied: normalization.normalizationApplied,
+                    normalizationReasons: normalization.normalizationReasons,
+                    guardAction: "normal_realtime_rewrite",
+                    guardReasons: [
+                      ...(normalRoute?.reasons ?? []),
+                      ...normalization.normalizationReasons,
+                    ],
+                  },
+                });
+                let playbackError: string | null = null;
+                let safeBodyAudioBytes = 0;
+                try {
+                  const safeBodyAudio =
+                    await (deps.fetchShortAckAudio ?? fetchGrokFirstV50ShortAck)({
+                      sessionId: activeSession.sessionId,
+                      text: realtimeRewriteText,
+                    });
+                  safeBodyAudioBytes = Math.floor(
+                    (safeBodyAudio.audioBase64.length * 3) / 4
+                  );
+                  const playbackStartedAt = Date.now();
+                  fixedPlaybackStartedAtRef.current = playbackStartedAt;
+                  firstAudioDeltaAtRef.current = playbackStartedAt;
+                  firstAudibleAudioAtRef.current = playbackStartedAt;
+                  accumulatedTextRef.current = realtimeRewriteText;
+                  accumulatedAudioBytesRef.current = safeBodyAudioBytes;
+                  releasedAudioBytesRef.current = safeBodyAudioBytes;
+                  setStatus("speaking");
+                  await ensureAudioQueue().enqueueBase64AndWait(
+                    safeBodyAudio.audioBase64
+                  );
+                  appendFixedAssistantTranscript(realtimeRewriteText);
+                } catch (error) {
+                  playbackError =
+                    error instanceof Error ? error.message : String(error);
+                  setErrorMessage(AUDIO_ERROR);
+                } finally {
+                  fixedPlaybackCompletedAtRef.current = Date.now();
+                }
+                emitMetric({
+                  routePath: "grok_first_realtime",
+                  guardAction: "pass",
+                  guardReasons: [
+                    ...(normalRoute?.reasons ?? []),
+                    ...normalization.normalizationReasons,
+                    "deterministic_safe_body_audio",
+                  ],
+                  agentTextOverride: playbackError ? "" : realtimeRewriteText,
+                  audibleTextOverride: playbackError ? "" : realtimeRewriteText,
+                  rawTextBeforeGuard: playbackError ? "" : realtimeRewriteText,
+                  finalTextAfterGuard: playbackError ? "" : realtimeRewriteText,
+                  audioReleaseMode: "fixed_safe_body_audio",
+                  audioSource: "static_safe_body_tts",
+                  releasedAudioBytes: playbackError ? 0 : safeBodyAudioBytes,
+                  droppedAudioBytes:
+                    dropped.droppedBytes + bufferedDroppedBytes,
+                  error: playbackError,
+                });
+                resetTurn();
+                micRef.current?.setEnabled(!mutedRef.current);
+                setStatus(mutedRef.current ? "muted" : "listening");
+              })();
+              break;
+            }
             createRealtimeResponse(realtimeRewriteText);
             const rewriteSessionId = activeSession.sessionId;
             const rewriteTurnIndex = turnIndexRef.current;

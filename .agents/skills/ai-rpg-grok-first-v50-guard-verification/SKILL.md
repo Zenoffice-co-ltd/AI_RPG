@@ -99,6 +99,10 @@ After the 2026-05-18 human-session review, low-information and gratitude
 inputs on v50.7-quality should use deterministic short acknowledgements
 (`はい。`, `そうですね。`, or `いえいえ、こちらこそ。`) through the bounded
 short-ack TTS path. They must not call Grok or append customer-led tails.
+Broad high-risk normal-sales questions may use the same locked-response cache
+only for whitelisted safe-body texts when Grok repeatedly appends customer-led
+tails. Report this as `audioReleaseMode=fixed_safe_body_audio`; it is not a
+general Runtime TTS fallback.
 Risk-based safe-prefix streaming is temporarily disabled because human review
 heard forbidden tail starts while declared `audibleTranscript` was clean.
 For hard P0 actions (`cancel` / `suppress`), quality route drops held audio.

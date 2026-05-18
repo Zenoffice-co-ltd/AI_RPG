@@ -126,7 +126,10 @@ frozen. The session first message must be audible on this route: after
 low-information and gratitude inputs are deterministic short acknowledgements
 (`はい。`, `そうですね。`, or `いえいえ、こちらこそ。`) served through the
 bounded short-ack TTS path; they must not call Grok or append customer-led
-tails. Normal Realtime assistant audio is held until the final transcript guard
+tails. Broad high-risk normal-sales questions use the same locked-response
+cache only for whitelisted safe-body texts when Grok repeatedly appends
+customer-led tails; this is reported as `audioReleaseMode=fixed_safe_body_audio`.
+Normal Realtime assistant audio is held until the final transcript guard
 has passed; if a P0
 customer-led, meta, instruction-leak, or generic-closing phrase is detected,
 held audio is dropped before playback.

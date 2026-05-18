@@ -1134,6 +1134,10 @@ function assessVoicePath(evidence, correlation, runtimeMode) {
     ) {
       missing.push("noise_ignored_audio_bytes_nonzero");
     }
+  } else if (latestTurn?.details?.audioReleaseMode === "fixed_safe_body_audio") {
+    if ((latestTurn?.details?.audioBytes ?? 0) <= 0) {
+      missing.push("fixed_safe_body_audio_bytes_missing");
+    }
   } else if (fixedGuardTurn) {
     if (!eventKinds.has("fixed_guard.playback.started")) missing.push("fixed_guard.playback.started_missing");
     if (!eventKinds.has("fixed_guard.playback.completed")) missing.push("fixed_guard.playback.completed_missing");
