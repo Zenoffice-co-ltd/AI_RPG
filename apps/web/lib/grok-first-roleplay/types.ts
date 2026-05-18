@@ -174,7 +174,8 @@ export type GrokFirstV50Metric = {
   audioSource:
     | "xai_realtime_stream"
     | "static_guard_pcm_base64"
-    | "static_short_ack_tts";
+    | "static_short_ack_tts"
+    | "static_safe_body_tts";
   sttCompletedToGuardDetectedMs: number | null;
   guardDetectedToPlaybackStartedMs: number | null;
   fixedPlaybackDurationMs: number | null;
@@ -256,6 +257,7 @@ export type AudioReleaseMode =
   | "hard_block_drop"
   | "fixed_guard_static_audio"
   | "fixed_short_ack_audio"
+  | "fixed_safe_body_audio"
   | "noise_ignored_no_audio";
 
 export type GuardAction =

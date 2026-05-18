@@ -703,11 +703,20 @@ describe("grok-first v50.7 client input guard", () => {
     expect(guardEvent?.details?.tailAudioDroppedBytes).toBeGreaterThan(0);
   });
 
-  it("releases conservative safe-body audio for tail-only guard decisions", async () => {
+  it("plays deterministic safe-body audio for high-risk bounded rewrites", async () => {
+    const audio = Buffer.from(new Uint8Array(48_000)).toString("base64");
+    const fetchShortAckAudio = vi.fn().mockResolvedValue({
+      audioBase64: audio,
+      mimeType: "audio/pcm",
+      sampleRateHz: 24_000,
+      textLen: 40,
+      voiceId: "99c95cc8a177",
+      cacheStatus: "hit",
+    });
     const { result, fake, queue } = renderConversation({
       session: QUALITY_BUFFERED_SESSION,
+      fetchShortAckAudio,
     });
-    const audio = Buffer.from(new Uint8Array(48_000)).toString("base64");
     const safeText =
       "営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。";
 
@@ -721,39 +730,29 @@ describe("grok-first v50.7 client input guard", () => {
         type: "conversation.item.input_audio_transcription.completed",
         transcript: "条件を全部教えてください",
       });
-      fake.emit({ type: "response.created" });
-      fake.emit({ type: "response.output_audio.delta", delta: audio });
-      fake.emit({ type: "response.output_audio.delta", delta: audio });
-      fake.emit({ type: "response.output_audio.delta", delta: audio });
-      fake.emit({
-        type: "response.output_audio_transcript.delta",
-        delta: safeText,
-      });
-      fake.emit({ type: "response.output_audio.delta", delta: audio });
-      fake.emit({
-        type: "response.output_audio_transcript.delta",
-        delta: "詳細は業務内容をお聞きになった後で補足しますね。",
-      });
-      fake.emit({ type: "response.done" });
     });
 
     await waitFor(() => {
-      expect(queue.enqueueBase64).toHaveBeenCalledTimes(3);
+      expect(fetchShortAckAudio).toHaveBeenCalledWith({
+        sessionId: QUALITY_BUFFERED_SESSION.sessionId,
+        text: safeText,
+      });
+      expect(queue.enqueueBase64AndWait).toHaveBeenCalledTimes(1);
+      expect(fake.createResponse).not.toHaveBeenCalled();
       expect(result.current.metricsLog.at(-1)).toMatchObject({
         routePath: "grok_first_realtime",
-        guardAction: "drop_sentence",
+        guardAction: "pass",
         visibleAssistantTranscript: safeText,
         audibleTranscript: safeText,
-        audioReleaseMode: "tail_only_release",
+        audioReleaseMode: "fixed_safe_body_audio",
       });
       expect(result.current.metricsLog.at(-1)?.releasedAudioBytes).toBeGreaterThan(0);
-      expect(result.current.metricsLog.at(-1)?.droppedAudioBytes).toBeGreaterThan(0);
     });
   });
 
-  it("keeps tail-only fallback distinct from hard cancel when safe audio cannot be bounded", async () => {
+  it("hard-drops unbounded tail output when safe audio cannot be bounded", async () => {
     const { result, fake, queue } = renderConversation({
-      session: QUALITY_BUFFERED_SESSION,
+      session: BUFFERED_SESSION,
     });
     const audio = Buffer.from(new Uint8Array(48)).toString("base64");
     const safeText =
@@ -767,7 +766,7 @@ describe("grok-first v50.7 client input guard", () => {
       fake.emit({ type: "input_audio_buffer.speech_started" });
       fake.emit({
         type: "conversation.item.input_audio_transcription.completed",
-        transcript: "条件を全部教えてください",
+        transcript: "勤務時間を確認します",
       });
       fake.emit({ type: "response.created" });
       fake.emit({ type: "response.output_audio.delta", delta: audio });
@@ -782,14 +781,13 @@ describe("grok-first v50.7 client input guard", () => {
       expect(queue.enqueueBase64).not.toHaveBeenCalled();
       expect(result.current.metricsLog.at(-1)).toMatchObject({
         routePath: "suppressed",
-        guardAction: "drop_sentence",
+        guardAction: "cancel",
         visibleAssistantTranscript: "",
         audibleTranscript: "",
-        audioReleaseMode: "tail_only_drop_fallback",
+        audioReleaseMode: "hard_block_drop",
         finalTextAfterGuard: safeText,
-        tailOnlyFallbackReason: expect.any(String),
       });
-      expect(fake.cancelResponse).not.toHaveBeenCalled();
+      expect(fake.cancelResponse).toHaveBeenCalled();
     });
   });
 
