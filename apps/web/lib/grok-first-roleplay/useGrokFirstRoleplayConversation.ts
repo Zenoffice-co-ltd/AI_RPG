@@ -787,6 +787,7 @@ export function useGrokFirstRoleplayConversation(
       releaseTargetMs
     );
     if (chunksToRelease.length === 0) return;
+    if (sumAudioDurationMs(chunksToRelease) < TAIL_ONLY_MIN_RELEASE_MS) return;
     const releaseOrders = new Set(chunksToRelease.map((chunk) => chunk.order));
     bufferedAudioChunksRef.current = bufferedAudioChunksRef.current.filter(
       (chunk) => !releaseOrders.has(chunk.order)
@@ -1545,56 +1546,53 @@ export function useGrokFirstRoleplayConversation(
               decision.action === "strip_tail" ||
               decision.action === "drop_sentence"
             ) {
-              if (releasedAudioBytesRef.current > 0 && finalText.trim()) {
+              const finalTextDecision = tailOnlyReleaseEnabled
+                ? evaluateActiveNegativeGuard({
+                    text: finalText,
+                    userText:
+                      normalizedUserTextRef.current || currentUserTextRef.current,
+                    phase: "final",
+                  })
+                : null;
+              const finalTextIsSafe =
+                tailOnlyReleaseEnabled &&
+                finalText.trim().length > 0 &&
+                (finalTextDecision?.action === "pass" ||
+                  finalTextDecision?.action === "metric");
+              const plan = finalTextIsSafe
+                ? planTailOnlyRelease({
+                    rawText: rawTextBeforeGuard,
+                    finalText,
+                    chunks: allBufferedChunks,
+                    transcriptDeltas: transcriptDeltasRef.current,
+                  })
+                : {
+                    ok: false as const,
+                    droppedBytes: sumAudioBytes(allBufferedChunks),
+                    reason: finalText.trim()
+                      ? "final_text_still_guarded"
+                      : "empty_final_text",
+                  };
+              if (plan.ok || releasedAudioBytesRef.current > 0) {
                 routePath = "grok_first_realtime";
                 audioReleaseMode = "tail_only_release";
                 audibleText = finalText;
-                const remainingDroppedBytes = sumAudioBytes(allBufferedChunks);
-                droppedAudioBytes += remainingDroppedBytes;
-                bufferedAudioDroppedBytesRef.current += remainingDroppedBytes;
-              } else {
-                const finalTextDecision = tailOnlyReleaseEnabled
-                  ? evaluateActiveNegativeGuard({
-                      text: finalText,
-                      userText:
-                        normalizedUserTextRef.current || currentUserTextRef.current,
-                      phase: "final",
-                    })
-                  : null;
-                const finalTextIsSafe =
-                  tailOnlyReleaseEnabled &&
-                  finalText.trim().length > 0 &&
-                  (finalTextDecision?.action === "pass" ||
-                    finalTextDecision?.action === "metric");
-                const plan = finalTextIsSafe
-                  ? planTailOnlyRelease({
-                      rawText: rawTextBeforeGuard,
-                      finalText,
-                      chunks: allBufferedChunks,
-                      transcriptDeltas: transcriptDeltasRef.current,
-                    })
-                  : {
-                      ok: false as const,
-                      droppedBytes: sumAudioBytes(allBufferedChunks),
-                      reason: finalText.trim()
-                        ? "final_text_still_guarded"
-                        : "empty_final_text",
-                    };
                 if (plan.ok) {
-                  routePath = "grok_first_realtime";
-                  audioReleaseMode = "tail_only_release";
                   setStatus("speaking");
                   releasedAudioBytes += releaseChunks(plan.chunks);
                   droppedAudioBytes += plan.droppedBytes;
                   bufferedAudioDroppedBytesRef.current += plan.droppedBytes;
                 } else {
-                  routePath = "suppressed";
-                  audioReleaseMode = "tail_only_drop_fallback";
-                  audibleText = "";
-                  tailOnlyFallbackReason = plan.reason;
                   droppedAudioBytes += plan.droppedBytes;
                   bufferedAudioDroppedBytesRef.current += plan.droppedBytes;
                 }
+              } else {
+                routePath = "suppressed";
+                audioReleaseMode = "tail_only_drop_fallback";
+                audibleText = "";
+                tailOnlyFallbackReason = plan.reason;
+                droppedAudioBytes += plan.droppedBytes;
+                bufferedAudioDroppedBytesRef.current += plan.droppedBytes;
               }
             } else {
               audioReleaseMode =
