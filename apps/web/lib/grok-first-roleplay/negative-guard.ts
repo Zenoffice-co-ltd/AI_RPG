@@ -36,7 +36,6 @@ const FORBIDDEN_SUFFIX_PATTERNS: RegExp[] = [
   /お願いします[。！？!?]*$/u,
   /よろしく(お願いします|お願いいたします)?[。！？!?]*$/u,
   /お願い(します|いたします|しています|してます)[。！？!?]*$/u,
-  /確認します[。！？!?]*$/u,
   /助かります[。！？!?]*$/u,
 ];
 
@@ -166,6 +165,7 @@ const CONTINUATION_EXTRA_SENTENCE_PATTERNS: RegExp[] = [
   /背景になります/u,
   /必要でしたら/u,
   /お知らせください/u,
+  /確認します[。！？!?]*$/u,
 ];
 
 const NUMERIC_CONTRADICTION_PATTERNS: RegExp[] = [

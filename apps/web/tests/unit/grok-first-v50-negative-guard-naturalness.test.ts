@@ -163,15 +163,15 @@ describe("grok-first v50 negative guard naturalness", () => {
     }
   });
 
-  it("cancels generic confirmation tails added after bounded answers", () => {
+  it("drops generic confirmation tails added after bounded answers", () => {
     const decision = evaluateNegativeGuard({
       text: "品番確認が滞りやすい状況です。確認します。",
       userText: "分かりました、続けてください。",
       phase: "stream",
     });
 
-    expect(decision.action).toBe("strip_tail");
-    expect(decision.reasons).toContain("forbidden_suffix");
+    expect(decision.action).toBe("drop_sentence");
+    expect(decision.reasons).toContain("unnatural_ai_phrase");
   });
 
   it("drops recap filler after bounded continuation and condition answers", () => {
@@ -270,6 +270,7 @@ describe("grok-first v50 negative guard naturalness", () => {
       "代理店や工務店、社内営業から依頼が来て、品番や納期を確認して返す流れです。",
       "代理店さんから来た問い合わせに対して、社内で確認して返す流れです。",
       "品番や納期を確認して返す、という業務理解で近いです。",
+      "代理店や工務店、社内営業から依頼が入り、品番や納期を確認して返す流れです。必要に応じて営業や物流にも確認します。",
     ]) {
       const decision = evaluateNegativeGuard({
         text,
