@@ -116,10 +116,10 @@ prompt-only prompt. `/demo/adecco-roleplay-v50-7-quality` and
 `demoSlug=adecco-roleplay-v50-7-quality`, and
 `backend=grok-first-v50-7-quality`. Runtime guard flags are enabled,
 `streamAudioBeforeDone=false`, `fullTurnBufferEnabled=false`, and browser
-evaluation is disabled for this route. `boundedRewriteEnabled=false` for the
-first quality gate, so normal sales turns keep the v50.7.2 prompt-only voice
-behavior and are protected by runtime guards rather than app-side text
-injection. The session first message must be audible on this route: after
+evaluation is disabled for this route. `boundedRewriteEnabled=true` for the
+human-functional quality gate, so high-risk broad normal-sales questions use
+short positive target-shape rewrites while the v50.7.2 prompt text remains
+frozen. The session first message must be audible on this route: after
 `session.ready`, the client fetches cached static opening audio and records
 `opening.playback.started` / `opening.playback.completed` with
 `firstAudibleAudioMs`. After the 2026-05-18 human-session review,
@@ -508,7 +508,7 @@ requires guard-disabled runtime evidence: `routePath=grok_first_realtime`,
 `guardAction=pass`, empty `guardReasons`, `fullTurnBufferCount=0`,
 `tailAudioDroppedBytes=0`, and `audioBytes > 0`. For v50.7 quality, session
 smoke must report `runtimeGuardrailsEnabled=true`,
-`normalInputRouterEnabled=true`, `boundedRewriteEnabled=false`,
+`normalInputRouterEnabled=true`, `boundedRewriteEnabled=true`,
 `streamAudioBeforeDone=false`, `fullTurnBufferEnabled=false`, and
 `turnDetection.create_response=false`; the focused quality runner's final label
 is `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`, `QUALITY_GUARD_BLOCKED`, or
