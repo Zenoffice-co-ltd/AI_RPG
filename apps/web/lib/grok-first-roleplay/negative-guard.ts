@@ -264,6 +264,9 @@ export function evaluateNegativeGuard(input: {
 }): NegativeGuardDecision {
   const text = input.text.trim();
   const riskyTailTurn = isRiskyTailTurn(input.userText ?? "");
+  const lowInformationTurn = isLowInformationOnlyUserInput(input.userText ?? "");
+  const safeLowInformationAck =
+    lowInformationTurn && isSafeLowInformationAcknowledgement(text);
   const continueOnlyTurn = isContinueOnlyTurn(input.userText ?? "");
   const reasons: NegativeGuardReason[] = [];
 
@@ -281,7 +284,11 @@ export function evaluateNegativeGuard(input: {
       "unnatural_ai_phrase"
     );
   }
-  if (riskyTailTurn && matchesAny(text, RISKY_TURN_ACK_DROP_PATTERNS)) {
+  if (
+    riskyTailTurn &&
+    !safeLowInformationAck &&
+    matchesAny(text, RISKY_TURN_ACK_DROP_PATTERNS)
+  ) {
     reasons.push("forbidden_suffix");
   }
   if (matchesAny(text, AI_SELF_REFERENCE_PATTERNS)) {
@@ -317,7 +324,7 @@ export function evaluateNegativeGuard(input: {
   if (matchesAny(text, TAIL_ONLY_BAD_PATTERNS)) {
     reasons.push("customer_led_sales_flow");
   }
-  if (text && isLowInformationOnlyUserInput(input.userText ?? "")) {
+  if (text && lowInformationTurn && !safeLowInformationAck) {
     reasons.push("low_information_input_new_topic");
   }
 
@@ -454,6 +461,16 @@ function isLowInformationOnlyUserInput(userText: string): boolean {
     return false;
   }
   return /^(はい|うん|そうですね|そうですか|なるほど|分かりました|わかりました|ありがとうございます|了解です|へえ|あそうなんですね|はいはい|なるほどですね|なるほどそういう感じなんですね)$/u.test(
+    normalized
+  );
+}
+
+function isSafeLowInformationAcknowledgement(text: string): boolean {
+  const normalized = text
+    .normalize("NFKC")
+    .replace(/\s+/g, "")
+    .trim();
+  return /^(はい|そうですね|いえいえ、こちらこそ)[。！？!?]*$/u.test(
     normalized
   );
 }

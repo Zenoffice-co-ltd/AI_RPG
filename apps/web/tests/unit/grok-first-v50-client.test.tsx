@@ -76,6 +76,13 @@ const QUALITY_BUFFERED_SESSION: GrokFirstV50Session = {
   demoSlug: "adecco-roleplay-v50-7-quality",
   backend: "grok-first-v50-7-quality",
   guardrailVersion: "grok-first-v50.7-quality-guard-2026-05-17",
+  latencyMode: "guarded_tail_streaming",
+  streamAudioBeforeDone: true,
+  guardedStreamingEnabled: true,
+  tailGuardNormalHoldMs: 300,
+  tailGuardRiskHoldMs: 800,
+  tailGuardMaxHoldMs: 1000,
+  boundedRewriteEnabled: false,
 };
 
 const PROMPT_ONLY_SESSION: GrokFirstV50Session = {
@@ -548,18 +555,10 @@ describe("grok-first v50.7 client input guard", () => {
     });
   });
 
-  it("plays deterministic short ack for v50.7 quality low-information input and drains late assistant events", async () => {
-    const shortAckAudio = Buffer.from(new Uint8Array(24_000)).toString("base64");
-    const fetchShortAckAudio = vi.fn().mockResolvedValue({
-      audioBase64: shortAckAudio,
-      mimeType: "audio/pcm" as const,
-      sampleRateHz: 24_000,
-      textLen: 3,
-      voiceId: QUALITY_BUFFERED_SESSION.voiceId,
-      vendorMs: 10,
-      cacheStatus: "hit" as const,
-    });
-    const { result, fake, queue, postEvent } = renderConversation({
+  it("routes v50.7 quality low-information input to Grok with guarded tail streaming", async () => {
+    const audio = Buffer.from(new Uint8Array(48_000)).toString("base64");
+    const fetchShortAckAudio = vi.fn();
+    const { result, fake, queue } = renderConversation({
       session: QUALITY_BUFFERED_SESSION,
       fetchShortAckAudio,
     });
@@ -577,46 +576,38 @@ describe("grok-first v50.7 client input guard", () => {
     });
 
     await waitFor(() => {
-      expect(fetchShortAckAudio).toHaveBeenCalledWith({
-        sessionId: QUALITY_BUFFERED_SESSION.sessionId,
-        text: "はい。",
-      });
-      expect(queue.enqueueBase64AndWait).toHaveBeenCalledWith(shortAckAudio);
-      expect(result.current.metricsLog.at(-1)).toMatchObject({
-        routePath: "noise_ignored",
-        guardAction: "suppress",
-        visibleAssistantTranscript: "はい。",
-        audibleTranscript: "はい。",
-        audioReleaseMode: "fixed_short_ack_audio",
-        audioSource: "static_short_ack_tts",
-      });
+      expect(fake.createResponse).toHaveBeenCalledTimes(1);
     });
 
-    const metricCount = result.current.metricsLog.length;
     act(() => {
-      fake.emit({ type: "response.created", response: { id: "late-low-info" } });
+      fake.emit({ type: "response.created", response: { id: "low-info-r1" } });
       fake.emit({
         type: "response.output_audio_transcript.delta",
-        delta: "何かご質問ありますか。",
+        delta: "はい。",
       });
-      fake.emit({
-        type: "response.output_audio.delta",
-        delta: Buffer.from(new Uint8Array(48)).toString("base64"),
-      });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+    });
+
+    await waitFor(() => {
+      expect(queue.enqueueBase64).toHaveBeenCalledTimes(1);
+    });
+    expect(fetchShortAckAudio).not.toHaveBeenCalled();
+
+    act(() => {
       fake.emit({ type: "response.done" });
     });
 
-    expect(result.current.metricsLog).toHaveLength(metricCount);
-    expect(queue.enqueueBase64).not.toHaveBeenCalled();
-    const drainEvents = postEvent.mock.calls
-      .map(([event]) => event)
-      .filter((event) => event.kind === "guard.drain.ignored");
-    expect(drainEvents).toHaveLength(4);
-    expect(drainEvents[0]).toMatchObject({
-      details: {
-        drain: "normal_input_suppression",
-        eventType: "response.created",
-      },
+    await waitFor(() => {
+      expect(result.current.metricsLog.at(-1)).toMatchObject({
+        routePath: "grok_first_realtime",
+        guardAction: "pass",
+        visibleAssistantTranscript: "はい。",
+        audibleTranscript: "はい。",
+        audioReleaseMode: "guarded_tail_stream_release",
+        releasedBeforeDone: true,
+        responseDoneBeforeFirstAudible: false,
+      });
     });
   });
 
@@ -703,7 +694,7 @@ describe("grok-first v50.7 client input guard", () => {
     expect(guardEvent?.details?.tailAudioDroppedBytes).toBeGreaterThan(0);
   });
 
-  it("plays deterministic safe-body audio for high-risk bounded rewrites", async () => {
+  it("routes high-risk normal sales to Grok instead of deterministic safe-body audio", async () => {
     const audio = Buffer.from(new Uint8Array(48_000)).toString("base64");
     const fetchShortAckAudio = vi.fn().mockResolvedValue({
       audioBase64: audio,
@@ -717,8 +708,6 @@ describe("grok-first v50.7 client input guard", () => {
       session: QUALITY_BUFFERED_SESSION,
       fetchShortAckAudio,
     });
-    const safeText =
-      "営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。";
 
     await act(async () => {
       await result.current.startConversation();
@@ -733,21 +722,11 @@ describe("grok-first v50.7 client input guard", () => {
     });
 
     await waitFor(() => {
-      expect(fetchShortAckAudio).toHaveBeenCalledWith({
-        sessionId: QUALITY_BUFFERED_SESSION.sessionId,
-        text: safeText,
-      });
-      expect(queue.enqueueBase64AndWait).toHaveBeenCalledTimes(1);
-      expect(fake.createResponse).not.toHaveBeenCalled();
-      expect(result.current.metricsLog.at(-1)).toMatchObject({
-        routePath: "grok_first_realtime",
-        guardAction: "pass",
-        visibleAssistantTranscript: safeText,
-        audibleTranscript: safeText,
-        audioReleaseMode: "fixed_safe_body_audio",
-      });
-      expect(result.current.metricsLog.at(-1)?.releasedAudioBytes).toBeGreaterThan(0);
+      expect(fake.createResponse).toHaveBeenCalledTimes(1);
     });
+    expect(fetchShortAckAudio).not.toHaveBeenCalled();
+    expect(queue.enqueueBase64AndWait).not.toHaveBeenCalled();
+    expect(result.current.metricsLog).toHaveLength(0);
   });
 
   it("hard-drops unbounded tail output when safe audio cannot be bounded", async () => {

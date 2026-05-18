@@ -132,9 +132,17 @@ export type GrokFirstV50Session = {
   lockedResponseAudioBundleIncluded: false;
   runtimeTtsEnabled: false;
   replacementTtsEnabled: false;
-  latencyMode?: "fastest_streaming" | "default" | undefined;
+  latencyMode?:
+    | "fastest_streaming"
+    | "default"
+    | "guarded_tail_streaming"
+    | undefined;
   streamAudioBeforeDone?: boolean | undefined;
   audioHoldMs?: number | undefined;
+  guardedStreamingEnabled?: boolean | undefined;
+  tailGuardNormalHoldMs?: number | undefined;
+  tailGuardRiskHoldMs?: number | undefined;
+  tailGuardMaxHoldMs?: number | undefined;
   fullTurnBufferEnabled: false;
   runtimeGuardrailsEnabled: boolean;
   inputGuardEnabled?: boolean | undefined;
@@ -216,11 +224,21 @@ export type GrokFirstV50Metric = {
   responseCancelCount?: number | undefined;
   responseCancelReasons?: string[] | undefined;
   turnDetectionCreateResponse?: boolean | undefined;
-  latencyMode?: "fastest_streaming" | "default" | undefined;
+  latencyMode?:
+    | "fastest_streaming"
+    | "default"
+    | "guarded_tail_streaming"
+    | undefined;
   streamAudioBeforeDone?: boolean | undefined;
   audioHoldMs?: number | undefined;
+  guardedStreamingEnabled?: boolean | undefined;
+  tailGuardNormalHoldMs?: number | undefined;
+  tailGuardRiskHoldMs?: number | undefined;
+  tailGuardMaxHoldMs?: number | undefined;
   turnDetectionSilenceMs?: number | undefined;
   firstDeltaToFirstAudibleMs?: number | null | undefined;
+  releasedBeforeDone?: boolean | undefined;
+  responseDoneBeforeFirstAudible?: boolean | undefined;
   rawAssistantTranscript?: string | undefined;
   visibleAssistantTranscript?: string | undefined;
   audibleTranscript?: string | undefined;
@@ -232,6 +250,10 @@ export type GrokFirstV50Metric = {
   releasedAudioBytes?: number | undefined;
   droppedAudioBytes?: number | undefined;
   audibleAudioBytes?: number | undefined;
+  streamReleasedAudioBytes?: number | undefined;
+  heldTailAudioBytes?: number | undefined;
+  droppedTailAudioBytes?: number | undefined;
+  finalReleaseAudioBytes?: number | undefined;
   audioReleaseMode?: AudioReleaseMode | undefined;
   tailOnlyFallbackReason?: string | undefined;
   declaredAudibleTranscript?: string | undefined;
@@ -252,6 +274,7 @@ export type GrokFirstV50Metric = {
 export type AudioReleaseMode =
   | "pass_buffer_release"
   | "pass_stream_release"
+  | "guarded_tail_stream_release"
   | "tail_only_release"
   | "tail_only_drop_fallback"
   | "hard_block_drop"
