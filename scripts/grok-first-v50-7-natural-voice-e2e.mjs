@@ -1417,10 +1417,11 @@ function summarizeRoleplayFunctional(results) {
   const normalSales = results.filter(
     (result) =>
       /^NFP-/u.test(String(result.caseId ?? "")) ||
-      /normal sales/i.test(String(result.category ?? ""))
+      /normal[-_ ]sales/i.test(String(result.category ?? ""))
   );
   const customerLedOutput = results.filter((result) =>
-    /^OUT-0[1-4]$/u.test(String(result.caseId ?? ""))
+    /^OUT-0[1-4]$/u.test(String(result.caseId ?? "")) ||
+    /customer[-_ ]led[-_ ]output/i.test(String(result.category ?? ""))
   );
   const normalSalesAudible = normalSales.filter((result) => hasAudibleOutput(result));
   const customerLedSafeAudible = customerLedOutput.filter(
