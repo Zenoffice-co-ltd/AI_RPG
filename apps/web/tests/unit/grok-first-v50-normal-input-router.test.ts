@@ -17,6 +17,7 @@ describe("grok-first v50 normal input router", () => {
     for (const input of [
       "うん。",
       "そうですか。",
+      "どうですか。",
       "なるほど。",
       "へ。",
       "え。",
