@@ -39,6 +39,9 @@ const OTHER_VENDOR_STATUS_REWRITE =
 const CONFIRMATION_DESTINATION_REWRITE =
   "顧客として、「社内は担当社員、社外は代理店や工務店が主な確認先です。」という内容だけを自然に一文で答える。";
 
+const DECISION_STRUCTURE_REWRITE =
+  "人事側で条件面を確認し、現場課長が業務適性を見る理解で近いです。";
+
 const CANDIDATE_FLOW_REWRITE =
   "顧客として、「まずスキルカードを確認し、良さそうであれば職場見学に進む流れです。」という内容だけを自然に一文で答える。";
 
@@ -118,6 +121,12 @@ const OTHER_VENDOR_STATUS_PATTERNS: RegExp[] = [
 const CONFIRMATION_DESTINATION_PATTERNS: RegExp[] = [
   /確認先/u,
   /社内外/u,
+];
+
+const DECISION_STRUCTURE_PATTERNS: RegExp[] = [
+  /決定構造/u,
+  /人事.*現場課長/u,
+  /現場課長.*適性/u,
 ];
 
 const CANDIDATE_FLOW_PATTERNS: RegExp[] = [
@@ -352,6 +361,12 @@ function selectRealtimeRewrite(
     return {
       text: CONFIRMATION_DESTINATION_REWRITE,
       reasons: ["normal_realtime_rewrite", "confirmation_destination_request"],
+    };
+  }
+  if (matchesAny(normalizedText, DECISION_STRUCTURE_PATTERNS)) {
+    return {
+      text: DECISION_STRUCTURE_REWRITE,
+      reasons: ["normal_realtime_rewrite", "decision_structure_request"],
     };
   }
   if (matchesAny(normalizedText, CONTINUE_DETAIL_PATTERNS)) {

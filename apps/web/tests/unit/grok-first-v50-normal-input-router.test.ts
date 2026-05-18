@@ -135,6 +135,14 @@ describe("grok-first v50 normal input router", () => {
     expect(destination.rewrittenText).toContain("代理店");
     expect(destination.reasons).toContain("confirmation_destination_request");
 
+    const decisionStructure = classifyNormalInputRoute(
+      "決定構造は、人事が条件、現場課長が適性を見る理解ですか。"
+    );
+    expect(decisionStructure.rewrittenText).toContain("人事");
+    expect(decisionStructure.rewrittenText).toContain("現場課長");
+    expect(decisionStructure.rewrittenText).toContain("適性");
+    expect(decisionStructure.reasons).toContain("decision_structure_request");
+
     const candidateFlow = classifyNormalInputRoute(
       "候補者提案時はスキルカードを先に確認いただく流れですか。"
     );

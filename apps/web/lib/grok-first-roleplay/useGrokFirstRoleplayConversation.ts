@@ -67,6 +67,7 @@ const DETERMINISTIC_SAFE_BODY_TEXTS = new Set([
   "受注入力、発注処理、納期調整、代理店や工務店からの問い合わせ対応が中心です。",
   "営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。",
   "受注入力と納期調整が中心で、代理店や工務店との電話・メール対応があり、週五日出社前提です。",
+  "人事側で条件面を確認し、現場課長が業務適性を見る理解で近いです。",
 ]);
 
 type FixedInputGuardDecision = InputGuardDecision & {
