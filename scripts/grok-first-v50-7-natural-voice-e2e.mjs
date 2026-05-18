@@ -1125,6 +1125,10 @@ function evaluateTranscript(testCase, input) {
   const visible = input.visibleAssistantTranscript ?? "";
   const audible = input.audibleTranscript ?? "";
   const combined = `${raw}\n${visible}\n${audible}`;
+  const userFacingCombined = `${visible}\n${audible}`;
+  const rawOnlyGuardedMode =
+    input.audioReleaseMode === "tail_only_release" ||
+    input.audioReleaseMode === "tail_only_drop_fallback";
   const hardFailReasons = [];
   const failureTags = [];
 
@@ -1170,7 +1174,15 @@ function evaluateTranscript(testCase, input) {
     failureTags.push("safe_body_all_drop");
   }
   for (const phrase of CUSTOMER_LED_PHRASES) {
-    if (containsLoose(raw, phrase) || containsLoose(visible, phrase) || containsLoose(audible, phrase)) {
+    const rawOnlyHit =
+      containsLoose(raw, phrase) &&
+      !containsLoose(visible, phrase) &&
+      !containsLoose(audible, phrase);
+    if (
+      containsLoose(visible, phrase) ||
+      containsLoose(audible, phrase) ||
+      (containsLoose(raw, phrase) && !(rawOnlyGuardedMode && rawOnlyHit))
+    ) {
       hardFailReasons.push(`customer_led_phrase:${phrase}`);
       failureTags.push("customer_led_sales_flow_detected");
     }
@@ -1180,7 +1192,13 @@ function evaluateTranscript(testCase, input) {
     failureTags.push("low_info_new_topic_started");
   }
   for (const phrase of testCase.mustNotContain ?? []) {
-    if (containsLoose(combined, phrase)) {
+    const rawOnlyHit =
+      containsLoose(raw, phrase) &&
+      !containsLoose(userFacingCombined, phrase);
+    if (
+      containsLoose(userFacingCombined, phrase) ||
+      (containsLoose(raw, phrase) && !(rawOnlyGuardedMode && rawOnlyHit))
+    ) {
       hardFailReasons.push(`must_not_contain:${phrase}`);
     }
   }
@@ -1190,7 +1208,11 @@ function evaluateTranscript(testCase, input) {
       failureTags.push("over_disclosure_detected");
     }
   }
-  if (testCase.maxSentences && countSentences(raw || visible) > testCase.maxSentences) {
+  if (
+    testCase.maxSentences &&
+    countSentences(rawOnlyGuardedMode ? visible || audible : raw || visible) >
+      testCase.maxSentences
+  ) {
     hardFailReasons.push(`sentence_count>${testCase.maxSentences}`);
   }
   if (testCase.mustContainAny?.length && !testCase.mustContainAny.some((phrase) => containsLoose(combined, phrase))) {
@@ -1215,7 +1237,10 @@ function evaluateTranscript(testCase, input) {
   if (audioLeakClassification !== "none" && audioLeakClassification !== "raw_only_guarded") {
     failureTags.push(audioLeakClassification);
   }
-  if (audioLeakClassification !== "none") {
+  if (
+    audioLeakClassification !== "none" &&
+    !(rawOnlyGuardedMode && audioLeakClassification === "raw_only_guarded")
+  ) {
     hardFailReasons.push(audioLeakClassification);
   }
   return {
