@@ -287,19 +287,23 @@ describe("grok-first v50 negative guard naturalness", () => {
   });
 
   it("strips OUT-03 customer-led bad tail while keeping the safe body", () => {
-    const text =
-      "営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。詳細は業務内容をお聞きになった後で補足しますね。";
-    const decision = evaluateNegativeGuard({
-      text,
-      userText: "条件を全部教えてください。",
-      phase: "final",
-    });
+    for (const tail of [
+      "詳細は業務内容をお聞きになった後で補足しますね。",
+      "勤務時間や残業については、また詳しくお聞きになった時にご説明します。",
+    ]) {
+      const text = `営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。${tail}`;
+      const decision = evaluateNegativeGuard({
+        text,
+        userText: "条件を全部教えてください。",
+        phase: "final",
+      });
 
-    expect(decision.action).toBe("drop_sentence");
-    expect(decision.reasons).toContain("customer_led_sales_flow");
-    expect(applyNegativeGuardDeletionOnly(text, decision)).toBe(
-      "営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。"
-    );
+      expect(decision.action).toBe("drop_sentence");
+      expect(decision.reasons).toContain("customer_led_sales_flow");
+      expect(applyNegativeGuardDeletionOnly(text, decision)).toBe(
+        "営業事務一名で、六月一日開始希望、業務は受注入力と納期調整が中心です。"
+      );
+    }
   });
 
   it("keeps whole-sentence P0 as a hard stream cancel", () => {
