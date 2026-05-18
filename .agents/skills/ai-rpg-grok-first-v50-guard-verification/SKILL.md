@@ -97,9 +97,10 @@ input suppression, fixed responses, negative output detection, and audio
 hold/drop.
 For hard P0 actions (`cancel` / `suppress`), quality route drops held audio.
 For tail-only actions (`strip_tail` / `drop_sentence`), quality route attempts
-Approx Chunk release of the safe body without Runtime TTS. The boundary prefers
+Approx Chunk release of the safe body without Runtime TTS. Low-risk complete
+safe sentences may start after a short delayed hold; the boundary prefers
 transcript-delta order, falls back to character ratio, and always drops the
-trailing safety window/chunk. Boundary failure is reported as
+trailing safety window/chunk for tail-only decisions. Boundary failure is reported as
 `audioReleaseMode=tail_only_drop_fallback` and blocks
 `ROLEPLAY_FUNCTIONAL_PASS`.
 `ROLEPLAY_FUNCTIONAL_PASS` additionally requires normal-sales audible output,

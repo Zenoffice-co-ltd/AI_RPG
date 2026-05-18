@@ -129,14 +129,15 @@ customer-led, meta, instruction-leak, or generic-closing phrase is detected,
 held audio is dropped before playback.
 For `cancel` and `suppress`, the quality route still treats the turn as a hard
 block and drops held audio. For `strip_tail` and `drop_sentence`, the runtime
-now attempts conservative Approx Chunk release: transcript-delta order is used
-first, character ratio only as a fallback, and the trailing chunk/window is
-dropped so the safe body can be audible without the bad tail. If a conservative
-boundary cannot be established, the turn remains `tail_only_drop_fallback` and
-does not qualify for `ROLEPLAY_FUNCTIONAL_PASS`. For human-test readiness,
-chat-visible assistant text must match the audible transcript whenever the turn
-is intentionally silent, normal sales turns must not use
-`tail_only_drop_fallback`, and the focused quality report must show
+now attempts conservative Approx Chunk release: low-risk complete safe
+sentences can begin audible playback after a short delayed hold, transcript-
+delta order is used first, character ratio only as a fallback, and the trailing
+chunk/window is dropped so the safe body can be audible without the bad tail.
+If a conservative boundary cannot be established, the turn remains
+`tail_only_drop_fallback` and does not qualify for `ROLEPLAY_FUNCTIONAL_PASS`.
+For human-test readiness, chat-visible assistant text must match the audible
+transcript whenever the turn is intentionally silent, normal sales turns must
+not use `tail_only_drop_fallback`, and the focused quality report must show
 `firstAudibleAudioMs` p50 `<3000ms` and p95 `<7000ms`.
 Quality evidence uses `fullTurnBufferCount`, `tailAudioDroppedBytes`, and
 raw/visible/audible transcript separation rather than changing
