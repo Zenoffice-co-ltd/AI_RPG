@@ -14,7 +14,18 @@ describe("grok-first v50 normal input router", () => {
   });
 
   it("suppresses low-information backchannels", () => {
-    for (const input of ["うん。", "そうですか。", "なるほど。", "へ。"]) {
+    for (const input of [
+      "うん。",
+      "そうですか。",
+      "なるほど。",
+      "へ。",
+      "え。",
+      "え？",
+      "えっと。",
+      "えー。",
+      "あの。",
+      "ん。",
+    ]) {
       const decision = classifyNormalInputRoute(input);
       expect(decision.action).toBe("noise_ignored");
       expect(decision.shouldSendToRealtime).toBe(false);
@@ -29,6 +40,8 @@ describe("grok-first v50 normal input router", () => {
       "背景をもう少し教えてください。",
       "業務内容を教えてください。",
       "条件を教えてください。",
+      "えっと、今回の募集背景を教えてください。",
+      "あの、業務内容を教えてください。",
     ]) {
       const decision = classifyNormalInputRoute(input);
       expect(decision.action).toBe("pass");

@@ -124,10 +124,13 @@ low-information backchannels are routed to `routePath=noise_ignored` with no
 assistant audio. Normal Realtime assistant audio is held until the final
 transcript guard has passed; if a P0 customer-led, meta, instruction-leak, or
 generic-closing phrase is detected, held audio is dropped before playback.
-For the initial quality DoD this is safety-first even for `strip_tail`: a turn
-with a safe body and bad tail may keep safe visible transcript text while
-audible output is zero. Tail-only audio release is a later optimization, not a
-requirement for this first quality guard gate.
+For `cancel` and `suppress`, the quality route still treats the turn as a hard
+block and drops held audio. For `strip_tail` and `drop_sentence`, the runtime
+now attempts conservative Approx Chunk release: transcript-delta order is used
+first, character ratio only as a fallback, and the trailing chunk/window is
+dropped so the safe body can be audible without the bad tail. If a conservative
+boundary cannot be established, the turn remains `tail_only_drop_fallback` and
+does not qualify for `ROLEPLAY_FUNCTIONAL_PASS`.
 Quality evidence uses `fullTurnBufferCount`, `tailAudioDroppedBytes`, and
 raw/visible/audible transcript separation rather than changing
 `fullTurnBufferEnabled`.
@@ -470,8 +473,10 @@ smoke must report `runtimeGuardrailsEnabled=true`,
 `normalInputRouterEnabled=true`, `boundedRewriteEnabled=false`,
 `streamAudioBeforeDone=false`, `fullTurnBufferEnabled=false`, and
 `turnDetection.create_response=false`; the focused quality runner's final label
-is only `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`, or
-`QUALITY_GUARD_BLOCKED`.
+is `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`, `QUALITY_GUARD_BLOCKED`, or
+`ROLEPLAY_FUNCTIONAL_PASS`. Human testing requires `ROLEPLAY_FUNCTIONAL_PASS`;
+`QUALITY_GUARD_PASS` alone means the guard is safe but not necessarily audible
+for normal roleplay turns.
 Use `prod-logs --expect start` for start-only sessions and
 `prod-logs --expect voice-turn` for same-session turn evidence.
 

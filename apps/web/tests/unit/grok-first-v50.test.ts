@@ -1016,8 +1016,9 @@ describe("grok-first v50 runtime", () => {
       phase: "final",
     });
     const final = guard.finalize(decision);
-    expect(final.chunks).toEqual([]);
-    expect(final.droppedBytes).toBeGreaterThanOrEqual(0);
+    expect(decision.action).toBe("strip_tail");
+    expect(final.chunks.length).toBeGreaterThan(0);
+    expect(final.droppedBytes).toBe(0);
   });
 
   it("v50 runtime source has no imports from fixed-answer systems", () => {

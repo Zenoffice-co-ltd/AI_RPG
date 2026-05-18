@@ -62,7 +62,8 @@ const REQUIRED_CASE_SET_RUNS = {
 const args = parseArgs(process.argv.slice(2));
 const baseUrl = trimTrailingSlash(stringArg(args["base-url"], DEFAULT_BASE_URL));
 const caseSet = stringArg(args["case-set"], "evaluator-calibration");
-const isQualityGuardFocused = caseSet === "quality-guard-focused";
+const isQualityGuardFocused =
+  caseSet === "quality-guard-focused" || caseSet === "quality-guard-focused-csv";
 const route = normalizePath(
   stringArg(
     args.route,
@@ -909,6 +910,7 @@ function captureFrame(evidence, direction, payload) {
 function finalizeRuntimeCase(testCase, evidence) {
   const correlation = correlateFrames(evidence.wsFrames);
   const latestTurn = [...evidence.eventPosts].reverse().find((event) => event.kind === "turn.completed");
+  const turnDetails = latestTurn?.details ?? {};
   const routePath = latestTurn?.details?.routePath ?? "";
   const appSuppressedTurn =
     routePath === "suppressed" &&
@@ -916,18 +918,23 @@ function finalizeRuntimeCase(testCase, evidence) {
       latestTurn?.details?.guardAction === "suppress");
   const fixedOrIgnoredTurn =
     routePath === "fixed_guard" || routePath === "noise_ignored" || appSuppressedTurn;
-  const rawAssistantTranscript = fixedOrIgnoredTurn
-    ? latestTurn?.details?.agentTextPreview || ""
-    : correlation.rawAssistantTranscript;
-  const audibleTranscript = fixedOrIgnoredTurn
-    ? appSuppressedTurn && latestTurn?.details?.firstAudibleAudioMs == null
-      ? ""
-      : latestTurn?.details?.agentTextPreview || ""
-    : correlation.audibleTranscript;
+  const rawAssistantTranscript =
+    turnDetails.rawAssistantTranscript ??
+    turnDetails.rawTextBeforeGuard ??
+    (fixedOrIgnoredTurn ? turnDetails.agentTextPreview || "" : correlation.rawAssistantTranscript);
+  const audibleTranscript =
+    turnDetails.audibleTranscript ??
+    (fixedOrIgnoredTurn
+      ? appSuppressedTurn && turnDetails.firstAudibleAudioMs == null
+        ? ""
+        : turnDetails.agentTextPreview || ""
+      : correlation.audibleTranscript);
   const visibleAssistantTranscript =
-    routePath === "noise_ignored" || appSuppressedTurn
-      ? latestTurn?.details?.agentTextPreview || ""
-      : latestTurn?.details?.agentTextPreview || evidence.visibleDomTranscript || "";
+    turnDetails.visibleAssistantTranscript ??
+    turnDetails.finalTextAfterGuard ??
+    (routePath === "noise_ignored" || appSuppressedTurn
+      ? turnDetails.agentTextPreview || ""
+      : turnDetails.agentTextPreview || evidence.visibleDomTranscript || "");
   const voicePath = assessVoicePath(evidence, correlation, testCase.runtimeMode);
   const evaluation = evaluateTranscript(testCase, {
     rawAssistantTranscript,
@@ -935,6 +942,9 @@ function finalizeRuntimeCase(testCase, evidence) {
     audibleTranscript,
     routePath,
     guardAction: latestTurn?.details?.guardAction ?? "",
+    firstAudibleAudioMs: turnDetails.firstAudibleAudioMs ?? null,
+    audibleAudioBytes: turnDetails.audibleAudioBytes ?? turnDetails.releasedAudioBytes ?? null,
+    audioReleaseMode: turnDetails.audioReleaseMode ?? null,
     voicePath,
     correlation,
   });
@@ -964,7 +974,20 @@ function finalizeRuntimeCase(testCase, evidence) {
     voicePath,
     routePath: routePath || null,
     guardAction: latestTurn?.details?.guardAction ?? null,
+    expectedGuardActions: testCase.expectedGuardActions ?? null,
+    expectedRoutePaths: testCase.expectedRoutePaths ?? null,
     audioBytes: latestTurn?.details?.audioBytes ?? null,
+    guardReasons: turnDetails.guardReasons ?? [],
+    responseCancelReasons: turnDetails.responseCancelReasons ?? [],
+    tailAudioDroppedBytes: turnDetails.tailAudioDroppedBytes ?? null,
+    rawTextBeforeGuard: turnDetails.rawTextBeforeGuard ?? rawAssistantTranscript,
+    finalTextAfterGuard: turnDetails.finalTextAfterGuard ?? visibleAssistantTranscript,
+    generatedAudioBytes: turnDetails.generatedAudioBytes ?? turnDetails.audioBytes ?? null,
+    heldAudioBytes: turnDetails.heldAudioBytes ?? null,
+    releasedAudioBytes: turnDetails.releasedAudioBytes ?? null,
+    droppedAudioBytes: turnDetails.droppedAudioBytes ?? turnDetails.tailAudioDroppedBytes ?? null,
+    audibleAudioBytes: turnDetails.audibleAudioBytes ?? turnDetails.releasedAudioBytes ?? null,
+    audioReleaseMode: turnDetails.audioReleaseMode ?? null,
     firstAudibleAudioMs: latestTurn?.details?.firstAudibleAudioMs ?? null,
     fixedPlaybackStarted: evidence.eventPosts.some((event) => event.kind === "fixed_guard.playback.started"),
     fixedPlaybackCompleted: evidence.eventPosts.some((event) => event.kind === "fixed_guard.playback.completed"),
@@ -1108,8 +1131,43 @@ function evaluateTranscript(testCase, input) {
   if (testCase.runtimeMode === "voice" && input.voicePath && !input.voicePath.established) {
     hardFailReasons.push("voice_path_not_established");
   }
-  if (testCase.expectedGuardAction && input.guardAction !== testCase.expectedGuardAction) {
-    hardFailReasons.push(`guardAction:${input.guardAction || "<missing>"} expected ${testCase.expectedGuardAction}`);
+  const expectedGuardActions =
+    testCase.expectedGuardActions ??
+    (testCase.expectedGuardAction ? [testCase.expectedGuardAction] : []);
+  if (expectedGuardActions.length && !expectedGuardActions.includes(input.guardAction)) {
+    hardFailReasons.push(
+      `guardAction:${input.guardAction || "<missing>"} expected ${expectedGuardActions.join("|")}`
+    );
+  }
+  const expectedRoutePaths = testCase.expectedRoutePaths ?? [];
+  if (expectedRoutePaths.length && !expectedRoutePaths.includes(input.routePath)) {
+    hardFailReasons.push(
+      `routePath:${input.routePath || "<missing>"} expected ${expectedRoutePaths.join("|")}`
+    );
+  }
+  if (testCase.expectedShouldSpeak === "true") {
+    if (!audible.trim()) {
+      hardFailReasons.push("expected_audible_transcript_missing");
+      failureTags.push("expected_audible_missing");
+    }
+    if (Number(input.audibleAudioBytes ?? 0) <= 0 || input.firstAudibleAudioMs == null) {
+      hardFailReasons.push("expected_audible_audio_missing");
+      failureTags.push("expected_audible_missing");
+    }
+  }
+  if (testCase.expectedShouldSpeak === "false") {
+    if (audible.trim() || Number(input.audibleAudioBytes ?? 0) > 0 || input.firstAudibleAudioMs != null) {
+      hardFailReasons.push("expected_silence_but_audible_output");
+      failureTags.push("unexpected_audible_output");
+    }
+  }
+  if (
+    /^OUT-0[1-4]$/u.test(String(testCase.id ?? "")) &&
+    visible.trim() &&
+    (!audible.trim() || input.routePath === "suppressed" || input.guardAction === "cancel")
+  ) {
+    hardFailReasons.push("safe_body_audible_missing");
+    failureTags.push("safe_body_all_drop");
   }
   for (const phrase of CUSTOMER_LED_PHRASES) {
     if (containsLoose(raw, phrase) || containsLoose(visible, phrase) || containsLoose(audible, phrase)) {
@@ -1151,7 +1209,8 @@ function evaluateTranscript(testCase, input) {
     visible,
     audible,
     input.correlation,
-    leakPhrasesForCase(testCase)
+    leakPhrasesForCase(testCase),
+    input.audioReleaseMode
   );
   if (audioLeakClassification !== "none" && audioLeakClassification !== "raw_only_guarded") {
     failureTags.push(audioLeakClassification);
@@ -1177,11 +1236,18 @@ function leakPhrasesForCase(testCase) {
   ].filter(Boolean);
 }
 
-function classifyAudioLeak(raw, visible, audible, correlation, leakPhrases = CUSTOMER_LED_PHRASES) {
+function classifyAudioLeak(raw, visible, audible, correlation, leakPhrases = CUSTOMER_LED_PHRASES, audioReleaseMode = "") {
   const rawHit = leakPhrases.some((phrase) => containsLoose(raw, phrase));
   const visibleHit = leakPhrases.some((phrase) => containsLoose(visible, phrase));
   const audibleHit = leakPhrases.some((phrase) => containsLoose(audible, phrase));
   if (audibleHit && correlation?.summary?.audioBytes > 0) return "audio_leak_confirmed";
+  if (
+    rawHit &&
+    (audioReleaseMode === "tail_only_release" ||
+      audioReleaseMode === "tail_only_drop_fallback")
+  ) {
+    return "raw_only_guarded";
+  }
   if (rawHit && correlation?.summary?.audioBytes > 0) return "audio_leak_possible";
   if (visibleHit) return "text_only_leak";
   if (rawHit) return "raw_only_guarded";
@@ -1277,21 +1343,27 @@ function summarizeQualityGuardSuite(currentSuite) {
   const fail = results.filter((result) => result.status === "FAIL").length;
   const invalid = results.filter((result) => result.status === "INVALID").length;
   const blocked = results.filter((result) => result.status === "BLOCKED").length;
+  const falsePassAudit = results.filter((result) => result.falsePassRisk).length;
+  const roleplayFunctional = summarizeRoleplayFunctional(results);
   const final =
     blocked || invalid
       ? "QUALITY_GUARD_BLOCKED"
-      : fail
+      : fail || falsePassAudit
       ? "QUALITY_GUARD_FAIL"
+      : roleplayFunctional.pass
+      ? "ROLEPLAY_FUNCTIONAL_PASS"
       : "QUALITY_GUARD_PASS";
   return {
     final,
     finalReason:
-      final === "QUALITY_GUARD_PASS"
+      final === "ROLEPLAY_FUNCTIONAL_PASS"
+        ? "quality guard passed and normal/safe-body roleplay turns produced audible speech"
+        : final === "QUALITY_GUARD_PASS"
         ? "focused v50.7.2 quality guard denominator passed"
         : final === "QUALITY_GUARD_FAIL"
         ? "one or more focused quality guard cases failed"
         : "focused quality guard route/session/voice evidence was blocked or invalid",
-    humanTestAllowed: "no",
+    humanTestAllowed: final === "ROLEPLAY_FUNCTIONAL_PASS" ? "yes" : "no",
     qualityGuardContract: {
       denominator: results.length,
       route,
@@ -1299,13 +1371,70 @@ function summarizeQualityGuardSuite(currentSuite) {
       eventEndpoint: `${apiBase}/event`,
       speedRouteQualityStatus: "NOT EVALUATED",
     },
+    roleplayFunctional,
     total: results.length,
     pass,
     fail,
     invalid,
     blocked,
+    falsePassAudit,
     estimatedSpentUsd: currentSuite.apiCost?.estimatedSpentUsd ?? 0,
   };
+}
+
+function summarizeRoleplayFunctional(results) {
+  const normalSales = results.filter(
+    (result) =>
+      /^NFP-/u.test(String(result.caseId ?? "")) ||
+      /normal sales/i.test(String(result.category ?? ""))
+  );
+  const customerLedOutput = results.filter((result) =>
+    /^OUT-0[1-4]$/u.test(String(result.caseId ?? ""))
+  );
+  const normalSalesAudible = normalSales.filter((result) => hasAudibleOutput(result));
+  const customerLedSafeAudible = customerLedOutput.filter(
+    (result) =>
+      !String(result.visibleAssistantTranscript ?? result.finalTextAfterGuard ?? "").trim() ||
+      hasAudibleOutput(result)
+  );
+  const allDropSafeBody = results.filter(
+    (result) =>
+      String(result.visibleAssistantTranscript ?? result.finalTextAfterGuard ?? "").trim() &&
+      !hasAudibleOutput(result) &&
+      (result.audioReleaseMode === "tail_only_drop_fallback" ||
+        result.failureTags?.includes("safe_body_all_drop"))
+  );
+  const audioLeak = results.filter((result) =>
+    ["audio_leak_confirmed", "audio_leak_possible"].includes(result.audioLeakClassification)
+  );
+  const falsePassAudit = results.filter((result) => result.falsePassRisk).length;
+  const pass =
+    normalSales.length >= 5 &&
+    normalSalesAudible.length >= 5 &&
+    customerLedOutput.length >= 4 &&
+    customerLedSafeAudible.length >= 4 &&
+    allDropSafeBody.length === 0 &&
+    audioLeak.length === 0 &&
+    falsePassAudit === 0 &&
+    results.every((result) => result.status === "PASS");
+  return {
+    pass,
+    normalSalesTotal: normalSales.length,
+    normalSalesAudible: normalSalesAudible.length,
+    customerLedOutputTotal: customerLedOutput.length,
+    customerLedSafeBodyAudible: customerLedSafeAudible.length,
+    safeBodyAllDrop: allDropSafeBody.length,
+    audioLeak: audioLeak.length,
+    falsePassAudit,
+  };
+}
+
+function hasAudibleOutput(result) {
+  return (
+    String(result.audibleTranscript ?? "").trim().length > 0 &&
+    Number(result.audibleAudioBytes ?? result.releasedAudioBytes ?? 0) > 0 &&
+    result.firstAudibleAudioMs != null
+  );
 }
 
 function summarizeResultSlice(results) {
@@ -1319,7 +1448,12 @@ function summarizeResultSlice(results) {
 }
 
 function isPassingFinal(final) {
-  return final === "PASS" || final === "BUDGETED_PASS" || final === "QUALITY_GUARD_PASS";
+  return (
+    final === "PASS" ||
+    final === "BUDGETED_PASS" ||
+    final === "QUALITY_GUARD_PASS" ||
+    final === "ROLEPLAY_FUNCTIONAL_PASS"
+  );
 }
 
 function summarizeSuite(currentSuite) {
@@ -2466,7 +2600,7 @@ function renderQualityGuardReport(currentSuite) {
     "",
     `- Final conclusion: ${overall.final ?? "QUALITY_GUARD_BLOCKED"}`,
     `- Final reason: ${overall.finalReason ?? "not available"}`,
-    "- Product human test allowed: no",
+    `- Product human test allowed: ${overall.humanTestAllowed ?? "no"}`,
     "- Speed route quality status: NOT EVALUATED",
     `- Denominator: ${overall.total ?? 0}/${overall.qualityGuardContract?.denominator ?? "n/a"} executed`,
     `- Started: ${currentSuite.startedAt}`,
@@ -2511,6 +2645,16 @@ function renderQualityGuardReport(currentSuite) {
     `- invalid: ${overall.invalid ?? 0}`,
     `- blocked: ${overall.blocked ?? 0}`,
     `- estimated spent USD: ${overall.estimatedSpentUsd ?? 0}`,
+    `- false-pass audit required: ${overall.falsePassAudit ?? 0}`,
+    `- roleplay functional: ${overall.roleplayFunctional?.pass ? "PASS" : "not passed"}`,
+    "",
+    "## Roleplay Functional Gate",
+    "",
+    `- normal sales audible: ${overall.roleplayFunctional?.normalSalesAudible ?? 0}/${overall.roleplayFunctional?.normalSalesTotal ?? 0}`,
+    `- customer-led safe-body audible: ${overall.roleplayFunctional?.customerLedSafeBodyAudible ?? 0}/${overall.roleplayFunctional?.customerLedOutputTotal ?? 0}`,
+    `- safe body all-drop: ${overall.roleplayFunctional?.safeBodyAllDrop ?? 0}`,
+    `- audio leak: ${overall.roleplayFunctional?.audioLeak ?? 0}`,
+    `- false-pass audit: ${overall.roleplayFunctional?.falsePassAudit ?? 0}`,
     "",
     "## Category Counts",
     "",
@@ -2518,10 +2662,12 @@ function renderQualityGuardReport(currentSuite) {
     "",
     "## Audio Guard Evidence",
     "",
-    "- Initial quality guard intentionally prioritizes safety: when a P0 is detected, held audio is dropped.",
-    "- A safe body plus bad tail can therefore leave visible transcript text while audible output is 0; this is acceptable for the initial quality DoD, with tail-only release optimization deferred.",
+    "- Hard P0 cancel/suppress still drops held audio.",
+    "- strip_tail/drop_sentence must release safe-body audio when the boundary is conservative enough; fallback all-drop is not ROLEPLAY_FUNCTIONAL_PASS.",
     `- audio leak findings: ${audioLeaks.length}`,
     `- turns with dropped held audio: ${droppedAudioTurns.length}`,
+    `- tail-only release turns: ${results.filter((result) => result.audioReleaseMode === "tail_only_release").length}`,
+    `- tail-only drop fallback turns: ${results.filter((result) => result.audioReleaseMode === "tail_only_drop_fallback").length}`,
     "",
     "## Top Hard Fails",
     "",
@@ -2893,6 +3039,7 @@ function buildCaseSet(name) {
   if (name === BUDGETED_RESIDUAL_CASE_SET) return buildBudgetedResidualCases();
   if (name === "prompt-only-focused-csv") return buildPromptOnlyFocusedCsvCases();
   if (name === "quality-guard-focused") return buildQualityGuardFocusedCases();
+  if (name === "quality-guard-focused-csv") return buildQualityGuardFocusedCsvCases();
   throw new Error(`Unsupported --case-set ${name}`);
 }
 
@@ -3012,6 +3159,55 @@ function buildPromptOnlyFocusedCsvCases() {
       expectedIntent:
         ownerLayer === "guard_required" &&
         /うん|ありがとう|はい|そうですね|そうですか|なるほど/u.test(String(row.user_input ?? ""))
+          ? "backchannel"
+          : undefined,
+    });
+  });
+}
+
+function buildQualityGuardFocusedCsvCases() {
+  if (!csvPath) throw new Error("BLOCKED: --csv is required for --case-set quality-guard-focused-csv");
+  if (!existsSync(csvPath)) throw new Error(`CSV not found: ${csvPath}`);
+  const rows = parseCsvRecords(readFileSync(csvPath, "utf8")).filter((row) =>
+    String(row.case_id ?? "").trim()
+  );
+  const executableRows = rows.filter((row) => String(row.user_input ?? "").trim());
+  focusedCsvSummary = {
+    sourceCsv: csvPath,
+    totalRows: rows.length,
+    executableVoiceRows: executableRows.length,
+    suiteCounts: countBy(rows.map((row) => String(row.suite ?? "").trim() || "<blank>")),
+    ownerLayerCounts: countBy(rows.map((row) => String(row.owner_layer ?? "").trim() || "<blank>")),
+    priorityCounts: countBy(rows.map((row) => String(row.priority ?? "").trim() || "<blank>")),
+  };
+  return executableRows.map((row) => {
+    const id = String(row.case_id ?? "").trim();
+    const ownerLayer = String(row.owner_layer ?? "").trim();
+    const userInput = String(row.user_input ?? "").trim();
+    const fixedResponse = String(row.fixed_response ?? "").trim();
+    const maxSentences = Number(row.max_sentences || 0);
+    const expectedShouldSpeak = String(row.expected_should_speak ?? "").trim().toLowerCase();
+    const mustContainAll = splitCsvList(row.must_contain_all);
+    return voiceCase(id, String(row.suite ?? "").trim(), userInput, {
+      priority: String(row.priority ?? "").trim(),
+      ownerLayer,
+      gate: String(row.gate ?? "").trim(),
+      phase: String(row.phase ?? "").trim(),
+      expectedPolicy: String(row.pass_condition ?? "").trim(),
+      expectedGuardActions: splitCsvList(row.expected_guard_action),
+      expectedRoutePaths: splitCsvList(row.expected_route_path),
+      expectedShouldSpeak,
+      mustContainAny: splitCsvList(row.must_contain_any),
+      mustContainAll: fixedResponse ? [...mustContainAll, fixedResponse] : mustContainAll,
+      mustNotContain: splitCsvList(row.must_not_contain_any),
+      maxSentences: Number.isFinite(maxSentences) && maxSentences > 0 ? maxSentences : 2,
+      manualReviewRequired: String(row.notes ?? "").trim(),
+      passCondition: String(row.pass_condition ?? "").trim(),
+      failCondition: String(row.fail_condition ?? "").trim(),
+      expectedIntent:
+        ownerLayer === "guard_required" &&
+        expectedShouldSpeak === "false" &&
+        /開始します|うん|ありがとう|はい|そうですね|そうですか|なるほど|分かりました|え/u.test(userInput)
           ? "backchannel"
           : undefined,
     });
