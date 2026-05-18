@@ -1,12 +1,15 @@
 "use client";
 
 import type { NegativeGuardDecision } from "./types";
-
-export const TAIL_GUARD_NORMAL_HOLD_MS = 300;
-export const TAIL_GUARD_RISK_HOLD_MS = 800;
-export const TAIL_GUARD_MAX_HOLD_MS = 1000;
-export const FULL_TURN_BUFFER_FORBIDDEN = true;
-export const REPLACEMENT_TTS_FORBIDDEN = true;
+export {
+  FULL_TURN_BUFFER_FORBIDDEN,
+  REPLACEMENT_TTS_FORBIDDEN,
+  selectTailHoldMs,
+  TAIL_GUARD_MAX_HOLD_MS,
+  TAIL_GUARD_NORMAL_HOLD_MS,
+  TAIL_GUARD_RISK_HOLD_MS,
+} from "./audio-tail-guard-config";
+import { TAIL_GUARD_MAX_HOLD_MS } from "./audio-tail-guard-config";
 
 export type TailGuardChunk = {
   base64: string;
@@ -77,10 +80,6 @@ export class TailOnlyAudioGuard {
   getMaxObservedHoldMs(): number {
     return Math.min(this.maxObservedHoldMs, TAIL_GUARD_MAX_HOLD_MS);
   }
-}
-
-export function selectTailHoldMs(input: { risky: boolean }): 300 | 800 {
-  return input.risky ? TAIL_GUARD_RISK_HOLD_MS : TAIL_GUARD_NORMAL_HOLD_MS;
 }
 
 function toChunk(base64: string): TailGuardChunk {

@@ -18,7 +18,7 @@ import {
   TAIL_GUARD_MAX_HOLD_MS,
   TAIL_GUARD_NORMAL_HOLD_MS,
   TAIL_GUARD_RISK_HOLD_MS,
-} from "./audio-tail-guard";
+} from "./audio-tail-guard-config";
 import {
   GROK_FIRST_V50_1_BACKEND,
   GROK_FIRST_V50_1_DEMO_SLUG,
