@@ -151,6 +151,32 @@ prefix_rule(
 )
 
 prefix_rule(
+    pattern = ["pnpm", "grok:first-v50-7:natural-voice-e2e"],
+    decision = "prompt",
+    justification = "Long v50.7 voice E2E can consume production time/API budget. Confirm the exact route/API/session identity, CSV or case-set denominator, evidence output directory, and whether targeted failed case ids should run before the broader 30-case/full denominator. After any FAIL, read results.json, events.jsonl, report.md, and false_pass_audit.md, then rerun only failed or suspected false-pass ids before another broad run or deploy. Human-test readiness requires ROLEPLAY_FUNCTIONAL_PASS, not QUALITY_GUARD_PASS.",
+    match = [
+        "pnpm grok:first-v50-7:natural-voice-e2e",
+        "pnpm grok:first-v50-7:natural-voice-e2e -- --case-set quality-guard-focused-csv",
+    ],
+    not_match = [
+        "pnpm grok:first-v50-7:natural-voice-e2e -- --help",
+    ],
+)
+
+prefix_rule(
+    pattern = ["corepack", "pnpm", "grok:first-v50-7:natural-voice-e2e"],
+    decision = "prompt",
+    justification = "Long v50.7 voice E2E can consume production time/API budget. Confirm the exact route/API/session identity, CSV or case-set denominator, evidence output directory, and whether targeted failed case ids should run before the broader 30-case/full denominator. After any FAIL, read results.json, events.jsonl, report.md, and false_pass_audit.md, then rerun only failed or suspected false-pass ids before another broad run or deploy. Human-test readiness requires ROLEPLAY_FUNCTIONAL_PASS, not QUALITY_GUARD_PASS.",
+    match = [
+        "corepack pnpm grok:first-v50-7:natural-voice-e2e",
+        "corepack pnpm grok:first-v50-7:natural-voice-e2e -- --case-set quality-guard-focused-csv",
+    ],
+    not_match = [
+        "corepack pnpm grok:first-v50-7:natural-voice-e2e -- --help",
+    ],
+)
+
+prefix_rule(
     pattern = ["git", "worktree", "remove"],
     decision = "prompt",
     justification = "Removing a worktree can delete local baseline evidence. Confirm the target path is temporary and inside the intended workspace before removal.",

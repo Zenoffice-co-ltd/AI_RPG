@@ -46,13 +46,18 @@ const main = async () => {
 
   if (/(deploy|app hosting|cloud run|relay|production e2e|cloud logging|iam|secret manager|セッションの開始に失敗|回答がない|無応答|レイテンシ)/.test(prompt)) {
     suggestions.push(
-      "For production deploy, relay, and Cloud Logging diagnosis, follow AGENTS.md's shortest diagnostic ladder and prefer `.agents/skills/ai-rpg-adecco-roleplay-ab-backends/SKILL.md` plus `.agents/skills/ai-rpg-acceptance-verification/SKILL.md` before redeploying.",
+      "For production deploy, relay, and Cloud Logging diagnosis, follow AGENTS.md's shortest diagnostic ladder and prefer `.agents/skills/ai-rpg-adecco-roleplay-ab-backends/SKILL.md` plus `.agents/skills/ai-rpg-acceptance-verification/SKILL.md` before redeploying. For v50 quality work, do route/session/log smoke and targeted case ids before broad E2E.",
     );
   }
 
-  if (!isBrowserEvaluationPrompt && /(v50|grok-first|fixed guard|guard smoke|assistant-only drain|drain|guard e2e|excel test plan|spreadsheet.*dod)/.test(prompt)) {
+  if (
+    !isBrowserEvaluationPrompt &&
+    /(v50|grok-first|fixed guard|quality guard|roleplay_functional_pass|tail_only_drop_fallback|firstaudible|human test allowed|targeted 6|30-case|guard smoke|assistant-only drain|drain|guard e2e|excel test plan|spreadsheet.*dod)/.test(
+      prompt,
+    )
+  ) {
     suggestions.push(
-      "For Grok-first v50 fixed guard verification, prefer `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md`; map the requested case-set denominator to an executable runner before running long E2E.",
+      "For Grok-first v50 quality/naturalness verification, prefer `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md`; map the requested denominator to an executable runner, start with targeted --case-ids after failures, and do not run broad E2E or claim human-test readiness until ROLEPLAY_FUNCTIONAL_PASS evidence exists.",
     );
   }
   if (/(elevenlabs|voice|pronunciation|dictionary locator|scenario-map|shared voice)/.test(prompt)) {

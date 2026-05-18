@@ -243,6 +243,46 @@ data, not prompt work. Current known production confusions include
 instruction lists; if a negative instruction leaks into raw/visible/audible
 transcript, make it a guard pattern and a unit fixture.
 
+### v50.7 Quality Guard Fast Loop
+
+Use this loop for `/demo/adecco-roleplay-v50-7-quality`. It is a guarded clone
+of the v50.7.2 prompt-only route, not the speed hotfix.
+
+1. Start from the smallest failed denominator. Read `results.json`,
+   `events.jsonl`, `report.md`, and `false_pass_audit.md` before editing.
+2. Convert the failure into a deterministic unit/hook/fixture check when
+   possible, especially for `noise_ignored`, false-positive negative guard,
+   `tail_only_drop_fallback`, visible/audible mismatch, and latency accounting.
+3. Patch router/guard/runtime behavior in one batch. Do not redeploy for every
+   phrase-table or evaluator tweak.
+4. After one main-branch rollout, run route smoke first:
+   `pnpm grok:first-v50:prod-smoke -- --variant v50-7-quality --mode session`,
+   then `--mode start`, then `--mode voice-turn`.
+5. Run the targeted six-case sentinel before the 30-case workbook:
+
+```bash
+pnpm grok:first-v50-7:natural-voice-e2e -- \
+  --base-url https://roleplay.mendan.biz \
+  --route /demo/adecco-roleplay-v50-7-quality \
+  --api-base /api/grok-first-v50-7-quality \
+  --case-set quality-guard-focused-csv \
+  --case-ids LIG-10,NFP-01,OUT-01,OUT-02,OUT-03,OUT-04 \
+  --runs 1 \
+  --out out/grok_first_v50_7_quality_guard/<timestamp>/targeted_6
+```
+
+If the targeted six fail, stop and report `human test allowed = no`. Rerun only
+the failed or suspected false-pass ids with `--case-ids` after the next patch.
+Run the full 30-case quality workbook only after the targeted six pass.
+
+Human testing requires `ROLEPLAY_FUNCTIONAL_PASS`, not only
+`QUALITY_GUARD_PASS`. The required functional signals are: opening audible,
+normal-sales audible non-empty `5/5`, customer-led safe-body audible `4/4`
+where a safe body exists, safe-body all-drop `0`, normal-sales
+`tail_only_drop_fallback` `0`, audio leak `0`, false-pass audit `0`,
+chat-visible/audible mismatch `0`, `turn.completed` `100%`, and production
+`firstAudibleAudioMs` p50 `<3000ms` / p95 `<7000ms`.
+
 ### Deploy Productivity
 
 App Hosting rollout time is minutes, so optimize for fewer deploys:
