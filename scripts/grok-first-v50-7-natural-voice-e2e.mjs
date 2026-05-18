@@ -936,6 +936,12 @@ function finalizeRuntimeCase(testCase, evidence) {
       ? turnDetails.agentTextPreview || ""
       : turnDetails.agentTextPreview || evidence.visibleDomTranscript || "");
   const voicePath = assessVoicePath(evidence, correlation, testCase.runtimeMode);
+  const rawOnlyGuardedMode =
+    turnDetails.audioReleaseMode === "tail_only_release" ||
+    turnDetails.audioReleaseMode === "tail_only_drop_fallback";
+  const manualReviewTranscript = rawOnlyGuardedMode
+    ? `${visibleAssistantTranscript}\n${audibleTranscript}`
+    : `${rawAssistantTranscript}\n${visibleAssistantTranscript}\n${audibleTranscript}`;
   const evaluation = evaluateTranscript(testCase, {
     rawAssistantTranscript,
     visibleAssistantTranscript,
@@ -962,7 +968,7 @@ function finalizeRuntimeCase(testCase, evidence) {
     userInput: testCase.userInput ?? "",
     status,
     passed: status === "PASS",
-    falsePassRisk: status === "PASS" && needsManualReview(`${rawAssistantTranscript}\n${visibleAssistantTranscript}\n${audibleTranscript}`),
+    falsePassRisk: status === "PASS" && needsManualReview(manualReviewTranscript),
     blockedReasons: evidence.blockedReasons,
     invalidReasons: [
       ...evidence.invalidReasons,
@@ -2940,13 +2946,15 @@ function renderFalsePassAudit(currentSuite) {
   const finalConclusion = currentSuite.overall?.final ?? "BLOCKED";
   const passCases = normalSalesPassCases(currentSuite);
   const reviewTerms = REVIEW_TERMS;
-  const needsReview = passCases.filter((result) =>
-    reviewTerms.some((term) =>
-      containsLoose(result.rawAssistantTranscript ?? "", term) ||
-      containsLoose(result.visibleAssistantTranscript ?? "", term) ||
-      containsLoose(result.audibleTranscript ?? "", term)
-    )
-  );
+  const needsReview = passCases.filter((result) => {
+    const rawOnlyGuardedMode =
+      result.audioReleaseMode === "tail_only_release" ||
+      result.audioReleaseMode === "tail_only_drop_fallback";
+    const text = rawOnlyGuardedMode
+      ? `${result.visibleAssistantTranscript ?? ""}\n${result.audibleTranscript ?? ""}`
+      : `${result.rawAssistantTranscript ?? ""}\n${result.visibleAssistantTranscript ?? ""}\n${result.audibleTranscript ?? ""}`;
+    return reviewTerms.some((term) => containsLoose(text, term));
+  });
   const suspected = passCases.filter((result) => result.falsePassRisk);
   const lines = [
     "# False Pass Audit",
