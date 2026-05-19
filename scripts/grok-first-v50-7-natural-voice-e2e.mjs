@@ -964,6 +964,8 @@ function finalizeRuntimeCase(testCase, evidence) {
     firstAudibleAudioMs: turnDetails.firstAudibleAudioMs ?? null,
     audibleAudioBytes: turnDetails.audibleAudioBytes ?? turnDetails.releasedAudioBytes ?? null,
     audioReleaseMode: turnDetails.audioReleaseMode ?? null,
+    releasedBeforeDone: turnDetails.releasedBeforeDone ?? null,
+    responseDoneBeforeFirstAudible: turnDetails.responseDoneBeforeFirstAudible ?? null,
     potentialAudioLeak: Boolean(turnDetails.potentialAudioLeak),
     potentialAudioLeakReasons: turnDetails.potentialAudioLeakReasons ?? [],
     actualAudibleAuditTranscript: turnDetails.actualAudibleAuditTranscript ?? "",
