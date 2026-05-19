@@ -106,9 +106,11 @@ const VARIANT_SESSION_TARGETS = {
     expectedNoiseIgnoredEnabled: true,
     expectedTurnDetectionSilenceMs: 650,
     expectedNormalInputRouterEnabled: true,
-    expectedBoundedRewriteEnabled: true,
-    expectedLatencyMode: "default",
-    expectedStreamAudioBeforeDone: false,
+    expectedBoundedRewriteEnabled: false,
+    expectedLatencyMode: "guarded_tail_streaming",
+    expectedStreamAudioBeforeDone: true,
+    expectedGuardedStreamingEnabled: true,
+    expectedQualityMinimalGuardEnabled: true,
   },
   "v50-8": {
     route: "/demo/adecco-roleplay-v50-8",
@@ -593,6 +595,8 @@ async function fetchProdSession(variant = VARIANT) {
     ["tailGuardEnabled", target.expectedTailGuardEnabled],
     ["fixedGuardAudioEnabled", target.expectedFixedGuardAudioEnabled],
     ["noiseIgnoredEnabled", target.expectedNoiseIgnoredEnabled],
+    ["guardedStreamingEnabled", target.expectedGuardedStreamingEnabled],
+    ["qualityMinimalGuardEnabled", target.expectedQualityMinimalGuardEnabled],
   ]) {
     if (typeof expectedValue === "boolean" && payload[field] !== expectedValue) {
       throw new Error(
