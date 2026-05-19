@@ -611,6 +611,63 @@ describe("grok-first v50.7 client input guard", () => {
     });
   });
 
+  it("releases a safe Grok audio prefix at done when guarded streaming could not pre-release", async () => {
+    const audio = Buffer.from(new Uint8Array(48_000)).toString("base64");
+    const fetchShortAckAudio = vi.fn();
+    const safeText = "メーカー経験は必須ではありません。";
+    const unsafeTail = "何か他に確認したい点はありますか。";
+    const { result, fake, queue } = renderConversation({
+      session: QUALITY_BUFFERED_SESSION,
+      fetchShortAckAudio,
+    });
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      fake.emit({ type: "input_audio_buffer.speech_started" });
+      fake.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        transcript: "メーカー経験は必須ですか。",
+      });
+    });
+
+    await waitFor(() => {
+      expect(fake.createResponse).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      fake.emit({ type: "response.created", response: { id: "safe-prefix-r1" } });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+      fake.emit({ type: "response.output_audio.delta", delta: audio });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: `${safeText}${unsafeTail}`,
+      });
+    });
+
+    expect(queue.enqueueBase64).not.toHaveBeenCalled();
+
+    act(() => {
+      fake.emit({ type: "response.done" });
+    });
+
+    await waitFor(() => {
+      expect(queue.enqueueBase64).toHaveBeenCalledTimes(1);
+      expect(result.current.metricsLog.at(-1)).toMatchObject({
+        routePath: "grok_first_realtime",
+        guardAction: "strip_tail",
+        visibleAssistantTranscript: safeText,
+        audibleTranscript: safeText,
+        audioReleaseMode: "tail_only_release",
+      });
+    });
+    expect(fetchShortAckAudio).not.toHaveBeenCalled();
+    expect(result.current.metricsLog.at(-1)?.releasedAudioBytes).toBeGreaterThan(0);
+    expect(result.current.metricsLog.at(-1)?.tailAudioDroppedBytes).toBeGreaterThan(0);
+  });
+
   it("ignores orphan assistant responses with no active user turn", async () => {
     const { result, fake, queue, postEvent } = renderConversation({
       session: QUALITY_BUFFERED_SESSION,
