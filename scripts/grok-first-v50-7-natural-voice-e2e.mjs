@@ -122,6 +122,11 @@ const reuseExistingEvidenceDir = args["reuse-existing-evidence"]
   ? path.resolve(stringArg(args["reuse-existing-evidence"], ""))
   : "";
 const existingEstimatedSpentUsdOverride = args["existing-estimated-spent-usd"];
+const productionCommitShaArg = stringArg(
+  args["production-commit-sha"] ??
+    process.env.GROK_FIRST_V50_PRODUCTION_COMMIT_SHA,
+  ""
+).trim();
 const apiCostLimitUsd = Math.min(
   numberArg(args["max-api-cost-usd"], HARD_API_COST_STOP_USD),
   HARD_API_COST_STOP_USD
@@ -183,11 +188,7 @@ async function main() {
   if (csvPath) suite.csvPath = csvPath;
   if (focusedCsvSummary) suite.focusedCsvSummary = focusedCsvSummary;
   suite.localCheckoutSha = localCheckoutSha;
-  suite.productionCommitSha ||= "not observable";
-  suite.productionCommitShaReason ||=
-    "session payload / DOM / network responses did not expose build SHA";
-  suite.comparisonWarning ||=
-    "production build identity could not be proven from SHA; local checkout SHA is recorded separately";
+  updateSuiteProductionCommitSha();
   initializeApiCostGuard();
   initializeBudgetedResidualContract();
   suite.commandsExecuted.push(...commandsExecuted);
@@ -228,7 +229,9 @@ async function main() {
         ? summarizeQualityGuardSuite(suite)
         : summarizeSuite(suite);
     writeOutputs();
-    process.exitCode = isPassingFinal(suite.overall.final) ? 0 : 2;
+    process.exitCode = isQualityGuardFocused
+      ? qualityGuardExitCode(suite.overall.final)
+      : isPassingFinal(suite.overall.final) ? 0 : 2;
     return;
   }
   suite.caseSets[caseSet] ||= {
@@ -260,11 +263,7 @@ async function main() {
       : summarizeSuite(suite);
   writeOutputs();
   process.exitCode = isQualityGuardFocused
-    ? isPassingFinal(suite.overall.final)
-      ? 0
-      : suite.overall.final === "QUALITY_GUARD_BLOCKED"
-      ? 2
-      : 1
+    ? qualityGuardExitCode(suite.overall.final)
     : suite.caseSets[caseSet].summary?.exitCode ?? 0;
 }
 
@@ -294,7 +293,7 @@ async function runPreflightOnly() {
     fixedPlaybackStarted: false,
     fixedPlaybackCompleted: false,
     sessionPayload: preflight.sessionPayload ?? null,
-    productionCommitSha: "not observable",
+    productionCommitSha: resolveProductionCommitSha(preflight.sessionPayload) || "not observable",
     rawAssistantTranscript: "",
     visibleAssistantTranscript: "",
     audibleTranscript: "",
@@ -554,6 +553,7 @@ async function runProductionPreflight(options = {}) {
     if (response.ok) {
       const json = await response.json();
       details.sessionPayload = extractSessionPayload(json);
+      updateSuiteProductionCommitSha(details.sessionPayload);
       details.sessionApi.payloadObserved = true;
       const invalidReasons = validateSessionIdentity(details.sessionPayload);
       details.invalidReasons.push(...invalidReasons);
@@ -621,7 +621,7 @@ function createBlockedRuntimeResult(testCase, runIndex, reason) {
     fixedPlaybackStarted: false,
     fixedPlaybackCompleted: false,
     sessionPayload: null,
-    productionCommitSha: "not observable",
+    productionCommitSha: resolveProductionCommitSha() || "not observable",
     rawAssistantTranscript: "",
     visibleAssistantTranscript: "",
     audibleTranscript: "",
@@ -800,6 +800,7 @@ function wireCapture(page, evidence) {
     try {
       const json = await response.json();
       evidence.sessionPayload = extractSessionPayload(json);
+      updateSuiteProductionCommitSha(evidence.sessionPayload);
     } catch (error) {
       evidence.sessionPayload = { parseError: errorMessage(error), route, apiBase };
     }
@@ -816,6 +817,7 @@ function extractSessionPayload(json) {
     promptVersion: json.promptVersion,
     guardrailVersion: json.guardrailVersion,
     promptHash: json.promptHash,
+    productionCommitSha: json.productionCommitSha,
     model: json.model,
     voiceId: json.voiceId,
     realtimeTransport: json.realtimeTransport,
@@ -837,6 +839,7 @@ function extractSessionPayload(json) {
     tailGuardNormalHoldMs: json.tailGuardNormalHoldMs,
     tailGuardRiskHoldMs: json.tailGuardRiskHoldMs,
     tailGuardMaxHoldMs: json.tailGuardMaxHoldMs,
+    qualityMinimalGuardEnabled: json.qualityMinimalGuardEnabled,
     turnDetectionCreateResponse: json.turnDetection?.create_response,
     turnDetectionSilenceDurationMs: json.turnDetection?.silence_duration_ms,
     registeredSpeechPayloadIncluded: json.registeredSpeechPayloadIncluded,
@@ -860,6 +863,12 @@ function validateSessionIdentity(sessionPayload) {
   }
   if (sessionPayload?.guardrailVersion !== EXPECTED_GUARDRAIL_VERSION) {
     invalidReasons.push(`guardrailVersion=${sessionPayload?.guardrailVersion ?? "<missing>"}`);
+  }
+  if (
+    isQualityGuardFocused &&
+    !isGitSha(resolveProductionCommitSha(sessionPayload))
+  ) {
+    invalidReasons.push("productionCommitSha not observable");
   }
   return invalidReasons;
 }
@@ -1033,7 +1042,7 @@ function finalizeRuntimeCase(testCase, evidence) {
     fixedPlaybackStarted: evidence.eventPosts.some((event) => event.kind === "fixed_guard.playback.started"),
     fixedPlaybackCompleted: evidence.eventPosts.some((event) => event.kind === "fixed_guard.playback.completed"),
     sessionPayload: evidence.sessionPayload,
-    productionCommitSha: "not observable",
+    productionCommitSha: resolveProductionCommitSha(evidence.sessionPayload) || "not observable",
     rawAssistantTranscript,
     visibleAssistantTranscript,
     audibleTranscript,
@@ -1265,7 +1274,8 @@ function evaluateTranscript(testCase, input) {
     failureTags.push("potential_audio_leak");
   }
   if (
-    input.audioReleaseMode === "tail_only_release" &&
+    (input.audioReleaseMode === "tail_only_release" ||
+      input.audioReleaseMode === "guarded_tail_stream_release") &&
     Number(input.audibleAudioBytes ?? 0) > 0 &&
     !String(input.actualAudibleAuditTranscript ?? "").trim() &&
     CUSTOMER_LED_PHRASES.some((phrase) => containsLoose(raw, phrase))
@@ -1471,8 +1481,13 @@ function summarizeQualityGuardSuite(currentSuite) {
   const blocked = results.filter((result) => result.status === "BLOCKED").length;
   const falsePassAudit = results.filter((result) => result.falsePassRisk).length;
   const roleplayFunctional = summarizeRoleplayFunctional(results);
+  const productionCommitSha = resolveProductionCommitSha(
+    currentSuite.preflight?.sessionPayload ??
+      results.find((result) => result.sessionPayload)?.sessionPayload
+  );
+  const commitObservable = isGitSha(productionCommitSha);
   const final =
-    blocked || invalid
+    blocked || invalid || !commitObservable
       ? "QUALITY_GUARD_BLOCKED"
       : fail || falsePassAudit
       ? "QUALITY_GUARD_FAIL"
@@ -1488,6 +1503,8 @@ function summarizeQualityGuardSuite(currentSuite) {
         ? "focused v50.7.2 quality guard denominator passed"
         : final === "QUALITY_GUARD_FAIL"
         ? "one or more focused quality guard cases failed"
+        : !commitObservable
+        ? "production commit SHA was not observable from session payload or --production-commit-sha"
         : "focused quality guard route/session/voice evidence was blocked or invalid",
     humanTestAllowed: final === "ROLEPLAY_FUNCTIONAL_PASS" ? "yes" : "no",
     qualityGuardContract: {
@@ -1496,6 +1513,7 @@ function summarizeQualityGuardSuite(currentSuite) {
       apiBase,
       eventEndpoint: `${apiBase}/event`,
       speedRouteQualityStatus: "NOT EVALUATED",
+      productionCommitSha: productionCommitSha || "not observable",
     },
     roleplayFunctional,
     total: results.length,
@@ -1623,9 +1641,14 @@ function isPassingFinal(final) {
   return (
     final === "PASS" ||
     final === "BUDGETED_PASS" ||
-    final === "QUALITY_GUARD_PASS" ||
     final === "ROLEPLAY_FUNCTIONAL_PASS"
   );
+}
+
+function qualityGuardExitCode(final) {
+  if (final === "ROLEPLAY_FUNCTIONAL_PASS") return 0;
+  if (final === "QUALITY_GUARD_BLOCKED") return 2;
+  return 1;
 }
 
 function summarizeSuite(currentSuite) {
@@ -4125,6 +4148,36 @@ function getLocalSha() {
   } catch {
     return "not observable";
   }
+}
+
+function updateSuiteProductionCommitSha(sessionPayload = null) {
+  const sha = resolveProductionCommitSha(sessionPayload);
+  if (sha) {
+    suite.productionCommitSha = sha;
+    suite.productionCommitShaReason = sessionPayload?.productionCommitSha
+      ? "observed from session payload"
+      : "provided by --production-commit-sha or GROK_FIRST_V50_PRODUCTION_COMMIT_SHA";
+    suite.comparisonWarning = "";
+    return;
+  }
+  suite.productionCommitSha ||= "not observable";
+  suite.productionCommitShaReason ||=
+    "session payload / DOM / network responses did not expose build SHA";
+  suite.comparisonWarning ||=
+    "production build identity could not be proven from SHA; local checkout SHA is recorded separately";
+}
+
+function resolveProductionCommitSha(sessionPayload = null) {
+  const candidates = [
+    sessionPayload?.productionCommitSha,
+    productionCommitShaArg,
+    suite?.productionCommitSha,
+  ];
+  return candidates.find((value) => isGitSha(String(value ?? "").trim())) ?? "";
+}
+
+function isGitSha(value) {
+  return /^[0-9a-f]{7,40}$/iu.test(String(value ?? "").trim());
 }
 
 function safeFileName(value) {

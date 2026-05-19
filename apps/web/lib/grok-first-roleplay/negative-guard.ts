@@ -272,12 +272,16 @@ export function evaluateNegativeGuard(input: {
   text: string;
   userText?: string | undefined;
   phase: "stream" | "final";
+  qualityMinimalGuardEnabled?: boolean | undefined;
 }): NegativeGuardDecision {
   const text = input.text.trim();
+  const qualityMinimalGuardEnabled =
+    input.qualityMinimalGuardEnabled !== false;
   const riskyTailTurn = isRiskyTailTurn(input.userText ?? "");
   const lowInformationTurn = isLowInformationOnlyUserInput(input.userText ?? "");
   const safeLowInformationAck =
-    lowInformationTurn && isSafeLowInformationAcknowledgement(text);
+    lowInformationTurn &&
+    isSafeLowInformationAcknowledgement(text, qualityMinimalGuardEnabled);
   const continueOnlyTurn = isContinueOnlyTurn(input.userText ?? "");
   const reasons: NegativeGuardReason[] = [];
 
@@ -348,7 +352,8 @@ export function evaluateNegativeGuard(input: {
     uniqueReasons.includes("prompt_leak") ||
     uniqueReasons.includes("evaluation_leak") ||
     uniqueReasons.includes("numeric_contradiction") ||
-    uniqueReasons.includes("premature_sensitive_reveal") ||
+    (!qualityMinimalGuardEnabled &&
+      uniqueReasons.includes("premature_sensitive_reveal")) ||
     (uniqueReasons.includes("low_information_input_new_topic") &&
       !lowInformationTailOnly);
 
@@ -423,8 +428,8 @@ function selectAction(
       ].includes(reason)
     )
   ) {
-    if (phase === "stream" && tailOnlySafeBody) return "drop_sentence";
-    return phase === "stream" ? "cancel" : "drop_sentence";
+    if (hardStop) return phase === "stream" ? "cancel" : "suppress";
+    return "drop_sentence";
   }
   if (hardStop) return phase === "stream" ? "cancel" : "suppress";
   if (
@@ -480,12 +485,20 @@ function isLowInformationOnlyUserInput(userText: string): boolean {
   );
 }
 
-function isSafeLowInformationAcknowledgement(text: string): boolean {
+function isSafeLowInformationAcknowledgement(
+  text: string,
+  qualityMinimalGuardEnabled: boolean
+): boolean {
   const normalized = text
     .normalize("NFKC")
     .replace(/\s+/g, "")
     .trim();
-  return /^(はい|そうですね|いえいえ、こちらこそ)[。！？!?]*$/u.test(
+  if (!qualityMinimalGuardEnabled) {
+    return /^(はい|そうですね|いえいえ、こちらこそ)[。！？!?]*$/u.test(
+      normalized
+    );
+  }
+  return /^(はい|そうですね|ありがとうございます|承知しました|分かりました|わかりました|いえいえ、こちらこそ)[。！？!?]*$/u.test(
     normalized
   );
 }

@@ -121,6 +121,14 @@ chat-visible/audible transcript mismatch, opening audio present,
 `turn.completed` completeness, audio leak `0`, false-pass audit `0`,
 `potentialAudioLeak=0`, and no normal pass turn with
 `firstDeltaToFirstAudibleMs > 2000ms`.
+`QUALITY_GUARD_PASS` is not exit 0; it is a non-final safety label. The focused
+runner exits 0 only for `ROLEPLAY_FUNCTIONAL_PASS`. Production evidence must
+record a git SHA from the session payload or a verified
+`--production-commit-sha` / `GROK_FIRST_V50_PRODUCTION_COMMIT_SHA`; otherwise
+report `QUALITY_GUARD_BLOCKED`, not PASS.
+Rollback flag: `GROK_FIRST_V50_7_QUALITY_MINIMAL_GUARD_ENABLED=false` followed
+by redeploy restores the stricter pre-fix negative guard behavior. Session smoke
+should then show `qualityMinimalGuardEnabled=false`.
 
 ## v50.7 In-place Speed Hotfix
 
@@ -714,7 +722,8 @@ event endpoint `/api/grok-first-v50-7-quality/event`. Focused quality evidence
 reports `QUALITY_GUARD_PASS`, `QUALITY_GUARD_FAIL`,
 `QUALITY_GUARD_BLOCKED`, or `ROLEPLAY_FUNCTIONAL_PASS`. Human testing requires
 `ROLEPLAY_FUNCTIONAL_PASS`; `QUALITY_GUARD_PASS` alone is not sufficient when
-normal sales or safe-body tail turns are silent.
+normal sales or safe-body tail turns are silent, and it must not be treated as
+exit 0.
 `prod-logs --expect start` treats missing `turn.completed` as normal for
 start-only sessions, while `--expect voice-turn` treats `stt.completed` without
 `turn.completed` as a lifecycle failure.

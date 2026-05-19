@@ -158,11 +158,17 @@ and normal pass turns with `firstDeltaToFirstAudibleMs > 2000ms` are treated as
 evidence that response-done hold is still effectively present.
 `potentialAudioLeak` must be `0`; declared `audibleTranscript` alone is not
 accepted as proof when released chunks could overlap a customer-led or forbidden
-tail. Quality evidence uses `releasedBeforeDone`,
+tail. If a guarded release contains a raw forbidden tail and no actual audible
+audit transcript proves the tail was not heard, the runner records
+`potentialAudioLeak` and the case fails. Quality evidence uses `releasedBeforeDone`,
 `responseDoneBeforeFirstAudible`, `streamReleasedAudioBytes`,
 `heldTailAudioBytes`, `droppedTailAudioBytes`, `finalReleaseAudioBytes`,
 `tailGuardHoldMs`, and raw/visible/audible transcript separation rather than
 changing `fullTurnBufferEnabled`.
+Rollback flag: set `GROK_FIRST_V50_7_QUALITY_MINIMAL_GUARD_ENABLED=false` and
+redeploy. The next `/api/grok-first-v50-7-quality/session` returns
+`qualityMinimalGuardEnabled=false`, restoring the stricter pre-fix negative
+guard behavior for premature sensitive reveals and narrow low-info acknowledgements.
 
 The quality route uses a short remediation ladder so the team does not spend a
 full production run on every tweak:
@@ -179,7 +185,11 @@ full production run on every tweak:
 
 If the targeted six fail, stop, report `human test allowed = no`, and rerun only
 failed or suspected false-pass ids with `--case-ids`. `QUALITY_GUARD_PASS` is a
-safety label; human testing requires `ROLEPLAY_FUNCTIONAL_PASS`.
+safety label and exits non-zero; human testing requires
+`ROLEPLAY_FUNCTIONAL_PASS`. Production quality evidence must expose a git SHA in
+the session payload or be run with a verified `--production-commit-sha`
+(`GROK_FIRST_V50_PRODUCTION_COMMIT_SHA` is the env equivalent); otherwise the
+focused runner reports `QUALITY_GUARD_BLOCKED`.
 
 As of the 2026-05-17 in-place v50.7 speed hotfix, the customer-facing
 `/demo/adecco-roleplay-v50-7` route is temporarily optimized for manual speed

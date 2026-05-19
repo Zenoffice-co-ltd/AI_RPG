@@ -57,6 +57,9 @@ const envSchema = z.object({
   GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED: z
     .enum(["true", "false"])
     .optional(),
+  GROK_FIRST_V50_7_QUALITY_MINIMAL_GUARD_ENABLED: z
+    .enum(["true", "false"])
+    .optional(),
   ADECCO_BROWSER_EVAL_ENABLED: z.string().optional(),
 });
 
@@ -79,6 +82,9 @@ export async function createGrokFirstV50Session(input?: {
   const isV507Quality = runtimeVariant === "v50.7-quality";
   const isV507SpeedHotfix = runtimeVariant === "v50.7";
   const isLatencySpeedHotfix = isV507SpeedHotfix;
+  const qualityMinimalGuardEnabled =
+    !isV507Quality ||
+    env.GROK_FIRST_V50_7_QUALITY_MINIMAL_GUARD_ENABLED !== "false";
   const prompt = buildGrokFirstV50Prompt(promptVariant);
   const voiceId = env.GROK_FIRST_V50_VOICE_ID ?? GROK_FIRST_V50_VOICE_ID;
   const sessionId = `gfv50_${randomUUID()}`;
@@ -153,6 +159,7 @@ export async function createGrokFirstV50Session(input?: {
     scenarioId: prompt.scenarioId,
     promptVersion: prompt.promptVersion,
     promptHash: prompt.promptHash,
+    productionCommitSha: resolveProductionCommitSha(),
     guardrailVersion:
       runtimeVariant === "v51"
         ? GROK_FIRST_V51_GUARDRAIL_VERSION
@@ -213,6 +220,9 @@ export async function createGrokFirstV50Session(input?: {
       : undefined,
     tailGuardRiskHoldMs: isV507Quality ? TAIL_GUARD_RISK_HOLD_MS : undefined,
     tailGuardMaxHoldMs: isV507Quality ? TAIL_GUARD_MAX_HOLD_MS : undefined,
+    qualityMinimalGuardEnabled: isV507Quality
+      ? qualityMinimalGuardEnabled
+      : undefined,
     fullTurnBufferEnabled: false,
     runtimeGuardrailsEnabled,
     inputGuardEnabled: runtimeGuardrailsEnabled,
@@ -310,4 +320,21 @@ export function buildRelayWsUrl(base: string): string {
 
 export function stableSessionHash(input: string): string {
   return createHash("sha256").update(input).digest("hex").slice(0, 12);
+}
+
+function resolveProductionCommitSha(): string | undefined {
+  const candidates = [
+    process.env["GROK_FIRST_V50_PRODUCTION_COMMIT_SHA"],
+    process.env["APP_HOSTING_COMMIT_SHA"],
+    process.env["FIREBASE_APP_HOSTING_COMMIT_SHA"],
+    process.env["GOOGLE_CLOUD_BUILD_SOURCE_COMMIT_SHA"],
+    process.env["COMMIT_SHA"],
+    process.env["GIT_COMMIT_SHA"],
+    process.env["NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA"],
+  ];
+  return candidates.find((value) => isGitSha(value?.trim()))?.trim();
+}
+
+function isGitSha(value: string | undefined): value is string {
+  return typeof value === "string" && /^[0-9a-f]{7,40}$/iu.test(value);
 }

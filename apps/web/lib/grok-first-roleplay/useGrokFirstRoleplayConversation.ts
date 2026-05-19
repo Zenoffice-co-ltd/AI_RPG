@@ -572,7 +572,11 @@ export function useGrokFirstRoleplayConversation(
           hardStop: false,
         };
       }
-      return evaluateNegativeGuard(input);
+      return evaluateNegativeGuard({
+        ...input,
+        qualityMinimalGuardEnabled:
+          sessionRef.current?.qualityMinimalGuardEnabled !== false,
+      });
     },
     [areRuntimeGuardrailsEnabled]
   );
@@ -708,6 +712,18 @@ export function useGrokFirstRoleplayConversation(
           bufferedAudioDroppedBytesRef.current;
       const releasedAudioBytes =
         input.releasedAudioBytes ?? releasedAudioBytesRef.current;
+      const audioLeakNeedsAudit =
+        (input.audioReleaseMode === "tail_only_release" ||
+          input.audioReleaseMode === "guarded_tail_stream_release") &&
+        releasedAudioBytes > 0 &&
+        finalDecision.reasons.some((reason) =>
+          [
+            "customer_led_sales_flow",
+            "forbidden_suffix",
+            "generic_closing_question",
+            "unnatural_ai_phrase",
+          ].includes(reason)
+        );
       const metric: GrokFirstV50Metric = {
         sessionId: activeSession.sessionId,
         turnIndex: turnIndexRef.current,
@@ -763,30 +779,10 @@ export function useGrokFirstRoleplayConversation(
         finalReleaseAudioBytes: input.finalReleaseAudioBytes ?? finalReleaseAudioBytesRef.current,
         audioReleaseMode: input.audioReleaseMode,
         tailOnlyFallbackReason: input.tailOnlyFallbackReason,
-        potentialAudioLeak:
-          Boolean(input.audioReleaseMode === "tail_only_release") &&
-          releasedAudioBytes > 0 &&
-          finalDecision.reasons.some((reason) =>
-            [
-              "customer_led_sales_flow",
-              "forbidden_suffix",
-              "generic_closing_question",
-              "unnatural_ai_phrase",
-            ].includes(reason)
-          ),
-        potentialAudioLeakReasons:
-          Boolean(input.audioReleaseMode === "tail_only_release") &&
-          releasedAudioBytes > 0 &&
-          finalDecision.reasons.some((reason) =>
-            [
-              "customer_led_sales_flow",
-              "forbidden_suffix",
-              "generic_closing_question",
-              "unnatural_ai_phrase",
-            ].includes(reason)
-          )
-            ? ["tail_only_release_without_actual_audio_audit"]
-            : [],
+        potentialAudioLeak: audioLeakNeedsAudit,
+        potentialAudioLeakReasons: audioLeakNeedsAudit
+          ? [`${input.audioReleaseMode ?? "guarded_release"}_without_actual_audio_audit`]
+          : [],
         normalizedUserText: normalizedUserTextRef.current || undefined,
         normalizationApplied: normalizationAppliedRef.current,
         normalizationReasons: [...normalizationReasonsRef.current],
