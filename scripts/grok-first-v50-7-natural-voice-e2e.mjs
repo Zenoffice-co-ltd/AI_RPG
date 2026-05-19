@@ -650,7 +650,11 @@ async function runTextCase(testCase, runIndex, demoToken, accessSignature) {
 
 async function runVoiceCase(testCase, runIndex, demoToken, accessSignature, xaiApiKey) {
   const contextTurns = testCase.contextTurns?.slice(0, MAX_TEXT_CONTEXT_TURNS) ?? [];
-  const leadingSilenceMs = contextTurns.length > 0 ? 24_000 : 700;
+  const leadingSilenceMs = isQualityGuardFocused
+    ? 10_000
+    : contextTurns.length > 0
+    ? 24_000
+    : 700;
   const fixturePath = await synthesizeFixture(testCase.userInput, xaiApiKey, leadingSilenceMs);
   const browser = await chromium.launch({
     headless: true,
