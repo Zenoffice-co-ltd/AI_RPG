@@ -567,6 +567,10 @@ describe("grok-first v50 runtime", () => {
   });
 
   it("serves a v50.7.2 quality route with prompt-only prompt and runtime guards enabled", async () => {
+    vi.stubEnv(
+      "GROK_FIRST_V50_PRODUCTION_COMMIT_SHA",
+      "c499a1eba659d497772522a4d561fadaf514e6c1",
+    );
     const fetchMock = vi.spyOn(globalThis, "fetch");
     const promptOnlyRoute = await import(
       "../../app/api/grok-first-v50-7-prompt-only/session/route"
@@ -589,6 +593,9 @@ describe("grok-first v50 runtime", () => {
       "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17"
     );
     expect(body["promptHash"]).toBe(promptOnlyBody["promptHash"]);
+    expect(body["productionCommitSha"]).toBe(
+      "c499a1eba659d497772522a4d561fadaf514e6c1",
+    );
     expect(body["guardrailVersion"]).toBe(
       "grok-first-v50.7-quality-guard-2026-05-17"
     );
@@ -599,6 +606,7 @@ describe("grok-first v50 runtime", () => {
     expect(body["tailGuardNormalHoldMs"]).toBe(300);
     expect(body["tailGuardRiskHoldMs"]).toBe(800);
     expect(body["tailGuardMaxHoldMs"]).toBe(1000);
+    expect(body["qualityMinimalGuardEnabled"]).toBe(true);
     expect(body["fullTurnBufferEnabled"]).toBe(false);
     expect(body["browserEvaluationEnabled"]).toBe(false);
     expect(body["browserEvaluation"]).toBeUndefined();
@@ -1011,6 +1019,34 @@ describe("grok-first v50 runtime", () => {
     ).toBe(
       "営業事務一名で、六月一日開始希望、受注入力と納期調整が中心です。",
     );
+
+    const lowInformationThanksAck = evaluateNegativeGuard({
+      text: "ありがとうございます。",
+      userText: "ありがとうございます。",
+      phase: "final",
+    });
+    expect(lowInformationThanksAck.action).toBe("pass");
+    expect(lowInformationThanksAck.reasons).toEqual([]);
+
+    const prematureSensitiveReveal = evaluateNegativeGuard({
+      text: "背景は受注処理の増加です。現場課長の意見が強いです。",
+      userText: "募集背景を教えてください。",
+      phase: "stream",
+    });
+    expect(prematureSensitiveReveal.reasons).toContain(
+      "premature_sensitive_reveal",
+    );
+    expect(prematureSensitiveReveal.hardStop).toBe(false);
+    expect(prematureSensitiveReveal.action).toBe("drop_sentence");
+
+    const rollbackPrematureSensitiveReveal = evaluateNegativeGuard({
+      text: "背景は受注処理の増加です。現場課長の意見が強いです。",
+      userText: "募集背景を教えてください。",
+      phase: "stream",
+      qualityMinimalGuardEnabled: false,
+    });
+    expect(rollbackPrematureSensitiveReveal.hardStop).toBe(true);
+    expect(rollbackPrematureSensitiveReveal.action).toBe("cancel");
   });
 
   it("classifies v50.7 quality fixed-input guard edge cases", () => {

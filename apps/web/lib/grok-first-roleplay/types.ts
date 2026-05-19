@@ -107,6 +107,7 @@ export type GrokFirstV50Session = {
   scenarioId: string;
   promptVersion: string;
   promptHash: string;
+  productionCommitSha?: string | undefined;
   guardrailVersion: string;
   model: typeof GROK_FIRST_V50_MODEL;
   voiceId: string;
@@ -143,6 +144,7 @@ export type GrokFirstV50Session = {
   tailGuardNormalHoldMs?: number | undefined;
   tailGuardRiskHoldMs?: number | undefined;
   tailGuardMaxHoldMs?: number | undefined;
+  qualityMinimalGuardEnabled?: boolean | undefined;
   fullTurnBufferEnabled: false;
   runtimeGuardrailsEnabled: boolean;
   inputGuardEnabled?: boolean | undefined;
