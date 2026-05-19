@@ -329,13 +329,17 @@ export function evaluateNegativeGuard(input: {
   }
 
   const uniqueReasons = [...new Set(reasons)];
+  const lowInformationTailOnly =
+    uniqueReasons.includes("low_information_input_new_topic") &&
+    hasSafeBodyAfterDroppingBadSentences(text, uniqueReasons);
   const hardStop =
     uniqueReasons.includes("ai_self_reference") ||
     uniqueReasons.includes("prompt_leak") ||
     uniqueReasons.includes("evaluation_leak") ||
     uniqueReasons.includes("numeric_contradiction") ||
     uniqueReasons.includes("premature_sensitive_reveal") ||
-    uniqueReasons.includes("low_information_input_new_topic");
+    (uniqueReasons.includes("low_information_input_new_topic") &&
+      !lowInformationTailOnly);
 
   const action = selectAction(uniqueReasons, hardStop, input.phase, text);
   return {

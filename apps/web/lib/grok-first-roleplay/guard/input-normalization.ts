@@ -15,7 +15,7 @@ type ReplacementRule = {
 };
 
 const DOMAIN_CONTEXT =
-  /候補|応募|要件|紹介|提案|買掛|買いかけ|納期|同期|単価|炭火|レンジ|他社|求人|会社|状況|フィードバック|スピードバック|受注|発注|請求|営業事務/u;
+  /候補|応募|要件|紹介|提案|買掛|買いかけ|納期|同期|単価|炭火|レンジ|他社|求人|会社|状況|フィードバック|スピードバック|リードバック|受注|発注|請求|営業事務/u;
 
 const REPLACEMENTS: ReplacementRule[] = [
   {
@@ -43,7 +43,7 @@ const REPLACEMENTS: ReplacementRule[] = [
     context: /買掛|買いかけ|担当|経理/u,
   },
   {
-    pattern: /スピードバック/g,
+    pattern: /(?:スピードバック|リードバック)/g,
     replacement: "フィードバック",
     reason: "stt_feedback",
   },
