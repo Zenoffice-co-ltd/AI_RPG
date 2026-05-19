@@ -655,7 +655,8 @@ async function runVoiceCase(testCase, runIndex, demoToken, accessSignature, xaiA
     : contextTurns.length > 0
     ? 24_000
     : 700;
-  const fixturePath = await synthesizeFixture(testCase.userInput, xaiApiKey, leadingSilenceMs);
+  const fixtureText = testCase.fixtureText || testCase.userInput;
+  const fixturePath = await synthesizeFixture(fixtureText, xaiApiKey, leadingSilenceMs);
   const browser = await chromium.launch({
     headless: true,
     args: [
@@ -3259,6 +3260,7 @@ function buildQualityGuardFocusedCases() {
     ].map((text, index) =>
       voiceCase(`QG-LOW-${String(index + 1).padStart(2, "0")}`, "quality-low-info", text, {
         expectedIntent: "backchannel",
+        fixtureText: text === "はい" ? "はい。はい。" : undefined,
         mustNotContain: forbiddenOutput,
         maxSentences: 1,
       })
