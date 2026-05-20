@@ -1,0 +1,49 @@
+{
+  "ok": true,
+  "denominator": "3 transcript static browser result pages + index",
+  "results": [
+    {
+      "id": "tr_270c090c33b1",
+      "desktop": {
+        "overflow": false,
+        "score": true,
+        "twelveItems": true,
+        "priority": true,
+        "logOnly": true
+      },
+      "mobile": {
+        "overflow": false
+      }
+    },
+    {
+      "id": "tr_49aeb44681a9",
+      "desktop": {
+        "overflow": false,
+        "score": true,
+        "twelveItems": true,
+        "priority": true,
+        "logOnly": true
+      },
+      "mobile": {
+        "overflow": false
+      }
+    },
+    {
+      "id": "tr_3c746a6726da",
+      "desktop": {
+        "overflow": false,
+        "score": true,
+        "twelveItems": true,
+        "priority": true,
+        "logOnly": true
+      },
+      "mobile": {
+        "overflow": false
+      }
+    }
+  ],
+  "indexCheck": {
+    "overflow": false,
+    "caseCount": 3
+  }
+}
