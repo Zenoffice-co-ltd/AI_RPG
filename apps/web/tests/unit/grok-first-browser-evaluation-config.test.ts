@@ -42,6 +42,28 @@ describe("grok-first browser evaluation config", () => {
     });
   });
 
+  it("uses v50-7-4 session result path when provided by the session contract", () => {
+    expect(
+      resolveBrowserEvaluationConfig(
+        "/api/grok-first-v50-7-4",
+        {
+          enabled: true,
+          startEndpoint: "/api/grok-first-v50-7/evaluation/start",
+          resultBasePath: "/demo/adecco-roleplay-v50-7-4/result",
+          source: "grok_first_v50_7_browser",
+          runtimeVersion: "v50-7",
+        },
+        false
+      )
+    ).toMatchObject({
+      enabled: true,
+      startEndpoint: "/api/grok-first-v50-7/evaluation/start",
+      resultBasePath: "/demo/adecco-roleplay-v50-7-4/result",
+      source: "grok_first_v50_7_browser",
+      runtimeVersion: "v50-7",
+    });
+  });
+
   it("fails browser evaluation when sales-side transcript is missing", () => {
     const transcript = toEvaluationTranscript([
       transcriptMessage("agent", "初回のご相談ですね。", "final"),

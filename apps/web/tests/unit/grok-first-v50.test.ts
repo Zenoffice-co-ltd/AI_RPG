@@ -727,8 +727,14 @@ describe("grok-first v50 runtime", () => {
     expect(body["runtimeTtsEnabled"]).toBe(false);
     expect(body["replacementTtsEnabled"]).toBe(false);
     expect(body["fullTurnBufferEnabled"]).toBe(false);
-    expect(body["browserEvaluationEnabled"]).toBe(false);
-    expect(body["browserEvaluation"]).toBeUndefined();
+    expect(body["browserEvaluationEnabled"]).toBe(true);
+    expect(body["browserEvaluation"]).toMatchObject({
+      enabled: true,
+      startEndpoint: "/api/grok-first-v50-7/evaluation/start",
+      resultBasePath: "/demo/adecco-roleplay-v50-7-4/result",
+      source: "grok_first_v50_7_browser",
+      runtimeVersion: "v50-7",
+    });
     expect(body["latencyMode"]).toBe("clean_tail_streaming");
     expect(body["streamAudioBeforeDone"]).toBe(true);
     expect(body["audioHoldMs"]).toBeUndefined();
@@ -821,6 +827,14 @@ describe("grok-first v50 runtime", () => {
       expect(body["normalInputRouterEnabled"]).toBe(false);
       expect(body["boundedRewriteEnabled"]).toBe(false);
       expect(body["noiseIgnoredEnabled"]).toBe(false);
+      expect(body["browserEvaluationEnabled"]).toBe(true);
+      expect(body["browserEvaluation"]).toMatchObject({
+        enabled: true,
+        startEndpoint: "/api/grok-first-v50-7/evaluation/start",
+        resultBasePath: `/demo/adecco-roleplay-v50-7-4-${variant.suffix}/result`,
+        source: "grok_first_v50_7_browser",
+        runtimeVersion: "v50-7",
+      });
 
       const auth = body["realtimeAuth"] as Record<string, unknown>;
       const verification = verifyRelayTicket({
