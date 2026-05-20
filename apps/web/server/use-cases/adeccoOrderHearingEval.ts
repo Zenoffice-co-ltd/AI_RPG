@@ -139,6 +139,14 @@ function getPromptsRoot() {
 
   const candidates = [
     resolve(process.cwd(), "scripts", "adecco_order_hearing_eval", "prompts"),
+    resolve(
+      process.cwd(),
+      "..",
+      "..",
+      "scripts",
+      "adecco_order_hearing_eval",
+      "prompts"
+    ),
     resolve("/app", "scripts", "adecco_order_hearing_eval", "prompts"),
   ];
   return (
@@ -156,6 +164,14 @@ function getEmailTemplatesRoot() {
   const candidates = [
     resolve(
       process.cwd(),
+      "scripts",
+      "adecco_order_hearing_eval",
+      "email_templates"
+    ),
+    resolve(
+      process.cwd(),
+      "..",
+      "..",
       "scripts",
       "adecco_order_hearing_eval",
       "email_templates"
