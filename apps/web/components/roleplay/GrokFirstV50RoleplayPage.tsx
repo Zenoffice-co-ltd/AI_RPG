@@ -32,6 +32,10 @@ export type GrokFirstV50PageProps = GrokFirstV50RouteProps & {
     | "/api/grok-first-v50-7-prompt-only"
     | "/api/grok-first-v50-7-quality"
     | "/api/grok-first-v50-7-4"
+    | "/api/grok-first-v50-7-4-a"
+    | "/api/grok-first-v50-7-4-b"
+    | "/api/grok-first-v50-7-4-c"
+    | "/api/grok-first-v50-7-4-d"
     | "/api/grok-first-v50-8"
     | "/api/grok-first-v51"
     | "/api/grok-first-vFinal";
@@ -94,7 +98,9 @@ export async function GrokFirstV50RoleplayPage({
   );
 }
 
-export function shouldAssertDemoAccessEnv(accessMode: GrokFirstV50PageProps["accessMode"]) {
+export function shouldAssertDemoAccessEnv(
+  accessMode: GrokFirstV50PageProps["accessMode"],
+) {
   return accessMode !== "vfinal-invite";
 }
 

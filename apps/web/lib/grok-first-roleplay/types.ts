@@ -14,8 +14,15 @@ export const GROK_FIRST_V50_7_PROMPT_ONLY_DEMO_SLUG =
   "adecco-roleplay-v50-7-prompt-only" as const;
 export const GROK_FIRST_V50_7_QUALITY_DEMO_SLUG =
   "adecco-roleplay-v50-7-quality" as const;
-export const GROK_FIRST_V50_7_4_DEMO_SLUG =
-  "adecco-roleplay-v50-7-4" as const;
+export const GROK_FIRST_V50_7_4_DEMO_SLUG = "adecco-roleplay-v50-7-4" as const;
+export const GROK_FIRST_V50_7_4_A_DEMO_SLUG =
+  "adecco-roleplay-v50-7-4-a" as const;
+export const GROK_FIRST_V50_7_4_B_DEMO_SLUG =
+  "adecco-roleplay-v50-7-4-b" as const;
+export const GROK_FIRST_V50_7_4_C_DEMO_SLUG =
+  "adecco-roleplay-v50-7-4-c" as const;
+export const GROK_FIRST_V50_7_4_D_DEMO_SLUG =
+  "adecco-roleplay-v50-7-4-d" as const;
 export const GROK_FIRST_V50_8_DEMO_SLUG = "adecco-roleplay-v50-8" as const;
 export const GROK_FIRST_V51_DEMO_SLUG = "adecco-roleplay-v51" as const;
 export const GROK_FIRST_VFINAL_DEMO_SLUG = "adecco-roleplay-vFinal" as const;
@@ -29,8 +36,11 @@ export const GROK_FIRST_V50_7_PROMPT_ONLY_BACKEND =
   "grok-first-v50-7-prompt-only" as const;
 export const GROK_FIRST_V50_7_QUALITY_BACKEND =
   "grok-first-v50-7-quality" as const;
-export const GROK_FIRST_V50_7_4_BACKEND =
-  "grok-first-v50-7-4" as const;
+export const GROK_FIRST_V50_7_4_BACKEND = "grok-first-v50-7-4" as const;
+export const GROK_FIRST_V50_7_4_A_BACKEND = "grok-first-v50-7-4-a" as const;
+export const GROK_FIRST_V50_7_4_B_BACKEND = "grok-first-v50-7-4-b" as const;
+export const GROK_FIRST_V50_7_4_C_BACKEND = "grok-first-v50-7-4-c" as const;
+export const GROK_FIRST_V50_7_4_D_BACKEND = "grok-first-v50-7-4-d" as const;
 export const GROK_FIRST_V50_8_BACKEND = "grok-first-v50-8" as const;
 export const GROK_FIRST_V51_BACKEND = "grok-first-v51" as const;
 export const GROK_FIRST_VFINAL_BACKEND = "grok-first-vFinal" as const;
@@ -48,6 +58,10 @@ export type GrokFirstDemoSlug =
   | typeof GROK_FIRST_V50_7_PROMPT_ONLY_DEMO_SLUG
   | typeof GROK_FIRST_V50_7_QUALITY_DEMO_SLUG
   | typeof GROK_FIRST_V50_7_4_DEMO_SLUG
+  | typeof GROK_FIRST_V50_7_4_A_DEMO_SLUG
+  | typeof GROK_FIRST_V50_7_4_B_DEMO_SLUG
+  | typeof GROK_FIRST_V50_7_4_C_DEMO_SLUG
+  | typeof GROK_FIRST_V50_7_4_D_DEMO_SLUG
   | typeof GROK_FIRST_V50_8_DEMO_SLUG
   | typeof GROK_FIRST_V51_DEMO_SLUG
   | typeof GROK_FIRST_VFINAL_DEMO_SLUG;
@@ -61,6 +75,10 @@ export type GrokFirstBackend =
   | typeof GROK_FIRST_V50_7_PROMPT_ONLY_BACKEND
   | typeof GROK_FIRST_V50_7_QUALITY_BACKEND
   | typeof GROK_FIRST_V50_7_4_BACKEND
+  | typeof GROK_FIRST_V50_7_4_A_BACKEND
+  | typeof GROK_FIRST_V50_7_4_B_BACKEND
+  | typeof GROK_FIRST_V50_7_4_C_BACKEND
+  | typeof GROK_FIRST_V50_7_4_D_BACKEND
   | typeof GROK_FIRST_V50_8_BACKEND
   | typeof GROK_FIRST_V51_BACKEND
   | typeof GROK_FIRST_VFINAL_BACKEND;
@@ -183,7 +201,11 @@ export type GrokFirstV50Metric = {
   sessionId: string;
   turnIndex: number;
   inputMode: "voice" | "text";
-  routePath: "grok_first_realtime" | "suppressed" | "noise_ignored" | "fixed_guard";
+  routePath:
+    | "grok_first_realtime"
+    | "suppressed"
+    | "noise_ignored"
+    | "fixed_guard";
   userTextLen: number;
   agentTextLen: number;
   firstAudioDeltaMs: number | null;
