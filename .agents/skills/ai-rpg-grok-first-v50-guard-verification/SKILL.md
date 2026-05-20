@@ -323,7 +323,7 @@ Expected session identity:
 - `latencyMode=clean_tail_streaming`
 - `streamAudioBeforeDone=true`
 - `turnDetection.create_response=false`
-- `turnDetection.silence_duration_ms=350`
+- `turnDetection.silence_duration_ms=650`
 
 Do not create a short-ack route for v50-7-4. `fixed_short_ack_audio`,
 `fixed_safe_body_audio`, and normal-turn `tail_only_drop_fallback` are FAIL.

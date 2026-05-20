@@ -201,7 +201,7 @@ Expected session fields are `demoSlug=adecco-roleplay-v50-7-4`,
 `boundedRewriteEnabled=false`, `noiseIgnoredEnabled=false`,
 `latencyMode=clean_tail_streaming`, `streamAudioBeforeDone=true`,
 `turnDetection.create_response=false`, and
-`turnDetection.silence_duration_ms=350`.
+`turnDetection.silence_duration_ms=650`.
 
 The v50-7-4 route must not introduce a short-ack route. In production smoke and
 clean-quality E2E, `fixed_short_ack_audio`, `fixed_safe_body_audio`, and

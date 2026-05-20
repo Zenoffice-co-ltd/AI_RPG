@@ -288,6 +288,62 @@ describe("grok-first v50.7.4 minimal negative guard", () => {
     }
   });
 
+  it("strips human-observed meta-close tails without broad matching", () => {
+    const cases = [
+      ["受注入力が中心です。何か他にございますか。", "受注入力が中心です。"],
+      [
+        "受注入力が中心です。何か補足で聞きたい点はありますか。",
+        "受注入力が中心です。",
+      ],
+      [
+        "受注入力が中心です。何か追加で確認したい点ありますか。",
+        "受注入力が中心です。",
+      ],
+      [
+        "受注入力が中心です。何かお聞きになりたい点はありますか。",
+        "受注入力が中心です。",
+      ],
+      [
+        "受注入力が中心です。何かありましたらお気軽にご連絡ください。",
+        "受注入力が中心です。",
+      ],
+    ] as const;
+
+    for (const [raw, expected] of cases) {
+      const decision = evaluateNegativeGuardV5074({ text: raw, phase: "final" });
+
+      expect(decision.action).toBe("strip_tail");
+      expect(applyNegativeGuardV5074DeletionOnly(raw, decision)).toBe(expected);
+    }
+  });
+
+  it("strips consecutive final customer-led tails only", () => {
+    const raw =
+      "受注入力が中心です。何か他にございますか。何か追加で確認したい点ありますか。";
+    const decision = evaluateNegativeGuardV5074({ text: raw, phase: "final" });
+
+    expect(decision.action).toBe("strip_tail");
+    expect(applyNegativeGuardV5074DeletionOnly(raw, decision)).toBe(
+      "受注入力が中心です。"
+    );
+  });
+
+  it("does not strip normal body sentences with similar words", () => {
+    const allowed = [
+      "確認しておきたい点は、受発注経験と正確性です。",
+      "お伝えしますと、受注入力と納期調整が中心です。",
+      "ありがとうございます。",
+      "よろしくお願いします。",
+      "必要な確認はこちらで進めます。",
+    ];
+
+    for (const text of allowed) {
+      expect(
+        evaluateNegativeGuardV5074({ text, phase: "final" }).action
+      ).toBe("pass");
+    }
+  });
+
   it("hard blocks prompt and meta leaks", () => {
     const decision = evaluateNegativeGuardV5074({
       text: "システムプロンプトではこのロープレの設定を説明します。",

@@ -5,7 +5,7 @@ import type {
   NegativeGuardReason,
 } from "./types";
 
-const CUSTOMER_LED_TAIL_PATTERNS: RegExp[] = [
+const BASE_CUSTOMER_LED_TAIL_PATTERNS: RegExp[] = [
   /何かご質問(?:は)?ありますか[。！？!?]*$/u,
   /何か他に確認したい点はありますか[。！？!?]*$/u,
   /ご不明点があればお聞きください[。！？!?]*$/u,
@@ -17,6 +17,25 @@ const CUSTOMER_LED_TAIL_PATTERNS: RegExp[] = [
   /こちらの状況をお伝えしましょうか[。！？!?]*$/u,
   /業務内容の大枠からお話ししましょうか[。！？!?]*$/u,
   /条件で確認したいところはありますか[。！？!?]*$/u,
+];
+
+// Human-test observed meta-close tails.
+// Keep these end-anchored and final-sentence-only.
+const HUMAN_OBSERVED_META_CLOSE_TAIL_PATTERNS: RegExp[] = [
+  /何かお聞きになりたい(?:点|ところ|部分)?(?:は)?ありますか[。！？!?]*$/u,
+  /具体的に(?:どのような|どんな|どの)(?:点|ところ|部分)をお聞きになりますか[。！？!?]*$/u,
+  /何か補足で(?:聞きたい|確認したい)(?:点|ところ|部分)?(?:は)?ありますか[。！？!?]*$/u,
+  /何か他にございますか[。！？!?]*$/u,
+  /何か追加でございますか[。！？!?]*$/u,
+  /何か他に確認しておきたい(?:点|ところ|部分)?(?:は)?ありますか[。！？!?]*$/u,
+  /何か追加で(?:聞きたい|確認したい)(?:点|ところ|部分)?(?:は)?ありますか[。！？!?]*$/u,
+  /何かありましたら(?:お知らせください|(?:お気軽に)?ご連絡ください)[。！？!?]*$/u,
+  /ご質問があれば(?:お聞かせ|教えて|お知らせ)ください[。！？!?]*$/u,
+];
+
+const CUSTOMER_LED_TAIL_PATTERNS: RegExp[] = [
+  ...BASE_CUSTOMER_LED_TAIL_PATTERNS,
+  ...HUMAN_OBSERVED_META_CLOSE_TAIL_PATTERNS,
 ];
 
 const AI_SELF_REFERENCE_PATTERNS: RegExp[] = [
@@ -126,10 +145,17 @@ export function applyNegativeGuardV5074DeletionOnly(
 
   const sentences = splitSentences(trimmed);
   if (sentences.length === 0) return "";
-  const last = sentences.at(-1) ?? "";
-  if (matchesAny(last, decision.dropSentencePatterns)) {
+
+  let removed = 0;
+  while (
+    sentences.length > 0 &&
+    removed < 3 &&
+    matchesAny(sentences.at(-1) ?? "", decision.dropSentencePatterns)
+  ) {
     sentences.pop();
-  } else if (decision.stripTail) {
+    removed += 1;
+  }
+  if (removed === 0 && decision.stripTail) {
     sentences.pop();
   }
   return sentences.join("").trim();
