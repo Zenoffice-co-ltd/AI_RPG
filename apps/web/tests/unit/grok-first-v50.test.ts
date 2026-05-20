@@ -125,8 +125,7 @@ function validV507PromptOnlyRequest() {
   const headers = new Headers({
     "content-type": "application/json",
     origin: "http://127.0.0.1:3000",
-    referer:
-      "http://127.0.0.1:3000/demo/adecco-roleplay-v50-7-prompt-only",
+    referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v50-7-prompt-only",
     cookie: `roleplay_api_access=${signAccessToken("demo-secret")}`,
   });
   return new NextRequest(
@@ -135,7 +134,7 @@ function validV507PromptOnlyRequest() {
       method: "POST",
       headers,
       body: JSON.stringify({}),
-    }
+    },
   );
 }
 
@@ -152,7 +151,7 @@ function validV507QualityRequest() {
       method: "POST",
       headers,
       body: JSON.stringify({}),
-    }
+    },
   );
 }
 
@@ -169,7 +168,24 @@ function validV5074Request() {
       method: "POST",
       headers,
       body: JSON.stringify({}),
-    }
+    },
+  );
+}
+
+function validV5074VariantRequest(suffix: "a" | "b" | "c" | "d") {
+  const headers = new Headers({
+    "content-type": "application/json",
+    origin: "http://127.0.0.1:3000",
+    referer: `http://127.0.0.1:3000/demo/adecco-roleplay-v50-7-4-${suffix}`,
+    cookie: `roleplay_api_access=${signAccessToken("demo-secret")}`,
+  });
+  return new NextRequest(
+    `http://127.0.0.1:3000/api/grok-first-v50-7-4-${suffix}/session`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({}),
+    },
   );
 }
 
@@ -444,7 +460,7 @@ describe("grok-first v50 runtime", () => {
     expect(body["backend"]).toBe("grok-first-v50-7");
     expect(body["promptVersion"]).toBe("grok-first-v50.6-2026-05-15");
     expect(body["guardrailVersion"]).toBe(
-      "grok-first-v50.7-speed-hotfix-2026-05-17"
+      "grok-first-v50.7-speed-hotfix-2026-05-17",
     );
     expect(body["browserEvaluationEnabled"]).toBe(true);
     expect(body["model"]).toBe("grok-voice-think-fast-1.0");
@@ -518,9 +534,8 @@ describe("grok-first v50 runtime", () => {
 
   it("serves a v50.7 prompt-only diagnostic route with all runtime guards disabled", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
-    const { POST } = await import(
-      "../../app/api/grok-first-v50-7-prompt-only/session/route"
-    );
+    const { POST } =
+      await import("../../app/api/grok-first-v50-7-prompt-only/session/route");
     const response = await POST(validV507PromptOnlyRequest());
     expect(response.status).toBe(200);
     const body = (await response.json()) as Record<string, unknown>;
@@ -531,7 +546,7 @@ describe("grok-first v50 runtime", () => {
       "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17",
     );
     expect(body["guardrailVersion"]).toBe(
-      "prompt-only-no-runtime-guard-2026-05-17"
+      "prompt-only-no-runtime-guard-2026-05-17",
     );
     expect(body["latencyMode"]).toBeUndefined();
     expect(body["streamAudioBeforeDone"]).toBeUndefined();
@@ -589,32 +604,32 @@ describe("grok-first v50 runtime", () => {
       "c499a1eba659d497772522a4d561fadaf514e6c1",
     );
     const fetchMock = vi.spyOn(globalThis, "fetch");
-    const promptOnlyRoute = await import(
-      "../../app/api/grok-first-v50-7-prompt-only/session/route"
-    );
-    const qualityRoute = await import(
-      "../../app/api/grok-first-v50-7-quality/session/route"
-    );
+    const promptOnlyRoute =
+      await import("../../app/api/grok-first-v50-7-prompt-only/session/route");
+    const qualityRoute =
+      await import("../../app/api/grok-first-v50-7-quality/session/route");
     const promptOnlyResponse = await promptOnlyRoute.POST(
-      validV507PromptOnlyRequest()
+      validV507PromptOnlyRequest(),
     );
     const qualityResponse = await qualityRoute.POST(validV507QualityRequest());
     expect(qualityResponse.status).toBe(200);
-    const promptOnlyBody =
-      (await promptOnlyResponse.json()) as Record<string, unknown>;
+    const promptOnlyBody = (await promptOnlyResponse.json()) as Record<
+      string,
+      unknown
+    >;
     const body = (await qualityResponse.json()) as Record<string, unknown>;
 
     expect(body["demoSlug"]).toBe("adecco-roleplay-v50-7-quality");
     expect(body["backend"]).toBe("grok-first-v50-7-quality");
     expect(body["promptVersion"]).toBe(
-      "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17"
+      "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17",
     );
     expect(body["promptHash"]).toBe(promptOnlyBody["promptHash"]);
     expect(body["productionCommitSha"]).toBe(
       "c499a1eba659d497772522a4d561fadaf514e6c1",
     );
     expect(body["guardrailVersion"]).toBe(
-      "grok-first-v50.7-quality-guard-2026-05-17"
+      "grok-first-v50.7-quality-guard-2026-05-17",
     );
     expect(body["latencyMode"]).toBe("guarded_tail_streaming");
     expect(body["streamAudioBeforeDone"]).toBe(true);
@@ -674,21 +689,20 @@ describe("grok-first v50 runtime", () => {
 
   it("serves v50.7.4 clean quality route with v50.7.2 prompt and minimal runtime guards", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch");
-    const promptOnlyRoute = await import(
-      "../../app/api/grok-first-v50-7-prompt-only/session/route"
-    );
-    const cleanQualityRoute = await import(
-      "../../app/api/grok-first-v50-7-4/session/route"
-    );
+    const promptOnlyRoute =
+      await import("../../app/api/grok-first-v50-7-prompt-only/session/route");
+    const cleanQualityRoute =
+      await import("../../app/api/grok-first-v50-7-4/session/route");
     const promptOnlyResponse = await promptOnlyRoute.POST(
-      validV507PromptOnlyRequest()
+      validV507PromptOnlyRequest(),
     );
-    const cleanQualityResponse = await cleanQualityRoute.POST(
-      validV5074Request()
-    );
+    const cleanQualityResponse =
+      await cleanQualityRoute.POST(validV5074Request());
     expect(cleanQualityResponse.status).toBe(200);
-    const promptOnlyBody =
-      (await promptOnlyResponse.json()) as Record<string, unknown>;
+    const promptOnlyBody = (await promptOnlyResponse.json()) as Record<
+      string,
+      unknown
+    >;
     const body = (await cleanQualityResponse.json()) as Record<string, unknown>;
 
     expect(body["demoSlug"]).toBe("adecco-roleplay-v50-7-4");
@@ -696,11 +710,11 @@ describe("grok-first v50 runtime", () => {
     expect(body["promptVariant"]).toBe("v50.7.2");
     expect(body["runtimeVariant"]).toBe("v50.7.4");
     expect(body["promptVersion"]).toBe(
-      "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17"
+      "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17",
     );
     expect(body["promptHash"]).toBe(promptOnlyBody["promptHash"]);
     expect(body["guardrailVersion"]).toBe(
-      "grok-first-v50.7.4-clean-quality-guard-2026-05-20"
+      "grok-first-v50.7.4-clean-quality-guard-2026-05-20",
     );
     expect(body["runtimeGuardrailsEnabled"]).toBe(true);
     expect(body["inputGuardEnabled"]).toBe(true);
@@ -758,6 +772,72 @@ describe("grok-first v50 runtime", () => {
       },
     });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("serves v50.7.4 prompt comparison routes with relay-compatible tickets", async () => {
+    const routeModules = {
+      a: () => import("../../app/api/grok-first-v50-7-4-a/session/route"),
+      b: () => import("../../app/api/grok-first-v50-7-4-b/session/route"),
+      c: () => import("../../app/api/grok-first-v50-7-4-c/session/route"),
+      d: () => import("../../app/api/grok-first-v50-7-4-d/session/route"),
+    };
+    const variants = [
+      {
+        suffix: "a",
+        promptVersion: "grok-first-v50.7.4-A-minimal-hook-2026-05-20",
+      },
+      {
+        suffix: "b",
+        promptVersion:
+          "grok-first-v50.7.4-B-transcript-like-two-beat-2026-05-20",
+      },
+      {
+        suffix: "c",
+        promptVersion: "grok-first-v50.7.4-C-sales-quality-adaptive-2026-05-20",
+      },
+      {
+        suffix: "d",
+        promptVersion:
+          "grok-first-v50.7.4-D-customer-concern-question-driver-2026-05-20",
+      },
+    ] as const;
+
+    for (const variant of variants) {
+      vi.resetModules();
+      const { POST } = await routeModules[variant.suffix]();
+      const response = await POST(validV5074VariantRequest(variant.suffix));
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Record<string, unknown>;
+
+      expect(body["demoSlug"]).toBe(
+        `adecco-roleplay-v50-7-4-${variant.suffix}`,
+      );
+      expect(body["backend"]).toBe(`grok-first-v50-7-4-${variant.suffix}`);
+      expect(body["promptVersion"]).toBe(variant.promptVersion);
+      expect(body["guardrailVersion"]).toBe(
+        "grok-first-v50.7.4-clean-quality-guard-2026-05-20",
+      );
+      expect(body["latencyMode"]).toBe("clean_tail_streaming");
+      expect(body["normalInputRouterEnabled"]).toBe(false);
+      expect(body["boundedRewriteEnabled"]).toBe(false);
+      expect(body["noiseIgnoredEnabled"]).toBe(false);
+
+      const auth = body["realtimeAuth"] as Record<string, unknown>;
+      const verification = verifyRelayTicket({
+        ticket: String(auth["ticket"]),
+        secret: "0123456789abcdef0123456789abcdef",
+        expectedAud: "voice.mendan.biz",
+        expectedPath: DEFAULT_RELAY_TICKET_PATH,
+      });
+      expect(verification).toMatchObject({
+        ok: true,
+        payload: {
+          demoSlug: "adecco-roleplay-v50-7-4",
+          backend: "grok-first-v50-7-4",
+          transport: "mendan_cloud_run_relay_wss",
+        },
+      });
+    }
   });
 
   it("serves v51 with customer criteria persona and browser evaluation config", async () => {
@@ -1121,9 +1201,7 @@ describe("grok-first v50 runtime", () => {
         "営業事務一名で、六月一日開始希望、受注入力と納期調整が中心です。勤務時間や残業についてはまた後ほど詳しくお伝えしますね。",
         delayedHoursAndOvertimeTail,
       ),
-    ).toBe(
-      "営業事務一名で、六月一日開始希望、受注入力と納期調整が中心です。",
-    );
+    ).toBe("営業事務一名で、六月一日開始希望、受注入力と納期調整が中心です。");
 
     const lowInformationThanksAck = evaluateNegativeGuard({
       text: "ありがとうございます。",
@@ -1177,7 +1255,9 @@ describe("grok-first v50 runtime", () => {
     }
 
     expect(
-      classifyInputGuard("うん、ここまでで終了です。フィードバックしてください")
+      classifyInputGuard(
+        "うん、ここまでで終了です。フィードバックしてください",
+      ),
     ).toMatchObject({
       action: "fixed_exit",
       intent: "exit",
@@ -1315,7 +1395,7 @@ describe("grok-first v50 runtime", () => {
         init !== null &&
         init.method === "POST" &&
         typeof init.body === "string" &&
-        init.body.includes("\"session.ready\""),
+        init.body.includes('"session.ready"'),
     );
     expect(readyPost).toBeDefined();
   });
