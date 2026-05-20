@@ -17,6 +17,12 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/*": [
       "../../packages/scoring/src/prompts/**/*.md",
+      // Adecco browser evaluation / legacy email scoring prompt bundle.
+      // apps/web/server/use-cases/adeccoOrderHearingEval.ts reads these
+      // files at runtime. Without them in the standalone bundle, Cloud Tasks
+      // fail with ENOENT before Claude scoring starts.
+      "../../scripts/adecco_order_hearing_eval/prompts/**",
+      "../../scripts/adecco_order_hearing_eval/email_templates/**",
       "../../config/voice-profiles/**/*.json",
       "../../data/generated/scenarios/**/*.json",
       // PLS lexicon (.pls) — read at runtime by buildLivePronunciationGuide
