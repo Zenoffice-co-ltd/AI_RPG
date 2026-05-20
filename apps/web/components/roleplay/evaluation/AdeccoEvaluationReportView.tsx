@@ -22,6 +22,15 @@ const RUBRIC_ORDER = [
   ["closing", "クロージング"],
 ] as const;
 
+const RUBRIC_MAX_POINTS: Record<(typeof RUBRIC_ORDER)[number][0], number> = {
+  coverage: 30,
+  hearing_skill: 20,
+  priority_clarity: 20,
+  deal_structure: 10,
+  business_behavior: 10,
+  closing: 10,
+};
+
 export function AdeccoEvaluationReportView({
   scorecard,
   showRawJson,
@@ -33,20 +42,20 @@ export function AdeccoEvaluationReportView({
   const confidence = stringValue(report["score_confidence"], "-");
   const summary = objectValue(report["must_capture_summary"]);
   const mustCaptureItems = arrayValue(report["must_capture_items"]);
-  const mustCaptureGroups = arrayValue(report["must_capture_groups"]);
   const modalityLimitations = stringList(report["modality_limitations"]);
   const complianceFlags = objectValue(report["sales_compliance_flags"]);
   const captured = numberValue(summary["captured_count"]) ?? 0;
   const partial = numberValue(summary["partial_count"]) ?? 0;
   const missed = numberValue(summary["missed_count"]) ?? 0;
   const weightedRatio = numberValue(summary["weighted_capture_ratio"]) ?? 0;
+  const priorityItem = selectPriorityItem(mustCaptureItems);
+  const mustCaptureCountLabel =
+    mustCaptureItems.length > 0 ? `${mustCaptureItems.length}項目` : "必須項目";
   const strengths = stringList(report["strengths"]);
   const improvements = stringList(report["improvement_points"]);
   const actions = stringList(report["next_training_actions"]);
   const feedback = stringValue(report["learner_feedback"], "フィードバックを取得できませんでした。");
-  const schemaVersion = stringValue(report["schema_version"], "-");
-  const evaluationProfile = scorecard.evaluationProfile ?? schemaVersion;
-  const runtimeVersion = scorecard.runtimeVersion ?? "-";
+  const leadText = feedback.split(/\n{2,}/)[0] ?? feedback;
 
   return (
     <div className={c("page")}>
@@ -74,32 +83,38 @@ export function AdeccoEvaluationReportView({
                 {totalScore === null ? "-" : totalScore.toFixed(1)}
               </span>
               <span className={c("scoreMax")}>/ 100</span>
+              <span className={c("grade")}>{gradeLabel}</span>
             </div>
-            <p className={c("bodyText")}>
-              住宅設備メーカーの初回派遣オーダーヒアリングを、会話ログだけを根拠に採点しています。
-            </p>
+            <p className={c("bodyText")}>{leadText}</p>
           </div>
 
           <div className={c("metaCard")}>
-            <MetaRow label="Grade" value={gradeLabel} />
             <MetaRow label="評価信頼度" value={confidence} />
-            <MetaRow label="評価基準" value={evaluationProfile} />
-            <MetaRow label="runtime" value={runtimeVersion} />
-            <MetaRow label="生成時刻" value={formatDate(scorecard.generatedAt)} />
-            <MetaRow label="session" value={shortSession(scorecard.metadata.sessionId)} />
+            <MetaRow label="ロープレ" value="住宅設備メーカー 人事課主任" />
           </div>
         </section>
 
         <section className={c("kpis")} aria-label="評価指標">
-          <Kpi label="必須項目取得率" value={`${Math.round(weightedRatio * 100)}%`} />
-          <Kpi label="取得 / 部分 / 未取得" value={`${captured} / ${partial} / ${missed}`} />
-          <Kpi label="強み" value={`${strengths.length}`} />
-          <Kpi label="次回アクション" value={`${actions.length}`} />
+          <Kpi
+            label="ヒアリング達成度"
+            value={`${Math.round(weightedRatio * 100)}%`}
+            note={`${mustCaptureCountLabel}を重要度込みで換算`}
+          />
+          <Kpi
+            label="完全取得 / 部分取得 / 未取得"
+            value={`${captured} / ${partial} / ${missed}`}
+            note={`${mustCaptureCountLabel}判定内訳`}
+          />
+          <Kpi
+            label="最優先改善領域"
+            value={priorityItem?.label ?? "未取得項目"}
+            note="改善インパクト最大"
+          />
         </section>
 
         <section className={c("mainGrid")}>
           <div className={c("panel")}>
-            <h2 className={c("panelTitle")}>Rubric Breakdown</h2>
+            <h2 className={c("panelTitle")}>6大カテゴリ</h2>
             <div className={c("rubrics")}>
               {renderRubrics(report).map((rubric) => (
                 <article className={c("rubric")} key={rubric.key}>
@@ -126,52 +141,13 @@ export function AdeccoEvaluationReportView({
             <div className={c("summaryList")}>
               <SummaryBlock title="最重要改善点" items={improvements.slice(0, 2)} empty="改善点は取得できませんでした。" />
               <SummaryBlock title="次回の質問例" items={extractQuestionExamples(improvements, actions)} empty="質問例は取得できませんでした。" />
-              <SummaryBlock title="次回アクション" items={actions.slice(0, 3)} empty="次回アクションは取得できませんでした。" />
+              <SummaryBlock title="練習アクション" items={actions.slice(0, 3)} empty="次回アクションは取得できませんでした。" />
             </div>
           </aside>
         </section>
 
-        {mustCaptureGroups.length > 0 ? (
-          <section className={c("panel")} style={{ marginTop: 18 }}>
-            <h2 className={c("panelTitle")}>Must Capture Groups</h2>
-            <div className={c("groupGrid")}>
-              {mustCaptureGroups.map((rawGroup, index) => {
-                const group = objectValue(rawGroup);
-                return (
-                  <article
-                    className={c("groupCard")}
-                    key={`${index}-${stringValue(group["group_id"], "")}`}
-                  >
-                    <h3 className={c("groupTitle")}>
-                      {stringValue(group["group_label"], `グループ${index + 1}`)}
-                    </h3>
-                    <div className={c("summaryList")}>
-                      {arrayValue(group["items"]).map((rawItem, itemIndex) => {
-                        const item = objectValue(rawItem);
-                        const judgement = stringValue(item["judgement"], "missed");
-                        return (
-                          <div
-                            className={c("groupItem")}
-                            key={`${itemIndex}-${stringValue(item["label"], "")}`}
-                          >
-                            <span className={`${c("badge")} ${badgeClass(judgement)}`}>
-                              {judgementLabel(judgement)}
-                            </span>
-                            <strong>{stringValue(item["label"], `項目${itemIndex + 1}`)}</strong>
-                            <span className={c("bodyText")}>{captureEvidence(item)}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
-
         <section className={c("panel")} style={{ marginTop: 18 }}>
-          <h2 className={c("panelTitle")}>Must Capture 18項目</h2>
+          <h2 className={c("panelTitle")}>必須ヒアリング {mustCaptureCountLabel}</h2>
           <div className={c("captureGrid")}>
             <div className={c("captureHeader")}>
               <span>No</span>
@@ -308,11 +284,20 @@ function MetaRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Kpi({ label, value }: { label: string; value: string }) {
+function Kpi({
+  label,
+  value,
+  note,
+}: {
+  label: string;
+  value: string;
+  note?: string;
+}) {
   return (
     <div className={c("card")}>
       <span className={c("cardLabel")}>{label}</span>
       <strong className={c("cardValue")}>{value}</strong>
+      {note ? <small className={c("cardNote")}>{note}</small> : null}
     </div>
   );
 }
@@ -345,7 +330,7 @@ function renderRubrics(report: Record<string, unknown>) {
   return RUBRIC_ORDER.map(([key, fallbackLabel]) => {
     const item = objectValue(scores[key]);
     const points = numberValue(item["points"]);
-    const maxPoints = numberValue(item["max_points"], key === "coverage" ? 30 : 10);
+    const maxPoints = numberValue(item["max_points"], RUBRIC_MAX_POINTS[key]);
     const percent =
       points !== null && maxPoints !== null && maxPoints > 0
         ? Math.max(0, Math.min(100, (points / maxPoints) * 100))
@@ -376,6 +361,22 @@ function extractQuestionExamples(improvements: string[], actions: string[]) {
     .slice(0, 3);
 }
 
+function selectPriorityItem(items: unknown[]) {
+  let selected: { label: string; impact: number } | null = null;
+  for (const rawItem of items) {
+    const item = objectValue(rawItem);
+    const label = stringValue(item["label"]);
+    const weight = numberValue(item["weight_points"], 1) ?? 1;
+    const judgement = stringValue(item["judgement"], "missed");
+    const captureRate = judgement === "captured" ? 1 : judgement === "partial" ? 0.5 : 0;
+    const impact = weight * (1 - captureRate);
+    if (label && (!selected || impact > selected.impact)) {
+      selected = { label, impact };
+    }
+  }
+  return selected;
+}
+
 function objectValue(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -403,8 +404,8 @@ function stringList(value: unknown) {
 }
 
 function judgementLabel(value: string) {
-  if (value === "captured") return "取得";
-  if (value === "partial") return "部分";
+  if (value === "captured") return "完全取得";
+  if (value === "partial") return "部分取得";
   return "未取得";
 }
 
@@ -412,20 +413,4 @@ function badgeClass(value: string) {
   if (value === "captured") return c("captured");
   if (value === "partial") return c("partial");
   return c("missed");
-}
-
-function shortSession(sessionId: string) {
-  return sessionId.length > 18 ? `${sessionId.slice(0, 8)}...${sessionId.slice(-6)}` : sessionId;
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value || "-";
-  return new Intl.DateTimeFormat("ja-JP", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
 }

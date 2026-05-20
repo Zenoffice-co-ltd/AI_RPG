@@ -118,6 +118,16 @@
   font-weight: 700;
 }
 
+.grade {
+  background: #e9f0f9;
+  border: 1px solid #cbd9eb;
+  border-radius: 999px;
+  color: #3867a8;
+  font-size: 18px;
+  font-weight: 850;
+  padding: 8px 14px;
+}
+
 .metaCard {
   display: grid;
   gap: 12px;
@@ -144,7 +154,7 @@
 
 .kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-top: 18px;
 }
@@ -161,8 +171,18 @@
 
 .cardValue {
   display: block;
-  font-size: 30px;
+  font-size: 26px;
   font-weight: 800;
+  line-height: 1.25;
+  margin-top: 8px;
+  overflow-wrap: anywhere;
+}
+
+.cardNote {
+  color: #637089;
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
   margin-top: 8px;
 }
 

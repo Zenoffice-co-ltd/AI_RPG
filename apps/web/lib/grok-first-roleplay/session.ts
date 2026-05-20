@@ -337,7 +337,7 @@ export async function createGrokFirstV50Session(input?: {
     debugTranscriptPreviewEnabled:
       env.GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED === "true",
     browserEvaluationEnabled:
-      runtimeVariant === "v50.7"
+      runtimeVariant === "v50.7" || isV5074CleanQuality
         ? env.ADECCO_BROWSER_EVAL_ENABLED !== "0"
         : false,
     browserEvaluation:
@@ -349,11 +349,11 @@ export async function createGrokFirstV50Session(input?: {
             source: "grok_first_v51_browser",
             runtimeVersion: "v51",
           }
-        : runtimeVariant === "v50.7"
+        : runtimeVariant === "v50.7" || isV5074CleanQuality
           ? {
               enabled: env.ADECCO_BROWSER_EVAL_ENABLED !== "0",
               startEndpoint: "/api/grok-first-v50-7/evaluation/start",
-              resultBasePath: "/demo/adecco-roleplay-v50-7/result",
+              resultBasePath: `/demo/${identity.demoSlug}/result`,
               source: "grok_first_v50_7_browser",
               runtimeVersion: "v50-7",
             }
