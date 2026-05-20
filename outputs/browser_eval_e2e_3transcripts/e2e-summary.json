@@ -1,36 +1,36 @@
 {
-  "generatedAt": "2026-05-20T07:18:48.185Z",
+  "generatedAt": "2026-05-20T08:05:39.134Z",
   "denominator": "3 stored Adecco transcripts -> static browser result pages",
   "cases": [
     {
       "id": "tr_270c090c33b1",
       "title": "受注センター立ち上げ 3名増員",
       "source": "data/generated/transcripts/tr_270c090c33b1.json",
-      "score": 87.9,
-      "grade": "A",
-      "hearingRate": "83%",
-      "counts": "7 / 5 / 0",
-      "priority": "業務内容・1日の流れ"
+      "score": 74.5,
+      "grade": "B",
+      "hearingRate": "70%",
+      "counts": "4 / 8 / 0",
+      "priority": "連絡方法・スケジュール・ネクストステップ"
     },
     {
       "id": "tr_49aeb44681a9",
       "title": "コールセンター欠員補充 2名",
       "source": "data/generated/transcripts/tr_49aeb44681a9.json",
-      "score": 88.7,
-      "grade": "A",
-      "hearingRate": "83%",
-      "counts": "7 / 5 / 0",
-      "priority": "業務内容・1日の流れ"
+      "score": 75.7,
+      "grade": "B",
+      "hearingRate": "70%",
+      "counts": "4 / 8 / 0",
+      "priority": "連絡方法・スケジュール・ネクストステップ"
     },
     {
       "id": "tr_3c746a6726da",
       "title": "新サービス立ち上げ 事務2名",
       "source": "data/generated/transcripts/tr_3c746a6726da.json",
-      "score": 89.1,
-      "grade": "A",
-      "hearingRate": "83%",
-      "counts": "7 / 5 / 0",
-      "priority": "業務内容・1日の流れ"
+      "score": 76.7,
+      "grade": "B",
+      "hearingRate": "70%",
+      "counts": "4 / 8 / 0",
+      "priority": "連絡方法・スケジュール・ネクストステップ"
     }
   ]
 }

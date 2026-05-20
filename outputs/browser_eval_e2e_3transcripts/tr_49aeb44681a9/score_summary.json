@@ -1,10 +1,10 @@
 {
   "id": "tr_49aeb44681a9",
   "source": "data/generated/transcripts/tr_49aeb44681a9.json",
-  "score": 88.7,
-  "grade": "A",
-  "hearingRate": "83%",
-  "counts": "7 / 5 / 0",
-  "priority": "業務内容・1日の流れ",
+  "score": 75.7,
+  "grade": "B",
+  "hearingRate": "70%",
+  "counts": "4 / 8 / 0",
+  "priority": "連絡方法・スケジュール・ネクストステップ",
   "note": "Static E2E output based on the current browser result mock design."
 }
