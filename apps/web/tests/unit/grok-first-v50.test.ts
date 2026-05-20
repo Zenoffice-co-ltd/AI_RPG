@@ -975,6 +975,35 @@ describe("grok-first v50 runtime", () => {
     expect(sanitized["instructions"]).toBeUndefined();
   });
 
+  it("keeps UTF-8 Base64 transcript fields while still dropping sensitive values", () => {
+    const text =
+      "受注処理が増えていて、社員側の確認負荷が高くなっています。".repeat(40);
+    const encoded = Buffer.from(text, "utf8").toString("base64");
+    const sanitized = sanitizeGrokFirstV50Details({
+      rawAssistantTranscriptUtf8Base64: encoded,
+      normalizedUserTextUtf8Base64: encoded,
+      finalTextAfterGuardUtf8Base64: encoded,
+      userTextPreview: "業務内容",
+      audioBase64: "raw-audio",
+      token: "secret-token",
+      secret: "secret-value",
+      apiKey: "api-key",
+      authorization: "bearer token",
+      promptHash: "abc123",
+    });
+
+    expect(sanitized["rawAssistantTranscriptUtf8Base64"]).toBe(encoded);
+    expect(sanitized["normalizedUserTextUtf8Base64"]).toBe(encoded);
+    expect(sanitized["finalTextAfterGuardUtf8Base64"]).toBe(encoded);
+    expect(sanitized["userTextPreview"]).toBeUndefined();
+    expect(sanitized["audioBase64"]).toBeUndefined();
+    expect(sanitized["token"]).toBeUndefined();
+    expect(sanitized["secret"]).toBeUndefined();
+    expect(sanitized["apiKey"]).toBeUndefined();
+    expect(sanitized["authorization"]).toBeUndefined();
+    expect(sanitized["promptHash"]).toBe("abc123");
+  });
+
   it("applies transcript preview gating at the v50 event logger boundary", () => {
     const consoleSpy = vi
       .spyOn(console, "log")

@@ -68,8 +68,16 @@ const TAIL_ONLY_FADE_OUT_MS = 80;
 const TAIL_ONLY_MIN_RELEASE_MS = 700;
 const TAIL_ONLY_MIN_SAFE_BODY_RATIO = 0.8;
 const GROK_FIRST_V50_7_4_BACKEND = "grok-first-v50-7-4";
+const GROK_FIRST_V50_7_4_COMPATIBLE_BACKENDS = new Set([
+  "grok-first-v50-7-4",
+  "grok-first-v50-7-4-a",
+  "grok-first-v50-7-4-b",
+  "grok-first-v50-7-4-c",
+  "grok-first-v50-7-4-d",
+]);
 const CLEAN_TAIL_STREAMING_LATENCY_MODE = "clean_tail_streaming";
 const CLEAN_TAIL_HOLD_MS = 300;
+const TRANSCRIPT_ENCODING = "utf8-base64-v1";
 
 const RISKY_INPUT_PATTERNS: RegExp[] = [
   /^(はい|うん|そうですね|そうですか|なるほど|わかりました|分かりました|ありがとうございます|ありがとうございました|はいはい|え)[。！？!?]*$/u,
@@ -173,7 +181,9 @@ function isRiskyTailBufferTurn(input: {
 function isV5074CleanQualityBackend(
   session: GrokFirstV50Session | null | undefined
 ): boolean {
-  return String(session?.backend) === GROK_FIRST_V50_7_4_BACKEND;
+  return GROK_FIRST_V50_7_4_COMPATIBLE_BACKENDS.has(
+    String(session?.backend)
+  );
 }
 
 function isV5074CleanTailStreamingBackend(
@@ -212,6 +222,26 @@ function fadeOutPcmBase64(base64: string, fadeMs = TAIL_ONLY_FADE_OUT_MS): strin
     output += String.fromCharCode(bytes[index] ?? 0);
   }
   return btoa(output);
+}
+
+function toUtf8Base64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
+function sttTranscriptDetails(input: {
+  userText: string;
+  normalizedUserText: string;
+}) {
+  return {
+    transcriptEncoding: TRANSCRIPT_ENCODING,
+    userTextUtf8Base64: toUtf8Base64(input.userText),
+    normalizedUserTextUtf8Base64: toUtf8Base64(input.normalizedUserText),
+  };
 }
 
 function withTailFade(chunks: BufferedAudioChunk[]): BufferedAudioChunk[] {
@@ -811,6 +841,16 @@ export function useGrokFirstRoleplayConversation(
         actualAudibleAuditTranscript: undefined,
         rawTextBeforeGuard: input.rawTextBeforeGuard ?? accumulatedTextRef.current,
         finalTextAfterGuard: finalText,
+        transcriptEncoding: TRANSCRIPT_ENCODING,
+        currentUserTextUtf8Base64: toUtf8Base64(currentUserTextRef.current),
+        normalizedUserTextUtf8Base64: toUtf8Base64(normalizedUserTextRef.current),
+        rawAssistantTranscriptUtf8Base64: toUtf8Base64(accumulatedTextRef.current),
+        visibleAssistantTranscriptUtf8Base64: toUtf8Base64(visibleText),
+        audibleTranscriptUtf8Base64: toUtf8Base64(audibleText),
+        rawTextBeforeGuardUtf8Base64: toUtf8Base64(
+          input.rawTextBeforeGuard ?? accumulatedTextRef.current
+        ),
+        finalTextAfterGuardUtf8Base64: toUtf8Base64(finalText),
         generatedAudioBytes,
         heldAudioBytes:
           bufferedAudioObservedRef.current || input.fullTurnBuffered
@@ -1414,6 +1454,10 @@ export function useGrokFirstRoleplayConversation(
                 textLen: text.length,
                 sttTextPreview: text.slice(0, 200),
                 normalizedUserText: normalization.normalizedText,
+                ...sttTranscriptDetails({
+                  userText: text,
+                  normalizedUserText: normalization.normalizedText,
+                }),
                 normalizationApplied: normalization.normalizationApplied,
                 normalizationReasons: normalization.normalizationReasons,
                 guardAction: guard.action,
@@ -1443,6 +1487,10 @@ export function useGrokFirstRoleplayConversation(
                 textLen: text.length,
                 sttTextPreview: text.slice(0, 200),
                 normalizedUserText: normalization.normalizedText,
+                ...sttTranscriptDetails({
+                  userText: text,
+                  normalizedUserText: normalization.normalizedText,
+                }),
                 normalizationApplied: normalization.normalizationApplied,
                 normalizationReasons: normalization.normalizationReasons,
                 guardAction: normalRoute.action,
@@ -1510,6 +1558,10 @@ export function useGrokFirstRoleplayConversation(
                 textLen: text.length,
                 sttTextPreview: text.slice(0, 200),
                 normalizedUserText: normalization.normalizedText,
+                ...sttTranscriptDetails({
+                  userText: text,
+                  normalizedUserText: normalization.normalizedText,
+                }),
                 normalizationApplied: normalization.normalizationApplied,
                 normalizationReasons: normalization.normalizationReasons,
                 guardAction: "normal_realtime_rewrite",
@@ -1533,6 +1585,10 @@ export function useGrokFirstRoleplayConversation(
               textLen: text.length,
               sttTextPreview: text.slice(0, 200),
               normalizedUserText: normalization.normalizedText,
+              ...sttTranscriptDetails({
+                userText: text,
+                normalizedUserText: normalization.normalizedText,
+              }),
               normalizationApplied: normalization.normalizationApplied,
               normalizationReasons: normalization.normalizationReasons,
             },
