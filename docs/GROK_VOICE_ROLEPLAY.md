@@ -44,8 +44,9 @@ ElevenLabs と共有しているため、prompt 一貫性は維持される。
 - **Research v50.6 / v50 runtime with one-sentence guarded System Prompt**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-6
 - **Diagnostic v50.7.2 prompt-only / runtime guards off**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7-prompt-only
 - **v50.7.2 quality guard / prompt-only base with runtime guards on**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7-quality
+- **v50.7.4 clean quality / prompt-only natural base with minimal guard**: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7-4
 - **vFinal security foundation / invite-gated relay route**: https://roleplay.mendan.biz/demo/adecco-roleplay-vFinal
-- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1/v50.4/v50.5/v50.6/v50.7-prompt-only/v50.7-quality/vFinal: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1,50-4,50-5,50-6,50-7-prompt-only,50-7-quality,Final}`
+- Local A/B/C/D/E/F/G/H/R/S/T/U/v25/v50/v50.1/v50.4/v50.5/v50.6/v50.7-prompt-only/v50.7-quality/v50.7.4/vFinal: `http://localhost:3000/demo/adecco-roleplay-v{3,4,5,6,7,8,9,10,20,21,23,24,25,50,50-1,50-4,50-5,50-6,50-7-prompt-only,50-7-quality,50-7-4,Final}`
 
 ## v50 Grok-first negative guard runtime
 
@@ -190,6 +191,46 @@ safety label and exits non-zero; human testing requires
 the session payload or be run with a verified `--production-commit-sha`
 (`GROK_FIRST_V50_PRODUCTION_COMMIT_SHA` is the env equivalent); otherwise the
 focused runner reports `QUALITY_GUARD_BLOCKED`.
+
+For v50-7-4 clean-quality verification, `/demo/adecco-roleplay-v50-7-4` and
+`/api/grok-first-v50-7-4/*` are not a v50-7-quality modification. The route
+keeps `prompt-v50-7-2.ts` frozen and uses the v50.7.2 prompt-only natural base
+with `guardrailVersion=grok-first-v50.7.4-clean-quality-guard-2026-05-20`.
+Expected session fields are `demoSlug=adecco-roleplay-v50-7-4`,
+`backend=grok-first-v50-7-4`, `normalInputRouterEnabled=false`,
+`boundedRewriteEnabled=false`, `noiseIgnoredEnabled=false`,
+`latencyMode=clean_tail_streaming`, `streamAudioBeforeDone=true`,
+`turnDetection.create_response=false`, and
+`turnDetection.silence_duration_ms=350`.
+
+The v50-7-4 route must not introduce a short-ack route. In production smoke and
+clean-quality E2E, `fixed_short_ack_audio`, `fixed_safe_body_audio`, and
+normal-turn `tail_only_drop_fallback` are FAIL. The final labels are only
+`CLEAN_QUALITY_PASS`, `CLEAN_QUALITY_FAIL`, and `CLEAN_QUALITY_BLOCKED`;
+human testing is allowed only on `CLEAN_QUALITY_PASS`.
+
+Use the clean-quality stage ladder instead of the v50-7-quality focused runner:
+
+```bash
+corepack pnpm grok:first-v50-7-4:prod-smoke -- --mode session \
+  --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage0_session_smoke
+corepack pnpm grok:first-v50-7-4:prod-smoke -- --mode start \
+  --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage0_start_smoke
+corepack pnpm grok:first-v50-7-4:prod-smoke -- --mode voice-turn \
+  --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage0_voice_turn_smoke
+corepack pnpm grok:first-v50-7-4:sentinel-6 -- --runs 1 \
+  --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage2_sentinel_6
+corepack pnpm grok:first-v50-7-4:natural-smoke-30 -- --runs 1 \
+  --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage3_natural_smoke_30
+```
+
+Stage 0 failure is `CLEAN_QUALITY_BLOCKED` and stops E2E. Stage 1 reruns only
+failed case IDs. Stage 2 reports `CQ-SENT-01..CQ-SENT-06`; `CQ-SENT-04` is a
+deterministic safe-body plus `何かご質問ありますか。` tail fixture so tail guard
+and visible/audible consistency are not dependent on Grok output luck. Stage 3
+is the 30-case natural smoke, and Stage 4 is full/budgeted DoD. Deploy remains
+batch-last, and App Hosting deploy commands still run from
+`C:\dev\AI_RPG\_worktrees\deploy_clean` unless explicitly overridden.
 
 As of the 2026-05-17 in-place v50.7 speed hotfix, the customer-facing
 `/demo/adecco-roleplay-v50-7` route is temporarily optimized for manual speed

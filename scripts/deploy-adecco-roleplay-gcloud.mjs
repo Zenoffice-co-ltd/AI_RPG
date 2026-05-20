@@ -112,6 +112,26 @@ const VARIANT_SESSION_TARGETS = {
     expectedGuardedStreamingEnabled: true,
     expectedQualityMinimalGuardEnabled: true,
   },
+  "v50-7-4": {
+    route: "/demo/adecco-roleplay-v50-7-4",
+    apiPath: "/api/grok-first-v50-7-4/session",
+    expectedDemoSlug: "adecco-roleplay-v50-7-4",
+    expectedBackend: "grok-first-v50-7-4",
+    expectedPromptVersion: "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17",
+    expectedGuardrailVersion: "grok-first-v50.7.4-clean-quality-guard-2026-05-20",
+    expectedRuntimeGuardrailsEnabled: true,
+    expectedInputGuardEnabled: true,
+    expectedNormalInputRouterEnabled: false,
+    expectedBoundedRewriteEnabled: false,
+    expectedNegativeGuardEnabled: true,
+    expectedTailGuardEnabled: true,
+    expectedFixedGuardAudioEnabled: true,
+    expectedNoiseIgnoredEnabled: false,
+    expectedLatencyMode: "clean_tail_streaming",
+    expectedStreamAudioBeforeDone: true,
+    expectedTurnDetectionSilenceMs: 350,
+    expectedTurnDetectionCreateResponse: false,
+  },
   "v50-8": {
     route: "/demo/adecco-roleplay-v50-8",
     apiPath: "/api/grok-first-v50-8/session",
@@ -560,7 +580,12 @@ async function fetchProdSession(variant = VARIANT) {
     throw new Error(`prod ${target.apiPath} failed: ${response.status} ${text}`);
   }
   const payload = JSON.parse(text);
-  if (target.expectedBackend && payload.backend && payload.backend !== target.expectedBackend) {
+  if (target.expectedDemoSlug && payload.demoSlug !== target.expectedDemoSlug) {
+    throw new Error(
+      `prod ${target.apiPath} demoSlug mismatch: expected ${target.expectedDemoSlug}, got ${payload.demoSlug}`
+    );
+  }
+  if (target.expectedBackend && payload.backend !== target.expectedBackend) {
     throw new Error(
       `prod ${target.apiPath} backend mismatch: expected ${target.expectedBackend}, got ${payload.backend}`
     );
@@ -627,6 +652,14 @@ async function fetchProdSession(variant = VARIANT) {
   ) {
     throw new Error(
       `prod ${target.apiPath} turnDetection.silence_duration_ms mismatch: expected ${target.expectedTurnDetectionSilenceMs}, got ${payload.turnDetection?.silence_duration_ms}`
+    );
+  }
+  if (
+    typeof target.expectedTurnDetectionCreateResponse === "boolean" &&
+    payload.turnDetection?.create_response !== target.expectedTurnDetectionCreateResponse
+  ) {
+    throw new Error(
+      `prod ${target.apiPath} turnDetection.create_response mismatch: expected ${target.expectedTurnDetectionCreateResponse}, got ${payload.turnDetection?.create_response}`
     );
   }
   if (
