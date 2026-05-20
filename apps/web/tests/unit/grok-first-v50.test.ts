@@ -156,6 +156,23 @@ function validV507QualityRequest() {
   );
 }
 
+function validV5074Request() {
+  const headers = new Headers({
+    "content-type": "application/json",
+    origin: "http://127.0.0.1:3000",
+    referer: "http://127.0.0.1:3000/demo/adecco-roleplay-v50-7-4",
+    cookie: `roleplay_api_access=${signAccessToken("demo-secret")}`,
+  });
+  return new NextRequest(
+    "http://127.0.0.1:3000/api/grok-first-v50-7-4/session",
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({}),
+    }
+  );
+}
+
 function validV51Request() {
   const headers = new Headers({
     "content-type": "application/json",
@@ -649,6 +666,94 @@ describe("grok-first v50 runtime", () => {
       payload: {
         demoSlug: "adecco-roleplay-v50-7-quality",
         backend: "grok-first-v50-7-quality",
+        transport: "mendan_cloud_run_relay_wss",
+      },
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("serves v50.7.4 clean quality route with v50.7.2 prompt and minimal runtime guards", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const promptOnlyRoute = await import(
+      "../../app/api/grok-first-v50-7-prompt-only/session/route"
+    );
+    const cleanQualityRoute = await import(
+      "../../app/api/grok-first-v50-7-4/session/route"
+    );
+    const promptOnlyResponse = await promptOnlyRoute.POST(
+      validV507PromptOnlyRequest()
+    );
+    const cleanQualityResponse = await cleanQualityRoute.POST(
+      validV5074Request()
+    );
+    expect(cleanQualityResponse.status).toBe(200);
+    const promptOnlyBody =
+      (await promptOnlyResponse.json()) as Record<string, unknown>;
+    const body = (await cleanQualityResponse.json()) as Record<string, unknown>;
+
+    expect(body["demoSlug"]).toBe("adecco-roleplay-v50-7-4");
+    expect(body["backend"]).toBe("grok-first-v50-7-4");
+    expect(body["promptVariant"]).toBe("v50.7.2");
+    expect(body["runtimeVariant"]).toBe("v50.7.4");
+    expect(body["promptVersion"]).toBe(
+      "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17"
+    );
+    expect(body["promptHash"]).toBe(promptOnlyBody["promptHash"]);
+    expect(body["guardrailVersion"]).toBe(
+      "grok-first-v50.7.4-clean-quality-guard-2026-05-20"
+    );
+    expect(body["runtimeGuardrailsEnabled"]).toBe(true);
+    expect(body["inputGuardEnabled"]).toBe(true);
+    expect(body["normalInputRouterEnabled"]).toBe(false);
+    expect(body["negativeGuardEnabled"]).toBe(true);
+    expect(body["tailGuardEnabled"]).toBe(true);
+    expect(body["fixedGuardAudioEnabled"]).toBe(true);
+    expect(body["boundedRewriteEnabled"]).toBe(false);
+    expect(body["noiseIgnoredEnabled"]).toBe(false);
+    expect(body["runtimeTtsEnabled"]).toBe(false);
+    expect(body["replacementTtsEnabled"]).toBe(false);
+    expect(body["fullTurnBufferEnabled"]).toBe(false);
+    expect(body["browserEvaluationEnabled"]).toBe(false);
+    expect(body["browserEvaluation"]).toBeUndefined();
+    expect(body["latencyMode"]).toBe("clean_tail_streaming");
+    expect(body["streamAudioBeforeDone"]).toBe(true);
+    expect(body["audioHoldMs"]).toBeUndefined();
+    expect(body["guardedStreamingEnabled"]).toBeUndefined();
+    expect(body["qualityMinimalGuardEnabled"]).toBeUndefined();
+    expect(body["tailGuardNormalHoldMs"]).toBe(300);
+    expect(body["tailGuardRiskHoldMs"]).toBe(300);
+    expect(body["tailGuardMaxHoldMs"]).toBe(1000);
+    expect(body["turnDetection"]).toEqual({
+      type: "server_vad",
+      threshold: 0.65,
+      silence_duration_ms: 350,
+      prefix_padding_ms: 333,
+      create_response: false,
+    });
+    expect(body["runtimeControl"]).toMatchObject({
+      mode: "default",
+      runtimeGuardrailsEnabled: true,
+      inputGuardEnabled: true,
+      normalInputRouterEnabled: false,
+      negativeGuardEnabled: true,
+      tailGuardEnabled: true,
+      fixedGuardAudioEnabled: true,
+      boundedRewriteEnabled: false,
+      noiseIgnoredEnabled: false,
+    });
+
+    const auth = body["realtimeAuth"] as Record<string, unknown>;
+    const verification = verifyRelayTicket({
+      ticket: String(auth["ticket"]),
+      secret: "0123456789abcdef0123456789abcdef",
+      expectedAud: "voice.mendan.biz",
+      expectedPath: DEFAULT_RELAY_TICKET_PATH,
+    });
+    expect(verification).toMatchObject({
+      ok: true,
+      payload: {
+        demoSlug: "adecco-roleplay-v50-7-4",
+        backend: "grok-first-v50-7-4",
         transport: "mendan_cloud_run_relay_wss",
       },
     });

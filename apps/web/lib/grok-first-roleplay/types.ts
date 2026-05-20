@@ -14,6 +14,8 @@ export const GROK_FIRST_V50_7_PROMPT_ONLY_DEMO_SLUG =
   "adecco-roleplay-v50-7-prompt-only" as const;
 export const GROK_FIRST_V50_7_QUALITY_DEMO_SLUG =
   "adecco-roleplay-v50-7-quality" as const;
+export const GROK_FIRST_V50_7_4_DEMO_SLUG =
+  "adecco-roleplay-v50-7-4" as const;
 export const GROK_FIRST_V50_8_DEMO_SLUG = "adecco-roleplay-v50-8" as const;
 export const GROK_FIRST_V51_DEMO_SLUG = "adecco-roleplay-v51" as const;
 export const GROK_FIRST_VFINAL_DEMO_SLUG = "adecco-roleplay-vFinal" as const;
@@ -27,6 +29,8 @@ export const GROK_FIRST_V50_7_PROMPT_ONLY_BACKEND =
   "grok-first-v50-7-prompt-only" as const;
 export const GROK_FIRST_V50_7_QUALITY_BACKEND =
   "grok-first-v50-7-quality" as const;
+export const GROK_FIRST_V50_7_4_BACKEND =
+  "grok-first-v50-7-4" as const;
 export const GROK_FIRST_V50_8_BACKEND = "grok-first-v50-8" as const;
 export const GROK_FIRST_V51_BACKEND = "grok-first-v51" as const;
 export const GROK_FIRST_VFINAL_BACKEND = "grok-first-vFinal" as const;
@@ -43,6 +47,7 @@ export type GrokFirstDemoSlug =
   | typeof GROK_FIRST_V50_7_DEMO_SLUG
   | typeof GROK_FIRST_V50_7_PROMPT_ONLY_DEMO_SLUG
   | typeof GROK_FIRST_V50_7_QUALITY_DEMO_SLUG
+  | typeof GROK_FIRST_V50_7_4_DEMO_SLUG
   | typeof GROK_FIRST_V50_8_DEMO_SLUG
   | typeof GROK_FIRST_V51_DEMO_SLUG
   | typeof GROK_FIRST_VFINAL_DEMO_SLUG;
@@ -55,6 +60,7 @@ export type GrokFirstBackend =
   | typeof GROK_FIRST_V50_7_BACKEND
   | typeof GROK_FIRST_V50_7_PROMPT_ONLY_BACKEND
   | typeof GROK_FIRST_V50_7_QUALITY_BACKEND
+  | typeof GROK_FIRST_V50_7_4_BACKEND
   | typeof GROK_FIRST_V50_8_BACKEND
   | typeof GROK_FIRST_V51_BACKEND
   | typeof GROK_FIRST_VFINAL_BACKEND;
@@ -104,6 +110,8 @@ export type GrokFirstV50Session = {
   sessionId: string;
   demoSlug: GrokFirstDemoSlug;
   backend: GrokFirstBackend;
+  promptVariant?: string | undefined;
+  runtimeVariant?: string | undefined;
   scenarioId: string;
   promptVersion: string;
   promptHash: string;
@@ -137,6 +145,7 @@ export type GrokFirstV50Session = {
     | "fastest_streaming"
     | "default"
     | "guarded_tail_streaming"
+    | "clean_tail_streaming"
     | undefined;
   streamAudioBeforeDone?: boolean | undefined;
   audioHoldMs?: number | undefined;
@@ -230,6 +239,7 @@ export type GrokFirstV50Metric = {
     | "fastest_streaming"
     | "default"
     | "guarded_tail_streaming"
+    | "clean_tail_streaming"
     | undefined;
   streamAudioBeforeDone?: boolean | undefined;
   audioHoldMs?: number | undefined;
