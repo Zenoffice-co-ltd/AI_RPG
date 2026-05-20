@@ -129,7 +129,7 @@ const VARIANT_SESSION_TARGETS = {
     expectedNoiseIgnoredEnabled: false,
     expectedLatencyMode: "clean_tail_streaming",
     expectedStreamAudioBeforeDone: true,
-    expectedTurnDetectionSilenceMs: 350,
+    expectedTurnDetectionSilenceMs: 650,
     expectedTurnDetectionCreateResponse: false,
   },
   "v50-8": {

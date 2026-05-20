@@ -205,7 +205,7 @@ export async function createGrokFirstV50Session(input?: {
       type: "server_vad",
       threshold: 0.65,
       silence_duration_ms:
-        isLatencySpeedHotfix || isV5074CleanQuality ? 350 : 650,
+        isLatencySpeedHotfix ? 350 : 650,
       prefix_padding_ms: 333,
       ...(runtimeVariant === "v50.7" ||
       isV5074CleanQuality ||

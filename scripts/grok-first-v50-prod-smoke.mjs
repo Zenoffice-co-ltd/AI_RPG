@@ -566,7 +566,7 @@ function isSessionContractOk(payload, status = evidence.sessionResponse?.status)
         payload?.noiseIgnoredEnabled === false &&
         payload?.latencyMode === "clean_tail_streaming" &&
         payload?.streamAudioBeforeDone === true &&
-        payload?.turnDetectionSilenceMs === 350 &&
+        payload?.turnDetectionSilenceMs === 650 &&
         payload?.turnDetectionCreateResponse === false)) &&
     payload?.wsUrl === "wss://voice.mendan.biz/api/v3/realtime-relay" &&
     payload?.authMode === "mendan_relay_subprotocol" &&

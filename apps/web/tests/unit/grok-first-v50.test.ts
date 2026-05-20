@@ -726,7 +726,7 @@ describe("grok-first v50 runtime", () => {
     expect(body["turnDetection"]).toEqual({
       type: "server_vad",
       threshold: 0.65,
-      silence_duration_ms: 350,
+      silence_duration_ms: 650,
       prefix_padding_ms: 333,
       create_response: false,
     });
