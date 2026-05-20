@@ -1,0 +1,192 @@
+{
+  "id": "tr_49aeb44681a9",
+  "sourceFile": "C:\\AI_RPG\\data\\transcripts\\adecco-top-performer-seed.json#1",
+  "family": "staffing_order_hearing",
+  "performanceTier": "top",
+  "language": "ja",
+  "metadata": {},
+  "turns": [
+    {
+      "turnId": "t_001",
+      "speaker": "sales",
+      "text": "本日はありがとうございます。短時間でズレなく要件整理したいので、最初に募集の背景を教えてください。",
+      "timestampSec": 0
+    },
+    {
+      "turnId": "t_002",
+      "speaker": "client",
+      "text": "急な退職が2件出て、既存のコールセンター運営が不安定になっています。",
+      "timestampSec": 6
+    },
+    {
+      "turnId": "t_003",
+      "speaker": "sales",
+      "text": "欠員補充に近いのですね。今回必要な人数は何名でしょうか。",
+      "timestampSec": 14
+    },
+    {
+      "turnId": "t_004",
+      "speaker": "client",
+      "text": "まず2名です。繁忙が続けばさらに1名追加したいです。",
+      "timestampSec": 21
+    },
+    {
+      "turnId": "t_005",
+      "speaker": "sales",
+      "text": "いつからの就業開始が理想ですか。あわせて、充足期限を過ぎるとどんな影響が出るかも伺いたいです。",
+      "timestampSec": 31
+    },
+    {
+      "turnId": "t_006",
+      "speaker": "client",
+      "text": "理想は再来週月曜です。遅れるとSVが受電に戻るので、教育計画が崩れます。",
+      "timestampSec": 40
+    },
+    {
+      "turnId": "t_007",
+      "speaker": "sales",
+      "text": "かなり緊急ですね。必須スキルは何でしょうか。業界経験まで必須か、接客経験でも代替可能かを見極めたいです。",
+      "timestampSec": 51
+    },
+    {
+      "turnId": "t_008",
+      "speaker": "client",
+      "text": "必須は電話応対経験とPC入力の速さです。通販業界経験は歓迎ですが必須ではありません。",
+      "timestampSec": 61
+    },
+    {
+      "turnId": "t_009",
+      "speaker": "sales",
+      "text": "避けたい条件も確認させてください。たとえばクレーム一次対応やシフト面で難しい条件はありますか。",
+      "timestampSec": 72
+    },
+    {
+      "turnId": "t_010",
+      "speaker": "client",
+      "text": "クレームの一次受けに抵抗がある方、土日どちらも出られない方は難しいです。",
+      "timestampSec": 82
+    },
+    {
+      "turnId": "t_011",
+      "speaker": "sales",
+      "text": "就業条件は時給帯、勤務地、雇用期間の見込みをどう置いていますか。",
+      "timestampSec": 92
+    },
+    {
+      "turnId": "t_012",
+      "speaker": "client",
+      "text": "勤務地は新宿、時給は1700円目安、まず3か月更新です。",
+      "timestampSec": 101
+    },
+    {
+      "turnId": "t_013",
+      "speaker": "sales",
+      "text": "シフトはどの時間帯がコアですか。早番遅番の比率もあると候補選定しやすいです。",
+      "timestampSec": 112
+    },
+    {
+      "turnId": "t_014",
+      "speaker": "client",
+      "text": "9時から18時が中心で、週2回ほど11時から20時の遅番があります。",
+      "timestampSec": 121
+    },
+    {
+      "turnId": "t_015",
+      "speaker": "sales",
+      "text": "入社後は何日ほど研修を見込まれていますか。独り立ちの基準も知っておきたいです。",
+      "timestampSec": 131
+    },
+    {
+      "turnId": "t_016",
+      "speaker": "client",
+      "text": "座学2日、OJT3日です。1週間でひと通りの受電を任せたいです。",
+      "timestampSec": 140
+    },
+    {
+      "turnId": "t_017",
+      "speaker": "sales",
+      "text": "チーム構成として、日々のフォロー役はSVの方ですか。派遣比率も教えてください。",
+      "timestampSec": 151
+    },
+    {
+      "turnId": "t_018",
+      "speaker": "client",
+      "text": "SV2名、社員4名、派遣8名です。初期フォローはSVが持ちます。",
+      "timestampSec": 160
+    },
+    {
+      "turnId": "t_019",
+      "speaker": "sales",
+      "text": "選考フローは書類と面談1回で進みますか。それともテストや顔合わせが追加されますか。",
+      "timestampSec": 169
+    },
+    {
+      "turnId": "t_020",
+      "speaker": "client",
+      "text": "書類確認後にオンライン面談1回です。タイピングテストだけ事前に見ます。",
+      "timestampSec": 179
+    },
+    {
+      "turnId": "t_021",
+      "speaker": "sales",
+      "text": "採用判断の決裁はSVで完結しますか。それともセンター長承認まで必要でしょうか。",
+      "timestampSec": 189
+    },
+    {
+      "turnId": "t_022",
+      "speaker": "client",
+      "text": "現場判断はSVですが、最終的にはセンター長承認です。",
+      "timestampSec": 198
+    },
+    {
+      "turnId": "t_023",
+      "speaker": "sales",
+      "text": "競合状況も確認させてください。他社派遣会社さんからは何名くらい提案予定でしょうか。",
+      "timestampSec": 208
+    },
+    {
+      "turnId": "t_024",
+      "speaker": "client",
+      "text": "3社に声をかけていて、うち1社は即日で1名出すと言っています。",
+      "timestampSec": 217
+    },
+    {
+      "turnId": "t_025",
+      "speaker": "sales",
+      "text": "時給は1700円目安とのことですが、土日両方対応できる方や即日面談できる方なら相談余地はありますか。",
+      "timestampSec": 227
+    },
+    {
+      "turnId": "t_026",
+      "speaker": "client",
+      "text": "上限は1720円くらいまでなら検討可能です。スピード優先なら前向きです。",
+      "timestampSec": 236
+    },
+    {
+      "turnId": "t_027",
+      "speaker": "sales",
+      "text": "整理します。欠員補充でまず2名、再来週月曜開始が理想、遅れるとSVが現場に戻るため教育計画に影響。必須は電話応対経験と入力速度、土日どちらも対応できること、決裁はSV判断後にセンター長承認、競合は3社という理解です。認識違いはありますか。",
+      "timestampSec": 247
+    },
+    {
+      "turnId": "t_028",
+      "speaker": "client",
+      "text": "問題ありません。タイピングテストがある点だけ候補者へ早めに伝えてほしいです。",
+      "timestampSec": 264
+    },
+    {
+      "turnId": "t_029",
+      "speaker": "sales",
+      "text": "承知しました。本日19時までに候補条件を再確認したうえで、明日正午までに2名、面談可能日とセットでご提案します。ご確認後、同日夕方に面談枠調整で進めます。",
+      "timestampSec": 273
+    },
+    {
+      "turnId": "t_030",
+      "speaker": "client",
+      "text": "その段取りでお願いします。かなり助かります。",
+      "timestampSec": 284
+    }
+  ],
+  "importedAt": "2026-04-03T02:29:39.990Z",
+  "redactionStatus": "redacted"
+}
