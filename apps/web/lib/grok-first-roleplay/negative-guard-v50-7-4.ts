@@ -155,9 +155,6 @@ export function applyNegativeGuardV5074DeletionOnly(
     sentences.pop();
     removed += 1;
   }
-  if (removed === 0 && decision.stripTail) {
-    sentences.pop();
-  }
   return sentences.join("").trim();
 }
 
