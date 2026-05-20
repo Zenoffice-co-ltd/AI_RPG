@@ -304,6 +304,56 @@ where a safe body exists, safe-body all-drop `0`, normal-sales
 chat-visible/audible mismatch `0`, `turn.completed` `100%`, and production
 `firstAudibleAudioMs` p50 `<3000ms` / p95 `<7000ms`.
 
+### v50-7-4 Clean Quality Gate
+
+Use this gate for `/demo/adecco-roleplay-v50-7-4` and
+`/api/grok-first-v50-7-4/*`. This route is not a v50-7-quality modification.
+It keeps `prompt-v50-7-2.ts` frozen and adds the v50.7.4 minimal
+clean-quality guard to the prompt-only natural route.
+
+Expected session identity:
+
+- `demoSlug=adecco-roleplay-v50-7-4`
+- `backend=grok-first-v50-7-4`
+- `promptVersion=grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17`
+- `guardrailVersion=grok-first-v50.7.4-clean-quality-guard-2026-05-20`
+- `normalInputRouterEnabled=false`
+- `boundedRewriteEnabled=false`
+- `noiseIgnoredEnabled=false`
+- `latencyMode=clean_tail_streaming`
+- `streamAudioBeforeDone=true`
+- `turnDetection.create_response=false`
+- `turnDetection.silence_duration_ms=350`
+
+Do not create a short-ack route for v50-7-4. `fixed_short_ack_audio`,
+`fixed_safe_body_audio`, and normal-turn `tail_only_drop_fallback` are FAIL.
+Human testing is allowed only when the runner final label is
+`CLEAN_QUALITY_PASS`; `CLEAN_QUALITY_FAIL` and `CLEAN_QUALITY_BLOCKED` both mean
+`human test allowed = no`.
+
+Use this stage ladder:
+
+```bash
+corepack pnpm grok:first-v50-7-4:prod-smoke -- --mode session \
+  --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage0_session_smoke
+corepack pnpm grok:first-v50-7-4:prod-smoke -- --mode start \
+  --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage0_start_smoke
+corepack pnpm grok:first-v50-7-4:prod-smoke -- --mode voice-turn \
+  --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage0_voice_turn_smoke
+corepack pnpm grok:first-v50-7-4:sentinel-6 -- --runs 1 \
+  --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage2_sentinel_6
+corepack pnpm grok:first-v50-7-4:natural-smoke-30 -- --runs 1 \
+  --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage3_natural_smoke_30
+```
+
+Stage 0 failure is `CLEAN_QUALITY_BLOCKED`; do not continue to voice E2E. Stage
+1 reruns only failed case IDs. Stage 2 uses `CQ-SENT-01..CQ-SENT-06`, where
+`CQ-SENT-04` is the deterministic safe-body plus customer-led-tail fixture.
+Stage 3 is the 30-case natural smoke. Stage 4 full/budgeted DoD failure keeps
+human testing blocked. Deploy remains batch-last; production deploy commands
+must run from `C:\dev\AI_RPG\_worktrees\deploy_clean` unless the operator
+explicitly overrides that invariant.
+
 ### Deploy Productivity
 
 App Hosting rollout time is minutes, so optimize for fewer deploys:

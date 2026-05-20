@@ -24,7 +24,9 @@ const apiBase = `/api/grok-first-${variant}`;
 const url = `${origin}/demo/${demoSlug}?debugMetrics=1`;
 const expectedPromptVersion = stringArg(
   args["expected-prompt-version"],
-  variant === "v50-7-prompt-only" || variant === "v50-7-quality"
+  variant === "v50-7-prompt-only" ||
+    variant === "v50-7-quality" ||
+    variant === "v50-7-4"
     ? "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17"
     : "grok-first-v50.6-2026-05-15"
 );
@@ -36,6 +38,8 @@ const expectedGuardrailVersion = stringArg(
     ? "prompt-only-no-runtime-guard-2026-05-17"
     : variant === "v50-7-quality"
     ? "grok-first-v50.7-quality-guard-2026-05-17"
+    : variant === "v50-7-4"
+    ? "grok-first-v50.7.4-clean-quality-guard-2026-05-20"
     : "grok-first-v50.7-speed-hotfix-2026-05-17"
 );
 const expectedRuntimeGuardrailsEnabled = booleanArg(
@@ -134,6 +138,14 @@ async function runSpeedSmoke() {
   evidence.completedAt = new Date().toISOString();
   evidence.results = summarizeSpeedSmoke(evidence.attempts);
   evidence.pass = evidence.results.finalConclusion === "SPEED_PASS";
+  const sessionPayload =
+    evidence.attempts.find((attempt) => attempt.sessionPayload)?.sessionPayload ?? null;
+  if (sessionPayload) {
+    writeFileSync(
+      path.join(outDir, "session_payload.json"),
+      JSON.stringify(sessionPayload, null, 2)
+    );
+  }
   writeFileSync(path.join(outDir, "results.json"), JSON.stringify(evidence, null, 2));
   writeFileSync(path.join(outDir, "evidence.json"), JSON.stringify(evidence, null, 2));
   writeFileSync(
@@ -408,7 +420,9 @@ async function runBrowserSmoke() {
       evidence.eventKinds.includes("session.ready") &&
       evidence.texts.some((text) =>
         text.includes(
-          variant === "v50-7-prompt-only" || variant === "v50-7-quality"
+          variant === "v50-7-prompt-only" ||
+            variant === "v50-7-quality" ||
+            variant === "v50-7-4"
             ? "本日はお時間頂きありがとうございます。営業事務の件で、一名派遣の方を検討しています。"
             : "お電話ありがとうございます。"
         )
@@ -419,6 +433,12 @@ async function runBrowserSmoke() {
         evidence.eventKinds.includes("turn.completed") &&
         evidence.metrics.some((metric) => isVoiceTurnMetricOk(metric)));
     evidence.pass = sessionOk && startOk && voiceOk && evidence.errorTextVisible === false;
+    if (evidence.sessionPayload) {
+      writeFileSync(
+        path.join(outDir, "session_payload.json"),
+        JSON.stringify(evidence.sessionPayload, null, 2)
+      );
+    }
     writeFileSync(path.join(outDir, "evidence.json"), JSON.stringify(evidence, null, 2));
     await browser.close();
   }
@@ -438,6 +458,12 @@ async function runSessionContractSmoke() {
       error: error instanceof Error ? error.message : String(error),
     };
     evidence.pass = false;
+  }
+  if (evidence.sessionPayload && !evidence.sessionPayload.error) {
+    writeFileSync(
+      path.join(outDir, "session_payload.json"),
+      JSON.stringify(evidence.sessionPayload, null, 2)
+    );
   }
   writeFileSync(path.join(outDir, "evidence.json"), JSON.stringify(evidence, null, 2));
 }
@@ -529,6 +555,19 @@ function isSessionContractOk(payload, status = evidence.sessionResponse?.status)
         payload?.boundedRewriteEnabled === false &&
         payload?.turnDetectionSilenceMs === 650 &&
         payload?.turnDetectionCreateResponse === false)) &&
+    (variant !== "v50-7-4" ||
+      (payload?.runtimeGuardrailsEnabled === true &&
+        payload?.inputGuardEnabled === true &&
+        payload?.normalInputRouterEnabled === false &&
+        payload?.boundedRewriteEnabled === false &&
+        payload?.negativeGuardEnabled === true &&
+        payload?.tailGuardEnabled === true &&
+        payload?.fixedGuardAudioEnabled === true &&
+        payload?.noiseIgnoredEnabled === false &&
+        payload?.latencyMode === "clean_tail_streaming" &&
+        payload?.streamAudioBeforeDone === true &&
+        payload?.turnDetectionSilenceMs === 350 &&
+        payload?.turnDetectionCreateResponse === false)) &&
     payload?.wsUrl === "wss://voice.mendan.biz/api/v3/realtime-relay" &&
     payload?.authMode === "mendan_relay_subprotocol" &&
     payload?.registeredSpeechPayloadIncluded === false &&
@@ -539,6 +578,7 @@ function isSessionContractOk(payload, status = evidence.sessionResponse?.status)
 
 function isVoiceTurnMetricOk(metric) {
   if (!metric || metric.audioBytes <= 0 || metric.error !== null) return false;
+  if (variant === "v50-7-4") return isCleanQualityVoiceTurnMetricOk(metric);
   if (variant !== "v50-7") return true;
   return (
     metric.routePath === "grok_first_realtime" &&
@@ -548,6 +588,33 @@ function isVoiceTurnMetricOk(metric) {
     metric.fullTurnBufferCount === 0 &&
     metric.tailGuardHoldMs === 0 &&
     metric.tailAudioDroppedBytes === 0
+  );
+}
+
+function isCleanQualityVoiceTurnMetricOk(metric) {
+  const guardActionOk = ["pass", "metric", "strip_tail"].includes(metric.guardAction);
+  const releaseModeOk = ["pass_stream_release", "guarded_tail_stream_release"].includes(
+    metric.audioReleaseMode
+  );
+  return (
+    Number(metric.audioBytes ?? 0) > 0 &&
+    Number(metric.releasedAudioBytes ?? 0) > 0 &&
+    String(metric.audibleTranscript ?? "").trim().length > 0 &&
+    metric.error === null &&
+    metric.routePath === "grok_first_realtime" &&
+    guardActionOk &&
+    releaseModeOk &&
+    metric.audioReleaseMode !== "tail_only_drop_fallback" &&
+    metric.audioReleaseMode !== "fixed_short_ack_audio" &&
+    metric.audioReleaseMode !== "fixed_safe_body_audio" &&
+    metric.routePath !== "noise_ignored" &&
+    metric.routePath !== "normal_realtime_rewrite" &&
+    Number(metric.firstDeltaToFirstAudibleMs ?? Infinity) <= 1000 &&
+    metric.responseDoneBeforeFirstAudible === false &&
+    !(
+      String(metric.visibleAssistantTranscript ?? "").trim().length > 0 &&
+      String(metric.audibleTranscript ?? "").trim().length === 0
+    )
   );
 }
 
