@@ -185,6 +185,16 @@ export async function createGrokFirstV50Session(input?: {
                             demoSlug: GROK_FIRST_V50_DEMO_SLUG,
                             backend: GROK_FIRST_V50_BACKEND,
                           };
+  const relayIdentity =
+    runtimeVariant === "v50.7.4-a" ||
+    runtimeVariant === "v50.7.4-b" ||
+    runtimeVariant === "v50.7.4-c" ||
+    runtimeVariant === "v50.7.4-d"
+      ? {
+          demoSlug: GROK_FIRST_V50_7_4_DEMO_SLUG,
+          backend: GROK_FIRST_V50_7_4_BACKEND,
+        }
+      : identity;
   const ticket = createRelayTicket({
     secret: env.XAI_RELAY_TICKET_SECRET,
     ttlSeconds: 60,
@@ -192,8 +202,8 @@ export async function createGrokFirstV50Session(input?: {
       aud: env.GROK_VOICE_RELAY_EXPECTED_AUD,
       path: DEFAULT_RELAY_TICKET_PATH,
       transport: "mendan_cloud_run_relay_wss",
-      demoSlug: identity.demoSlug,
-      backend: identity.backend,
+      demoSlug: relayIdentity.demoSlug,
+      backend: relayIdentity.backend,
       sessionId,
     },
   });
