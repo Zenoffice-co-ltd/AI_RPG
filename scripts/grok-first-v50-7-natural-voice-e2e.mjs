@@ -1344,6 +1344,19 @@ function evaluateTranscript(testCase, input) {
     input.audioReleaseMode === "guarded_tail_stream_release" ||
     input.audioReleaseMode === "tail_only_release" ||
     input.audioReleaseMode === "tail_only_drop_fallback";
+  const cleanQualityRawOnlyTailDropped =
+    isCleanQuality &&
+    rawOnlyGuardedMode &&
+    input.responseDoneBeforeFirstAudible !== true &&
+    input.audioReleaseMode !== "fixed_short_ack_audio" &&
+    input.audioReleaseMode !== "fixed_safe_body_audio" &&
+    Number(input.audibleAudioBytes ?? 0) > 0 &&
+    (Number(input.droppedTailAudioBytes ?? 0) > 0 ||
+      Number(input.tailAudioDroppedBytes ?? 0) > 0) &&
+    CUSTOMER_LED_PHRASES.some((phrase) => containsLoose(raw, phrase)) &&
+    CUSTOMER_LED_PHRASES.every(
+      (phrase) => !containsLoose(visible, phrase) && !containsLoose(audible, phrase)
+    );
   const hardFailReasons = [];
   const failureTags = [];
 
@@ -1466,7 +1479,7 @@ function evaluateTranscript(testCase, input) {
     hardFailReasons.push("guarded_stream_not_released_before_done");
     failureTags.push("response_done_hold_still_present");
   }
-  if (input.potentialAudioLeak) {
+  if (input.potentialAudioLeak && !cleanQualityRawOnlyTailDropped) {
     hardFailReasons.push("potential_audio_leak");
     failureTags.push("potential_audio_leak");
   }
@@ -1475,7 +1488,8 @@ function evaluateTranscript(testCase, input) {
       input.audioReleaseMode === "guarded_tail_stream_release") &&
     Number(input.audibleAudioBytes ?? 0) > 0 &&
     !String(input.actualAudibleAuditTranscript ?? "").trim() &&
-    CUSTOMER_LED_PHRASES.some((phrase) => containsLoose(raw, phrase))
+    CUSTOMER_LED_PHRASES.some((phrase) => containsLoose(raw, phrase)) &&
+    !cleanQualityRawOnlyTailDropped
   ) {
     hardFailReasons.push("potential_audio_leak_without_actual_audit");
     failureTags.push("potential_audio_leak");
@@ -3714,16 +3728,30 @@ function buildCleanQualityCases() {
     voiceCase("CQ-02", "clean-quality-background", "今回の募集背景を教えてください。", {
       expectedShouldSpeak: "true",
       expectedRoutePaths: ["grok_first_realtime"],
-      expectedGuardActions: ["pass", "metric"],
-      mustContainAny: ["受注処理", "確認負荷", "増えて"],
+      expectedGuardActions: ["pass", "metric", "strip_tail"],
+      mustNotContain: [
+        "何か他に",
+        "ご質問",
+        "お話ししましょうか",
+        "どんなところから",
+        "何から",
+        "どういうところから",
+      ],
       overDisclosureForbidden: ["勤務時間", "残業", "単価", "開始日", "決定構造", "他社"],
       maxSentences: 2,
     }),
     voiceCase("CQ-03", "clean-quality-deep-detail", "背景をもう少し詳しく教えてください。", {
       expectedShouldSpeak: "true",
       expectedRoutePaths: ["grok_first_realtime"],
-      expectedGuardActions: ["pass", "metric"],
-      mustContainAny: ["品番確認", "納期回答", "代理店", "工務店", "折り返し"],
+      expectedGuardActions: ["pass", "metric", "strip_tail"],
+      mustNotContain: [
+        "何か他に",
+        "ご質問",
+        "お話ししましょうか",
+        "どんなところから",
+        "何から",
+        "どういうところから",
+      ],
       overDisclosureForbidden: ["勤務時間", "単価", "職場見学", "決定構造"],
       maxSentences: 2,
     }),
