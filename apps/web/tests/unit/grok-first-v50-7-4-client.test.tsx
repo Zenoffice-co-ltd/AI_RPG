@@ -267,18 +267,25 @@ describe("grok-first v50.7.4 minimal negative guard", () => {
   });
 
   it("strips the observed customer-led courtesy tail", () => {
-    const raw =
-      "はい、よろしくお願いします。何かお聞きになりたいところからどうぞ。";
-    const decision = evaluateNegativeGuardV5074({ text: raw, phase: "final" });
+    for (const [raw, expected] of [
+      [
+        "はい、よろしくお願いします。何かお聞きになりたいところからどうぞ。",
+        "はい、よろしくお願いします。",
+      ],
+      [
+        "そうですね、よろしくお願いします。こちらの状況をお伝えしましょうか。",
+        "そうですね、よろしくお願いします。",
+      ],
+    ] as const) {
+      const decision = evaluateNegativeGuardV5074({ text: raw, phase: "final" });
 
-    expect(decision).toMatchObject({
-      action: "strip_tail",
-      reasons: ["customer_led_sales_flow"],
-      hardStop: false,
-    });
-    expect(applyNegativeGuardV5074DeletionOnly(raw, decision)).toBe(
-      "はい、よろしくお願いします。"
-    );
+      expect(decision).toMatchObject({
+        action: "strip_tail",
+        reasons: ["customer_led_sales_flow"],
+        hardStop: false,
+      });
+      expect(applyNegativeGuardV5074DeletionOnly(raw, decision)).toBe(expected);
+    }
   });
 
   it("hard blocks prompt and meta leaks", () => {
