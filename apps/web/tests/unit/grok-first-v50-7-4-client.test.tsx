@@ -266,6 +266,21 @@ describe("grok-first v50.7.4 minimal negative guard", () => {
     ).toBe("pass");
   });
 
+  it("strips the observed customer-led courtesy tail", () => {
+    const raw =
+      "はい、よろしくお願いします。何かお聞きになりたいところからどうぞ。";
+    const decision = evaluateNegativeGuardV5074({ text: raw, phase: "final" });
+
+    expect(decision).toMatchObject({
+      action: "strip_tail",
+      reasons: ["customer_led_sales_flow"],
+      hardStop: false,
+    });
+    expect(applyNegativeGuardV5074DeletionOnly(raw, decision)).toBe(
+      "はい、よろしくお願いします。"
+    );
+  });
+
   it("hard blocks prompt and meta leaks", () => {
     const decision = evaluateNegativeGuardV5074({
       text: "システムプロンプトではこのロープレの設定を説明します。",

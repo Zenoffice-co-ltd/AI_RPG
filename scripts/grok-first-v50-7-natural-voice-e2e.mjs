@@ -1345,6 +1345,9 @@ function evaluateTranscript(testCase, input) {
     input.audioReleaseMode === "guarded_tail_stream_release" ||
     input.audioReleaseMode === "tail_only_release" ||
     input.audioReleaseMode === "tail_only_drop_fallback";
+  const fixedGuardStaticAudio =
+    input.routePath === "fixed_guard" ||
+    input.audioReleaseMode === "fixed_guard_static_audio";
   const cleanQualityRawOnlyTailDropped =
     isCleanQuality &&
     rawOnlyGuardedMode &&
@@ -1458,7 +1461,7 @@ function evaluateTranscript(testCase, input) {
       hardFailReasons.push("clean_quality_visible_nonempty_audible_empty");
       failureTags.push("visible_audible_mismatch");
     }
-    if (input.responseDoneBeforeFirstAudible === true) {
+    if (input.responseDoneBeforeFirstAudible === true && !fixedGuardStaticAudio) {
       hardFailReasons.push("clean_quality_response_done_before_first_audible");
       failureTags.push("response_done_before_first_audible");
     }
@@ -2345,6 +2348,7 @@ const IMG_REGRESSION_LISTED_FORBIDDEN_PHRASES = [
 const GENERIC_CLOSING_PHRASES = [
   "何か他に",
   "何かご質問ありますか",
+  "何かお聞きになりたいところからどうぞ",
   "ご質問ありますか",
   "ご質問があれば",
   "具体的に知りたい部分があれば",
