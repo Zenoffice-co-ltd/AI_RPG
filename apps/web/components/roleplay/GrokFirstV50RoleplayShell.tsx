@@ -19,8 +19,7 @@ import type {
   TranscriptMessage,
 } from "@/lib/roleplay/conversation-types";
 
-const ROLEPLAY_TITLE =
-  "住宅設備メーカー 人事課主任 初回派遣オーダーヒアリング";
+const ROLEPLAY_TITLE = "住宅設備メーカー 人事課主任 初回派遣オーダーヒアリング";
 
 export function GrokFirstV50RoleplayShell({
   initialMock,
@@ -43,13 +42,17 @@ export function GrokFirstV50RoleplayShell({
     | "/api/grok-first-v50-7-prompt-only"
     | "/api/grok-first-v50-7-quality"
     | "/api/grok-first-v50-7-4"
+    | "/api/grok-first-v50-7-4-a"
+    | "/api/grok-first-v50-7-4-b"
+    | "/api/grok-first-v50-7-4-c"
+    | "/api/grok-first-v50-7-4-d"
     | "/api/grok-first-v50-8"
     | "/api/grok-first-v51"
     | "/api/grok-first-vFinal";
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<RoleplayMode>(() =>
-    initialMode(initialMock, visualTest, fakeLive)
+    initialMode(initialMock, visualTest, fakeLive),
   );
   const [isEndingAndRedirecting, setIsEndingAndRedirecting] = useState(false);
   const apiDeps = useMemo(
@@ -61,7 +64,7 @@ export function GrokFirstV50RoleplayShell({
         postGrokFirstV50Event(input, `${apiBase}/event`),
       micEnabled: true,
     }),
-    [apiBase]
+    [apiBase],
   );
   const roleplay = useGrokFirstRoleplayConversation(mode, apiDeps);
 
@@ -69,14 +72,16 @@ export function GrokFirstV50RoleplayShell({
     setMode(initialMode(initialMock, visualTest, fakeLive));
   }, [initialMock, visualTest, fakeLive]);
 
-  const orbState = useMemo(() => toOrbState(roleplay.status), [roleplay.status]);
+  const orbState = useMemo(
+    () => toOrbState(roleplay.status),
+    [roleplay.status],
+  );
   const browserEvaluation = resolveBrowserEvaluationConfig(
     apiBase,
     roleplay.session?.browserEvaluation,
-    roleplay.session?.browserEvaluationEnabled
+    roleplay.session?.browserEvaluationEnabled,
   );
-  const browserEvaluationEnabled =
-    browserEvaluation?.enabled === true;
+  const browserEvaluationEnabled = browserEvaluation?.enabled === true;
 
   const handleCall = () => {
     if (roleplay.isConnected || roleplay.isConnecting) {
@@ -100,7 +105,11 @@ export function GrokFirstV50RoleplayShell({
     <main className="roleplay-root">
       <header className="roleplay-topbar" data-testid="roleplay-header">
         <nav className="roleplay-topbar__left" aria-label="会話ナビゲーション">
-          <a className="roleplay-topbar__logo" href="https://mendan.biz/" aria-label="MENDAN">
+          <a
+            className="roleplay-topbar__logo"
+            href="https://mendan.biz/"
+            aria-label="MENDAN"
+          >
             MENDAN
           </a>
         </nav>
@@ -131,14 +140,19 @@ export function GrokFirstV50RoleplayShell({
           limitWarning={roleplay.limitWarning}
           onSend={roleplay.sendTextMessage}
           onRetry={(message) => {
-            void roleplay.sendTextMessage(message.text, message.clientMessageId);
+            void roleplay.sendTextMessage(
+              message.text,
+              message.clientMessageId,
+            );
           }}
           onNewConversation={() => {
             void roleplay.startNewConversation();
           }}
         />
       </section>
-      {debugMetrics ? <DebugMetricsPanel metrics={roleplay.metricsLog} /> : null}
+      {debugMetrics ? (
+        <DebugMetricsPanel metrics={roleplay.metricsLog} />
+      ) : null}
     </main>
   );
 }
@@ -187,7 +201,7 @@ async function endAndStartBrowserEvaluation({
     }
 
     const resultPath = `${browserEvaluation.resultBasePath}/${encodeURIComponent(
-      session.sessionId
+      session.sessionId,
     )}${startFailed ? "?startFailed=1" : ""}`;
     router.push(resultPath as Route);
   } finally {
@@ -198,7 +212,7 @@ async function endAndStartBrowserEvaluation({
 export function resolveBrowserEvaluationConfig(
   apiBase: string,
   browserEvaluation: GrokFirstBrowserEvaluationConfig | undefined,
-  legacyEnabled: boolean | undefined
+  legacyEnabled: boolean | undefined,
 ): GrokFirstBrowserEvaluationConfig | null {
   if (browserEvaluation) {
     return browserEvaluation;
@@ -222,11 +236,11 @@ export type EvaluationTranscriptTurn = {
 };
 
 export function toEvaluationTranscript(
-  messages: TranscriptMessage[]
+  messages: TranscriptMessage[],
 ): EvaluationTranscriptTurn[] {
   return messages
     .filter(
-      (message) => message.status !== "interim" && message.role !== "system"
+      (message) => message.status !== "interim" && message.role !== "system",
     )
     .map((message, index) => ({
       turn_id:
@@ -240,7 +254,7 @@ export function toEvaluationTranscript(
 }
 
 export function validateEvaluationTranscript(
-  transcript: EvaluationTranscriptTurn[]
+  transcript: EvaluationTranscriptTurn[],
 ):
   | {
       ok: true;
@@ -259,10 +273,10 @@ export function validateEvaluationTranscript(
       turnCount: number;
     } {
   const userTurns = transcript.filter(
-    (turn) => turn.role === "user" && turn.text.trim().length > 0
+    (turn) => turn.role === "user" && turn.text.trim().length > 0,
   ).length;
   const agentTurns = transcript.filter(
-    (turn) => turn.role === "agent" && turn.text.trim().length > 0
+    (turn) => turn.role === "agent" && turn.text.trim().length > 0,
   ).length;
   const turnCount = transcript.length;
 
@@ -317,10 +331,14 @@ function DebugMetricsPanel({ metrics }: { metrics: GrokFirstV50Metric[] }) {
         boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
       }}
     >
-      <div style={{ fontWeight: 600, marginBottom: 6 }}>v50 latency / guard</div>
+      <div style={{ fontWeight: 600, marginBottom: 6 }}>
+        v50 latency / guard
+      </div>
       {metrics.slice(-5).map((m) => (
         <div key={`${m.sessionId}-${m.turnIndex}`} style={{ marginBottom: 6 }}>
-          <div>turn #{m.turnIndex} ({m.inputMode})</div>
+          <div>
+            turn #{m.turnIndex} ({m.inputMode})
+          </div>
           <div>firstAudible: {fmt(m.firstAudibleAudioMs)}</div>
           <div>firstDelta: {fmt(m.firstAudioDeltaMs)}</div>
           <div>tailHold: {m.tailGuardHoldMs}</div>
@@ -334,7 +352,7 @@ function DebugMetricsPanel({ metrics }: { metrics: GrokFirstV50Metric[] }) {
 function initialMode(
   initialMock: boolean,
   visualTest: boolean,
-  fakeLive: boolean
+  fakeLive: boolean,
 ): RoleplayMode {
   if (visualTest) return "visualTest";
   if (fakeLive) return "fakeLive";
@@ -342,7 +360,8 @@ function initialMode(
 }
 
 function toOrbState(state: RoleplayStatus) {
-  if (state === "thinking" || state === "connecting") return "thinking" as const;
+  if (state === "thinking" || state === "connecting")
+    return "thinking" as const;
   if (state === "listening" || state === "muted") return "listening" as const;
   if (state === "speaking" || state === "connected") return "talking" as const;
   return null;

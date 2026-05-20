@@ -37,6 +37,14 @@ import {
   GROK_FIRST_V50_7_QUALITY_DEMO_SLUG,
   GROK_FIRST_V50_7_4_BACKEND,
   GROK_FIRST_V50_7_4_DEMO_SLUG,
+  GROK_FIRST_V50_7_4_A_BACKEND,
+  GROK_FIRST_V50_7_4_A_DEMO_SLUG,
+  GROK_FIRST_V50_7_4_B_BACKEND,
+  GROK_FIRST_V50_7_4_B_DEMO_SLUG,
+  GROK_FIRST_V50_7_4_C_BACKEND,
+  GROK_FIRST_V50_7_4_C_DEMO_SLUG,
+  GROK_FIRST_V50_7_4_D_BACKEND,
+  GROK_FIRST_V50_7_4_D_DEMO_SLUG,
   GROK_FIRST_V50_8_BACKEND,
   GROK_FIRST_V50_8_DEMO_SLUG,
   GROK_FIRST_V51_BACKEND,
@@ -75,16 +83,26 @@ export async function createGrokFirstV50Session(input?: {
     | "v50.7-prompt-only"
     | "v50.7-quality"
     | "v50.7.4"
+    | "v50.7.4-a"
+    | "v50.7.4-b"
+    | "v50.7.4-c"
+    | "v50.7.4-d"
     | "v50.8"
     | "v51";
 }): Promise<GrokFirstV50Session> {
   await Promise.resolve();
   const env = getEnv();
   const promptVariant = input?.promptVariant ?? input?.variant ?? "v50";
-  const runtimeVariant = input?.runtimeVariant ?? input?.variant ?? promptVariant;
+  const runtimeVariant =
+    input?.runtimeVariant ?? input?.variant ?? promptVariant;
   const isPromptOnly = runtimeVariant === "v50.7-prompt-only";
   const isV507Quality = runtimeVariant === "v50.7-quality";
-  const isV5074CleanQuality = runtimeVariant === "v50.7.4";
+  const isV5074CleanQuality =
+    runtimeVariant === "v50.7.4" ||
+    runtimeVariant === "v50.7.4-a" ||
+    runtimeVariant === "v50.7.4-b" ||
+    runtimeVariant === "v50.7.4-c" ||
+    runtimeVariant === "v50.7.4-d";
   const isV507SpeedHotfix = runtimeVariant === "v50.7";
   const isLatencySpeedHotfix = isV507SpeedHotfix;
   const qualityMinimalGuardEnabled =
@@ -101,54 +119,72 @@ export async function createGrokFirstV50Session(input?: {
           backend: GROK_FIRST_V51_BACKEND,
         }
       : runtimeVariant === "v50.8"
-      ? {
-          demoSlug: GROK_FIRST_V50_8_DEMO_SLUG,
-          backend: GROK_FIRST_V50_8_BACKEND,
-        }
-      : runtimeVariant === "v50.7"
-      ? {
-          demoSlug: GROK_FIRST_V50_7_DEMO_SLUG,
-          backend: GROK_FIRST_V50_7_BACKEND,
-        }
-      : isV507Quality
-      ? {
-          demoSlug: GROK_FIRST_V50_7_QUALITY_DEMO_SLUG,
-          backend: GROK_FIRST_V50_7_QUALITY_BACKEND,
-        }
-      : isV5074CleanQuality
-      ? {
-          demoSlug: GROK_FIRST_V50_7_4_DEMO_SLUG,
-          backend: GROK_FIRST_V50_7_4_BACKEND,
-        }
-      : isPromptOnly
-      ? {
-          demoSlug: GROK_FIRST_V50_7_PROMPT_ONLY_DEMO_SLUG,
-          backend: GROK_FIRST_V50_7_PROMPT_ONLY_BACKEND,
-        }
-      : runtimeVariant === "v50.6"
-      ? {
-          demoSlug: GROK_FIRST_V50_6_DEMO_SLUG,
-          backend: GROK_FIRST_V50_6_BACKEND,
-        }
-      : runtimeVariant === "v50.5"
         ? {
-            demoSlug: GROK_FIRST_V50_5_DEMO_SLUG,
-            backend: GROK_FIRST_V50_5_BACKEND,
+            demoSlug: GROK_FIRST_V50_8_DEMO_SLUG,
+            backend: GROK_FIRST_V50_8_BACKEND,
           }
-        : runtimeVariant === "v50.4"
+        : runtimeVariant === "v50.7"
           ? {
-              demoSlug: GROK_FIRST_V50_4_DEMO_SLUG,
-              backend: GROK_FIRST_V50_4_BACKEND,
+              demoSlug: GROK_FIRST_V50_7_DEMO_SLUG,
+              backend: GROK_FIRST_V50_7_BACKEND,
             }
-          : runtimeVariant === "v50.1"
+          : isV507Quality
             ? {
-                demoSlug: GROK_FIRST_V50_1_DEMO_SLUG,
-                backend: GROK_FIRST_V50_1_BACKEND,
+                demoSlug: GROK_FIRST_V50_7_QUALITY_DEMO_SLUG,
+                backend: GROK_FIRST_V50_7_QUALITY_BACKEND,
               }
-            : {
-                demoSlug: GROK_FIRST_V50_DEMO_SLUG,
-                backend: GROK_FIRST_V50_BACKEND,
-              };
+            : isV5074CleanQuality
+              ? {
+                  demoSlug:
+                    runtimeVariant === "v50.7.4-a"
+                      ? GROK_FIRST_V50_7_4_A_DEMO_SLUG
+                      : runtimeVariant === "v50.7.4-b"
+                        ? GROK_FIRST_V50_7_4_B_DEMO_SLUG
+                        : runtimeVariant === "v50.7.4-c"
+                          ? GROK_FIRST_V50_7_4_C_DEMO_SLUG
+                          : runtimeVariant === "v50.7.4-d"
+                            ? GROK_FIRST_V50_7_4_D_DEMO_SLUG
+                            : GROK_FIRST_V50_7_4_DEMO_SLUG,
+                  backend:
+                    runtimeVariant === "v50.7.4-a"
+                      ? GROK_FIRST_V50_7_4_A_BACKEND
+                      : runtimeVariant === "v50.7.4-b"
+                        ? GROK_FIRST_V50_7_4_B_BACKEND
+                        : runtimeVariant === "v50.7.4-c"
+                          ? GROK_FIRST_V50_7_4_C_BACKEND
+                          : runtimeVariant === "v50.7.4-d"
+                            ? GROK_FIRST_V50_7_4_D_BACKEND
+                            : GROK_FIRST_V50_7_4_BACKEND,
+                }
+              : isPromptOnly
+                ? {
+                    demoSlug: GROK_FIRST_V50_7_PROMPT_ONLY_DEMO_SLUG,
+                    backend: GROK_FIRST_V50_7_PROMPT_ONLY_BACKEND,
+                  }
+                : runtimeVariant === "v50.6"
+                  ? {
+                      demoSlug: GROK_FIRST_V50_6_DEMO_SLUG,
+                      backend: GROK_FIRST_V50_6_BACKEND,
+                    }
+                  : runtimeVariant === "v50.5"
+                    ? {
+                        demoSlug: GROK_FIRST_V50_5_DEMO_SLUG,
+                        backend: GROK_FIRST_V50_5_BACKEND,
+                      }
+                    : runtimeVariant === "v50.4"
+                      ? {
+                          demoSlug: GROK_FIRST_V50_4_DEMO_SLUG,
+                          backend: GROK_FIRST_V50_4_BACKEND,
+                        }
+                      : runtimeVariant === "v50.1"
+                        ? {
+                            demoSlug: GROK_FIRST_V50_1_DEMO_SLUG,
+                            backend: GROK_FIRST_V50_1_BACKEND,
+                          }
+                        : {
+                            demoSlug: GROK_FIRST_V50_DEMO_SLUG,
+                            backend: GROK_FIRST_V50_BACKEND,
+                          };
   const ticket = createRelayTicket({
     secret: env.XAI_RELAY_TICKET_SECRET,
     ttlSeconds: 60,
@@ -176,16 +212,16 @@ export async function createGrokFirstV50Session(input?: {
       runtimeVariant === "v51"
         ? GROK_FIRST_V51_GUARDRAIL_VERSION
         : runtimeVariant === "v50.8"
-        ? GROK_FIRST_V50_8_GUARDRAIL_VERSION
-        : runtimeVariant === "v50.7"
-        ? GROK_FIRST_V50_7_SPEED_HOTFIX_GUARDRAIL_VERSION
-        : isV5074CleanQuality
-        ? GROK_FIRST_V50_7_4_CLEAN_QUALITY_GUARDRAIL_VERSION
-        : isV507Quality
-        ? GROK_FIRST_V50_7_QUALITY_GUARDRAIL_VERSION
-        : isPromptOnly
-        ? GROK_FIRST_V50_7_PROMPT_ONLY_GUARDRAIL_VERSION
-        : prompt.guardrailVersion,
+          ? GROK_FIRST_V50_8_GUARDRAIL_VERSION
+          : runtimeVariant === "v50.7"
+            ? GROK_FIRST_V50_7_SPEED_HOTFIX_GUARDRAIL_VERSION
+            : isV5074CleanQuality
+              ? GROK_FIRST_V50_7_4_CLEAN_QUALITY_GUARDRAIL_VERSION
+              : isV507Quality
+                ? GROK_FIRST_V50_7_QUALITY_GUARDRAIL_VERSION
+                : isPromptOnly
+                  ? GROK_FIRST_V50_7_PROMPT_ONLY_GUARDRAIL_VERSION
+                  : prompt.guardrailVersion,
     model: GROK_FIRST_V50_MODEL,
     voiceId,
     realtimeTransport: "mendan_cloud_run_relay_wss",
@@ -204,8 +240,7 @@ export async function createGrokFirstV50Session(input?: {
     turnDetection: {
       type: "server_vad",
       threshold: 0.65,
-      silence_duration_ms:
-        isLatencySpeedHotfix ? 350 : 650,
+      silence_duration_ms: isLatencySpeedHotfix ? 350 : 650,
       prefix_padding_ms: 333,
       ...(runtimeVariant === "v50.7" ||
       isV5074CleanQuality ||
@@ -224,34 +259,34 @@ export async function createGrokFirstV50Session(input?: {
     latencyMode: isLatencySpeedHotfix
       ? "fastest_streaming"
       : isV5074CleanQuality
-      ? "clean_tail_streaming"
-      : isV507Quality
-      ? "guarded_tail_streaming"
-      : undefined,
+        ? "clean_tail_streaming"
+        : isV507Quality
+          ? "guarded_tail_streaming"
+          : undefined,
     streamAudioBeforeDone: isLatencySpeedHotfix
       ? true
       : isV5074CleanQuality
-      ? true
-      : isV507Quality
-      ? true
-      : undefined,
+        ? true
+        : isV507Quality
+          ? true
+          : undefined,
     audioHoldMs: isLatencySpeedHotfix ? 0 : undefined,
     guardedStreamingEnabled: isV507Quality ? true : undefined,
     tailGuardNormalHoldMs: isV507Quality
       ? TAIL_GUARD_NORMAL_HOLD_MS
       : isV5074CleanQuality
-      ? 300
-      : undefined,
+        ? 300
+        : undefined,
     tailGuardRiskHoldMs: isV507Quality
       ? TAIL_GUARD_RISK_HOLD_MS
       : isV5074CleanQuality
-      ? 300
-      : undefined,
+        ? 300
+        : undefined,
     tailGuardMaxHoldMs: isV507Quality
       ? TAIL_GUARD_MAX_HOLD_MS
       : isV5074CleanQuality
-      ? 1000
-      : undefined,
+        ? 1000
+        : undefined,
     qualityMinimalGuardEnabled: isV507Quality
       ? qualityMinimalGuardEnabled
       : undefined,
@@ -285,7 +320,9 @@ export async function createGrokFirstV50Session(input?: {
         isV507SpeedHotfix || isV507Quality || isV5074CleanQuality
           ? false
           : runtimeGuardrailsEnabled,
-      noiseIgnoredEnabled: isV5074CleanQuality ? false : runtimeGuardrailsEnabled,
+      noiseIgnoredEnabled: isV5074CleanQuality
+        ? false
+        : runtimeGuardrailsEnabled,
     },
     debugTranscriptPreviewEnabled:
       env.GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED === "true",
@@ -303,14 +340,14 @@ export async function createGrokFirstV50Session(input?: {
             runtimeVersion: "v51",
           }
         : runtimeVariant === "v50.7"
-        ? {
-            enabled: env.ADECCO_BROWSER_EVAL_ENABLED !== "0",
-            startEndpoint: "/api/grok-first-v50-7/evaluation/start",
-            resultBasePath: "/demo/adecco-roleplay-v50-7/result",
-            source: "grok_first_v50_7_browser",
-            runtimeVersion: "v50-7",
-          }
-        : undefined,
+          ? {
+              enabled: env.ADECCO_BROWSER_EVAL_ENABLED !== "0",
+              startEndpoint: "/api/grok-first-v50-7/evaluation/start",
+              resultBasePath: "/demo/adecco-roleplay-v50-7/result",
+              source: "grok_first_v50_7_browser",
+              runtimeVersion: "v50-7",
+            }
+          : undefined,
   };
 }
 

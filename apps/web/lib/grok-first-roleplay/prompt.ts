@@ -21,6 +21,22 @@ import {
   GROK_FIRST_V50_7_2_SYSTEM_PROMPT,
 } from "./prompt-v50-7-2";
 import {
+  GROK_FIRST_V50_7_4_A_FIRST_MESSAGE,
+  GROK_FIRST_V50_7_4_A_SYSTEM_PROMPT,
+} from "./prompt-v50-7-4-a";
+import {
+  GROK_FIRST_V50_7_4_B_FIRST_MESSAGE,
+  GROK_FIRST_V50_7_4_B_SYSTEM_PROMPT,
+} from "./prompt-v50-7-4-b";
+import {
+  GROK_FIRST_V50_7_4_C_FIRST_MESSAGE,
+  GROK_FIRST_V50_7_4_C_SYSTEM_PROMPT,
+} from "./prompt-v50-7-4-c";
+import {
+  GROK_FIRST_V50_7_4_D_FIRST_MESSAGE,
+  GROK_FIRST_V50_7_4_D_SYSTEM_PROMPT,
+} from "./prompt-v50-7-4-d";
+import {
   GROK_FIRST_V51_FIRST_MESSAGE,
   GROK_FIRST_V51_SYSTEM_PROMPT,
 } from "./prompt-v51";
@@ -37,6 +53,14 @@ export const GROK_FIRST_V50_6_SCENARIO_ID =
   "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_6";
 export const GROK_FIRST_V50_7_2_SCENARIO_ID =
   "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_7_2";
+export const GROK_FIRST_V50_7_4_A_SCENARIO_ID =
+  "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_7_4_a";
+export const GROK_FIRST_V50_7_4_B_SCENARIO_ID =
+  "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_7_4_b";
+export const GROK_FIRST_V50_7_4_C_SCENARIO_ID =
+  "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_7_4_c";
+export const GROK_FIRST_V50_7_4_D_SCENARIO_ID =
+  "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v50_7_4_d";
 export const GROK_FIRST_V51_SCENARIO_ID =
   "staffing_order_hearing_adecco_manufacturer_busy_manager_medium_v51";
 export const GROK_FIRST_V50_PROMPT_VERSION = "grok-first-v50-2026-05-13";
@@ -46,6 +70,14 @@ export const GROK_FIRST_V50_5_PROMPT_VERSION = "grok-first-v50.5-2026-05-15";
 export const GROK_FIRST_V50_6_PROMPT_VERSION = "grok-first-v50.6-2026-05-15";
 export const GROK_FIRST_V50_7_2_PROMPT_VERSION =
   "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17";
+export const GROK_FIRST_V50_7_4_A_PROMPT_VERSION =
+  "grok-first-v50.7.4-A-minimal-hook-2026-05-20";
+export const GROK_FIRST_V50_7_4_B_PROMPT_VERSION =
+  "grok-first-v50.7.4-B-transcript-like-two-beat-2026-05-20";
+export const GROK_FIRST_V50_7_4_C_PROMPT_VERSION =
+  "grok-first-v50.7.4-C-sales-quality-adaptive-2026-05-20";
+export const GROK_FIRST_V50_7_4_D_PROMPT_VERSION =
+  "grok-first-v50.7.4-D-customer-concern-question-driver-2026-05-20";
 export const GROK_FIRST_V51_PROMPT_VERSION = "grok-first-v51-2026-05-16";
 export const GROK_FIRST_V50_GUARDRAIL_VERSION =
   "negative-guard-only-v50-2026-05-13";
@@ -74,6 +106,10 @@ export type GrokFirstPromptVariant =
   | "v50.5"
   | "v50.6"
   | "v50.7.2"
+  | "v50.7.4-a"
+  | "v50.7.4-b"
+  | "v50.7.4-c"
+  | "v50.7.4-d"
   | "v51";
 
 export type GrokFirstPromptBuild = {
@@ -126,6 +162,38 @@ export function buildGrokFirstV50Prompt(
       promptVersion: GROK_FIRST_V50_7_2_PROMPT_VERSION,
       scenarioId: GROK_FIRST_V50_7_2_SCENARIO_ID,
       firstMessage: GROK_FIRST_V50_7_2_FIRST_MESSAGE,
+    });
+  }
+  if (variant === "v50.7.4-a") {
+    return buildPrompt({
+      instructions: GROK_FIRST_V50_7_4_A_SYSTEM_PROMPT,
+      promptVersion: GROK_FIRST_V50_7_4_A_PROMPT_VERSION,
+      scenarioId: GROK_FIRST_V50_7_4_A_SCENARIO_ID,
+      firstMessage: GROK_FIRST_V50_7_4_A_FIRST_MESSAGE,
+    });
+  }
+  if (variant === "v50.7.4-b") {
+    return buildPrompt({
+      instructions: GROK_FIRST_V50_7_4_B_SYSTEM_PROMPT,
+      promptVersion: GROK_FIRST_V50_7_4_B_PROMPT_VERSION,
+      scenarioId: GROK_FIRST_V50_7_4_B_SCENARIO_ID,
+      firstMessage: GROK_FIRST_V50_7_4_B_FIRST_MESSAGE,
+    });
+  }
+  if (variant === "v50.7.4-c") {
+    return buildPrompt({
+      instructions: GROK_FIRST_V50_7_4_C_SYSTEM_PROMPT,
+      promptVersion: GROK_FIRST_V50_7_4_C_PROMPT_VERSION,
+      scenarioId: GROK_FIRST_V50_7_4_C_SCENARIO_ID,
+      firstMessage: GROK_FIRST_V50_7_4_C_FIRST_MESSAGE,
+    });
+  }
+  if (variant === "v50.7.4-d") {
+    return buildPrompt({
+      instructions: GROK_FIRST_V50_7_4_D_SYSTEM_PROMPT,
+      promptVersion: GROK_FIRST_V50_7_4_D_PROMPT_VERSION,
+      scenarioId: GROK_FIRST_V50_7_4_D_SCENARIO_ID,
+      firstMessage: GROK_FIRST_V50_7_4_D_FIRST_MESSAGE,
     });
   }
   if (variant === "v51") {
