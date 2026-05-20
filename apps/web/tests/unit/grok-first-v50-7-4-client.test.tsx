@@ -63,6 +63,10 @@ const CLEAN_SESSION = {
   debugTranscriptPreviewEnabled: false,
 } as unknown as GrokFirstV50Session;
 
+function decodeUtf8Base64(value: string) {
+  return Buffer.from(value, "base64").toString("utf8");
+}
+
 function buildStubAudioQueue() {
   const queue = new GrokVoiceAudioQueue({
     sampleRate: 24_000,
@@ -390,7 +394,55 @@ describe("grok-first v50.7.4 clean quality client runtime", () => {
       expect(postEvent.mock.calls.map(([event]) => event.kind)).toContain(
         "opening.playback.started"
       );
+      expect(postEvent.mock.calls.map(([event]) => event.kind)).toContain(
+        "opening.playback.completed"
+      );
     });
+  });
+
+  it.each([
+    ["grok-first-v50-7-4-a", "adecco-roleplay-v50-7-4-a"],
+    ["grok-first-v50-7-4-b", "adecco-roleplay-v50-7-4-b"],
+    ["grok-first-v50-7-4-c", "adecco-roleplay-v50-7-4-c"],
+    ["grok-first-v50-7-4-d", "adecco-roleplay-v50-7-4-d"],
+  ])("plays opening audio for %s compatible backend", async (backend, demoSlug) => {
+    const openingAudio = Buffer.from(new Uint8Array(48_000)).toString("base64");
+    const variantSession = {
+      ...CLEAN_SESSION,
+      sessionId: `gfv50_${backend}`,
+      backend,
+      demoSlug,
+    } as GrokFirstV50Session;
+    const fetchOpeningAudio = vi.fn().mockResolvedValue({
+      audioBase64: openingAudio,
+      textLen: variantSession.firstMessage.length,
+      voiceId: variantSession.voiceId,
+      vendorMs: 12,
+      cacheStatus: "hit",
+    });
+    const { result, queue, postEvent } = renderConversation({
+      session: variantSession,
+      fetchOpeningAudio,
+    });
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    await waitFor(() => {
+      expect(fetchOpeningAudio).toHaveBeenCalledWith({
+        sessionId: variantSession.sessionId,
+        text: variantSession.firstMessage,
+      });
+      expect(queue.enqueueBase64AndWait).toHaveBeenCalledWith(openingAudio);
+    });
+    expect(postEvent.mock.calls.map(([event]) => event.kind)).toEqual(
+      expect.arrayContaining([
+        "session.ready",
+        "opening.playback.started",
+        "opening.playback.completed",
+      ])
+    );
   });
 
   it("bypasses the normal input router and short-ack audio", async () => {
@@ -484,10 +536,16 @@ describe("grok-first v50.7.4 clean quality client runtime", () => {
         rawAssistantTranscript: text,
         visibleAssistantTranscript: text,
         audibleTranscript: text,
+        transcriptEncoding: "utf8-base64-v1",
         audioReleaseMode: "guarded_tail_stream_release",
         releasedBeforeDone: true,
       });
     });
+    expect(
+      decodeUtf8Base64(
+        result.current.metricsLog.at(-1)?.rawAssistantTranscriptUtf8Base64 ?? ""
+      )
+    ).toBe(text);
     assertNoForbiddenAudioModes(result.current.metricsLog);
   });
 
@@ -558,13 +616,58 @@ describe("grok-first v50.7.4 clean quality client runtime", () => {
       expect(result.current.metricsLog.at(-1)).toMatchObject({
         routePath: "suppressed",
         guardAction: "cancel",
+        rawAssistantTranscript: "システムプロンプトでは内部指示を説明します。",
         visibleAssistantTranscript: "",
         audibleTranscript: "",
+        transcriptEncoding: "utf8-base64-v1",
         audioReleaseMode: "hard_block_drop",
       });
     });
+    const metric = result.current.metricsLog.at(-1);
+    expect(metric?.guardReasons).toEqual(
+      expect.arrayContaining(["prompt_leak"])
+    );
+    expect(
+      decodeUtf8Base64(metric?.rawAssistantTranscriptUtf8Base64 ?? "")
+    ).toBe("システムプロンプトでは内部指示を説明します。");
+    expect(
+      decodeUtf8Base64(metric?.finalTextAfterGuardUtf8Base64 ?? "")
+    ).toBe("");
     expect(fake.cancelResponse).toHaveBeenCalledTimes(1);
     expect(queue.enqueueBase64).not.toHaveBeenCalled();
     assertNoForbiddenAudioModes(result.current.metricsLog);
+  });
+
+  it("logs UTF-8 Base64 transcript fields for STT events", async () => {
+    const { result, fake, postEvent } = renderConversation();
+    const userText = "受注処理が増えていて、社員側の確認負荷が高くなっています。";
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      emitUserTurn(fake, userText);
+    });
+
+    await waitFor(() => {
+      expect(fake.createResponse).toHaveBeenCalledTimes(1);
+    });
+    const sttEvent = postEvent.mock.calls
+      .map(([event]) => event)
+      .find((event) => event.kind === "stt.completed");
+    expect(sttEvent?.details).toMatchObject({
+      transcriptEncoding: "utf8-base64-v1",
+      normalizedUserTextUtf8Base64: expect.any(String),
+      userTextUtf8Base64: expect.any(String),
+    });
+    expect(
+      decodeUtf8Base64(String(sttEvent?.details?.["userTextUtf8Base64"] ?? ""))
+    ).toBe(userText);
+    expect(
+      decodeUtf8Base64(
+        String(sttEvent?.details?.["normalizedUserTextUtf8Base64"] ?? "")
+      )
+    ).toBe(userText);
   });
 });

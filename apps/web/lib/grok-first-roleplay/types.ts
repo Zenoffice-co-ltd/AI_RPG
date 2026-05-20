@@ -279,6 +279,14 @@ export type GrokFirstV50Metric = {
   audibleTranscriptPreview?: string | undefined;
   rawTextBeforeGuard?: string | undefined;
   finalTextAfterGuard?: string | undefined;
+  transcriptEncoding?: "utf8-base64-v1" | undefined;
+  currentUserTextUtf8Base64?: string | undefined;
+  normalizedUserTextUtf8Base64?: string | undefined;
+  rawAssistantTranscriptUtf8Base64?: string | undefined;
+  visibleAssistantTranscriptUtf8Base64?: string | undefined;
+  audibleTranscriptUtf8Base64?: string | undefined;
+  rawTextBeforeGuardUtf8Base64?: string | undefined;
+  finalTextAfterGuardUtf8Base64?: string | undefined;
   generatedAudioBytes?: number | undefined;
   heldAudioBytes?: number | undefined;
   releasedAudioBytes?: number | undefined;

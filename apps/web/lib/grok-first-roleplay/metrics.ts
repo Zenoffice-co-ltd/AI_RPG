@@ -128,6 +128,17 @@ const TRANSCRIPT_PREVIEW_KEYS = new Set([
   "agentTextPreview",
 ]);
 
+const TRANSCRIPT_UTF8_BASE64_KEYS = new Set([
+  "userTextUtf8Base64",
+  "normalizedUserTextUtf8Base64",
+  "currentUserTextUtf8Base64",
+  "rawAssistantTranscriptUtf8Base64",
+  "visibleAssistantTranscriptUtf8Base64",
+  "audibleTranscriptUtf8Base64",
+  "rawTextBeforeGuardUtf8Base64",
+  "finalTextAfterGuardUtf8Base64",
+]);
+
 const SENSITIVE_DETAIL_KEY_PATTERN =
   /(?:token|secret|apiKey|authorization|instructions|audioBase64|rawAudio|pcmBase64|wavBase64)/i;
 
@@ -151,6 +162,10 @@ export function sanitizeGrokFirstV50Details(
       continue;
     }
     if (typeof value === "string") {
+      if (TRANSCRIPT_UTF8_BASE64_KEYS.has(key)) {
+        trimmed[key] = value;
+        continue;
+      }
       const maxLen = TRANSCRIPT_PREVIEW_KEYS.has(key) ? 200 : 500;
       trimmed[key] =
         value.length > maxLen ? `${value.slice(0, maxLen)}...` : value;
