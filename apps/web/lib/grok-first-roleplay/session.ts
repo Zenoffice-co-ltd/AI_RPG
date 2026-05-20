@@ -7,6 +7,7 @@ import {
 import { ensureEnvLoaded } from "@/server/loadEnv";
 import {
   buildGrokFirstV50Prompt,
+  GROK_FIRST_V50_7_4_CLEAN_QUALITY_GUARDRAIL_VERSION,
   GROK_FIRST_V50_7_SPEED_HOTFIX_GUARDRAIL_VERSION,
   GROK_FIRST_V50_7_PROMPT_ONLY_GUARDRAIL_VERSION,
   GROK_FIRST_V50_7_QUALITY_GUARDRAIL_VERSION,
@@ -34,6 +35,8 @@ import {
   GROK_FIRST_V50_7_PROMPT_ONLY_DEMO_SLUG,
   GROK_FIRST_V50_7_QUALITY_BACKEND,
   GROK_FIRST_V50_7_QUALITY_DEMO_SLUG,
+  GROK_FIRST_V50_7_4_BACKEND,
+  GROK_FIRST_V50_7_4_DEMO_SLUG,
   GROK_FIRST_V50_8_BACKEND,
   GROK_FIRST_V50_8_DEMO_SLUG,
   GROK_FIRST_V51_BACKEND,
@@ -71,6 +74,7 @@ export async function createGrokFirstV50Session(input?: {
     | "v50.7"
     | "v50.7-prompt-only"
     | "v50.7-quality"
+    | "v50.7.4"
     | "v50.8"
     | "v51";
 }): Promise<GrokFirstV50Session> {
@@ -80,6 +84,7 @@ export async function createGrokFirstV50Session(input?: {
   const runtimeVariant = input?.runtimeVariant ?? input?.variant ?? promptVariant;
   const isPromptOnly = runtimeVariant === "v50.7-prompt-only";
   const isV507Quality = runtimeVariant === "v50.7-quality";
+  const isV5074CleanQuality = runtimeVariant === "v50.7.4";
   const isV507SpeedHotfix = runtimeVariant === "v50.7";
   const isLatencySpeedHotfix = isV507SpeedHotfix;
   const qualityMinimalGuardEnabled =
@@ -109,6 +114,11 @@ export async function createGrokFirstV50Session(input?: {
       ? {
           demoSlug: GROK_FIRST_V50_7_QUALITY_DEMO_SLUG,
           backend: GROK_FIRST_V50_7_QUALITY_BACKEND,
+        }
+      : isV5074CleanQuality
+      ? {
+          demoSlug: GROK_FIRST_V50_7_4_DEMO_SLUG,
+          backend: GROK_FIRST_V50_7_4_BACKEND,
         }
       : isPromptOnly
       ? {
@@ -156,6 +166,8 @@ export async function createGrokFirstV50Session(input?: {
     sessionId,
     demoSlug: identity.demoSlug,
     backend: identity.backend,
+    promptVariant,
+    runtimeVariant,
     scenarioId: prompt.scenarioId,
     promptVersion: prompt.promptVersion,
     promptHash: prompt.promptHash,
@@ -167,6 +179,8 @@ export async function createGrokFirstV50Session(input?: {
         ? GROK_FIRST_V50_8_GUARDRAIL_VERSION
         : runtimeVariant === "v50.7"
         ? GROK_FIRST_V50_7_SPEED_HOTFIX_GUARDRAIL_VERSION
+        : isV5074CleanQuality
+        ? GROK_FIRST_V50_7_4_CLEAN_QUALITY_GUARDRAIL_VERSION
         : isV507Quality
         ? GROK_FIRST_V50_7_QUALITY_GUARDRAIL_VERSION
         : isPromptOnly
@@ -190,9 +204,13 @@ export async function createGrokFirstV50Session(input?: {
     turnDetection: {
       type: "server_vad",
       threshold: 0.65,
-      silence_duration_ms: isLatencySpeedHotfix ? 350 : 650,
+      silence_duration_ms:
+        isLatencySpeedHotfix || isV5074CleanQuality ? 350 : 650,
       prefix_padding_ms: 333,
-      ...(runtimeVariant === "v50.7" || isV507Quality || isPromptOnly
+      ...(runtimeVariant === "v50.7" ||
+      isV5074CleanQuality ||
+      isV507Quality ||
+      isPromptOnly
         ? { create_response: false as const }
         : {}),
     },
@@ -205,10 +223,14 @@ export async function createGrokFirstV50Session(input?: {
     replacementTtsEnabled: false,
     latencyMode: isLatencySpeedHotfix
       ? "fastest_streaming"
+      : isV5074CleanQuality
+      ? "clean_tail_streaming"
       : isV507Quality
       ? "guarded_tail_streaming"
       : undefined,
     streamAudioBeforeDone: isLatencySpeedHotfix
+      ? true
+      : isV5074CleanQuality
       ? true
       : isV507Quality
       ? true
@@ -217,33 +239,53 @@ export async function createGrokFirstV50Session(input?: {
     guardedStreamingEnabled: isV507Quality ? true : undefined,
     tailGuardNormalHoldMs: isV507Quality
       ? TAIL_GUARD_NORMAL_HOLD_MS
+      : isV5074CleanQuality
+      ? 300
       : undefined,
-    tailGuardRiskHoldMs: isV507Quality ? TAIL_GUARD_RISK_HOLD_MS : undefined,
-    tailGuardMaxHoldMs: isV507Quality ? TAIL_GUARD_MAX_HOLD_MS : undefined,
+    tailGuardRiskHoldMs: isV507Quality
+      ? TAIL_GUARD_RISK_HOLD_MS
+      : isV5074CleanQuality
+      ? 300
+      : undefined,
+    tailGuardMaxHoldMs: isV507Quality
+      ? TAIL_GUARD_MAX_HOLD_MS
+      : isV5074CleanQuality
+      ? 1000
+      : undefined,
     qualityMinimalGuardEnabled: isV507Quality
       ? qualityMinimalGuardEnabled
       : undefined,
     fullTurnBufferEnabled: false,
     runtimeGuardrailsEnabled,
     inputGuardEnabled: runtimeGuardrailsEnabled,
-    normalInputRouterEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
+    normalInputRouterEnabled:
+      isV507SpeedHotfix || isV5074CleanQuality
+        ? false
+        : runtimeGuardrailsEnabled,
     negativeGuardEnabled: runtimeGuardrailsEnabled,
     tailGuardEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
     fixedGuardAudioEnabled: runtimeGuardrailsEnabled,
     boundedRewriteEnabled:
-      isV507SpeedHotfix || isV507Quality ? false : runtimeGuardrailsEnabled,
-    noiseIgnoredEnabled: runtimeGuardrailsEnabled,
+      isV507SpeedHotfix || isV507Quality || isV5074CleanQuality
+        ? false
+        : runtimeGuardrailsEnabled,
+    noiseIgnoredEnabled: isV5074CleanQuality ? false : runtimeGuardrailsEnabled,
     runtimeControl: {
       mode: isPromptOnly ? "prompt_only" : "default",
       runtimeGuardrailsEnabled,
       inputGuardEnabled: runtimeGuardrailsEnabled,
-      normalInputRouterEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
+      normalInputRouterEnabled:
+        isV507SpeedHotfix || isV5074CleanQuality
+          ? false
+          : runtimeGuardrailsEnabled,
       negativeGuardEnabled: runtimeGuardrailsEnabled,
       tailGuardEnabled: isV507SpeedHotfix ? false : runtimeGuardrailsEnabled,
       fixedGuardAudioEnabled: runtimeGuardrailsEnabled,
       boundedRewriteEnabled:
-        isV507SpeedHotfix || isV507Quality ? false : runtimeGuardrailsEnabled,
-      noiseIgnoredEnabled: runtimeGuardrailsEnabled,
+        isV507SpeedHotfix || isV507Quality || isV5074CleanQuality
+          ? false
+          : runtimeGuardrailsEnabled,
+      noiseIgnoredEnabled: isV5074CleanQuality ? false : runtimeGuardrailsEnabled,
     },
     debugTranscriptPreviewEnabled:
       env.GROK_FIRST_V50_DEBUG_TRANSCRIPT_PREVIEW_ENABLED === "true",

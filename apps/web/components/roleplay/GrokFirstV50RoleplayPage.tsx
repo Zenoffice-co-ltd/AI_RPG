@@ -31,6 +31,7 @@ export type GrokFirstV50PageProps = GrokFirstV50RouteProps & {
     | "/api/grok-first-v50-7"
     | "/api/grok-first-v50-7-prompt-only"
     | "/api/grok-first-v50-7-quality"
+    | "/api/grok-first-v50-7-4"
     | "/api/grok-first-v50-8"
     | "/api/grok-first-v51"
     | "/api/grok-first-vFinal";

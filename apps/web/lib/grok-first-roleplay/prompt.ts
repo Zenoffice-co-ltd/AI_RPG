@@ -57,6 +57,8 @@ export const GROK_FIRST_V50_7_PROMPT_ONLY_GUARDRAIL_VERSION =
   "prompt-only-no-runtime-guard-2026-05-17";
 export const GROK_FIRST_V50_7_QUALITY_GUARDRAIL_VERSION =
   "grok-first-v50.7-quality-guard-2026-05-17";
+export const GROK_FIRST_V50_7_4_CLEAN_QUALITY_GUARDRAIL_VERSION =
+  "grok-first-v50.7.4-clean-quality-guard-2026-05-20";
 export const GROK_FIRST_V50_8_GUARDRAIL_VERSION =
   "grok-first-v50.8-guard-2026-05-16";
 export const GROK_FIRST_V51_GUARDRAIL_VERSION =
