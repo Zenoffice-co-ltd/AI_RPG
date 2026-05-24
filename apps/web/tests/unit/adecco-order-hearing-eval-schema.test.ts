@@ -42,5 +42,8 @@ describe("Adecco order hearing eval v2 prompt bundle", () => {
     expect(system).toContain("直接評価しない");
     expect(system).toContain("現場課長・営業管理課などへの確認");
     expect(system).toContain("must_capture_groups は必ず8グループ");
+    expect(system).toContain("evidence.turn_id は構造化データ上の参照ID");
+    expect(system).toContain("利用者向け説明文には");
+    expect(system).toContain("turn_id、turn 12、t012");
   });
 });

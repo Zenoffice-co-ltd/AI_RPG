@@ -9,7 +9,6 @@ function c(name: string) {
 
 type ReportViewProps = {
   scorecard: AdeccoBrowserEvaluationScorecard;
-  showRawJson: boolean;
   roleplayPath?: string;
 };
 
@@ -33,7 +32,6 @@ const RUBRIC_MAX_POINTS: Record<(typeof RUBRIC_ORDER)[number][0], number> = {
 
 export function AdeccoEvaluationReportView({
   scorecard,
-  showRawJson,
   roleplayPath = "/demo/adecco-roleplay-v50-7",
 }: ReportViewProps) {
   const report = objectValue(scorecard.report);
@@ -42,8 +40,6 @@ export function AdeccoEvaluationReportView({
   const confidence = stringValue(report["score_confidence"], "-");
   const summary = objectValue(report["must_capture_summary"]);
   const mustCaptureItems = arrayValue(report["must_capture_items"]);
-  const modalityLimitations = stringList(report["modality_limitations"]);
-  const complianceFlags = objectValue(report["sales_compliance_flags"]);
   const captured = numberValue(summary["captured_count"]) ?? 0;
   const partial = numberValue(summary["partial_count"]) ?? 0;
   const missed = numberValue(summary["missed_count"]) ?? 0;
@@ -208,69 +204,7 @@ export function AdeccoEvaluationReportView({
             )}
           </div>
         </section>
-
-        <section className={c("feedbackGrid")}>
-          <div className={c("panel")}>
-            <h2 className={c("panelTitle")}>非言語評価の制約</h2>
-            <SummaryBlock
-              title="評価対象外または推定しない項目"
-              items={modalityLimitations}
-              empty="音声・映像がないため、声量・表情・視線・姿勢・メモ中の態度は直接評価していません。"
-            />
-          </div>
-          <div className={c("panel")}>
-            <h2 className={c("panelTitle")}>Compliance Flags</h2>
-            <ComplianceFlags flags={complianceFlags} />
-          </div>
-        </section>
-
-        <details className={c("debug")}>
-          <summary>Debug</summary>
-          <p className={c("bodyText")}>validation: {scorecard.validation.status}</p>
-          <p className={c("bodyText")}>model: {scorecard.model}</p>
-          <p className={c("bodyText")}>
-            tokens: input {scorecard.usage.input_tokens ?? "-"} / output{" "}
-            {scorecard.usage.output_tokens ?? "-"}
-          </p>
-          <p className={c("bodyText")}>retry: {scorecard.retryNote}</p>
-          {showRawJson ? (
-            <pre className={c("pre")}>{JSON.stringify(report, null, 2)}</pre>
-          ) : null}
-        </details>
       </main>
-    </div>
-  );
-}
-
-function ComplianceFlags({ flags }: { flags: Record<string, unknown> }) {
-  const deepened = Boolean(flags["inappropriate_demographic_requirement_deepened"]);
-  const reframed = Boolean(flags["inappropriate_requirement_reframed"]);
-  const details = arrayValue(flags["details"]);
-  return (
-    <div className={c("summaryList")}>
-      <div className={c("summaryItem")}>
-        <strong>不適切属性の深掘り</strong>
-        <p className={c("bodyText")}>{deepened ? "検出あり" : "検出なし"}</p>
-      </div>
-      <div className={c("summaryItem")}>
-        <strong>職務関連要件への言い換え</strong>
-        <p className={c("bodyText")}>{reframed ? "検出あり" : "検出なし"}</p>
-      </div>
-      {details.length > 0 ? (
-        <div className={c("summaryItem")}>
-          <strong>詳細</strong>
-          <div className={c("summaryList")} style={{ marginTop: 10 }}>
-            {details.map((rawDetail, index) => {
-              const detail = objectValue(rawDetail);
-              return (
-                <span className={c("bodyText")} key={index}>
-                  {stringValue(detail["impact"], "詳細は取得できませんでした。")}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -388,9 +322,22 @@ function arrayValue(value: unknown): unknown[] {
 }
 
 function stringValue(value: unknown, fallback = "") {
-  if (typeof value === "string") return value.trim() || fallback;
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "string") return sanitizeVisibleText(value.trim()) || fallback;
+  if (typeof value === "number" || typeof value === "boolean") {
+    return sanitizeVisibleText(String(value)) || fallback;
+  }
   return fallback;
+}
+
+function sanitizeVisibleText(value: string) {
+  return value
+    .replace(/\bturn[_\s-]*id\s*[:#]?\s*(?:[a-z]\s*)?\d+\b/gi, "")
+    .replace(/\bturn\s*[:#]?\s*\d+\b/gi, "")
+    .replace(/(^|[\s（(［\[])[tguac]\d{1,4}(?=$|[\s、。,.）)\]］])/gi, "$1")
+    .replace(/[（(]\s*[）)]/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([、。,.])/g, "$1")
+    .trim();
 }
 
 function numberValue(value: unknown, fallback: number | null = null) {

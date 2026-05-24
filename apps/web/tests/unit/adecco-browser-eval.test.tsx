@@ -458,7 +458,6 @@ describe("AdeccoEvaluationReportView", () => {
     );
     const html = renderToStaticMarkup(
       <AdeccoEvaluationReportView
-        showRawJson={false}
         scorecard={{
           evaluationFormat: "adecco_order_hearing_browser_v1",
           evaluationProfile: "adecco_order_hearing_eval_v2",
