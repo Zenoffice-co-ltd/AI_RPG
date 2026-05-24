@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import {
   createTranscriptMessage,
+  type TranscriptAction,
   transcriptReducer,
 } from "@/lib/roleplay/transcript-reducer";
 import type {
   RoleplayMode,
   RoleplayStatus,
+  TranscriptMessage,
 } from "@/lib/roleplay/conversation-types";
 import {
   GrokVoiceAudioQueue,
@@ -438,7 +440,7 @@ export function useGrokFirstRoleplayConversation(
   const [status, setStatus] = useState<RoleplayStatus>(() =>
     isInteractive ? "idle" : "ended"
   );
-  const [messages, dispatchMessages] = useReducer(transcriptReducer, []);
+  const [messages, rawDispatchMessages] = useReducer(transcriptReducer, []);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [selectedInput, setSelectedInput] = useState("");
@@ -448,6 +450,7 @@ export function useGrokFirstRoleplayConversation(
   const [isConnected, setIsConnected] = useState(false);
 
   const sessionRef = useRef<GrokFirstV50Session | null>(null);
+  const messagesRef = useRef<TranscriptMessage[]>([]);
   const realtimeRef = useRef<GrokFirstRealtime | null>(null);
   const micRef = useRef<GrokVoiceMicRecorder | null>(null);
   const audioQueueRef = useRef<GrokVoiceAudioQueue | null>(null);
@@ -501,6 +504,16 @@ export function useGrokFirstRoleplayConversation(
   const responseCreateCountRef = useRef(0);
   const responseCancelCountRef = useRef(0);
   const responseCancelReasonsRef = useRef<string[]>([]);
+
+  const dispatchTranscript = useCallback((action: TranscriptAction) => {
+    messagesRef.current = transcriptReducer(messagesRef.current, action);
+    rawDispatchMessages(action);
+  }, []);
+
+  const getLatestTranscriptSnapshot = useCallback(
+    () => [...messagesRef.current],
+    [],
+  );
 
   const assistantResponseDrainReason = useCallback(() => {
     const now = Date.now();
@@ -956,7 +969,7 @@ export function useGrokFirstRoleplayConversation(
 
   const appendUserTranscript = useCallback(
     (input: { text: string; channel: "voice" | "chat"; status: "final" | "sent" }) => {
-      dispatchMessages({
+      dispatchTranscript({
         type: "append",
         message: createTranscriptMessage({
           role: "user",
@@ -975,13 +988,13 @@ export function useGrokFirstRoleplayConversation(
         }),
       });
     },
-    []
+    [dispatchTranscript]
   );
 
   const appendFixedAssistantTranscript = useCallback((text: string) => {
     interimAgentClientIdRef.current = null;
     interimAgentMessageAppendedRef.current = false;
-    dispatchMessages({
+    dispatchTranscript({
       type: "append",
       message: createTranscriptMessage({
         role: "agent",
@@ -992,7 +1005,7 @@ export function useGrokFirstRoleplayConversation(
         clientMessageId: `gfv50-fixed-agent-${turnIndexRef.current}`,
       }),
     });
-  }, []);
+  }, [dispatchTranscript]);
 
   const appendInitialAssistantTranscript = useCallback(
     (nextSession: GrokFirstV50Session) => {
@@ -1000,7 +1013,7 @@ export function useGrokFirstRoleplayConversation(
       const text = (nextSession.firstMessage ?? "").trim();
       if (!text) return;
       greetingSessionIdRef.current = nextSession.sessionId;
-      dispatchMessages({
+      dispatchTranscript({
         type: "append",
         message: createTranscriptMessage({
           role: "agent",
@@ -1012,7 +1025,7 @@ export function useGrokFirstRoleplayConversation(
         }),
       });
     },
-    []
+    [dispatchTranscript]
   );
 
   const playOpeningAudio = useCallback(
@@ -1094,7 +1107,7 @@ export function useGrokFirstRoleplayConversation(
       if (!interimAgentMessageAppendedRef.current) {
         if (!text.trim()) return;
         interimAgentMessageAppendedRef.current = true;
-        dispatchMessages({
+        dispatchTranscript({
           type: "append",
           message: createTranscriptMessage({
             role: "agent",
@@ -1107,14 +1120,14 @@ export function useGrokFirstRoleplayConversation(
         });
         return;
       }
-      dispatchMessages({
+      dispatchTranscript({
         type: "updateTextAndStatus",
         clientMessageId,
         text,
         status,
       });
     },
-    []
+    [dispatchTranscript]
   );
 
   const handleFixedGuardDecision = useCallback(
@@ -2211,11 +2224,11 @@ export function useGrokFirstRoleplayConversation(
 
   const startNewConversation = useCallback(async () => {
     await endConversation();
-    dispatchMessages({ type: "reset" });
+    dispatchTranscript({ type: "reset" });
     setMetricsLog([]);
     resetTurn();
     await startConversation();
-  }, [endConversation, resetTurn, startConversation]);
+  }, [dispatchTranscript, endConversation, resetTurn, startConversation]);
 
   const sendTextMessage = useCallback(
     async (text: string) => {
@@ -2362,6 +2375,7 @@ export function useGrokFirstRoleplayConversation(
     volume,
     metricsLog,
     session,
+    getLatestTranscriptSnapshot,
     startConversation,
     endConversation,
     startNewConversation,

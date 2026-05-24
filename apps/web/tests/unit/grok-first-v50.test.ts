@@ -819,10 +819,13 @@ describe("grok-first v50 runtime", () => {
         `adecco-roleplay-v50-7-4-${variant.suffix}`,
       );
       expect(body["backend"]).toBe(`grok-first-v50-7-4-${variant.suffix}`);
+      expect(body["promptVariant"]).toBe(`v50.7.4-${variant.suffix}`);
+      expect(body["runtimeVariant"]).toBe(`v50.7.4-${variant.suffix}`);
       expect(body["promptVersion"]).toBe(variant.promptVersion);
       expect(body["guardrailVersion"]).toBe(
         "grok-first-v50.7.4-clean-quality-guard-2026-05-20",
       );
+      expect(body["realtimeTransport"]).toBe("mendan_cloud_run_relay_wss");
       expect(body["latencyMode"]).toBe("clean_tail_streaming");
       expect(body["normalInputRouterEnabled"]).toBe(false);
       expect(body["boundedRewriteEnabled"]).toBe(false);
@@ -837,6 +840,10 @@ describe("grok-first v50 runtime", () => {
       });
 
       const auth = body["realtimeAuth"] as Record<string, unknown>;
+      expect(auth).toMatchObject({
+        mode: "mendan_relay_subprotocol",
+        protocol: "mendan-relay-v1",
+      });
       const verification = verifyRelayTicket({
         ticket: String(auth["ticket"]),
         secret: "0123456789abcdef0123456789abcdef",
