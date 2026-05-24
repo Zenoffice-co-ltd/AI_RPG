@@ -115,6 +115,13 @@ v50, v50.1, and v50.4 use the same Cloud Run enterprise relay transport as v25:
 `realtimeAuth.mode=mendan_relay_subprotocol`. They must not expose xAI
 ephemeral tokens to the browser. The relay ticket is short-lived and sent only
 through `Sec-WebSocket-Protocol`.
+Later v50-family relay routes, including selected v50.7.x/v50.7.4 variants,
+follow the same allowlist pattern when their session contract reports
+`realtimeTransport=mendan_cloud_run_relay_wss`: customer UI/API on
+`https://roleplay.mendan.biz` and realtime audio on
+`wss://voice.mendan.biz/api/v3/realtime-relay`. Always verify the exact route's
+session payload before sending an allowlist; do not infer vFinal hosted.app
+scope from a v50-family route.
 
 `/demo/adecco-roleplay-vFinal` is the security-foundation submission route, not
 a v50-family comparison route. It uses `/api/grok-first-vFinal/*`, relay-only
@@ -130,6 +137,17 @@ internal browser-DOD bypass. `GROK_VOICE_RELAY_WS_URL` must fail fast unless it
 uses `ws:`/`wss:`, path `/api/v3/realtime-relay`, and no query/hash. Browser DOD
 fake sessions should mirror the relay contract rather than the legacy xAI
 ephemeral-token contract.
+
+Quick customer URL split:
+
+| Scope | Customer-facing URL | Notes |
+|---|---|---|
+| v25 / v50-family relay routes | `https://roleplay.mendan.biz/demo/<slug>` | Shared App Hosting backend. Use this for v50-family customer trials such as `adecco-roleplay-v50-7-4-d` after the route-specific session contract passes. |
+| vFinal submitted no-key backend | `https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app/demo/adecco-roleplay-vFinal` | Dedicated App Hosting backend for security-checksheet/customer-submission scope. Do not substitute the shared `roleplay.mendan.biz` route unless the operator explicitly changes the submitted scope. |
+
+The relay service's `RELAY_ALLOWED_ORIGINS` can contain both
+`roleplay.mendan.biz` and the vFinal hosted.app origin. The origin allowlist is
+not the release decision; the selected route and backend identity are.
 For v50 voice E2E verification, prefer the focused repo skill
 `.agents/skills/ai-rpg-grok-first-v50-guard-verification/SKILL.md`. Its current
 source of truth is normal sales conversation naturalness first, then fixed

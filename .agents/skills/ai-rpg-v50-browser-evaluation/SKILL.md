@@ -51,6 +51,30 @@ voice E2E work.
 - Cloud Tasks payload may contain only the normalized transcript required for
   scoring.
 
+## Result Page UX Contract
+
+Keep these as targeted unit/browser checks when touching
+`apps/web/components/roleplay/evaluation/*`; they are cheap and prevent the
+most common production regressions:
+
+- Polling must continue while the page is open until the result endpoint returns
+  `completed` or `failed`. Do not reintroduce a fixed 90-second stop for normal
+  queued/running states.
+- `startFailed=1` means evaluation start failed before a queued job exists; do
+  not poll the result endpoint forever in that state.
+- A successful retry should restart result polling.
+- Loading copy should avoid vendor naming and set expectation that scoring can
+  take several minutes.
+- Customer-facing report UI must not show debug JSON, raw/model output,
+  relay/API secrets, hidden prompts, or internal-only sections such as
+  nonverbal limitations / compliance flags unless a future customer-facing
+  design explicitly asks for them.
+- User-facing text should hide mechanical turn identifiers such as
+  `turn_id 12`, `turn 12`, `(t012)`, or `(g12)`, while preserving likely
+  business codes such as `型番G12` or `T012部品`.
+- Keep `evidence.turn_id` in the scorecard data model for internal grounding;
+  hide it only in customer-facing copy.
+
 ## Safe Browser Confirmation
 
 Use the mock result route first:
@@ -78,6 +102,27 @@ Expected browser checks at 1440x900:
 v51/customer-criteria checks also expect schema/profile version, grouped
 must-capture data, modality limitations, and sales compliance flags.
 
+Mock confirmation is necessary but not sufficient when changing result polling,
+result API shape, or scorecard rendering. Also check one real completed
+scorecard payload through the normal result endpoint with the demo access cookie
+and confirm the report renders without sensitive fields. Do not call production
+`/api/grok-first-v50-7/evaluation/start` directly unless an operator explicitly
+approves scoring work.
+
+For access-gated result API smoke, compute the HMAC cookie from
+`demo-access-token` and send it with the same origin/referer as the route under
+test. A bare curl to `/api/grok-first-v50-7/evaluation/result` commonly returns
+401 and is not evidence that the scorecard is missing.
+
+```bash
+DEMO_TOKEN=$(gcloud secrets versions access latest --secret=demo-access-token --project=adecco-mendan)
+SIG=$(python -c "import hmac,hashlib,sys; t=sys.argv[1]; print(hmac.new(t.encode(),t.encode(),hashlib.sha256).hexdigest())" "$DEMO_TOKEN")
+curl -sS "https://roleplay.mendan.biz/api/grok-first-v50-7/evaluation/result?sessionId=<sessionId>" \
+  -H "origin: https://roleplay.mendan.biz" \
+  -H "referer: https://roleplay.mendan.biz/demo/<slug>/result/<sessionId>" \
+  -H "cookie: roleplay_api_access=$SIG"
+```
+
 ## Required Verification
 
 - Transcript capture E2E:
@@ -93,6 +138,17 @@ must-capture data, modality limitations, and sales compliance flags.
 - targeted unit tests
 - browser-use or Playwright screenshot
 
+For v50-7-4-d style customer-ready checks, record a compact PR comment instead
+of committing generated artifacts:
+
+- merge SHA
+- App Hosting build / rollout / Cloud Run revision
+- roleplay URL and mock result URL status
+- session contract summary (`demoSlug`, `backend`, relay mode,
+  `browserEvaluation`)
+- completed scorecard status / score summary when available
+- browser check for report render and sensitive-output non-exposure
+
 ## Do Not
 
 - Do not run production Gmail smoke for browser evaluation DoD.
@@ -100,3 +156,7 @@ must-capture data, modality limitations, and sales compliance flags.
 - Do not deploy Cloud Run/App Hosting unless the task explicitly asks.
 - Do not mix vFinal, v50.8 guard, voice E2E, or fixed guard work into browser
   evaluation PRs.
+- Do not leave the Codex/in-app browser pointed at `127.0.0.1` after stopping a
+  local dev server; `ERR_CONNECTION_REFUSED` is only a stopped-local-server
+  artifact. For handoff screenshots, prefer production URLs or keep the server
+  running.

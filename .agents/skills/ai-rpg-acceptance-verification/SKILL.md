@@ -113,6 +113,19 @@ Customer-facing allowlist for relay trial routes:
 Direct browser access to `api.x.ai` is not required for relay routes. Keep
 `api.x.ai` in CSP only while direct-path comparison routes still exist.
 
+Do not mix the relay-trial / v50-family customer URL with the dedicated vFinal
+submission URL. The correct allowlist depends on the route family being
+released:
+
+| Scope | Customer URL origin | Route example | Allowlist origin |
+|---|---|---|---|
+| v25 / v50-family relay routes | `https://roleplay.mendan.biz` | `/demo/adecco-roleplay-v50-7-4-d` | `https://roleplay.mendan.biz` plus `wss://voice.mendan.biz` |
+| vFinal submitted no-key runtime | `https://adecco-roleplay-vfinal--adecco-mendan.asia-east1.hosted.app` | `/demo/adecco-roleplay-vFinal` | the dedicated hosted.app origin plus `wss://voice.mendan.biz` |
+
+The Cloud Run relay may allow both origins at once. That does not mean both are
+the customer URL for the same release. Name the exact route family and session
+identity before giving an allowlist to the operator.
+
 ## vFinal Customer/Security-Checksheet Submission DoD
 
 Use this subsection when closing Adecco AI Roleplay vFinal for customer

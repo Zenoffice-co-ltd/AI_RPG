@@ -326,6 +326,51 @@ Cloud Logging relay assertions should filter structured logs by
 `jsonPayload.phase` (`client.connected`, `ticket.accepted`,
 `upstream.connected`). Do not commit raw Cloud Logging JSON.
 
+### v50 browser evaluation post-deploy smoke
+
+For browser-evaluation routes such as `v50-7-4-d`, keep the post-deploy check
+lightweight. Do not enqueue a new production scoring task unless explicitly
+approved. Verify the existing route and result surfaces:
+
+```bash
+curl -I "https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7-4-d"
+curl -I "https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7-4-d/result/mock-session?mock=1"
+```
+
+Then use the demo access cookie for API checks. Bare result API requests can
+return 401 even when the page works.
+
+```bash
+DEMO_TOKEN=$(gcloud secrets versions access latest --secret=demo-access-token --project=adecco-mendan)
+SIG=$(python -c "import hmac,hashlib,sys; t=sys.argv[1]; print(hmac.new(t.encode(),t.encode(),hashlib.sha256).hexdigest())" "$DEMO_TOKEN")
+
+curl -sS "https://roleplay.mendan.biz/api/grok-first-v50-7-4-d/session" \
+  -X POST -H "content-type: application/json" \
+  -H "origin: https://roleplay.mendan.biz" \
+  -H "referer: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7-4-d" \
+  -H "cookie: roleplay_api_access=$SIG" \
+  -d "{}"
+
+curl -sS "https://roleplay.mendan.biz/api/grok-first-v50-7/evaluation/result?sessionId=<completed-session-id>" \
+  -H "origin: https://roleplay.mendan.biz" \
+  -H "referer: https://roleplay.mendan.biz/demo/adecco-roleplay-v50-7-4-d/result/<completed-session-id>" \
+  -H "cookie: roleplay_api_access=$SIG"
+```
+
+Minimum evidence to record in the PR or release note:
+
+- merge SHA, App Hosting build/rollout id, and Cloud Run revision
+- roleplay URL and mock result URL HTTP status
+- session contract summary (`demoSlug`, `backend`, relay transport/auth,
+  `browserEvaluation`)
+- completed scorecard status/score summary when a completed session is
+  available
+- browser confirmation that the report renders and raw/debug/sensitive fields
+  are not exposed
+
+This is not a replacement for voice naturalness or full acceptance gates; it is
+only the route/result-page deploy smoke.
+
 ## Step 4 — Browser smoke (manual)
 
 The demo URL is gated by an HMAC-signed cookie of `DEMO_ACCESS_TOKEN`.

@@ -150,6 +150,22 @@ auto-rollout did not run, use the manual fallback wrapper from the intended
 
 For relay routes (`v25`, `v50`, `v50.1`), also assert the summarized session/browser contract: `realtimeTransport=mendan_cloud_run_relay_wss`, `wsUrl=wss://voice.mendan.biz/api/v3/realtime-relay`, `realtimeAuth.mode=mendan_relay_subprotocol`, no browser `ephemeralToken`, and no direct browser `wss://api.x.ai`. Use Cloud Logging structured relay logs with `jsonPayload.scope="grokVoice.realtimeRelay"` and `jsonPayload.phase` for `client.connected`, `ticket.accepted`, and `upstream.connected`; do not store raw JSON in git.
 
+For v50-family browser-evaluation deploys, add a lightweight result smoke before
+claiming the customer route is ready:
+
+- `curl -I` the roleplay URL and safe mock result URL.
+- POST the versioned session API with the `roleplay_api_access` HMAC cookie and
+  record only summarized identity fields plus `browserEvaluation`.
+- If a completed scorecard session is available, GET the result endpoint with
+  the same cookie and confirm `status=completed`, six rubric categories, and no
+  raw/model output fields. Do not directly curl production evaluation start
+  unless the operator explicitly approves enqueueing a new scoring job.
+- Browser-confirm the result page renders and does not expose Debug, nonverbal
+  limitations, compliance flags, raw output, secrets, or mechanical turn IDs.
+
+Keep this smoke separate from voice naturalness / human-test gates. It is a
+route/result-page readiness check only.
+
 ## Pre-deploy commit hygiene
 
 If the PR also rebuilt registered-speech artifacts, ensure these are staged and pushed BEFORE deploy (Firebase App Hosting uploads the **local** working tree per `firebase.json` `alwaysDeployFromSource: true`):
