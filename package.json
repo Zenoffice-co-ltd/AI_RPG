@@ -22,6 +22,7 @@
     "eval:accounting": "tsx scripts/evaluate-accounting-scenario.ts",
     "eval:adecco-order-hearing:mvp": "node scripts/adecco_order_hearing_eval/run_mvp.js",
     "eval:adecco-browser-transcript:e2e": "node scripts/adecco-browser-eval-transcript-e2e.mjs",
+    "eval:adecco-browser-transcript:v50-7-4-d-long": "node scripts/adecco-browser-eval-transcript-e2e.mjs --case-set v50-7-4-d-long-browser-eval --route /demo/adecco-roleplay-v50-7-4-d --api-base /api/grok-first-v50-7-4-d --result-base-path /demo/adecco-roleplay-v50-7-4-d/result --expected-demo-slug adecco-roleplay-v50-7-4-d --expected-backend grok-first-v50-7-4-d --expected-prompt-variant v50.7.4-d --actual-score --open-result",
     "publish:scenario": "tsx scripts/publish-scenario.ts",
     "voices:list": "tsx scripts/elevenlabs/list-voices.ts",
     "voices:collect:ja": "tsx scripts/elevenlabs/collect-ja-voices.ts",

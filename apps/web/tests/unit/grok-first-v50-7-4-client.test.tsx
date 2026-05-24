@@ -445,6 +445,90 @@ describe("grok-first v50.7.4 clean quality client runtime", () => {
     );
   });
 
+  it("updates the latest transcript snapshot synchronously after user STT dispatch", async () => {
+    const { result, fake } = renderConversation();
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      emitUserTurn(fake, "募集背景を教えてください。");
+      expect(result.current.getLatestTranscriptSnapshot()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            role: "user",
+            text: "募集背景を教えてください。",
+            status: "final",
+          }),
+        ])
+      );
+    });
+  });
+
+  it("keeps latest transcript snapshot aligned through reset", async () => {
+    const { result, fake } = renderConversation();
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+    act(() => {
+      emitUserTurn(fake, "募集背景を教えてください。");
+    });
+    expect(
+      result.current
+        .getLatestTranscriptSnapshot()
+        .some((message) => message.text === "募集背景を教えてください。")
+    ).toBe(true);
+
+    await act(async () => {
+      await result.current.startNewConversation();
+    });
+
+    expect(
+      result.current
+        .getLatestTranscriptSnapshot()
+        .some((message) => message.text === "募集背景を教えてください。")
+    ).toBe(false);
+  });
+
+  it("keeps latest transcript snapshot aligned through interim to final updates", async () => {
+    const { result, fake } = renderConversation();
+
+    await act(async () => {
+      await result.current.startConversation();
+    });
+
+    act(() => {
+      emitUserTurn(fake, "募集背景を教えてください。");
+      fake.emit({ type: "response.created" });
+      fake.emit({
+        type: "response.output_audio_transcript.delta",
+        delta: "増員です。",
+      });
+      expect(result.current.getLatestTranscriptSnapshot()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            role: "agent",
+            text: "増員です。",
+            status: "interim",
+          }),
+        ])
+      );
+
+      fake.emit({ type: "response.done" });
+      expect(result.current.getLatestTranscriptSnapshot()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            role: "agent",
+            text: "増員です。",
+            status: "final",
+          }),
+        ])
+      );
+    });
+  });
+
   it("bypasses the normal input router and short-ack audio", async () => {
     const fetchShortAckAudio = vi.fn();
     const { result, fake } = renderConversation({ fetchShortAckAudio });

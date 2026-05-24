@@ -373,6 +373,7 @@ export type GrokFirstV50Conversation = {
   volume: number;
   metricsLog: GrokFirstV50Metric[];
   session: GrokFirstV50Session | null;
+  getLatestTranscriptSnapshot: () => TranscriptMessage[];
   startConversation: () => Promise<void>;
   endConversation: () => Promise<void>;
   startNewConversation: () => Promise<void>;

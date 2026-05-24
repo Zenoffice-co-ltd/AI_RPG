@@ -157,7 +157,7 @@ export function GrokFirstV50RoleplayShell({
   );
 }
 
-async function endAndStartBrowserEvaluation({
+export async function endAndStartBrowserEvaluation({
   roleplay,
   router,
   browserEvaluation,
@@ -172,7 +172,7 @@ async function endAndStartBrowserEvaluation({
 }) {
   if (isEndingAndRedirecting || !browserEvaluation?.enabled) return;
   const session = roleplay.session;
-  const messages = [...roleplay.messages];
+  const preEndMessages = roleplay.getLatestTranscriptSnapshot();
   setIsEndingAndRedirecting(true);
 
   try {
@@ -182,6 +182,11 @@ async function endAndStartBrowserEvaluation({
       return;
     }
 
+    const postEndMessages = roleplay.getLatestTranscriptSnapshot();
+    const messages = chooseBetterEvaluationSnapshot(
+      preEndMessages,
+      postEndMessages,
+    );
     const transcript = toEvaluationTranscript(messages);
     const transcriptValidation = validateEvaluationTranscript(transcript);
     let startFailed = !transcriptValidation.ok;
@@ -207,6 +212,36 @@ async function endAndStartBrowserEvaluation({
   } finally {
     setIsEndingAndRedirecting(false);
   }
+}
+
+export function chooseBetterEvaluationSnapshot(
+  preEndMessages: TranscriptMessage[],
+  postEndMessages: TranscriptMessage[],
+): TranscriptMessage[] {
+  const preEndValidation = validateEvaluationTranscript(
+    toEvaluationTranscript(preEndMessages),
+  );
+  const postEndValidation = validateEvaluationTranscript(
+    toEvaluationTranscript(postEndMessages),
+  );
+  if (postEndValidation.ok && !preEndValidation.ok) {
+    return [...postEndMessages];
+  }
+  if (preEndValidation.ok && !postEndValidation.ok) {
+    return [...preEndMessages];
+  }
+  const preEndScore = scoreEvaluationSnapshot(preEndMessages);
+  const postEndScore = scoreEvaluationSnapshot(postEndMessages);
+  return postEndScore >= preEndScore ? [...postEndMessages] : [...preEndMessages];
+}
+
+function scoreEvaluationSnapshot(messages: TranscriptMessage[]) {
+  return messages.filter(
+    (message) =>
+      message.role !== "system" &&
+      message.status !== "interim" &&
+      message.text.trim().length > 0,
+  ).length;
 }
 
 export function resolveBrowserEvaluationConfig(
