@@ -69,6 +69,12 @@ only `/api/v3/session`. Batch router/guard/runtime fixes and deploy once per
 targeted remediation batch; runner-only, docs-only, and unit-test-only edits do
 not need App Hosting deploy.
 
+If the gcloud wrapper times out while polling, do not immediately redeploy.
+Inspect the exact App Hosting build/rollout in Firebase Console or via the App
+Hosting API. If the build is `READY` and the rollout is `SUCCEEDED`, record the
+wrapper timeout as a warning and continue with route/session smoke for that
+deployed commit.
+
 ## Production source of truth
 
 Customer-facing closeout deploys must come from the intended merged `origin/main` commit. Before deploy, compare `git rev-parse HEAD` with `git rev-parse origin/main`. If an unmerged local commit is deployed for emergency validation, treat production as drifted until the diff is PR'd, merged, verified with `git show origin/main:<path>`, and redeployed from `origin/main`.
