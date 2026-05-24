@@ -120,6 +120,12 @@ in-flight App Hosting builds/rollouts before uploading. Use
 --preflight-build` when you want a local production build before upload without
 making every deploy slower.
 
+If the gcloud wrapper times out while polling, do not immediately redeploy.
+Inspect the exact App Hosting build/rollout in Firebase Console or via the App
+Hosting API. If the build is `READY` and the rollout is `SUCCEEDED`, record the
+wrapper timeout as a warning and continue with route/session smoke for that
+deployed commit.
+
 To shorten deploy cycles, batch router/guard/runtime fixes and deploy once per
 targeted remediation batch. Do not deploy for runner-only, docs-only, or
 unit-test-only edits; do deploy before claiming production voice evidence for

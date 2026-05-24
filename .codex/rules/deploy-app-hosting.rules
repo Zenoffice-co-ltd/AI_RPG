@@ -21,6 +21,9 @@
 #   pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm
 # For v50-family behavior changes, pass --variant v50-7 or --variant v50-8 so
 # post-check validates /api/grok-first-v50*/session, not only /api/v3/session.
+# If the gcloud wrapper times out while polling but App Hosting API/Firebase
+# Console shows the exact build READY and rollout SUCCEEDED, record the wrapper
+# timeout as a warning and proceed to route/session smoke instead of redeploying.
 #
 # Deploy worktree invariant: manual App Hosting deploy commands for this repo
 # must run from C:\dev\AI_RPG\_worktrees\deploy_clean, not the repository root

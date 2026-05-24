@@ -325,6 +325,18 @@ Expected session identity:
 - `turnDetection.create_response=false`
 - `turnDetection.silence_duration_ms=650`
 
+Prompt-comparison variants A/B/C/D are base-compatible clean-quality routes.
+They must keep the same guard/runtime identity above and differ only by
+`demoSlug`, `backend`, and `promptVersion`:
+
+| Variant | demoSlug | backend | promptVersion |
+|---|---|---|---|
+| Base | `adecco-roleplay-v50-7-4` | `grok-first-v50-7-4` | `grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17` |
+| A | `adecco-roleplay-v50-7-4-a` | `grok-first-v50-7-4-a` | `grok-first-v50.7.4-A-minimal-hook-2026-05-20` |
+| B | `adecco-roleplay-v50-7-4-b` | `grok-first-v50-7-4-b` | `grok-first-v50.7.4-B-transcript-like-two-beat-2026-05-20` |
+| C | `adecco-roleplay-v50-7-4-c` | `grok-first-v50-7-4-c` | `grok-first-v50.7.4-C-sales-quality-adaptive-2026-05-20` |
+| D | `adecco-roleplay-v50-7-4-d` | `grok-first-v50-7-4-d` | `grok-first-v50.7.4-D-customer-concern-question-driver-2026-05-20` |
+
 Do not create a short-ack route for v50-7-4. `fixed_short_ack_audio`,
 `fixed_safe_body_audio`, and normal-turn `tail_only_drop_fallback` are FAIL.
 Human testing is allowed only when the runner final label is
@@ -340,6 +352,8 @@ corepack pnpm grok:first-v50-7-4:prod-smoke -- --mode start \
   --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage0_start_smoke
 corepack pnpm grok:first-v50-7-4:prod-smoke -- --mode voice-turn \
   --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage0_voice_turn_smoke
+corepack pnpm grok:first-v50-7-4:abcd-prod-smoke -- --mode start \
+  --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage0_abcd_start_smoke
 corepack pnpm grok:first-v50-7-4:sentinel-6 -- --runs 1 \
   --out out/grok_first_v50_7_4_clean_quality/<timestamp>/stage2_sentinel_6
 corepack pnpm grok:first-v50-7-4:natural-smoke-30 -- --runs 1 \
@@ -353,6 +367,16 @@ Stage 3 is the 30-case natural smoke. Stage 4 full/budgeted DoD failure keeps
 human testing blocked. Deploy remains batch-last; production deploy commands
 must run from `C:\dev\AI_RPG\_worktrees\deploy_clean` unless the operator
 explicitly overrides that invariant.
+
+For A/B/C/D first-greeting checks, `session.ready` is not sufficient evidence.
+Require `opening.playback.started` and `opening.playback.completed`; treat
+`opening.playback.failed` as diagnostic evidence rather than a healthy start.
+For `voice-turn` smoke on clean-quality variants, require
+`transcriptEncoding=utf8-base64-v1` plus decodable `*Utf8Base64` transcript
+fields on `turn.completed` so Cloud Logging can recover raw/visible/audible
+Japanese transcript even when normal string previews are corrupted. The browser
+held transcript remains the evaluation Source of Truth; Cloud Logging Base64 is
+diagnostic reconstruction evidence.
 
 ### Deploy Productivity
 

@@ -17,35 +17,31 @@ const origin = stringArg(args.origin, "https://roleplay.mendan.biz");
 const caseSet = stringArg(args["case-set"], mode);
 const runs = numberArg(args.runs, 1);
 const project = stringArg(args.project, "adecco-mendan");
-const demoSlug = variant.startsWith("adecco-roleplay-")
+const defaultDemoSlug = variant.startsWith("adecco-roleplay-")
   ? variant
   : `adecco-roleplay-${variant}`;
-const apiBase = `/api/grok-first-${variant}`;
-const url = `${origin}/demo/${demoSlug}?debugMetrics=1`;
+const demoSlug = stringArg(args["demo-slug"], defaultDemoSlug);
+const route = stringArg(args.route, `/demo/${demoSlug}`);
+const apiBase = stringArg(args["api-base"], `/api/grok-first-${variant}`);
+const expectedBackend = stringArg(args["expected-backend"], `grok-first-${variant}`);
+const url = `${origin}${route}?debugMetrics=1`;
 const expectedPromptVersion = stringArg(
   args["expected-prompt-version"],
-  variant === "v50-7-prompt-only" ||
-    variant === "v50-7-quality" ||
-    variant === "v50-7-4"
-    ? "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17"
-    : "grok-first-v50.6-2026-05-15"
+  defaultExpectedPromptVersion(variant)
 );
 const expectedGuardrailVersion = stringArg(
   args["expected-guardrail-version"],
-  variant === "v50-8"
-    ? "grok-first-v50.8-guard-2026-05-16"
-    : variant === "v50-7-prompt-only"
-    ? "prompt-only-no-runtime-guard-2026-05-17"
-    : variant === "v50-7-quality"
-    ? "grok-first-v50.7-quality-guard-2026-05-17"
-    : variant === "v50-7-4"
-    ? "grok-first-v50.7.4-clean-quality-guard-2026-05-20"
-    : "grok-first-v50.7-speed-hotfix-2026-05-17"
+  defaultExpectedGuardrailVersion(variant)
 );
 const expectedRuntimeGuardrailsEnabled = booleanArg(
   args["expected-runtime-guardrails-enabled"],
   variant !== "v50-7-prompt-only"
 );
+const requireOpeningPlayback = booleanArg(
+  args["require-opening-playback"],
+  isV5074CleanQualityVariant(variant) && mode !== "session"
+);
+const allowOpeningPlaybackFailed = booleanArg(args["allow-opening-playback-failed"], false);
 const fixture = path.resolve(
   stringArg(
     args.fixture,
@@ -63,8 +59,12 @@ const evidence = {
   caseSet,
   runs,
   url,
+  route,
   demoSlug,
   apiBase,
+  expectedBackend,
+  requireOpeningPlayback,
+  allowOpeningPlaybackFailed,
   fixture: mode === "voice-turn" ? fixture : null,
   startedAt: new Date().toISOString(),
   sessionResponse: null,
@@ -248,7 +248,7 @@ async function runSpeedSmokeAttempt({ runIndex, testCase }) {
     if (await accessInput.isVisible().catch(() => false)) {
       await accessInput.fill(accessToken);
       await Promise.all([
-        page.waitForURL(new RegExp(`/demo/${demoSlug}`), { timeout: 30000 }),
+        page.waitForURL(new RegExp(escapeRegExp(route)), { timeout: 30000 }),
         page.getByRole("button", { name: "開始" }).click(),
       ]);
     }
@@ -359,7 +359,7 @@ async function runBrowserSmoke() {
   if (await accessInput.isVisible().catch(() => false)) {
     await accessInput.fill(accessToken);
     await Promise.all([
-      page.waitForURL(new RegExp(`/demo/${demoSlug}`), { timeout: 30000 }),
+      page.waitForURL(new RegExp(escapeRegExp(route)), { timeout: 30000 }),
       page.getByRole("button", { name: "開始" }).click(),
     ]);
   }
@@ -367,8 +367,8 @@ async function runBrowserSmoke() {
   await page.getByRole("button", { name: "通話を開始" }).click();
 
   await page.waitForFunction(
-    () => document.body.innerText.includes("お電話ありがとうございます。"),
-    null,
+    (text) => document.body.innerText.includes(text),
+    expectedOpeningText(variant),
     { timeout: 30000 }
   ).catch(() => undefined);
 
@@ -386,20 +386,26 @@ async function runBrowserSmoke() {
     ).catch(() => undefined);
   } else {
     await page.waitForFunction(
-      () => {
+      (options) => {
         const events = window.__gfv50Events ?? [];
+        const kinds = events.map((event) => event.kind);
+        const openingOk =
+          !options.requireOpeningPlayback ||
+          (kinds.includes("opening.playback.started") &&
+            (kinds.includes("opening.playback.completed") ||
+              (options.allowOpeningPlaybackFailed &&
+                kinds.includes("opening.playback.failed"))));
         return (
           document.body.innerText.includes("セッションの開始に失敗しました") ||
-          events.includes?.("session.ready") ||
-          events.some?.((event) => event.kind === "session.ready")
+          (kinds.includes("session.ready") && openingOk)
         );
       },
-      null,
-      { timeout: 45000 }
+      { requireOpeningPlayback, allowOpeningPlaybackFailed },
+      { timeout: requireOpeningPlayback ? 90000 : 45000 }
     ).catch(() => undefined);
   }
 
-  await page.waitForTimeout(mode === "voice-turn" ? 5000 : 2000);
+  await page.waitForTimeout(mode === "voice-turn" ? 5000 : 1000);
   evidence.texts = (await page.locator(".message-bubble, [data-testid], body").allTextContents())
     .join("\n")
     .split(/\n+/)
@@ -415,17 +421,18 @@ async function runBrowserSmoke() {
   } finally {
     evidence.completedAt = new Date().toISOString();
     const sessionOk = isSessionContractOk(evidence.sessionPayload);
+    const openingPlaybackOk =
+      !requireOpeningPlayback ||
+      (evidence.eventKinds.includes("opening.playback.started") &&
+        (evidence.eventKinds.includes("opening.playback.completed") ||
+          (allowOpeningPlaybackFailed &&
+            evidence.eventKinds.includes("opening.playback.failed"))));
     const startOk =
       evidence.eventKinds.includes("ws.connected") &&
       evidence.eventKinds.includes("session.ready") &&
+      openingPlaybackOk &&
       evidence.texts.some((text) =>
-        text.includes(
-          variant === "v50-7-prompt-only" ||
-            variant === "v50-7-quality" ||
-            variant === "v50-7-4"
-            ? "本日はお時間頂きありがとうございます。営業事務の件で、一名派遣の方を検討しています。"
-            : "お電話ありがとうございます。"
-        )
+        text.includes(expectedOpeningText(variant))
       );
     const voiceOk =
       mode !== "voice-turn" ||
@@ -474,7 +481,7 @@ async function fetchSessionPayload() {
     headers: {
       "content-type": "application/json",
       origin,
-      referer: `${origin}/demo/${demoSlug}`,
+      referer: `${origin}${route}`,
       cookie: demoAccessCookie(accessToken),
     },
     body: "{}",
@@ -531,7 +538,7 @@ function isSessionContractOk(payload, status = evidence.sessionResponse?.status)
   return (
     status === 200 &&
     payload?.demoSlug === demoSlug &&
-    payload?.backend === `grok-first-${variant}` &&
+    payload?.backend === expectedBackend &&
     payload?.promptVersion === expectedPromptVersion &&
     payload?.guardrailVersion === expectedGuardrailVersion &&
     payload?.runtimeGuardrailsEnabled === expectedRuntimeGuardrailsEnabled &&
@@ -555,7 +562,7 @@ function isSessionContractOk(payload, status = evidence.sessionResponse?.status)
         payload?.boundedRewriteEnabled === false &&
         payload?.turnDetectionSilenceMs === 650 &&
         payload?.turnDetectionCreateResponse === false)) &&
-    (variant !== "v50-7-4" ||
+    (!isV5074CleanQualityVariant(variant) ||
       (payload?.runtimeGuardrailsEnabled === true &&
         payload?.inputGuardEnabled === true &&
         payload?.normalInputRouterEnabled === false &&
@@ -578,7 +585,7 @@ function isSessionContractOk(payload, status = evidence.sessionResponse?.status)
 
 function isVoiceTurnMetricOk(metric) {
   if (!metric || metric.audioBytes <= 0 || metric.error !== null) return false;
-  if (variant === "v50-7-4") return isCleanQualityVoiceTurnMetricOk(metric);
+  if (isV5074CleanQualityVariant(variant)) return isCleanQualityVoiceTurnMetricOk(metric);
   if (variant !== "v50-7") return true;
   return (
     metric.routePath === "grok_first_realtime" &&
@@ -601,6 +608,7 @@ function isCleanQualityVoiceTurnMetricOk(metric) {
     Number(metric.releasedAudioBytes ?? 0) > 0 &&
     String(metric.audibleTranscript ?? "").trim().length > 0 &&
     metric.error === null &&
+    hasUtf8Base64TranscriptFields(metric) &&
     metric.routePath === "grok_first_realtime" &&
     guardActionOk &&
     releaseModeOk &&
@@ -616,6 +624,30 @@ function isCleanQualityVoiceTurnMetricOk(metric) {
       String(metric.audibleTranscript ?? "").trim().length === 0
     )
   );
+}
+
+function hasUtf8Base64TranscriptFields(metric) {
+  if (metric?.transcriptEncoding !== "utf8-base64-v1") return false;
+  const keys = [
+    "currentUserTextUtf8Base64",
+    "normalizedUserTextUtf8Base64",
+    "rawAssistantTranscriptUtf8Base64",
+    "visibleAssistantTranscriptUtf8Base64",
+    "audibleTranscriptUtf8Base64",
+    "rawTextBeforeGuardUtf8Base64",
+    "finalTextAfterGuardUtf8Base64",
+  ];
+  return keys.every((key) => isDecodableUtf8Base64(metric?.[key]));
+}
+
+function isDecodableUtf8Base64(value) {
+  if (typeof value !== "string") return false;
+  try {
+    Buffer.from(value, "base64").toString("utf8");
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isSpeedVoiceTurnMetricOk(metric) {
@@ -811,6 +843,62 @@ function percentileSummary(values) {
 
 function isFiniteNumber(value) {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function defaultExpectedPromptVersion(variantValue) {
+  const versions = {
+    "v50-7-prompt-only":
+      "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17",
+    "v50-7-quality":
+      "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17",
+    "v50-7-4":
+      "grok-first-v50.7.2-natural-interactive-sales-compact-2026-05-17",
+    "v50-7-4-a":
+      "grok-first-v50.7.4-A-minimal-hook-2026-05-20",
+    "v50-7-4-b":
+      "grok-first-v50.7.4-B-transcript-like-two-beat-2026-05-20",
+    "v50-7-4-c":
+      "grok-first-v50.7.4-C-sales-quality-adaptive-2026-05-20",
+    "v50-7-4-d":
+      "grok-first-v50.7.4-D-customer-concern-question-driver-2026-05-20",
+  };
+  return versions[variantValue] ?? "grok-first-v50.6-2026-05-15";
+}
+
+function defaultExpectedGuardrailVersion(variantValue) {
+  if (variantValue === "v50-8") return "grok-first-v50.8-guard-2026-05-16";
+  if (variantValue === "v50-7-prompt-only") {
+    return "prompt-only-no-runtime-guard-2026-05-17";
+  }
+  if (variantValue === "v50-7-quality") {
+    return "grok-first-v50.7-quality-guard-2026-05-17";
+  }
+  if (isV5074CleanQualityVariant(variantValue)) {
+    return "grok-first-v50.7.4-clean-quality-guard-2026-05-20";
+  }
+  return "grok-first-v50.7-speed-hotfix-2026-05-17";
+}
+
+function isV5074CleanQualityVariant(variantValue) {
+  return [
+    "v50-7-4",
+    "v50-7-4-a",
+    "v50-7-4-b",
+    "v50-7-4-c",
+    "v50-7-4-d",
+  ].includes(variantValue);
+}
+
+function expectedOpeningText(variantValue) {
+  return variantValue === "v50-7-prompt-only" ||
+    variantValue === "v50-7-quality" ||
+    isV5074CleanQualityVariant(variantValue)
+    ? "本日はお時間頂きありがとうございます。営業事務の件で、一名派遣の方を検討しています。"
+    : "お電話ありがとうございます。";
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function demoAccessCookie(token) {

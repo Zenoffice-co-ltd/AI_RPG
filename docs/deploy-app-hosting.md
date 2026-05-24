@@ -271,6 +271,12 @@ in-flight App Hosting builds/rollouts before creating a new build. Add
 pnpm deploy:adecco-roleplay:gcloud -- --variant v50-7 --skip-tts-warm --preflight-build
 ```
 
+If the gcloud wrapper times out while polling an operation, do not immediately
+start another deploy. Inspect the exact App Hosting build and rollout in
+Firebase Console or via the App Hosting API. If the build is `READY` and the
+rollout is `SUCCEEDED`, record the wrapper timeout as a command-level warning
+and continue with the route/session smoke for that deployed commit.
+
 To reduce deploy time, batch router/guard/runtime fixes and deploy once per
 targeted remediation batch. Runner-only, docs-only, and unit-test-only changes
 do not need App Hosting deploy; runtime changes under
