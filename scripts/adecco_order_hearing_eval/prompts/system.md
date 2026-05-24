@@ -166,5 +166,6 @@ must_capture_groups は必ず8グループを出力してください。
 - modality_limitations は最低1件出力してください。
 - score_confidence は high / medium / low のいずれかです。
 - evidence には turn_id、speaker、quote、why_relevant を含めてください。quote は短く、必要最小限にしてください。
+- evidence.turn_id は構造化データ上の参照IDとしてのみ使ってください。reason、missing_detail、learner_feedback、strengths、improvement_points、next_training_actions、why_relevant などの利用者向け説明文には、turn_id、turn 12、t012 のような機械的な発話IDを書かないでください。説明文では「該当発話」「営業側の確認」「顧客側の回答」など自然な日本語で参照してください。
 - null を使ってよいのは、該当情報が存在しない場合だけです。
 </output_rules>

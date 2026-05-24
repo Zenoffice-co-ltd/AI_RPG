@@ -13,13 +13,11 @@ function c(name: string) {
 }
 
 const POLL_INTERVAL_MS = 2_000;
-const POLL_TIMEOUT_MS = 90_000;
 
 export function AdeccoEvaluationResultClient({
   sessionId,
   mock,
   visualTest,
-  debug,
   startFailed,
   resultEndpoint = "/api/grok-first-v50-7/evaluation/result",
   retryEndpoint = "/api/grok-first-v50-7/evaluation/retry",
@@ -46,8 +44,8 @@ export function AdeccoEvaluationResultClient({
         }
       : null
   );
-  const [timedOut, setTimedOut] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [pollEpoch, setPollEpoch] = useState(0);
 
   const fetchResult = useCallback(async () => {
     const response = await fetch(
@@ -62,9 +60,8 @@ export function AdeccoEvaluationResultClient({
   }, [resultEndpoint, sessionId]);
 
   useEffect(() => {
-    if (mock || visualTest) return;
+    if (mock || visualTest || startFailed) return;
     let cancelled = false;
-    const startedAt = Date.now();
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const poll = async () => {
@@ -74,10 +71,8 @@ export function AdeccoEvaluationResultClient({
         setResult(next);
         if (
           next.status === "completed" ||
-          next.status === "failed" ||
-          Date.now() - startedAt > POLL_TIMEOUT_MS
+          next.status === "failed"
         ) {
-          setTimedOut(next.status !== "completed" && next.status !== "failed");
           return;
         }
         timer = setTimeout(() => {
@@ -85,10 +80,6 @@ export function AdeccoEvaluationResultClient({
         }, POLL_INTERVAL_MS);
       } catch {
         if (!cancelled) {
-          if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
-            setTimedOut(true);
-            return;
-          }
           timer = setTimeout(() => {
             void poll();
           }, POLL_INTERVAL_MS);
@@ -101,7 +92,7 @@ export function AdeccoEvaluationResultClient({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [fetchResult, mock, visualTest]);
+  }, [fetchResult, mock, visualTest, startFailed, pollEpoch]);
 
   const retry = async () => {
     setRetrying(true);
@@ -112,8 +103,8 @@ export function AdeccoEvaluationResultClient({
         body: JSON.stringify({ sessionId }),
       });
       if (response.ok) {
-        setTimedOut(false);
         setResult({ ok: true, status: "queued", sessionId });
+        setPollEpoch((value) => value + 1);
         return;
       }
       setResult({
@@ -132,7 +123,6 @@ export function AdeccoEvaluationResultClient({
     return (
       <AdeccoEvaluationReportView
         scorecard={result.scorecard}
-        showRawJson={debug || visualTest}
         roleplayPath={roleplayPath}
       />
     );
@@ -187,13 +177,8 @@ export function AdeccoEvaluationResultClient({
               <div className={c("spinner")} />
               <h1 className={c("panelTitle")}>採点中です</h1>
               <p className={c("bodyText")}>
-                Claude 採点が完了すると、このページに評価レポートが表示されます。
+                採点が完了すると、このページに評価レポートが表示されます。採点には4-5分かかりますので、しばらくお待ちください。
               </p>
-              {timedOut ? (
-                <p className={c("bodyText")}>
-                  まだ採点中です。しばらくして更新してください。
-                </p>
-              ) : null}
             </>
           )}
         </section>
