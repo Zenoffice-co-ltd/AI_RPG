@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "checks": {
+    "scoreRange": true,
+    "sixRubrics": true,
+    "rubricMaxPoints": true,
+    "rubricPointRanges": true,
+    "mustCaptureCount": true,
+    "captureCountConsistency": true,
+    "weightedCaptureRatio": true,
+    "atLeastOneCaptured": true,
+    "atLeastOnePartialOrMissed": true,
+    "nextTrainingActions": true,
+    "improvementPoints": true,
+    "validationOk": true,
+    "groundedEvidence": true
+  },
+  "manualReview": false
+}

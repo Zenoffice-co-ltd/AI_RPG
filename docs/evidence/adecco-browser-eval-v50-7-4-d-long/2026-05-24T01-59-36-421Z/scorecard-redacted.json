@@ -1,0 +1,562 @@
+{
+  "evaluationFormat": "adecco_order_hearing_browser_v1",
+  "evaluationProfile": "adecco_order_hearing_eval_v2",
+  "runtimeVersion": "v50-7",
+  "scenarioId": "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+  "report": {
+    "total_score": 78.5,
+    "grade_label": "B",
+    "score_confidence": "high",
+    "rubric_scores": {
+      "coverage": {
+        "reason": "weighted_capture_ratio 0.826に基づき算出。主要18項目のうち14項目を実質的に確認。募集背景、業務内容、就業条件、人選要件、職場環境、決定プロセス、スケジュールを網羅。一方、請求金額、交通費、直接雇用可能性、競合他社状況、独占期間交渉、連絡方法の詳細が未確認。",
+        "max_points": 30,
+        "evidence": [
+          {
+            "why_relevant": "募集背景を明示的に質問",
+            "speaker": "sales",
+            "turn_id": "gfv50-user-1",
+            "quote": "今回の募集背景を教えていただけますか"
+          },
+          {
+            "turn_id": "gfv50-user-4",
+            "quote": "必須経験、歓迎経験、緩和できる条件を分けるとどうなりますか",
+            "why_relevant": "優先順位を構造化して確認",
+            "speaker": "sales"
+          },
+          {
+            "why_relevant": "スケジュールと決定フローを明示的に質問",
+            "speaker": "sales",
+            "quote": "開始時期と決定プロセスを確認します",
+            "turn_id": "gfv50-user-7"
+          }
+        ],
+        "rubric_score_0_to_4": 3.3,
+        "label": "ヒアリング項目の網羅性",
+        "points": 24.8
+      },
+      "hearing_skill": {
+        "reason": "質問が明確で構造化されている。「必須/歓迎/緩和可能」「業務内容/人物面」など論点を整理して聞けている。クローズドとオープンを使い分け、相手の回答を受けて次の質問を組み立てている。一方、第三者話法の活用は限定的で、要約による理解確認も最終盤のみ。現場確認が必要な事項の整理は不十分。",
+        "max_points": 20,
+        "evidence": [
+          {
+            "why_relevant": "構造化された質問で優先順位を引き出している",
+            "speaker": "sales",
+            "quote": "必須経験、歓迎経験、緩和できる条件を分けるとどうなりますか",
+            "turn_id": "gfv50-user-4"
+          },
+          {
+            "quote": "社外との調整や電話、メール対応も任せる想定ですか。人物面ではどんな方が合いますか",
+            "turn_id": "gfv50-user-5",
+            "why_relevant": "業務範囲と人物要件を組み合わせて確認",
+            "speaker": "sales"
+          },
+          {
+            "turn_id": "gfv50-user-9",
+            "quote": "提案時は受発注経験、正確な入力、周囲へ確認できる姿勢を優先します",
+            "why_relevant": "最終盤で要点を要約し合意形成",
+            "speaker": "sales"
+          }
+        ],
+        "rubric_score_0_to_4": 3.5,
+        "label": "ヒアリングスキル",
+        "points": 17.5
+      },
+      "closing": {
+        "reason": "提案期限（今週金曜日）、職場見学、決定プロセスの流れを確認。ネクストアクションを期日ベースで合意。一方、連絡方法（メール/電話/担当者直通）、職場見学の具体的日時調整方法、アデコの強みや他社との違いについての言及なし。",
+        "max_points": 10,
+        "evidence": [
+          {
+            "why_relevant": "具体的な期日を確認",
+            "speaker": "sales",
+            "quote": "候補者の初回提案日はいつがよいでしょうか",
+            "turn_id": "gfv50-user-8"
+          },
+          {
+            "quote": "金曜日までに初回提案し、その後に職場見学の日程調整という進め方でよろしいでしょうか",
+            "turn_id": "gfv50-user-9",
+            "why_relevant": "全体の流れを確認して合意形成",
+            "speaker": "sales"
+          }
+        ],
+        "rubric_score_0_to_4": 2.5,
+        "label": "クロージング",
+        "points": 6.3
+      },
+      "business_behavior": {
+        "reason": "質問が簡潔で、相手の回答を受けて次の質問を組み立てている。傾聴姿勢が伝わる応答あり。一方、相槌や共感表現が少なく、やや機械的な印象。活力や温度感を伝える言い回しは限定的。transcript評価のため、実際の声量・表情・姿勢は評価対象外。",
+        "max_points": 10,
+        "evidence": [
+          {
+            "why_relevant": "相手の発言を受けて理解を示している",
+            "speaker": "sales",
+            "turn_id": "gfv50-user-2",
+            "quote": "退職補充と繁忙期対応の両方ですね"
+          },
+          {
+            "why_relevant": "感謝を伝えているが、全体的に相槌や共感表現は少ない",
+            "speaker": "sales",
+            "quote": "ありがとうございます",
+            "turn_id": "gfv50-user-9"
+          }
+        ],
+        "rubric_score_0_to_4": 3,
+        "label": "商談時の振る舞い",
+        "points": 7.5
+      },
+      "deal_structure": {
+        "reason": "募集背景→業務内容→就業条件→人選要件→職場環境→決定プロセス→スケジュール確認→要約・合意という自然な流れ。売り込み先行ではなく要件理解を軸に進行。一方、契約条件（請求金額・交通費）の確認タイミングが抜けており、全体として若干の論点漏れあり。",
+        "max_points": 10,
+        "evidence": [
+          {
+            "turn_id": "gfv50-user-1",
+            "quote": "まず、今回の募集背景を教えていただけますか",
+            "why_relevant": "背景から入る自然な導入",
+            "speaker": "sales"
+          },
+          {
+            "quote": "金曜日までに初回提案し、その後に職場見学の日程調整という進め方でよろしいでしょうか",
+            "turn_id": "gfv50-user-9",
+            "why_relevant": "最後に全体の流れを確認して終話",
+            "speaker": "sales"
+          }
+        ],
+        "rubric_score_0_to_4": 3.5,
+        "label": "商談の全体構成力",
+        "points": 8.8
+      },
+      "priority_clarity": {
+        "reason": "必須条件（事務経験・正確な入力）、歓迎条件（受発注経験）、緩和可能条件（業界経験不要）を明確に分けて確認。人物面でも「周りに相談しながら進められる方」という優先要件を引き出している。最終提案方針でも優先順位を明示。ただし、開始日の優先度（来月1日 vs 中旬）や、条件が全部満たせない場合の妥協順位までは未確認。",
+        "max_points": 20,
+        "evidence": [
+          {
+            "why_relevant": "営業の構造化質問により必須/歓迎を明確化",
+            "speaker": "client",
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-4",
+            "quote": "必須は事務経験と正確な入力です。受発注経験は歓迎ですが、住宅設備メーカー経験までは必須ではありません"
+          },
+          {
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-5",
+            "quote": "丁寧に確認できる方、周りに相談しながら進められる方が合います",
+            "why_relevant": "人物面の優先要件を確認",
+            "speaker": "client"
+          }
+        ],
+        "rubric_score_0_to_4": 3.5,
+        "label": "優先順位の明確化",
+        "points": 17.5
+      }
+    },
+    "must_capture_summary": {
+      "count_capture_ratio": 0.778,
+      "weighted_coverage_points": 24.8,
+      "partial_count": 0,
+      "captured_count": 14,
+      "weighted_capture_ratio": 0.826,
+      "missed_count": 4
+    },
+    "must_capture_items": [
+      {
+        "capture_level": 1,
+        "client_disclosed_without_prompt": false,
+        "missing_detail": null,
+        "captured_by_sales": true,
+        "weight_points": 2,
+        "id": 1,
+        "evidence": [
+          {
+            "why_relevant": "募集背景を明示的に質問",
+            "speaker": "sales",
+            "quote": "今回の募集背景を教えていただけますか",
+            "turn_id": "gfv50-user-1"
+          },
+          {
+            "why_relevant": "退職補充と繁忙期対応という背景を確認",
+            "speaker": "client",
+            "quote": "退職予定が一名出ており、繁忙期も近いので早めに派遣の方をお願いしたい",
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-1"
+          }
+        ],
+        "judgement": "captured",
+        "label": "募集背景・新規ベンダー検討理由"
+      },
+      {
+        "weight_points": 2,
+        "id": 2,
+        "evidence": [
+          {
+            "why_relevant": "業務内容を具体的に確認",
+            "speaker": "sales",
+            "turn_id": "gfv50-user-2",
+            "quote": "業務内容は受発注入力、納期確認、仕入先への発注あたりが中心でしょうか"
+          },
+          {
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-2",
+            "quote": "受注入力、納期確認、仕入先への発注、社内営業との調整が中心",
+            "why_relevant": "業務の大枠を確認",
+            "speaker": "client"
+          }
+        ],
+        "judgement": "captured",
+        "label": "業務内容の大枠",
+        "capture_level": 1,
+        "client_disclosed_without_prompt": false,
+        "missing_detail": null,
+        "captured_by_sales": true
+      },
+      {
+        "evidence": [
+          {
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-2",
+            "quote": "専用システムで一日五十件前後を処理します",
+            "why_relevant": "1日の業務量を確認",
+            "speaker": "client"
+          }
+        ],
+        "judgement": "captured",
+        "id": 3,
+        "weight_points": 1.5,
+        "label": "1日の流れ",
+        "missing_detail": null,
+        "client_disclosed_without_prompt": false,
+        "capture_level": 1,
+        "captured_by_sales": true
+      },
+      {
+        "evidence": [
+          {
+            "why_relevant": "繁忙サイクルを確認",
+            "speaker": "client",
+            "quote": "残業は通常月十時間ほどで、月末月初は一日三十分から一時間ほど",
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-3"
+          }
+        ],
+        "judgement": "captured",
+        "weight_points": 1.5,
+        "id": 4,
+        "label": "業務量・繁忙サイクル",
+        "client_disclosed_without_prompt": false,
+        "missing_detail": null,
+        "capture_level": 1,
+        "captured_by_sales": true
+      },
+      {
+        "capture_level": 1,
+        "client_disclosed_without_prompt": false,
+        "missing_detail": null,
+        "captured_by_sales": true,
+        "weight_points": 1.5,
+        "id": 5,
+        "evidence": [
+          {
+            "quote": "初月はその社員が横について教えます",
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-6",
+            "why_relevant": "引継ぎ方法と期間を確認",
+            "speaker": "client"
+          }
+        ],
+        "judgement": "captured",
+        "label": "引継ぎ方法・期間"
+      },
+      {
+        "weight_points": 2,
+        "id": 6,
+        "evidence": [
+          {
+            "turn_id": "gfv50-user-7",
+            "quote": "いつまでに開始したいか",
+            "why_relevant": "開始時期を明示的に質問",
+            "speaker": "sales"
+          },
+          {
+            "quote": "できれば来月一日から、遅くとも来月中旬まで",
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-7",
+            "why_relevant": "開始時期を確認",
+            "speaker": "client"
+          }
+        ],
+        "judgement": "captured",
+        "label": "就業開始日・契約期間・更新可能性",
+        "capture_level": 1,
+        "client_disclosed_without_prompt": false,
+        "missing_detail": null,
+        "captured_by_sales": true
+      },
+      {
+        "weight_points": 1.5,
+        "id": 7,
+        "evidence": [
+          {
+            "quote": "勤務時間、曜日、残業、在宅可否をまとめて確認させてください",
+            "turn_id": "gfv50-user-3",
+            "why_relevant": "就業条件を包括的に質問",
+            "speaker": "sales"
+          },
+          {
+            "why_relevant": "就業時間と曜日を確認",
+            "speaker": "client",
+            "quote": "平日の九時から十七時半、土日祝休み",
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-3"
+          }
+        ],
+        "judgement": "captured",
+        "label": "就業曜日・時間・休憩",
+        "capture_level": 1,
+        "client_disclosed_without_prompt": false,
+        "missing_detail": null,
+        "captured_by_sales": true
+      },
+      {
+        "client_disclosed_without_prompt": false,
+        "missing_detail": null,
+        "capture_level": 1,
+        "captured_by_sales": true,
+        "evidence": [
+          {
+            "quote": "残業は通常月十時間ほど。最初は出社で、慣れた後も基本は出社",
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-3",
+            "why_relevant": "残業と在宅可否を確認",
+            "speaker": "client"
+          }
+        ],
+        "judgement": "captured",
+        "weight_points": 1.5,
+        "id": 8,
+        "label": "残業・リモートワーク"
+      },
+      {
+        "client_disclosed_without_prompt": false,
+        "missing_detail": "時給単価、交通費支給条件、上限額を確認していない",
+        "capture_level": 0,
+        "captured_by_sales": false,
+        "evidence": [],
+        "judgement": "missed",
+        "weight_points": 2,
+        "id": 9,
+        "label": "請求金額・交通費"
+      },
+      {
+        "capture_level": 0,
+        "missing_detail": "紹介予定派遣の可能性、直接雇用への切り替え可能性を確認していない",
+        "client_disclosed_without_prompt": false,
+        "captured_by_sales": false,
+        "id": 10,
+        "weight_points": 1,
+        "evidence": [],
+        "judgement": "missed",
+        "label": "直接雇用可能性"
+      },
+      {
+        "label": "人選要件 must/best/priority",
+        "evidence": [
+          {
+            "why_relevant": "優先順位を構造化して確認",
+            "speaker": "sales",
+            "quote": "必須経験、歓迎経験、緩和できる条件を分けるとどうなりますか",
+            "turn_id": "gfv50-user-4"
+          },
+          {
+            "quote": "必須は事務経験と正確な入力。受発注経験は歓迎。業界経験より数字や型番を間違えずに扱えることを重視",
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-4",
+            "why_relevant": "必須/歓迎/優先順位を明確化",
+            "speaker": "client"
+          }
+        ],
+        "judgement": "captured",
+        "weight_points": 2.5,
+        "id": 11,
+        "captured_by_sales": true,
+        "client_disclosed_without_prompt": false,
+        "missing_detail": null,
+        "capture_level": 1
+      },
+      {
+        "label": "資格・OA・業務システム",
+        "weight_points": 1.5,
+        "id": 12,
+        "evidence": [
+          {
+            "quote": "専用システムで一日五十件前後を処理",
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-2",
+            "why_relevant": "業務システムの存在を確認",
+            "speaker": "client"
+          }
+        ],
+        "judgement": "captured",
+        "captured_by_sales": true,
+        "capture_level": 1,
+        "client_disclosed_without_prompt": false,
+        "missing_detail": null
+      },
+      {
+        "evidence": [
+          {
+            "why_relevant": "職場環境を包括的に質問",
+            "speaker": "sales",
+            "quote": "職場環境と雰囲気について、部署人数や教える体制も教えてください",
+            "turn_id": "gfv50-user-6"
+          },
+          {
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-6",
+            "quote": "部署は八名で、同じ業務をしている社員が三名",
+            "why_relevant": "部署構成を確認",
+            "speaker": "client"
+          }
+        ],
+        "judgement": "captured",
+        "weight_points": 1.5,
+        "id": 13,
+        "label": "職場環境",
+        "client_disclosed_without_prompt": false,
+        "missing_detail": null,
+        "capture_level": 1,
+        "captured_by_sales": true
+      },
+      {
+        "label": "職場の雰囲気・指揮命令者・相性",
+        "evidence": [
+          {
+            "quote": "人物面ではどんな方が合いますか",
+            "turn_id": "gfv50-user-5",
+            "why_relevant": "相性を確認",
+            "speaker": "sales"
+          },
+          {
+            "why_relevant": "求める人物像を確認",
+            "speaker": "client",
+            "quote": "丁寧に確認できる方、周りに相談しながら進められる方が合います",
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-5"
+          }
+        ],
+        "judgement": "captured",
+        "weight_points": 2,
+        "id": 14,
+        "captured_by_sales": true,
+        "client_disclosed_without_prompt": false,
+        "missing_detail": null,
+        "capture_level": 1
+      },
+      {
+        "label": "競合他社・独占期間",
+        "weight_points": 1.5,
+        "id": 15,
+        "evidence": [],
+        "judgement": "missed",
+        "captured_by_sales": false,
+        "capture_level": 0,
+        "client_disclosed_without_prompt": false,
+        "missing_detail": "他社への依頼状況、独占期間の設定可能性を確認していない"
+      },
+      {
+        "id": 16,
+        "weight_points": 1.5,
+        "evidence": [
+          {
+            "why_relevant": "職場見学の内容を確認",
+            "speaker": "sales",
+            "quote": "職場見学では業務説明と顔合わせを軽く行う認識でよろしいですか",
+            "turn_id": "gfv50-user-8"
+          },
+          {
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-8",
+            "quote": "業務説明と雰囲気確認が中心",
+            "why_relevant": "職場見学の目的を確認",
+            "speaker": "client"
+          }
+        ],
+        "judgement": "captured",
+        "label": "職場見学",
+        "capture_level": 1,
+        "missing_detail": null,
+        "client_disclosed_without_prompt": false,
+        "captured_by_sales": true
+      },
+      {
+        "label": "決定プロセス・決定権者",
+        "evidence": [
+          {
+            "why_relevant": "決定プロセスを明示的に質問",
+            "speaker": "sales",
+            "quote": "決定プロセスを確認します",
+            "turn_id": "gfv50-user-7"
+          },
+          {
+            "why_relevant": "決定プロセスと決定権者を確認",
+            "speaker": "client",
+            "quote": "まず人事で確認し、その後に現場課長にも見てもらいます。最終的には現場の意見を踏まえて決めます",
+            "turn_id": "gfv50-agent-gfv50_74d_long_20260524T015936421-7"
+          }
+        ],
+        "judgement": "captured",
+        "id": 17,
+        "weight_points": 2,
+        "captured_by_sales": true,
+        "missing_detail": null,
+        "client_disclosed_without_prompt": false,
+        "capture_level": 1
+      },
+      {
+        "captured_by_sales": true,
+        "capture_level": 0.5,
+        "missing_detail": "連絡方法（メール/電話/担当者直通）の詳細、アデコの強みや他社との違いについて未確認",
+        "client_disclosed_without_prompt": false,
+        "label": "連絡方法・スケジュール・ネクストアクション・差別化質問",
+        "id": 18,
+        "weight_points": 2,
+        "evidence": [
+          {
+            "turn_id": "gfv50-user-8",
+            "quote": "候補者の初回提案日はいつがよいでしょうか",
+            "why_relevant": "提案期限を確認",
+            "speaker": "sales"
+          },
+          {
+            "why_relevant": "スケジュールとネクストアクションを確認",
+            "speaker": "sales",
+            "turn_id": "gfv50-user-9",
+            "quote": "金曜日までに初回提案し、その後に職場見学の日程調整という進め方でよろしいでしょうか"
+          }
+        ],
+        "judgement": "partial"
+      }
+    ],
+    "strengths": [
+      "募集背景から業務内容、就業条件、人選要件、職場環境、決定プロセスまで、論理的な順序で網羅的にヒアリングできている",
+      "「必須/歓迎/緩和可能」という構造化された質問で優先順位を明確に引き出している",
+      "業務内容と人物面を組み合わせて確認し、候補者提案に必要な情報を効率的に収集している",
+      "最終盤で要点を要約し、提案期限と今後の流れを具体的に合意形成できている",
+      "相手の回答を受けて次の質問を組み立てる傾聴姿勢が見られる"
+    ],
+    "improvement_points": [
+      "請求金額、交通費支給条件、直接雇用可能性など、契約条件の確認が抜けている",
+      "競合他社への依頼状況、独占期間の設定可能性を確認していない",
+      "連絡方法（メール/電話/担当者直通）の詳細を確認していない",
+      "第三者話法（「他社様では〜」「一般的には〜」）の活用が少なく、相手が答えやすい工夫が不足",
+      "相槌や共感表現が少なく、やや機械的な印象。温度感を伝える言い回しを増やすとよい"
+    ],
+    "next_training_actions": [
+      "契約条件（請求金額・交通費・直接雇用可能性）を必ず確認する練習をする",
+      "競合他社への依頼状況と独占期間の設定可能性を確認する練習をする",
+      "第三者話法（「他社様では〜」「一般的には〜」）を使って相手が答えやすい質問をする練習をする",
+      "連絡方法（メール/電話/担当者直通）の詳細を確認する練習をする",
+      "相槌や共感表現を増やし、温度感を伝える言い回しを練習する"
+    ],
+    "learner_feedback": "全体として、初回オーダーヒアリングとして実務投入可能なレベルです。募集背景から決定プロセスまで論理的な順序で網羅的に確認でき、「必須/歓迎/緩和可能」という構造化された質問で優先順位を明確に引き出せています。特に、業務内容と人物面を組み合わせて確認し、候補者提案に必要な情報を効率的に収集できている点は高く評価できます。\n\n一方で、請求金額・交通費・直接雇用可能性などの契約条件、競合他社状況、連絡方法の詳細が未確認です。これらは候補者提案前に必ず確認すべき項目です。また、第三者話法や相槌・共感表現を増やすことで、相手が答えやすい雰囲気を作り、より深い情報を引き出せるようになります。\n\n次回は、契約条件と競合状況を必ず確認すること、第三者話法を活用して相手が答えやすい質問を心がけることを意識してください。"
+  },
+  "validation": {
+    "ok": true,
+    "status": "success: required and additional top-level keys present; extraction=stripped markdown code fence"
+  },
+  "usage": {
+    "output_tokens": 11043,
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "input_tokens": 9186,
+    "cache_read_input_tokens": 0,
+    "inference_geo": "not_available"
+  }
+}

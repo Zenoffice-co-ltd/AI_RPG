@@ -340,13 +340,6 @@ async function newMockedPage(browserInstance, options = {}) {
   if (!options.actualScore) {
     await context.route(`**${EVAL_START_ENDPOINT}`, async (route) => {
       const body = route.request().postDataJSON();
-      evaluationStartRequests.push(body);
-      writeJson("evaluation-start-body.json", body);
-      writeJson("transcript-browser-turns.json", body.transcript ?? []);
-      writeJson(
-        "transcript-normalized-preview.json",
-        normalizeBrowserTurns(body.transcript ?? [])
-      );
       await route.fulfill({
         status: 202,
         contentType: "application/json",

@@ -1,0 +1,96 @@
+{
+  "ok": true,
+  "status": "PASS",
+  "baseUrl": "http://127.0.0.1:3001",
+  "caseSet": "v50-7-4-d-long-browser-eval",
+  "denominator": "v50-7-4-d long browser evaluation transcript E2E",
+  "outDir": "C:\\dev\\AI_RPG\\_worktrees\\v50_7_4_prompt_d\\out\\adecco_browser_eval_v50_7_4_d_long\\2026-05-24T01-59-36-421Z",
+  "route": "/demo/adecco-roleplay-v50-7-4-d",
+  "apiBase": "/api/grok-first-v50-7-4-d",
+  "resultBasePath": "/demo/adecco-roleplay-v50-7-4-d/result",
+  "actualScore": true,
+  "openResult": true,
+  "resultTimeoutMs": 300000,
+  "results": [
+    {
+      "id": "v50_7_4_d_long_browser_eval",
+      "status": "PASS",
+      "passed": true,
+      "mode": "actual-score",
+      "resultUrl": "http://127.0.0.1:3001/demo/adecco-roleplay-v50-7-4-d/result/gfv50_74d_long_20260524T015936421",
+      "screenshotPath": "C:\\dev\\AI_RPG\\_worktrees\\v50_7_4_prompt_d\\out\\adecco_browser_eval_v50_7_4_d_long\\2026-05-24T01-59-36-421Z\\result-page.png",
+      "htmlPath": "C:\\dev\\AI_RPG\\_worktrees\\v50_7_4_prompt_d\\out\\adecco_browser_eval_v50_7_4_d_long\\2026-05-24T01-59-36-421Z\\result-page-full.html",
+      "scorecardRedactedPath": "C:\\dev\\AI_RPG\\_worktrees\\v50_7_4_prompt_d\\out\\adecco_browser_eval_v50_7_4_d_long\\2026-05-24T01-59-36-421Z\\scorecard-redacted.json",
+      "scorecardSanityPath": "C:\\dev\\AI_RPG\\_worktrees\\v50_7_4_prompt_d\\out\\adecco_browser_eval_v50_7_4_d_long\\2026-05-24T01-59-36-421Z\\scorecard-sanity.json",
+      "scoreSummary": {
+        "total_score": 78.5,
+        "grade_label": "B",
+        "coverage": 24.8,
+        "hearing_skill": 17.5,
+        "priority_clarity": 17.5,
+        "deal_structure": 8.8,
+        "business_behavior": 7.5,
+        "closing": 6.3,
+        "must_capture_summary": {
+          "count_capture_ratio": 0.778,
+          "weighted_coverage_points": 24.8,
+          "partial_count": 0,
+          "captured_count": 14,
+          "weighted_capture_ratio": 0.826,
+          "missed_count": 4
+        }
+      },
+      "sanity": {
+        "ok": true,
+        "checks": {
+          "scoreRange": true,
+          "sixRubrics": true,
+          "rubricMaxPoints": true,
+          "rubricPointRanges": true,
+          "mustCaptureCount": true,
+          "captureCountConsistency": true,
+          "weightedCaptureRatio": true,
+          "atLeastOneCaptured": true,
+          "atLeastOnePartialOrMissed": true,
+          "nextTrainingActions": true,
+          "improvementPoints": true,
+          "validationOk": true,
+          "groundedEvidence": true
+        },
+        "manualReview": false
+      },
+      "visibleChecks": {
+        "ok": true,
+        "required": {
+          "総合評価": true,
+          "6大カテゴリ": true,
+          "ヒアリング達成度": true,
+          "完全取得 / 部分取得 / 未取得": true,
+          "最優先改善領域": true,
+          "必須ヒアリング": true,
+          "学習者へのフィードバック": true,
+          "強みと改善点": true,
+          "Next Training Actions": true,
+          "/100": true
+        },
+        "sensitiveExposure": "PASS"
+      },
+      "noSensitiveArtifacts": {
+        "ok": true,
+        "sensitiveExposure": "PASS"
+      },
+      "expectedSessionId": "gfv50_74d_long_20260524T015936421",
+      "sessionId": "gfv50_74d_long_20260524T015936421",
+      "source": "grok_first_v50_7_browser",
+      "transcriptSummary": {
+        "turnCount": 19,
+        "userTurns": 9,
+        "agentTurns": 10,
+        "firstUserTurn": "本日はよろしくお願いします。まず、今回の募集背景を教えていただけますか。",
+        "firstAgentTurn": "お電話ありがとうございます。本日はよろしくお願いいたします。"
+      },
+      "firstMessageIncluded": true,
+      "firstUserTurnPreserved": true
+    }
+  ]
+}
