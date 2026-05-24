@@ -45,6 +45,7 @@ export function AdeccoEvaluationResultClient({
       : null
   );
   const [retrying, setRetrying] = useState(false);
+  const [pollEpoch, setPollEpoch] = useState(0);
 
   const fetchResult = useCallback(async () => {
     const response = await fetch(
@@ -59,7 +60,7 @@ export function AdeccoEvaluationResultClient({
   }, [resultEndpoint, sessionId]);
 
   useEffect(() => {
-    if (mock || visualTest) return;
+    if (mock || visualTest || startFailed) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -91,7 +92,7 @@ export function AdeccoEvaluationResultClient({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [fetchResult, mock, visualTest]);
+  }, [fetchResult, mock, visualTest, startFailed, pollEpoch]);
 
   const retry = async () => {
     setRetrying(true);
@@ -103,6 +104,7 @@ export function AdeccoEvaluationResultClient({
       });
       if (response.ok) {
         setResult({ ok: true, status: "queued", sessionId });
+        setPollEpoch((value) => value + 1);
         return;
       }
       setResult({

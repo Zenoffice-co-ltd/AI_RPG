@@ -160,6 +160,82 @@ describe("AdeccoEvaluationResultClient v2 mock", () => {
     });
   });
 
+  it("does not poll the result endpoint when evaluation start already failed", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <AdeccoEvaluationResultClient
+        sessionId="start-failed"
+        mock={false}
+        visualTest={false}
+        debug={false}
+        startFailed={true}
+      />
+    );
+
+    expect(screen.getByText("評価を開始できませんでした")).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("restarts polling after a successful retry", async () => {
+    let resultCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("/retry")) {
+        return {
+          ok: true,
+          json: async () => ({ status: "queued" }),
+        };
+      }
+      resultCalls += 1;
+      return {
+        ok: true,
+        json: async () =>
+          resultCalls === 1
+            ? {
+                ok: false,
+                status: "failed",
+                sessionId: "retry-session",
+                error: "評価に失敗しました。",
+                retryAvailable: true,
+              }
+            : {
+                ok: true,
+                status: "completed",
+                sessionId: "retry-session",
+                scorecard: buildScorecard(),
+              },
+      };
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <AdeccoEvaluationResultClient
+        sessionId="retry-session"
+        mock={false}
+        visualTest={false}
+        debug={false}
+        startFailed={false}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("評価を再試行")).toBeTruthy();
+    });
+
+    await act(async () => {
+      screen.getByText("評価を再試行").click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("総合評価")).toBeTruthy();
+    });
+    expect(resultCalls).toBeGreaterThanOrEqual(2);
+  });
+
   it("hides debug-only and machine turn identifiers from visible report text", () => {
     const html = renderToStaticMarkup(
       <AdeccoEvaluationReportView
@@ -180,6 +256,27 @@ describe("AdeccoEvaluationResultClient v2 mock", () => {
     expect(html).not.toContain("Debug");
     expect(html).not.toContain("非言語評価の制約");
     expect(html).not.toContain("Compliance Flags");
+  });
+
+  it("keeps likely business codes while removing isolated turn identifiers", () => {
+    const html = renderToStaticMarkup(
+      <AdeccoEvaluationReportView
+        scorecard={buildScorecard({
+          rubricReason:
+            "型番G12の確認とT012部品の納期は残し、(t012) と turn_id: 12 は表示しません。",
+          missingDetail:
+            "T012部品は確認済みですが、(g12) のような機械IDは不要です。",
+          feedback: "型番G12とT012部品は候補者要件ではなく業務条件として扱えています。",
+          improvement: "turn_id: 12 ではなく該当発話として自然に振り返りましょう。",
+        })}
+      />
+    );
+
+    expect(html).toContain("型番G12");
+    expect(html).toContain("T012部品");
+    expect(html).not.toContain("(t012)");
+    expect(html).not.toContain("(g12)");
+    expect(html).not.toContain("turn_id: 12");
   });
 });
 
