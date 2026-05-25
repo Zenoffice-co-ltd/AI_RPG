@@ -257,6 +257,39 @@ export async function processAdeccoBrowserEvaluationTask(
     });
     const generatedAt = new Date().toISOString();
     const ctx = getAppContext();
+    if (!scoring.validation.ok) {
+      await saveBrowserEvalStatus(payload.sessionId, "failed", {
+        runtimeVersion: payload.runtimeVersion,
+        generatedAt,
+        retryNote: scoring.retryNote,
+        validation: scoring.validation,
+      });
+      await ctx.repositories.sessions.saveArtifact({
+        id: "model_raw_output",
+        kind: "model_raw_output",
+        sessionId: payload.sessionId,
+        createdAt: generatedAt,
+        payload: {
+          evaluationFormat: EVALUATION_FORMAT,
+          evaluationProfile: EVALUATION_PROFILE,
+          runtimeVersion: payload.runtimeVersion,
+          sessionId: scoring.sessionId,
+          conversationId: scoring.conversationId,
+          model: scoring.model,
+          usage: scoring.usage,
+          rawClaudeText: scoring.rawClaudeText,
+          validationJsonText: scoring.validationJsonText,
+          validation: scoring.validation,
+          retryNote: scoring.retryNote,
+          createdAt: generatedAt,
+        },
+      });
+      return {
+        status: "failed" as const,
+        sessionId: payload.sessionId,
+        validation: scoring.validation,
+      };
+    }
     await ctx.repositories.sessions.saveArtifact({
       id: "scorecard",
       kind: "scorecard",
@@ -344,6 +377,21 @@ export async function getAdeccoBrowserEvaluationResult(sessionId: string) {
     scorecard["evaluationFormat"] === EVALUATION_FORMAT &&
     typeof scorecard["report"] === "object"
   ) {
+    const validation = scorecard["validation"];
+    if (
+      validation &&
+      typeof validation === "object" &&
+      "ok" in validation &&
+      validation["ok"] !== true
+    ) {
+      return {
+        ok: false,
+        status: "failed" as const,
+        sessionId,
+        error: SAFE_EVAL_ERROR,
+        retryAvailable: await hasRetryRequest(sessionId),
+      };
+    }
     return {
       ok: true,
       status: "completed" as const,

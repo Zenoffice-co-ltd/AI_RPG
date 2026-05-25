@@ -11,7 +11,6 @@
     "rubric_scores",
     "must_capture_summary",
     "must_capture_items",
-    "must_capture_groups",
     "agent_quality_flags",
     "sales_compliance_flags",
     "modality_limitations",
@@ -79,13 +78,13 @@
     },
     "must_capture_items": {
       "type": "array",
-      "minItems": 18,
-      "maxItems": 18,
+      "minItems": 12,
+      "maxItems": 12,
       "items": { "$ref": "#/$defs/mustCaptureItem" }
     },
     "must_capture_groups": {
       "type": "array",
-      "minItems": 8,
+      "minItems": 0,
       "maxItems": 8,
       "items": {
         "type": "object",
@@ -211,7 +210,7 @@
         "evidence"
       ],
       "properties": {
-        "id": { "type": "integer", "minimum": 1, "maximum": 18 },
+        "id": { "type": "integer", "minimum": 1, "maximum": 12 },
         "label": { "type": "string" },
         "weight_points": {
           "type": ["number", "null"]

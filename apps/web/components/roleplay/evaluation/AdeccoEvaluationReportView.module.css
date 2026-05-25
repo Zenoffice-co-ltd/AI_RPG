@@ -19,7 +19,7 @@
   gap: 24px;
   border-bottom: 1px solid #e6eaf0;
   background: rgba(255, 255, 255, 0.94);
-  padding: 18px 32px;
+  padding: 14px 32px;
 }
 
 .brand {
@@ -49,7 +49,7 @@
   cursor: pointer;
   font-size: 14px;
   font-weight: 700;
-  padding: 10px 16px;
+  padding: 9px 16px;
   text-decoration: none;
 }
 
@@ -66,8 +66,8 @@
 
 .shell {
   margin: 0 auto;
-  max-width: 1280px;
-  padding: 28px 28px 56px;
+  max-width: 1210px;
+  padding: 28px 28px 48px;
   width: 100%;
 }
 
@@ -84,12 +84,12 @@
 .debug {
   background: #ffffff;
   border: 1px solid #e6eaf0;
-  border-radius: 18px;
+  border-radius: 8px;
   box-shadow: 0 14px 40px rgba(15, 38, 73, 0.06);
 }
 
 .scoreCard {
-  padding: 30px;
+  padding: 26px 28px;
 }
 
 .eyebrow {
@@ -102,7 +102,7 @@
   align-items: baseline;
   display: flex;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .scoreValue {
@@ -118,20 +118,22 @@
   font-weight: 700;
 }
 
-.grade {
-  background: #e9f0f9;
-  border: 1px solid #cbd9eb;
+.gradePill {
+  align-self: center;
+  background: #eaf3ff;
+  border: 1px solid #cfe4ff;
   border-radius: 999px;
-  color: #3867a8;
-  font-size: 18px;
-  font-weight: 850;
-  padding: 8px 14px;
+  color: #2f6fb8;
+  font-size: 15px;
+  font-weight: 800;
+  padding: 6px 10px;
 }
 
 .metaCard {
   display: grid;
-  gap: 12px;
-  padding: 24px;
+  align-self: start;
+  gap: 16px;
+  padding: 22px 24px;
 }
 
 .metaRow {
@@ -160,7 +162,7 @@
 }
 
 .card {
-  padding: 20px;
+  padding: 18px;
 }
 
 .cardLabel {
@@ -171,11 +173,9 @@
 
 .cardValue {
   display: block;
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 800;
-  line-height: 1.25;
   margin-top: 8px;
-  overflow-wrap: anywhere;
 }
 
 .cardNote {
@@ -183,7 +183,7 @@
   display: block;
   font-size: 12px;
   font-weight: 700;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .mainGrid {
@@ -195,7 +195,7 @@
 }
 
 .panel {
-  padding: 24px;
+  padding: 22px;
 }
 
 .panelTitle {
@@ -205,6 +205,19 @@
   margin: 0 0 16px;
 }
 
+.panelHeading {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.panelHeading span {
+  color: #637089;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .rubrics {
   display: grid;
   gap: 14px;
@@ -212,7 +225,7 @@
 
 .rubric {
   border: 1px solid #e6eaf0;
-  border-radius: 16px;
+  border-radius: 8px;
   padding: 18px;
 }
 
@@ -266,8 +279,15 @@
 .summaryItem {
   background: #f8fafc;
   border: 1px solid #e6eaf0;
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 14px;
+}
+
+.footnote {
+  color: #637089;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 14px 0 0;
 }
 
 .captureGrid {
@@ -298,30 +318,37 @@
   align-items: start;
   display: grid;
   gap: 8px;
-  grid-template-columns: 72px minmax(120px, 0.75fr) minmax(0, 1fr);
+  grid-template-columns: 62px minmax(96px, 0.55fr) minmax(0, 1fr);
 }
 
 .captureHeader,
 .captureRow {
   display: grid;
-  grid-template-columns: 56px minmax(220px, 1fr) 80px 94px minmax(260px, 1.2fr);
-  gap: 12px;
+  grid-template-columns: minmax(220px, 1fr) 80px 100px minmax(260px, 1.45fr);
+  gap: 10px;
   align-items: center;
 }
 
 .captureHeader {
-  color: #637089;
-  font-size: 13px;
+  background: #0f2649;
+  border-radius: 8px 8px 0 0;
+  color: #ffffff;
+  font-size: 12px;
   font-weight: 800;
-  padding: 0 14px;
+  padding: 12px 14px;
 }
 
 .captureRow {
   background: #ffffff;
   border: 1px solid #e6eaf0;
-  border-radius: 14px;
+  border-radius: 0;
   font-size: 14px;
-  padding: 13px 14px;
+  margin-top: -8px;
+  padding: 12px 14px;
+}
+
+.captureRow:nth-child(even) {
+  background: #fffdf7;
 }
 
 .badge {
@@ -357,26 +384,28 @@
 
 .numbered {
   display: grid;
-  gap: 10px;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .numberedItem {
   align-items: start;
-  display: grid;
-  grid-template-columns: 36px 1fr;
-  gap: 12px;
+  border: 1px solid #e6eaf0;
+  border-radius: 8px;
+  display: block;
+  min-height: 116px;
+  padding: 18px;
 }
 
 .number {
   align-items: center;
-  background: #0f2649;
-  border-radius: 10px;
-  color: #ffffff;
+  color: #1f7a4f;
   display: inline-flex;
   font-size: 13px;
   font-weight: 800;
-  height: 32px;
+  height: 24px;
   justify-content: center;
+  margin-bottom: 8px;
   width: 32px;
 }
 
@@ -449,6 +478,7 @@
 
   .captureRow {
     grid-template-columns: 1fr;
+    margin-top: 0;
   }
 
   .groupGrid {
@@ -456,6 +486,10 @@
   }
 
   .groupItem {
+    grid-template-columns: 1fr;
+  }
+
+  .numbered {
     grid-template-columns: 1fr;
   }
 }
