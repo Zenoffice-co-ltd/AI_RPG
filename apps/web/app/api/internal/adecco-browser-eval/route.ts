@@ -3,6 +3,7 @@ import { getAppContext } from "@/server/appContext";
 import { processAdeccoBrowserEvaluationTask } from "@/server/use-cases/adeccoBrowserEval";
 
 export const runtime = "nodejs";
+export const maxDuration = 600;
 
 export async function POST(request: NextRequest) {
   try {

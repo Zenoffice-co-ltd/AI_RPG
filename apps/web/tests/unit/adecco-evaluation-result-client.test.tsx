@@ -28,13 +28,14 @@ describe("AdeccoEvaluationResultClient v2 mock", () => {
     );
 
     expect(html).toContain("総合評価");
+    expect(html).toContain("住宅設備メーカー営業事務1名");
     expect(html).toContain("6大カテゴリ");
     expect(html).toContain("ヒアリング達成度");
     expect(html).toContain("完全取得 / 部分取得 / 未取得");
     expect(html).toContain("最優先改善領域");
     expect(html).toContain("ヒアリング項目の網羅性");
     expect(html).toContain("必須ヒアリング");
-    expect(html).toContain("Next Training Actions");
+    expect(html).toContain("次回トレーニングアクション");
     expect(html).not.toContain("非言語評価の制約");
     expect(html).not.toContain("Compliance Flags");
     expect(html).not.toContain("Debug");

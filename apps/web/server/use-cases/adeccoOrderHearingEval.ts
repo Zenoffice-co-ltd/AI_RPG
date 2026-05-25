@@ -14,14 +14,16 @@ const ANTHROPIC_SECRET_NAME = "anthropic-api-key-default";
 const GMAIL_SERVICE_ACCOUNT_SECRET_NAME = "gmail-client-secret";
 const MODEL = "claude-sonnet-4-5-20250929";
 const DEFAULT_MAX_TOKENS = 6000;
-const RETRY_MAX_TOKENS = 12000;
+const RETRY_MAX_TOKENS = 24000;
+const DEFAULT_CLAUDE_TIMEOUT_MS = 540_000;
+const MIN_CLAUDE_TIMEOUT_MS = 60_000;
+const MAX_CLAUDE_TIMEOUT_MS = 540_000;
 
 const REQUIRED_TOP_LEVEL_KEYS = [
   "schema_version",
   "total_score",
   "rubric_scores",
   "must_capture_items",
-  "must_capture_groups",
   "modality_limitations",
   "sales_compliance_flags",
   "next_training_actions",
@@ -33,7 +35,20 @@ const ADDITIONAL_TOP_LEVEL_KEYS = [
   "score_confidence",
   "agent_quality_flags",
   "learner_feedback",
+  "must_capture_groups",
 ] as const;
+
+export function getAdeccoEvalClaudeTimeoutMs() {
+  const raw = process.env["ADECCO_EVAL_CLAUDE_TIMEOUT_MS"];
+  const parsed = raw ? Number.parseInt(raw, 10) : DEFAULT_CLAUDE_TIMEOUT_MS;
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_CLAUDE_TIMEOUT_MS;
+  }
+  return Math.min(
+    MAX_CLAUDE_TIMEOUT_MS,
+    Math.max(MIN_CLAUDE_TIMEOUT_MS, parsed)
+  );
+}
 
 export type NormalizedTurn = {
   turn_id: string;
@@ -600,7 +615,7 @@ export function renderDynamicReportHtml(input: {
   const capturedCount = asReportNumber(summary["captured_count"]);
   const partialCount = asReportNumber(summary["partial_count"]);
   const missedCount = asReportNumber(summary["missed_count"]);
-  const totalItems = capturedCount + partialCount + missedCount || asReportArray(input.report["must_capture_items"]).length || 18;
+  const totalItems = capturedCount + partialCount + missedCount || asReportArray(input.report["must_capture_items"]).length || 12;
   const sessionTime = formatSessionTime(input.metadata.startedAt, input.metadata.endedAt);
   let html = input.template;
 
@@ -610,7 +625,7 @@ export function renderDynamicReportHtml(input: {
   html = replaceFirst(html, /<div style="margin-top:14px;display:inline-block;background-color:#1a3a6b;color:#ffffff;padding:6px 18px;border-radius:20px;font-size:14px;font-weight:600;letter-spacing:1px;">.*?<\/div>/s, `<div style="margin-top:14px;display:inline-block;background-color:#1a3a6b;color:#ffffff;padding:6px 18px;border-radius:20px;font-size:14px;font-weight:600;letter-spacing:1px;">${htmlEscape(grade)}</div>`);
   html = replaceFirst(html, /<span style="color:#0f2649;font-weight:700;">58%<\/span>/, `<span style="color:#0f2649;font-weight:700;">${weightedRatio}%</span>`);
   html = replaceFirst(html, /<div style="background:linear-gradient\(90deg,#1a3a6b,#3d6bb3\);width:58%;height:100%;"><\/div>/, `<div style="background:linear-gradient(90deg,#1a3a6b,#3d6bb3);width:${weightedRatio}%;height:100%;"></div>`);
-  html = replaceFirst(html, /<span style="color:#0f2649;font-weight:700;">50%（9\/18）<\/span>/, `<span style="color:#0f2649;font-weight:700;">${countRatio}%（${capturedCount}/${totalItems}）</span>`);
+  html = replaceFirst(html, /<span style="color:#0f2649;font-weight:700;">50%（\d+\/\d+）<\/span>/, `<span style="color:#0f2649;font-weight:700;">${countRatio}%（${capturedCount}/${totalItems}）</span>`);
   html = replaceFirst(html, /<div style="background:linear-gradient\(90deg,#1a3a6b,#3d6bb3\);width:50%;height:100%;"><\/div>/, `<div style="background:linear-gradient(90deg,#1a3a6b,#3d6bb3);width:${countRatio}%;height:100%;"></div>`);
   html = replaceFirst(html, /<div style="font-size:18px;font-weight:700;color:#1f7a4f;">9<\/div>/, `<div style="font-size:18px;font-weight:700;color:#1f7a4f;">${capturedCount}</div>`);
   html = replaceFirst(html, /<div style="font-size:18px;font-weight:700;color:#b8761f;">0<\/div>/, `<div style="font-size:18px;font-weight:700;color:#b8761f;">${partialCount}</div>`);
@@ -618,7 +633,7 @@ export function renderDynamicReportHtml(input: {
   html = replaceBetween(
     html,
     '<tr><td style="padding:0 40px;">',
-    '<!-- ===== Must Capture 18項目 ===== -->',
+    '<!-- ===== Must Capture 12項目 ===== -->',
     `\n${renderRubricCards(input.report)}\n\n</td></tr>\n\n`
   );
   html = replaceBetween(
@@ -676,21 +691,36 @@ async function callClaude(input: {
   userPrompt: string;
   maxTokens: number;
 }): Promise<ClaudeResult> {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-api-key": input.apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: input.maxTokens,
-      temperature: 0,
-      system: input.systemPrompt,
-      messages: [{ role: "user", content: input.userPrompt }],
-    }),
-  });
+  const timeoutMs = getAdeccoEvalClaudeTimeoutMs();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+
+  try {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": input.apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: input.maxTokens,
+        temperature: 0,
+        system: input.systemPrompt,
+        messages: [{ role: "user", content: input.userPrompt }],
+      }),
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`Claude API timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const body = (await response.json().catch(() => null)) as
     | Record<string, unknown>

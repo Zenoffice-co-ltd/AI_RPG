@@ -3,6 +3,8 @@ import { analyzeSessionRequestSchema } from "@top-performer/domain";
 import { getAppContext } from "./appContext";
 import type { NormalizedTurn } from "./use-cases/adeccoOrderHearingEval";
 
+export const ADECCO_BROWSER_EVAL_DISPATCH_DEADLINE_SECONDS = 600;
+
 export type AdeccoEvaluationTaskPayload = {
   sessionId: string;
   conversationId: string | null;
@@ -77,6 +79,7 @@ export async function enqueueSessionAnalysis(sessionId: string) {
 async function enqueueJsonTask(input: {
   url: string;
   payload: unknown;
+  dispatchDeadlineSeconds?: number;
 }) {
   const {
     env: {
@@ -108,6 +111,9 @@ async function enqueueJsonTask(input: {
       },
       body: JSON.stringify({
         task: {
+          ...(input.dispatchDeadlineSeconds
+            ? { dispatchDeadline: `${input.dispatchDeadlineSeconds}s` }
+            : {}),
           httpRequest: {
             httpMethod: "POST",
             url: input.url,
@@ -151,5 +157,6 @@ export async function enqueueAdeccoBrowserEvaluationTask(
   return enqueueJsonTask({
     url: `${env.APP_BASE_URL}/api/internal/adecco-browser-eval`,
     payload,
+    dispatchDeadlineSeconds: ADECCO_BROWSER_EVAL_DISPATCH_DEADLINE_SECONDS,
   });
 }

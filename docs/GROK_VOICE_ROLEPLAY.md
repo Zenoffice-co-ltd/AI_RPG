@@ -119,8 +119,8 @@ prompt-only prompt. `/demo/adecco-roleplay-v50-7-quality` and
 `latencyMode=guarded_tail_streaming`, `streamAudioBeforeDone=true`,
 `guardedStreamingEnabled=true`, `tailGuardNormalHoldMs=300`,
 `tailGuardRiskHoldMs=800`, `tailGuardMaxHoldMs=1000`,
-`fullTurnBufferEnabled=false`, and browser evaluation is disabled for this
-route. `boundedRewriteEnabled=false`: normal sales remains Grok-generated and
+`fullTurnBufferEnabled=false`, and browser evaluation remains disabled for this
+quality-guard route. `boundedRewriteEnabled=false`: normal sales remains Grok-generated and
 is not rewritten into deterministic safe-body text. The session first message
 must be audible on this route: after
 `session.ready`, the client fetches cached static opening audio and records
@@ -483,11 +483,19 @@ call Claude, Gmail, ElevenLabs webhook, or Cloud Run production smoke.
 Live browser evaluation flow:
 roleplay end → `/api/grok-first-v50-7/evaluation/start` → Cloud Tasks →
 `/api/internal/adecco-browser-eval` → Firestore artifacts → result polling.
+The clean-quality route `/demo/adecco-roleplay-v50-7-4` and its production
+alias `/demo/adecco-roleplay-v50-7-4-d` use the same browser-evaluation
+delivery path on roleplay end. They keep their own conversation route
+`/api/grok-first-v50-7-4/*`; only the post-roleplay evaluation delivery reuses
+the v50-7 browser scoring API/result page.
 The browser transcript captured in the roleplay UI is the scoring source of
 truth. Evaluation start fails closed unless the payload contains at least one
 non-empty sales-side (`user`/`sales`) turn and at least one non-empty
 client-side (`agent`/`client`) turn; Cloud Logging reconstruction is diagnostic
 evidence only and is not sufficient for scoring when sales STT text is absent.
+Browser scoring uses a 10-minute Cloud Tasks dispatch deadline and a 9-minute
+Claude request timeout by default, so 30-minute roleplay transcripts have a
+safe margin before infrastructure timeout.
 When transcript preview logging is explicitly enabled, `stt.completed` may carry
 a sanitized `sttTextPreview` for troubleshooting, but production-default logs
 keep transcript text redacted.

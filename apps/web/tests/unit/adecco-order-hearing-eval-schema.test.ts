@@ -21,12 +21,17 @@ describe("Adecco order hearing eval v2 prompt bundle", () => {
     });
     expect(schema.required).toEqual(
       expect.arrayContaining([
-        "must_capture_groups",
+        "must_capture_items",
         "next_training_actions",
         "modality_limitations",
         "sales_compliance_flags",
       ])
     );
+    const mustCaptureItems = schema.properties?.["must_capture_items"];
+    expect(mustCaptureItems).toMatchObject({
+      minItems: 12,
+      maxItems: 12,
+    });
   });
 
   it("captures customer criteria, compliance, and modality limitations", () => {
@@ -41,9 +46,8 @@ describe("Adecco order hearing eval v2 prompt bundle", () => {
     expect(system).toContain("年齢・性別・容姿");
     expect(system).toContain("直接評価しない");
     expect(system).toContain("現場課長・営業管理課などへの確認");
-    expect(system).toContain("must_capture_groups は必ず8グループ");
-    expect(system).toContain("evidence.turn_id は構造化データ上の参照ID");
-    expect(system).toContain("利用者向け説明文には");
-    expect(system).toContain("turn_id、turn 12、t012");
+    expect(system).toContain("住宅設備メーカー営業事務1名");
+    expect(system).toContain("必須ヒアリング12項目");
+    expect(system).toContain("連絡方法・スケジュール・ネクストステップ");
   });
 });

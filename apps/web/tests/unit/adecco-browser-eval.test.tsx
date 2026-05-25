@@ -289,6 +289,43 @@ describe("v50.7 browser evaluation APIs", () => {
     expect(JSON.stringify(responseBody)).not.toContain("provider exploded");
   });
 
+  it("worker treats invalid scoring JSON as failed instead of a completed empty report", async () => {
+    scoringMock.mockResolvedValueOnce({
+      sessionId: "gv_sess_eval",
+      conversationId: null,
+      scenarioId: "staffing_order_hearing_adecco_manufacturer_busy_manager_medium",
+      model: "claude-sonnet-4-5-20250929",
+      usage: { input_tokens: 20, output_tokens: 12000 },
+      validation: {
+        ok: false,
+        status: "failed: json_parse_error=Unterminated string in JSON",
+      },
+      retryNote: "retried once with max_tokens=24000 after truncated JSON",
+      reportJson: {},
+      rawClaudeText: "{\"total_score\":88",
+      validationJsonText: "{\"total_score\":88",
+      startedAt: "2026-05-16T00:00:00.000Z",
+      endedAt: "2026-05-16T00:01:00.000Z",
+    });
+    const { POST } = await import("../../app/api/internal/adecco-browser-eval/route");
+    const response = await POST(workerRequest({ secret: "queue-secret" }));
+    const body = (await response.json()) as { status?: string };
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe("failed");
+    expect(savedArtifacts.get("gv_sess_eval:scorecard")).toBeUndefined();
+    expect(savedArtifacts.get("gv_sess_eval:model_raw_output")?.payload).toMatchObject({
+      validation: {
+        ok: false,
+        status: "failed: json_parse_error=Unterminated string in JSON",
+      },
+    });
+    expect(savedArtifacts.get("gv_sess_eval:adecco_eval_status")?.payload).toMatchObject({
+      status: "failed",
+      retryNote: "retried once with max_tokens=24000 after truncated JSON",
+    });
+  });
+
   it("result API rejects invalid session id and missing access", async () => {
     const { GET } = await import(
       "../../app/api/grok-first-v50-7/evaluation/result/route"
@@ -364,6 +401,31 @@ describe("v50.7 browser evaluation APIs", () => {
       await GET(resultRequest("gv_sess_eval"))
     ).json()) as { status?: string };
     expect(completed.status).toBe("completed");
+
+    savedArtifacts.set("gv_sess_eval:scorecard", {
+      id: "scorecard",
+      kind: "scorecard",
+      sessionId: "gv_sess_eval",
+      createdAt: "2026-05-16T00:01:00.000Z",
+      payload: {
+        evaluationFormat: "adecco_order_hearing_browser_v1",
+        scenarioId: "scenario",
+        sessionId: "gv_sess_eval",
+        conversationId: null,
+        startedAt: "2026-05-16T00:00:00.000Z",
+        endedAt: "2026-05-16T00:01:00.000Z",
+        model: "claude-sonnet-4-5-20250929",
+        usage: {},
+        validation: { ok: false, status: "failed: json_parse_error" },
+        retryNote: "retried once with max_tokens=24000 after truncated JSON",
+        report: {},
+        generatedAt: "2026-05-16T00:01:00.000Z",
+      },
+    });
+    const invalidCompleted = (await (
+      await GET(resultRequest("gv_sess_eval"))
+    ).json()) as { status?: string };
+    expect(invalidCompleted.status).toBe("failed");
   });
 
   it("accepts v51 browser evaluation source and records runtime metadata", async () => {
