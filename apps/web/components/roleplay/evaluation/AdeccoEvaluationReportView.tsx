@@ -70,11 +70,8 @@ export function AdeccoEvaluationReportView({
         </a>
         <div className={c("title")}>AIロープレ評価レポート</div>
         <div className={c("actions")}>
-          <a className={c("buttonSecondary")} href={roleplayPath}>
-            一覧に戻る
-          </a>
           <a className={c("button")} href={roleplayPath}>
-            Transcript
+            再実施
           </a>
         </div>
       </header>
